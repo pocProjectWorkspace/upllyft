@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{title}}</title>
+  <style>{{styles}}</style>
+</head>
+<body>
+  <!-- HEADER -->
+  <div class="worksheet-header">
+    <div class="header-left">
+      <div class="worksheet-title">{{title}}</div>
+      <div class="worksheet-subtitle">Daily Routine &bull; {{difficultyLabel}} Level</div>
+    </div>
+    <div class="header-meta">
+      <div class="field"><span class="field-label">Date:</span> {{date}}</div>
+      <div class="field"><span class="field-label">Setting:</span> {{setting}}</div>
+      <div class="field"><span class="field-label">Day Type:</span> {{dayType}}</div>
+      <div class="meta-tags">
+        {{#each domainTags}}
+        <span class="meta-tag">{{this}}</span>
+        {{/each}}
+      </div>
+    </div>
+  </div>
+
+  <!-- FILL-IN FIELDS -->
+  <div class="fill-fields">
+    <div class="fill-field">Child's Name: <span class="line"></span></div>
+    <div class="fill-field">Facilitator: <span class="line"></span></div>
+    <div class="fill-field">Date: <span class="line"></span></div>
+  </div>
+
+  <!-- INSTRUCTIONS -->
+  <div class="instructions-box">
+    <h2>How to Use This Daily Routine</h2>
+    <p>{{instructions}}</p>
+  </div>
+
+  <!-- DAILY SECTIONS: MORNING, AFTERNOON, EVENING -->
+  {{#each periods}}
+  <div class="routine-period routine-period-{{this.periodId}}">
+    <div class="period-header period-header-{{this.periodId}}">
+      <div class="period-icon">{{this.icon}}</div>
+      <div class="period-title">{{this.title}}</div>
+      <div class="period-time-range">{{this.startTime}} &ndash; {{this.endTime}}</div>
+    </div>
+
+    <div class="time-blocks">
+      {{#each this.blocks}}
+      <div class="time-block">
+        <div class="time-block-time">
+          <div class="block-start">{{this.startTime}}</div>
+          <div class="block-end">{{this.endTime}}</div>
+        </div>
+        <div class="time-block-content">
+          <div class="time-block-header">
+            <div class="time-block-name">{{this.name}}</div>
+            <span class="activity-type-badge badge-{{this.activityType}}">{{this.activityTypeLabel}}</span>
+          </div>
+          {{#if this.description}}
+          <div class="time-block-description">{{this.description}}</div>
+          {{/if}}
+          {{#if this.steps}}
+          <div class="time-block-steps">
+            {{#each this.steps}}
+            <div class="block-step">
+              <div class="block-step-checkbox"><div class="checkbox-box"></div></div>
+              <div class="block-step-text">{{this}}</div>
+            </div>
+            {{/each}}
+          </div>
+          {{/if}}
+          {{#if this.transitionWarning}}
+          <div class="transition-warning">
+            <span class="transition-warning-icon">&#9888;</span>
+            <span class="transition-warning-text">{{this.transitionWarning}}</span>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/each}}
+
+  <!-- SENSORY BREAKS -->
+  {{#if sensoryBreaks.length}}
+  <div class="sensory-breaks-section">
+    <h2>Sensory Break Menu</h2>
+    <p class="sensory-intro">{{sensoryBreaksIntro}}</p>
+    <div class="sensory-break-cards">
+      {{#each sensoryBreaks}}
+      <div class="sensory-break-card">
+        <div class="sensory-break-icon">{{this.icon}}</div>
+        <div class="sensory-break-content">
+          <div class="sensory-break-name">{{this.name}}</div>
+          <div class="sensory-break-desc">{{this.description}}</div>
+          <div class="sensory-break-duration">{{this.duration}}</div>
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- ACTIVITY TYPE LEGEND -->
+  <div class="type-legend">
+    <div class="legend-title">Activity Types</div>
+    <div class="legend-items">
+      <div class="legend-item"><span class="activity-type-badge badge-routine">Routine</span></div>
+      <div class="legend-item"><span class="activity-type-badge badge-therapeutic">Therapeutic</span></div>
+      <div class="legend-item"><span class="activity-type-badge badge-play">Play</span></div>
+      <div class="legend-item"><span class="activity-type-badge badge-rest">Rest</span></div>
+      <div class="legend-item"><span class="activity-type-badge badge-transition">Transition</span></div>
+    </div>
+  </div>
+
+  <!-- TIPS -->
+  {{#if tips.length}}
+  <div class="tips-section">
+    <h2>Tips for Success</h2>
+    <ul>
+      {{#each tips}}
+      <li>{{this}}</li>
+      {{/each}}
+    </ul>
+  </div>
+  {{/if}}
+
+  <!-- NOTES -->
+  <div class="notes-section">
+    <h2>Observation Notes</h2>
+    <p class="notes-prompt">{{notesPrompt}}</p>
+    <div class="notes-lines">
+      <div class="line"></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="worksheet-footer">
+    <div class="footer-brand">
+      <span class="footer-text">Generated by Upllyft &bull; upllyft.com &bull; AI-powered learning resources for the neurodivergent community</span>
+    </div>
+  </div>
+</body>
+</html>

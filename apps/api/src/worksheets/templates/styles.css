@@ -1,0 +1,430 @@
+/* Upllyft Worksheet — Print-optimized stylesheet */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+:root {
+  --mint: #3ECFB4;
+  --teal: #0D9488;
+  --teal-dark: #0F766E;
+  --teal-light: #CCFBF1;
+  --bg-warm: #FEFCF8;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --border-light: #E2E8F0;
+  --accent-orange: #F59E0B;
+  --accent-blue: #3B82F6;
+  --accent-purple: #8B5CF6;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--text-primary);
+  background: white;
+  font-size: 11pt;
+  line-height: 1.5;
+}
+
+/* ─── Header ─────────────────────────────────── */
+
+.worksheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 3px solid var(--teal);
+  margin-bottom: 16px;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.header-logo {
+  height: 32px;
+  margin-bottom: 8px;
+}
+
+.worksheet-title {
+  font-size: 20pt;
+  font-weight: 800;
+  color: var(--teal-dark);
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.worksheet-subtitle {
+  font-size: 10pt;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.header-meta {
+  text-align: right;
+  font-size: 9pt;
+  color: var(--text-secondary);
+}
+
+.header-meta .field {
+  margin-bottom: 2px;
+}
+
+.header-meta .field-label {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.meta-tags {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.meta-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 8pt;
+  font-weight: 700;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+}
+
+/* ─── Fill-in fields ─────────────────────────── */
+
+.fill-fields {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: #F8FAFC;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+}
+
+.fill-field {
+  font-size: 9pt;
+  color: var(--text-secondary);
+}
+
+.fill-field .line {
+  display: inline-block;
+  min-width: 120px;
+  border-bottom: 1px solid var(--text-secondary);
+  margin-left: 4px;
+}
+
+/* ─── Instructions box ───────────────────────── */
+
+.instructions-box {
+  background: var(--teal-light);
+  border-left: 4px solid var(--teal);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 20px;
+}
+
+.instructions-box h2 {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--teal-dark);
+  margin-bottom: 4px;
+}
+
+.instructions-box p {
+  font-size: 10pt;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* ─── Sections ───────────────────────────────── */
+
+.section {
+  margin-bottom: 20px;
+  page-break-inside: avoid;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.section-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--mint), var(--teal));
+  color: white;
+  font-weight: 800;
+  font-size: 13pt;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-size: 14pt;
+  font-weight: 700;
+  color: var(--teal-dark);
+}
+
+.section-description {
+  font-size: 9pt;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  padding-left: 36px;
+}
+
+/* ─── Activity Cards ─────────────────────────── */
+
+.activity-card {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  margin-left: 36px;
+  page-break-inside: avoid;
+  background: white;
+}
+
+.activity-image {
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #F1F5F9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.activity-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.activity-image-placeholder {
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--teal-light), #E0F2FE);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8pt;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 8px;
+}
+
+.activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-name {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.activity-instructions {
+  font-size: 9.5pt;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.activity-materials {
+  font-size: 8.5pt;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.activity-materials strong {
+  color: var(--text-primary);
+}
+
+.activity-rationale {
+  font-size: 8pt;
+  color: var(--teal-dark);
+  font-style: italic;
+  margin-bottom: 4px;
+  padding: 4px 8px;
+  background: var(--teal-light);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.adaptations {
+  display: flex;
+  gap: 8px;
+  font-size: 8pt;
+  margin-top: 4px;
+}
+
+.adaptation {
+  flex: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+.adaptation-easier {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.adaptation-harder {
+  background: #EDE9FE;
+  color: #5B21B6;
+}
+
+.adaptation-label {
+  font-weight: 700;
+  display: block;
+  margin-bottom: 1px;
+}
+
+/* ─── Tips Section ───────────────────────────── */
+
+.tips-section {
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  page-break-inside: avoid;
+}
+
+.tips-section h2 {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #92400E;
+  margin-bottom: 6px;
+}
+
+.tips-section ul {
+  list-style: none;
+  padding: 0;
+}
+
+.tips-section li {
+  font-size: 9.5pt;
+  padding: 2px 0 2px 18px;
+  position: relative;
+  color: var(--text-primary);
+}
+
+.tips-section li::before {
+  content: '\2713';
+  position: absolute;
+  left: 0;
+  color: var(--accent-orange);
+  font-weight: 700;
+}
+
+/* ─── Notes Section ──────────────────────────── */
+
+.notes-section {
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  page-break-inside: avoid;
+}
+
+.notes-section h2 {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.notes-prompt {
+  font-size: 9pt;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+.notes-lines {
+  min-height: 60px;
+}
+
+.notes-lines .line {
+  border-bottom: 1px solid var(--border-light);
+  height: 22px;
+}
+
+/* ─── Footer ─────────────────────────────────── */
+
+.worksheet-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-light);
+  margin-top: 16px;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-logo {
+  height: 18px;
+  opacity: 0.6;
+}
+
+.footer-text {
+  font-size: 7.5pt;
+  color: var(--text-secondary);
+}
+
+.footer-qr {
+  text-align: right;
+}
+
+.footer-qr img {
+  width: 48px;
+  height: 48px;
+}
+
+/* ─── Print Overrides ────────────────────────── */
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .section,
+  .activity-card,
+  .tips-section,
+  .notes-section {
+    page-break-inside: avoid;
+  }
+
+  .worksheet-header {
+    page-break-after: avoid;
+  }
+}

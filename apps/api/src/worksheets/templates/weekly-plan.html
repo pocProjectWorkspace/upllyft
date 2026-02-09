@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{title}}</title>
+  <style>{{styles}}</style>
+</head>
+<body>
+  <!-- HEADER -->
+  <div class="worksheet-header">
+    <div class="header-left">
+      <div class="worksheet-title">{{title}}</div>
+      <div class="worksheet-subtitle">Weekly Plan &bull; {{difficultyLabel}} Level</div>
+    </div>
+    <div class="header-meta">
+      <div class="field"><span class="field-label">Week of:</span> {{weekOf}}</div>
+      <div class="field"><span class="field-label">Setting:</span> {{setting}}</div>
+      <div class="meta-tags">
+        {{#each domainTags}}
+        <span class="meta-tag">{{this}}</span>
+        {{/each}}
+      </div>
+    </div>
+  </div>
+
+  <!-- FILL-IN FIELDS -->
+  <div class="fill-fields">
+    <div class="fill-field">Child's Name: <span class="line"></span></div>
+    <div class="fill-field">Facilitator: <span class="line"></span></div>
+    <div class="fill-field">Week Starting: <span class="line"></span></div>
+  </div>
+
+  <!-- WEEKLY GOAL BANNER -->
+  {{#if weeklyGoal}}
+  <div class="weekly-goal-banner">
+    <div class="goal-icon">&#9733;</div>
+    <div class="goal-content">
+      <div class="goal-label">This Week's Goal</div>
+      <div class="goal-text">{{weeklyGoal}}</div>
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- INSTRUCTIONS -->
+  <div class="instructions-box">
+    <h2>How to Use This Weekly Plan</h2>
+    <p>{{instructions}}</p>
+  </div>
+
+  <!-- WEEKLY GRID -->
+  <div class="weekly-grid">
+    {{#each days}}
+    <div class="day-column">
+      <div class="day-header day-header-{{this.dayIndex}}">
+        <div class="day-name">{{this.dayName}}</div>
+        {{#if this.theme}}
+        <div class="day-theme">{{this.theme}}</div>
+        {{/if}}
+      </div>
+      <div class="day-activities">
+        {{#each this.activities}}
+        <div class="day-activity-card">
+          <div class="day-activity-checkbox">
+            <div class="checkbox-box"></div>
+          </div>
+          <div class="day-activity-content">
+            <div class="day-activity-name">{{this.name}}</div>
+            {{#if this.description}}
+            <div class="day-activity-desc">{{this.description}}</div>
+            {{/if}}
+            <div class="day-activity-tags">
+              {{#each this.domains}}
+              <span class="domain-tag">{{this}}</span>
+              {{/each}}
+            </div>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+
+  <!-- PROGRESS TRACKING -->
+  {{#if progressTracking}}
+  <div class="progress-section">
+    <h2>Weekly Progress Tracker</h2>
+    <div class="progress-grid">
+      {{#each progressTracking.goals}}
+      <div class="progress-row">
+        <div class="progress-goal">{{this.goal}}</div>
+        <div class="progress-checkboxes">
+          <div class="progress-day-box"><span class="day-abbr">M</span><div class="checkbox-box"></div></div>
+          <div class="progress-day-box"><span class="day-abbr">T</span><div class="checkbox-box"></div></div>
+          <div class="progress-day-box"><span class="day-abbr">W</span><div class="checkbox-box"></div></div>
+          <div class="progress-day-box"><span class="day-abbr">T</span><div class="checkbox-box"></div></div>
+          <div class="progress-day-box"><span class="day-abbr">F</span><div class="checkbox-box"></div></div>
+          <div class="progress-day-box"><span class="day-abbr">S</span><div class="checkbox-box"></div></div>
+          <div class="progress-day-box"><span class="day-abbr">S</span><div class="checkbox-box"></div></div>
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- WEEKLY REFLECTION -->
+  <div class="reflection-section">
+    <h2>Weekly Reflection</h2>
+    <div class="reflection-grid">
+      <div class="reflection-card">
+        <div class="reflection-label">What went well this week?</div>
+        <div class="reflection-lines">
+          <div class="line"></div>
+          <div class="line"></div>
+        </div>
+      </div>
+      <div class="reflection-card">
+        <div class="reflection-label">What was challenging?</div>
+        <div class="reflection-lines">
+          <div class="line"></div>
+          <div class="line"></div>
+        </div>
+      </div>
+      <div class="reflection-card">
+        <div class="reflection-label">What to try next week?</div>
+        <div class="reflection-lines">
+          <div class="line"></div>
+          <div class="line"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIPS -->
+  {{#if tips.length}}
+  <div class="tips-section">
+    <h2>Tips for Success</h2>
+    <ul>
+      {{#each tips}}
+      <li>{{this}}</li>
+      {{/each}}
+    </ul>
+  </div>
+  {{/if}}
+
+  <!-- NOTES -->
+  <div class="notes-section">
+    <h2>Observation Notes</h2>
+    <p class="notes-prompt">{{notesPrompt}}</p>
+    <div class="notes-lines">
+      <div class="line"></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="worksheet-footer">
+    <div class="footer-brand">
+      <span class="footer-text">Generated by Upllyft &bull; upllyft.com &bull; AI-powered learning resources for the neurodivergent community</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{title}}</title>
+  <style>{{styles}}</style>
+</head>
+<body>
+  <!-- HEADER -->
+  <div class="worksheet-header">
+    <div class="header-left">
+      <div class="worksheet-title">{{title}}</div>
+      <div class="worksheet-subtitle">Emotion Thermometer &bull; {{difficultyLabel}} Level</div>
+    </div>
+    <div class="header-meta">
+      <div class="field"><span class="field-label">Date:</span> {{date}}</div>
+      <div class="field"><span class="field-label">Setting:</span> {{setting}}</div>
+      <div class="meta-tags">
+        {{#each domainTags}}
+        <span class="meta-tag">{{this}}</span>
+        {{/each}}
+      </div>
+    </div>
+  </div>
+
+  <!-- FILL-IN FIELDS -->
+  <div class="fill-fields">
+    <div class="fill-field">Child's Name: <span class="line"></span></div>
+    <div class="fill-field">Facilitator: <span class="line"></span></div>
+    <div class="fill-field">Date: <span class="line"></span></div>
+  </div>
+
+  <!-- INSTRUCTIONS -->
+  <div class="instructions-box">
+    <h2>How to Use This Emotion Thermometer</h2>
+    <p>{{instructions}}</p>
+  </div>
+
+  <!-- THERMOMETER -->
+  <div class="thermometer-container">
+    <div class="thermometer-column">
+      <!-- Level 5 — Very Upset (top) -->
+      <div class="thermo-level thermo-level-5">
+        <div class="thermo-bar thermo-bar-5">
+          <div class="thermo-bar-number">5</div>
+        </div>
+      </div>
+      <!-- Level 4 — Upset -->
+      <div class="thermo-level thermo-level-4">
+        <div class="thermo-bar thermo-bar-4">
+          <div class="thermo-bar-number">4</div>
+        </div>
+      </div>
+      <!-- Level 3 — Worried/Uneasy -->
+      <div class="thermo-level thermo-level-3">
+        <div class="thermo-bar thermo-bar-3">
+          <div class="thermo-bar-number">3</div>
+        </div>
+      </div>
+      <!-- Level 2 — A Little Uneasy -->
+      <div class="thermo-level thermo-level-2">
+        <div class="thermo-bar thermo-bar-2">
+          <div class="thermo-bar-number">2</div>
+        </div>
+      </div>
+      <!-- Level 1 — Calm (bottom) -->
+      <div class="thermo-level thermo-level-1">
+        <div class="thermo-bar thermo-bar-1">
+          <div class="thermo-bar-number">1</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="thermo-details-column">
+      {{#each levels}}
+      <div class="thermo-detail-row thermo-detail-{{this.level}}">
+        <div class="thermo-emotion-name">{{this.emotionName}}</div>
+        <div class="thermo-detail-grid">
+          <div class="thermo-detail-card thermo-body-cues">
+            <div class="detail-card-label">My body feels...</div>
+            <ul>
+              {{#each this.bodyCues}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+          <div class="thermo-detail-card thermo-emotion-words">
+            <div class="detail-card-label">I might feel...</div>
+            <div class="emotion-word-tags">
+              {{#each this.emotionWords}}
+              <span class="emotion-word-tag emotion-word-level-{{../level}}">{{this}}</span>
+              {{/each}}
+            </div>
+          </div>
+          <div class="thermo-detail-card thermo-coping">
+            <div class="detail-card-label">I can try...</div>
+            <ul>
+              {{#each this.copingStrategies}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+
+  <!-- CHECK-IN SCRIPT -->
+  {{#if checkInScript}}
+  <div class="checkin-section">
+    <h2>Check-In Script</h2>
+    <p class="checkin-intro">{{checkInScript.intro}}</p>
+    <div class="checkin-steps">
+      {{#each checkInScript.steps}}
+      <div class="checkin-step">
+        <div class="checkin-step-number">{{stepIndex}}</div>
+        <div class="checkin-step-content">
+          <div class="checkin-step-say"><span class="say-label">Say:</span> "{{this.prompt}}"</div>
+          {{#if this.waitFor}}
+          <div class="checkin-step-wait"><span class="wait-label">Wait for:</span> {{this.waitFor}}</div>
+          {{/if}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- MY EMOTIONS TODAY -->
+  <div class="emotion-tracker">
+    <h2>My Emotions Today</h2>
+    <div class="tracker-grid">
+      <div class="tracker-cell">
+        <div class="tracker-label">Morning</div>
+        <div class="tracker-circle"></div>
+        <div class="tracker-line"></div>
+      </div>
+      <div class="tracker-cell">
+        <div class="tracker-label">Afternoon</div>
+        <div class="tracker-circle"></div>
+        <div class="tracker-line"></div>
+      </div>
+      <div class="tracker-cell">
+        <div class="tracker-label">Evening</div>
+        <div class="tracker-circle"></div>
+        <div class="tracker-line"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIPS -->
+  {{#if tips.length}}
+  <div class="tips-section">
+    <h2>Tips for Success</h2>
+    <ul>
+      {{#each tips}}
+      <li>{{this}}</li>
+      {{/each}}
+    </ul>
+  </div>
+  {{/if}}
+
+  <!-- NOTES -->
+  <div class="notes-section">
+    <h2>Observation Notes</h2>
+    <p class="notes-prompt">{{notesPrompt}}</p>
+    <div class="notes-lines">
+      <div class="line"></div>
+      <div class="line"></div>
+      <div class="line"></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="worksheet-footer">
+    <div class="footer-brand">
+      <span class="footer-text">Generated by Upllyft &bull; upllyft.com &bull; AI-powered learning resources for the neurodivergent community</span>
+    </div>
+  </div>
+</body>
+</html>

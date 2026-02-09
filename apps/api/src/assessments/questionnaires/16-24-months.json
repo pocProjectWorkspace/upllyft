@@ -1,0 +1,961 @@
+{
+    "ageGroup": "16-24-months",
+    "framework": "UFMF v1",
+    "displayName": "16-24 Months",
+    "estimatedTime": {
+        "tier1": "8-10 minutes",
+        "tier2PerDomain": "4-5 minutes"
+    },
+    "scoringThresholds": {
+        "tier2Trigger": 0.46,
+        "greenMax": 0.29,
+        "yellowMax": 0.45
+    },
+    "answerScoring": {
+        "YES": 0.0,
+        "SOMETIMES": 0.4,
+        "NOT_SURE": 0.7,
+        "NO": 1.0
+    },
+    "domains": [
+        {
+            "id": "grossMotor",
+            "name": "Gross Motor Development",
+            "description": "Gross motor skills involve large muscle movements like walking, running, jumping, and climbing. These skills are essential for physical independence, participation in sports and play, and overall health. Strong gross motor development supports balance, coordination, and body awareness, which are foundational for more complex physical activities and daily tasks.",
+            "tier1": [
+                {
+                    "id": "T1_GM_001",
+                    "question": "Does your child walk alone without help?",
+                    "weight": 1.5,
+                    "redFlag": true,
+                    "construct": "Independent walking",
+                    "sources": [
+                        "WHO",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Independent walking is a major milestone usually achieved by 18 months."
+                },
+                {
+                    "id": "T1_GM_002",
+                    "question": "Can your child walk up stairs holding your hand or a rail?",
+                    "weight": 1.2,
+                    "redFlag": false,
+                    "construct": "Stair climbing",
+                    "sources": [
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Stair negotiation shows leg strength and balance."
+                },
+                {
+                    "id": "T1_GM_003",
+                    "question": "Does your child kick a ball without falling?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Dynamic balance",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Kicking requires standing on one leg momentarily."
+                },
+                {
+                    "id": "T1_GM_004",
+                    "question": "Can your child run (or trot) without frequent falling?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Running",
+                    "sources": [
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Running indicates coordination and motor planning."
+                },
+                {
+                    "id": "T1_GM_005",
+                    "question": "Does your child squat to pick up toys and stand back up without falling?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Postural control",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Squatting and rising demonstrates leg strength and balance control."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_GM_001",
+                    "question": "Can your child jump in place with both feet leaving the ground?",
+                    "weight": 1.0,
+                    "construct": "Jumping",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Jumping shows explosive leg power and coordination."
+                },
+                {
+                    "id": "T2_GM_002",
+                    "question": "Does your child walk backward for a few steps?",
+                    "weight": 0.8,
+                    "construct": "Directional walking",
+                    "sources": [
+                        "WHO",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Walking backward requires advanced spatial awareness and motor control."
+                },
+                {
+                    "id": "T2_GM_003",
+                    "question": "Can your child carry a large toy while walking?",
+                    "weight": 0.8,
+                    "construct": "Balance with load",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Carrying objects while moving shows refined balance and coordination."
+                },
+                {
+                    "id": "T2_GM_004",
+                    "question": "Does your child pull or push toys while walking?",
+                    "weight": 0.8,
+                    "construct": "Coordinated walking",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Managing toys while moving indicates advanced motor planning."
+                },
+                {
+                    "id": "T2_GM_005",
+                    "question": "Does your child throw a ball overhand?",
+                    "weight": 0.9,
+                    "construct": "Throwing coordination",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Overhand throwing requires shoulder control and visual-motor coordination."
+                }
+            ]
+        },
+        {
+            "id": "fineMotor",
+            "name": "Fine Motor & Visual-Motor",
+            "description": "Fine motor skills involve precise movements of small muscles in the hands and fingers. These skills are crucial for self-care tasks (buttoning, zipping), academic activities (writing, cutting), and creative expression (drawing, building). Visual-motor integration combines what the eyes see with hand movements, essential for handwriting and many daily activities.",
+            "tier1": [
+                {
+                    "id": "T1_FM_001",
+                    "question": "Does your child stack 4 or more blocks/objects?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Visual-motor integration",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Stacking requires precision and hand-eye coordination."
+                },
+                {
+                    "id": "T1_FM_002",
+                    "question": "Can your child scribble spontaneously?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Tool use",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Scribbling is the precursor to writing and drawing."
+                },
+                {
+                    "id": "T1_FM_003",
+                    "question": "Does your child turn pages of a book (one or a few at a time)?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Fine manipulation",
+                    "sources": [
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Page turning refines finger dexterity."
+                },
+                {
+                    "id": "T1_FM_004",
+                    "question": "Can your child dump a small object out of a bottle?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Problem solving/Fine motor",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "This combines fine motor skill with cognitive understanding."
+                },
+                {
+                    "id": "T1_FM_005",
+                    "question": "Does your child use a pincer grasp to pick up small objects between thumb and finger?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Pincer grasp",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "The pincer grasp is essential for self-feeding and later writing skills."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_FM_001",
+                    "question": "Does your child try to copy a vertical line?",
+                    "weight": 1.2,
+                    "construct": "Pre-writing",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Copying shapes shows visual perception and motor control."
+                },
+                {
+                    "id": "T2_FM_002",
+                    "question": "Can your child string large beads onto a shoelace or string?",
+                    "weight": 1.0,
+                    "construct": "Bilateral coordination",
+                    "sources": [
+                        "OT",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Stringing beads requires using both hands together in a coordinated way."
+                },
+                {
+                    "id": "T2_FM_003",
+                    "question": "Does your child hold a crayon with fingers rather than a fist?",
+                    "weight": 1.0,
+                    "construct": "Grasp development",
+                    "sources": [
+                        "OT",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Refined crayon grip indicates developing hand control for writing."
+                },
+                {
+                    "id": "T2_FM_004",
+                    "question": "Can your child build a tower of 6 or more blocks?",
+                    "weight": 1.1,
+                    "construct": "Advanced stacking",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Higher towers require increased precision and motor control."
+                },
+                {
+                    "id": "T2_FM_005",
+                    "question": "Does your child attempt to unscrew lids from containers?",
+                    "weight": 0.9,
+                    "construct": "Rotational wrist movement",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Unscrewing requires complex wrist rotation and bilateral hand coordination."
+                }
+            ]
+        },
+        {
+            "id": "speechLanguage",
+            "name": "Speech & Language",
+            "description": "Speech and language development encompasses both the ability to produce clear sounds (speech) and to understand and use words meaningfully (language). Strong communication skills are fundamental for expressing needs, building relationships, learning in school, and participating fully in social situations. Delays in this area can impact all aspects of development.",
+            "tier1": [
+                {
+                    "id": "T1_SL_001",
+                    "question": "Does your child use at least 15-20 words consistently?",
+                    "weight": 1.5,
+                    "redFlag": true,
+                    "construct": "Vocabulary size",
+                    "sources": [
+                        "CDC",
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Limited vocabulary can indicate language delay."
+                },
+                {
+                    "id": "T1_SL_002",
+                    "question": "Does your child join two words together (e.g., 'more juice', 'mama go')?",
+                    "weight": 1.5,
+                    "redFlag": true,
+                    "construct": "Phrase construction",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Two-word phrases mark the beginning of sentence formation."
+                },
+                {
+                    "id": "T1_SL_003",
+                    "question": "Does your child point to body parts when asked?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Receptive vocabulary",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Identifying body parts shows understanding of self and words."
+                },
+                {
+                    "id": "T1_SL_004",
+                    "question": "Can your child follow simple one-step commands (e.g., 'Give it to me') without gestures?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Auditory processing",
+                    "sources": [
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Following commands shows comprehension."
+                },
+                {
+                    "id": "T1_SL_005",
+                    "question": "Does your child attempt to name pictures in books?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Expressive labeling",
+                    "sources": [
+                        "CDC",
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Naming pictures demonstrates vocabulary growth and verbal expression."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_SL_001",
+                    "question": "Does your child refer to themselves by name?",
+                    "weight": 1.0,
+                    "construct": "Self-reference",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Using their name indicates self-awareness."
+                },
+                {
+                    "id": "T2_SL_002",
+                    "question": "Can your child follow two-step related commands (e.g., 'Get your shoe and bring it here')?",
+                    "weight": 1.3,
+                    "construct": "Complex auditory processing",
+                    "sources": [
+                        "ASHA",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Two-step commands require memory and sequencing of instructions."
+                },
+                {
+                    "id": "T2_SL_003",
+                    "question": "Does your child ask simple questions like 'What's that?' or 'Where?'",
+                    "weight": 1.1,
+                    "construct": "Question formation",
+                    "sources": [
+                        "ASHA",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Asking questions shows curiosity and developing language structure."
+                },
+                {
+                    "id": "T2_SL_004",
+                    "question": "Can your child identify familiar objects by sound (e.g., dog barking, phone ringing)?",
+                    "weight": 0.9,
+                    "construct": "Auditory discrimination",
+                    "sources": [
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Sound recognition supports language development and listening skills."
+                },
+                {
+                    "id": "T2_SL_005",
+                    "question": "Does your child use gestures along with words to communicate needs?",
+                    "weight": 0.8,
+                    "construct": "Multimodal communication",
+                    "sources": [
+                        "ASHA",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Combining gestures and words shows integrated communication skills."
+                }
+            ]
+        },
+        {
+            "id": "socialEmotional",
+            "name": "Social & Emotional",
+            "description": "Social-emotional development includes the ability to understand and manage emotions, form positive relationships, and navigate social situations. These skills are critical for mental health, school readiness, and lifelong success. Children who develop strong social-emotional skills are better equipped to handle stress, resolve conflicts, and build meaningful connections with others.",
+            "tier1": [
+                {
+                    "id": "T1_SE_001",
+                    "question": "Does your child copy others, especially adults?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Imitation",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Imitation is a key mechanism for learning social behavior."
+                },
+                {
+                    "id": "T1_SE_002",
+                    "question": "Does your child show interest in other children?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Social interest",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Lack of interest in peers can be a red flag for social development."
+                },
+                {
+                    "id": "T1_SE_003",
+                    "question": "Does your child play simple pretend games (e.g., feeding a doll)?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Symbolic play",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Pretend play shows cognitive and social maturity."
+                },
+                {
+                    "id": "T1_SE_004",
+                    "question": "Does your child cling to caregivers in new situations?",
+                    "weight": 0.5,
+                    "redFlag": false,
+                    "construct": "Attachment/Wariness",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Stranger anxiety is typical but should not prevent all exploration."
+                },
+                {
+                    "id": "T1_SE_005",
+                    "question": "Does your child express affection to familiar people (hugs, kisses)?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Emotional bonding",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Showing affection indicates healthy attachment and emotional connection."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_SE_001",
+                    "question": "Does your child have tantrums when frustrated?",
+                    "weight": 0.0,
+                    "construct": "Emotional expression",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Tantrums are typical; total lack of emotion or extreme intensity is noted."
+                },
+                {
+                    "id": "T2_SE_002",
+                    "question": "Does your child offer toys or objects to others to share?",
+                    "weight": 0.9,
+                    "construct": "Early sharing behavior",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Offering objects shows emerging social reciprocity and turn-taking."
+                },
+                {
+                    "id": "T2_SE_003",
+                    "question": "Does your child respond when you show excitement or distress?",
+                    "weight": 1.1,
+                    "construct": "Emotional responsiveness",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Responding to others' emotions shows empathy development."
+                },
+                {
+                    "id": "T2_SE_004",
+                    "question": "Does your child seek comfort from familiar adults when upset?",
+                    "weight": 1.0,
+                    "construct": "Secure attachment",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Seeking comfort indicates healthy attachment relationships."
+                },
+                {
+                    "id": "T2_SE_005",
+                    "question": "Does your child notice when others are hurt or crying?",
+                    "weight": 0.9,
+                    "construct": "Empathy awareness",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Noticing others' distress is an early sign of empathy."
+                }
+            ]
+        },
+        {
+            "id": "cognitiveLearning",
+            "name": "Cognitive / Learning",
+            "description": "Cognitive development involves thinking, problem-solving, memory, and understanding concepts. These skills form the foundation for academic learning and everyday decision-making. Strong cognitive abilities help children make sense of their world, learn new information, and apply knowledge in different contexts.",
+            "tier1": [
+                {
+                    "id": "T1_CL_001",
+                    "question": "Does your child point to things in a book when you name them?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Word-object association",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Connecting words to pictures is a key pre-literacy skill."
+                },
+                {
+                    "id": "T1_CL_002",
+                    "question": "Does your child know what ordinary things are for (e.g., telephone, brush, spoon)?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Functional knowledge",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Understanding function shows cognitive categorization."
+                },
+                {
+                    "id": "T1_CL_003",
+                    "question": "Can your child complete a simple shape sorter (circle into round hole)?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Problem solving",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Shape sorting involves spatial reasoning."
+                },
+                {
+                    "id": "T1_CL_004",
+                    "question": "Does your child search for hidden objects they watched you hide?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Object permanence",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Searching for hidden objects shows memory and understanding that objects exist when out of sight."
+                },
+                {
+                    "id": "T1_CL_005",
+                    "question": "Does your child sort objects by type (e.g., all spoons together, all blocks together)?",
+                    "weight": 1.1,
+                    "redFlag": false,
+                    "construct": "Categorization",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Sorting shows early classification and organizational thinking."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_CL_001",
+                    "question": "Does your child engage in 'parallel play' (playing next to other kids)?",
+                    "weight": 1.0,
+                    "construct": "Social play stages",
+                    "sources": [
+                        "Parten"
+                    ],
+                    "whyWeAsk": "Parallel play precedes cooperative play."
+                },
+                {
+                    "id": "T2_CL_002",
+                    "question": "Can your child match identical pictures or objects?",
+                    "weight": 1.0,
+                    "construct": "Visual matching",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Matching demonstrates visual discrimination and comparison skills."
+                },
+                {
+                    "id": "T2_CL_003",
+                    "question": "Does your child remember where familiar objects belong in your home?",
+                    "weight": 0.9,
+                    "construct": "Spatial memory",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Remembering object locations shows environmental learning and memory."
+                },
+                {
+                    "id": "T2_CL_004",
+                    "question": "Does your child complete simple puzzles with 2-3 large pieces?",
+                    "weight": 1.1,
+                    "construct": "Visual-spatial reasoning",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Puzzle completion requires spatial understanding and problem-solving."
+                },
+                {
+                    "id": "T2_CL_005",
+                    "question": "Can your child imitate actions from memory (e.g., stirring, sweeping)?",
+                    "weight": 0.9,
+                    "construct": "Deferred imitation",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Imitating remembered actions shows memory and symbolic thinking."
+                }
+            ]
+        },
+        {
+            "id": "adaptiveSelfCare",
+            "name": "Adaptive & Self-Care",
+            "description": "Adaptive skills are practical life skills needed for independence, including dressing, eating, toileting, and personal hygiene. Mastering these skills builds confidence, reduces dependence on caregivers, and is essential for success in school and community settings. These abilities reflect a child's growing autonomy and self-management.",
+            "tier1": [
+                {
+                    "id": "T1_AD_001",
+                    "question": "Does your child use a spoon to eat (some spilling is okay)?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Self-feeding",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Utensil use is a major self-care milestone."
+                },
+                {
+                    "id": "T1_AD_002",
+                    "question": "Does your child drink from a cup without a lid?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Feeding skills",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Cup drinking requires motor control and oral coordination."
+                },
+                {
+                    "id": "T1_AD_003",
+                    "question": "Does your child try to help with dressing (e.g., putting on a hat)?",
+                    "weight": 0.8,
+                    "redFlag": false,
+                    "construct": "Dressing",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Dressing participation encourages independence."
+                },
+                {
+                    "id": "T1_AD_004",
+                    "question": "Does your child wash and dry hands with help?",
+                    "weight": 0.8,
+                    "redFlag": false,
+                    "construct": "Hygiene",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Hand washing shows developing self-care awareness and routines."
+                },
+                {
+                    "id": "T1_AD_005",
+                    "question": "Does your child indicate when their diaper is wet or soiled?",
+                    "weight": 0.7,
+                    "redFlag": false,
+                    "construct": "Toileting awareness",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Awareness of elimination is a first step toward toilet training readiness."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_AD_001",
+                    "question": "Does your child unzip a zipper or take off socks intentionally?",
+                    "weight": 0.8,
+                    "construct": "Fine motor self-care",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Manipulating clothing fasteners is a complex skill."
+                },
+                {
+                    "id": "T2_AD_002",
+                    "question": "Can your child put on loose-fitting clothing like a hat or shoes (not necessarily correctly)?",
+                    "weight": 0.8,
+                    "construct": "Dressing independence",
+                    "sources": [
+                        "CDC",
+                        "WHO"
+                    ],
+                    "whyWeAsk": "Attempting to dress shows growing independence and motor planning."
+                },
+                {
+                    "id": "T2_AD_003",
+                    "question": "Does your child try to brush their own teeth (even if not effective)?",
+                    "weight": 0.7,
+                    "construct": "Hygiene participation",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Attempting tooth brushing shows developing self-care routines."
+                },
+                {
+                    "id": "T2_AD_004",
+                    "question": "Can your child use a napkin to wipe their face when prompted?",
+                    "weight": 0.7,
+                    "construct": "Self-cleaning",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Wiping face demonstrates emerging cleanliness awareness."
+                },
+                {
+                    "id": "T2_AD_005",
+                    "question": "Does your child show interest in using the toilet (wanting to watch, sit on it)?",
+                    "weight": 0.6,
+                    "construct": "Toilet training interest",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Interest in toileting indicates readiness to begin training."
+                }
+            ]
+        },
+        {
+            "id": "sensoryProcessing",
+            "name": "Sensory Processing",
+            "description": "Sensory processing is how the brain receives and responds to information from the senses (touch, sound, sight, taste, smell, movement, body position). Difficulties in this area can affect attention, behavior, motor skills, and emotional regulation. Understanding a child's sensory needs helps create supportive environments for learning and development.",
+            "tier1": [
+                {
+                    "id": "T1_SP_001",
+                    "question": "Does your child enjoy swinging and being tossed in the air?",
+                    "weight": 0.8,
+                    "redFlag": false,
+                    "construct": "Vestibular processing",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Avoidance may indicate gravitational insecurity."
+                },
+                {
+                    "id": "T1_SP_002",
+                    "question": "Is your child overly bothered by messy hands or face?",
+                    "weight": 0.8,
+                    "redFlag": false,
+                    "construct": "Tactile sensitivity",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Extreme reaction to mess can show tactile defensiveness."
+                },
+                {
+                    "id": "T1_SP_003",
+                    "question": "Does your child cover their ears at everyday sounds (vacuum, blender)?",
+                    "weight": 0.9,
+                    "redFlag": false,
+                    "construct": "Auditory sensitivity",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Covering ears may indicate auditory hypersensitivity."
+                },
+                {
+                    "id": "T1_SP_004",
+                    "question": "Does your child explore new textures (sand, grass, playdough) willingly?",
+                    "weight": 0.7,
+                    "redFlag": false,
+                    "construct": "Tactile exploration",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Willingness to explore textures shows appropriate sensory seeking."
+                },
+                {
+                    "id": "T1_SP_005",
+                    "question": "Does your child tolerate having hair brushed or nails trimmed?",
+                    "weight": 0.8,
+                    "redFlag": false,
+                    "construct": "Tactile tolerance",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Extreme distress during grooming may indicate tactile defensiveness."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_SP_001",
+                    "question": "Does your child seek deep pressure (hugging, squeezing)?",
+                    "weight": 0.8,
+                    "construct": "Proprioception",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Seeking pressure can be a self-regulation strategy."
+                },
+                {
+                    "id": "T2_SP_002",
+                    "question": "Does your child seem unaware of bumps or falls that would bother other children?",
+                    "weight": 0.8,
+                    "construct": "Pain sensitivity",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Under-responsiveness to pain may indicate sensory processing differences."
+                },
+                {
+                    "id": "T2_SP_003",
+                    "question": "Does your child become overwhelmed in busy environments (stores, parties)?",
+                    "weight": 0.9,
+                    "construct": "Sensory overload",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Overwhelm in busy settings suggests difficulty filtering sensory information."
+                },
+                {
+                    "id": "T2_SP_004",
+                    "question": "Does your child mouth or chew on non-food items frequently?",
+                    "weight": 0.7,
+                    "construct": "Oral sensory seeking",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Excessive mouthing may indicate oral sensory seeking or self-regulation needs."
+                },
+                {
+                    "id": "T2_SP_005",
+                    "question": "Does your child have difficulty calming down after active play?",
+                    "weight": 0.8,
+                    "construct": "Self-regulation",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Difficulty calming may indicate challenges with sensory regulation."
+                }
+            ]
+        },
+        {
+            "id": "visionHearing",
+            "name": "Vision & Hearing",
+            "description": "Vision and hearing are the primary channels through which children learn about their environment. Clear vision is essential for reading, writing, and visual-motor tasks, while good hearing is critical for language development and communication. Early detection of vision or hearing problems can prevent delays in other developmental areas.",
+            "tier1": [
+                {
+                    "id": "T1_VH_001",
+                    "question": "Does your child identify familiar objects in pictures (e.g., 'where is the dog')?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Visual discrimination",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "This requires visual recognition and language understanding."
+                },
+                {
+                    "id": "T1_VH_002",
+                    "question": "Does your child point to distant objects?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Distance vision",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Seeing and interested in things far away indicates good distance vision."
+                },
+                {
+                    "id": "T1_VH_003",
+                    "question": "Does your child turn when you call their name from behind?",
+                    "weight": 1.3,
+                    "redFlag": true,
+                    "construct": "Hearing responsiveness",
+                    "sources": [
+                        "CDC",
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Responding to name indicates hearing ability and social awareness."
+                },
+                {
+                    "id": "T1_VH_004",
+                    "question": "Does your child watch your face when you talk to them?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Visual attention",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Face watching shows visual engagement and social communication."
+                },
+                {
+                    "id": "T1_VH_005",
+                    "question": "Does your child respond to quiet sounds like whispers or soft music?",
+                    "weight": 1.1,
+                    "redFlag": false,
+                    "construct": "Hearing sensitivity",
+                    "sources": [
+                        "ASHA",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Responding to quiet sounds indicates good hearing acuity."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_VH_001",
+                    "question": "Does your child tilt their head when looking at things?",
+                    "weight": 1.0,
+                    "construct": "Visual alignment",
+                    "sources": [
+                        "Optometry"
+                    ],
+                    "whyWeAsk": "Head tilting may compensate for alignment issues."
+                },
+                {
+                    "id": "T2_VH_002",
+                    "question": "Does your child frequently rub their eyes or squint?",
+                    "weight": 1.0,
+                    "construct": "Visual discomfort",
+                    "sources": [
+                        "Optometry",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Eye rubbing or squinting may indicate vision problems or eye strain."
+                },
+                {
+                    "id": "T2_VH_003",
+                    "question": "Does your child locate the source of sounds (turn toward a ringing phone or doorbell)?",
+                    "weight": 1.0,
+                    "construct": "Sound localization",
+                    "sources": [
+                        "ASHA",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Sound localization shows spatial hearing and auditory processing."
+                },
+                {
+                    "id": "T2_VH_004",
+                    "question": "Does your child seem confused when given spoken directions?",
+                    "weight": 1.1,
+                    "construct": "Auditory comprehension",
+                    "sources": [
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Confusion with directions may indicate hearing or processing difficulties."
+                },
+                {
+                    "id": "T2_VH_005",
+                    "question": "Does your child bring objects very close to their face to look at them?",
+                    "weight": 1.0,
+                    "construct": "Near vision",
+                    "sources": [
+                        "Optometry"
+                    ],
+                    "whyWeAsk": "Bringing objects very close may indicate nearsightedness or visual difficulties."
+                }
+            ]
+        }
+    ]
+}

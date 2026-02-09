@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upllyft Design System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            teal: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              200: '#99f6e4',
+              300: '#5eead4',
+              400: '#2dd4bf',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              800: '#115e59',
+              900: '#134e4a',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    
+    /* Animations */
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Card Hover Effects */
+    .card-hover {
+      transition: all 0.2s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px -8px rgba(13, 148, 136, 0.2);
+    }
+    
+    /* Glass Effect */
+    .glass {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+    }
+    
+    /* Gradient Backgrounds */
+    .gradient-teal { background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); }
+    .gradient-blue { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
+    .gradient-purple { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
+    .gradient-pink { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+    .gradient-orange { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+    .gradient-dark { background: linear-gradient(135deg, #1f2937 0%, #111827 100%); }
+    
+    /* Active Nav State */
+    .nav-active {
+      background-color: rgb(240 253 250);
+      color: rgb(15 118 110);
+    }
+    
+    /* Progress Ring */
+    .progress-ring { transform: rotate(-90deg); }
+    
+    /* Hide scrollbar but allow scroll */
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* Sidebar active state */
+    .sidebar-active {
+      background: linear-gradient(90deg, rgba(13, 148, 136, 0.1) 0%, transparent 100%);
+      border-left: 3px solid #0d9488;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ========== PERSISTENT HEADER (Same across ALL subdomains) ========== -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo -->
+        <a href="#" onclick="showPage('dashboard')" class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+            </svg>
+          </div>
+          <span class="text-xl font-bold text-gray-900">Upllyft</span>
+        </a>
+
+        <!-- Navigation -->
+        <nav class="hidden md:flex items-center gap-1" id="mainNav">
+          <a href="#" onclick="showPage('dashboard')" data-page="dashboard" class="nav-item px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 nav-active">Home</a>
+          <a href="#" onclick="showPage('community')" data-page="community" class="nav-item px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">Community</a>
+          <a href="#" onclick="showPage('screening')" data-page="screening" class="nav-item px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">Screening</a>
+          <a href="#" onclick="showPage('booking')" data-page="booking" class="nav-item px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">Book Session</a>
+          <a href="#" onclick="showPage('learning')" data-page="learning" class="nav-item px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">Learning</a>
+        </nav>
+
+        <!-- User Menu -->
+        <div class="flex items-center gap-4">
+          <button class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 relative">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+            </svg>
+            <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+          </button>
+          <div class="flex items-center gap-3 cursor-pointer">
+            <div class="w-9 h-9 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              AG
+            </div>
+            <div class="hidden sm:block">
+              <p class="text-sm font-medium text-gray-900">Ananya G.</p>
+              <p class="text-xs text-gray-500">Parent</p>
+            </div>
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========== PAGE SELECTOR (Demo Only) ========== -->
+  <div class="bg-gray-800 text-white py-3 px-4">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-center gap-2">
+      <span class="text-gray-400 text-sm mr-2">Preview:</span>
+      <button onclick="showPage('dashboard')" class="page-btn px-3 py-1.5 rounded text-sm bg-teal-500" data-page="dashboard">Dashboard</button>
+      <button onclick="showPage('community')" class="page-btn px-3 py-1.5 rounded text-sm bg-gray-600" data-page="community">Community</button>
+      <button onclick="showPage('screening')" class="page-btn px-3 py-1.5 rounded text-sm bg-gray-600" data-page="screening">Screening</button>
+      <button onclick="showPage('booking')" class="page-btn px-3 py-1.5 rounded text-sm bg-gray-600" data-page="booking">Book Session</button>
+      <button onclick="showPage('learning')" class="page-btn px-3 py-1.5 rounded text-sm bg-gray-600" data-page="learning">Learning</button>
+    </div>
+  </div>
+
+  <!-- ========================================================================== -->
+  <!-- ========================= DASHBOARD PAGE ================================= -->
+  <!-- ========================================================================== -->
+  <main id="page-dashboard" class="page fade-in">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      
+      <!-- Welcome Section -->
+      <div class="bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 rounded-2xl p-8 mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Welcome back, Ananya! 👋</h1>
+            <p class="text-gray-600">Here's how Arjun is progressing across all areas</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="glass rounded-xl px-4 py-3 flex items-center gap-3 border border-teal-200">
+              <div class="w-10 h-10 bg-gradient-to-br from-orange-400 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">A</div>
+              <div>
+                <p class="font-semibold text-gray-900">Arjun</p>
+                <p class="text-xs text-gray-500">Age 5 years 3 months</p>
+              </div>
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white rounded-xl p-4 border border-gray-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="text-2xl font-bold text-gray-900">78%</p>
+              <p class="text-xs text-gray-500">Milestones On Track</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gray-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="text-2xl font-bold text-gray-900">2</p>
+              <p class="text-xs text-gray-500">Sessions This Week</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gray-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="text-2xl font-bold text-gray-900">12</p>
+              <p class="text-xs text-gray-500">Worksheets Done</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gray-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="text-2xl font-bold text-gray-900">156</p>
+              <p class="text-xs text-gray-500">Community Members</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Module Cards -->
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <a href="#" onclick="showPage('screening')" class="card-hover bg-white rounded-2xl p-6 border border-gray-200 hover:border-teal-300 group">
+          <div class="w-12 h-12 gradient-teal rounded-xl flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-teal-700">Screening</h3>
+          <p class="text-sm text-gray-500">Track developmental milestones</p>
+        </a>
+
+        <a href="#" onclick="showPage('booking')" class="card-hover bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 group">
+          <div class="w-12 h-12 gradient-blue rounded-xl flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-blue-700">Book Session</h3>
+          <p class="text-sm text-gray-500">Schedule therapy sessions</p>
+        </a>
+
+        <a href="#" onclick="showPage('learning')" class="card-hover bg-white rounded-2xl p-6 border border-gray-200 hover:border-purple-300 group">
+          <div class="w-12 h-12 gradient-purple rounded-xl flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-purple-700">Learning</h3>
+          <p class="text-sm text-gray-500">AI-powered worksheets</p>
+        </a>
+
+        <a href="#" onclick="showPage('community')" class="card-hover bg-white rounded-2xl p-6 border border-gray-200 hover:border-pink-300 group">
+          <div class="w-12 h-12 gradient-pink rounded-xl flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-pink-700">Community</h3>
+          <p class="text-sm text-gray-500">Connect with other parents</p>
+        </a>
+      </div>
+
+      <!-- Bottom Row -->
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Upcoming Sessions -->
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900">Upcoming Sessions</h3>
+            <a href="#" onclick="showPage('booking')" class="text-sm text-teal-600 font-medium">View All</a>
+          </div>
+          <div class="divide-y divide-gray-100">
+            <div class="px-6 py-4 flex items-center gap-4">
+              <div class="w-12 h-12 bg-blue-100 rounded-xl flex flex-col items-center justify-center">
+                <span class="text-xs text-blue-600 font-medium">FEB</span>
+                <span class="text-lg text-blue-700 font-bold">8</span>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-gray-900">Speech Therapy</p>
+                <p class="text-sm text-gray-500">10:00 AM • Dr. Priya</p>
+              </div>
+              <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Confirmed</span>
+            </div>
+            <div class="px-6 py-4 flex items-center gap-4">
+              <div class="w-12 h-12 bg-purple-100 rounded-xl flex flex-col items-center justify-center">
+                <span class="text-xs text-purple-600 font-medium">FEB</span>
+                <span class="text-lg text-purple-700 font-bold">10</span>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-gray-900">OT Session</p>
+                <p class="text-sm text-gray-500">2:00 PM • Dr. Rahul</p>
+              </div>
+              <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Confirmed</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Insights -->
+        <div class="gradient-dark rounded-2xl p-6 text-white">
+          <div class="flex items-start justify-between mb-4">
+            <div class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
+              <svg class="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+              </svg>
+            </div>
+            <span class="px-2 py-1 bg-teal-500/20 text-teal-300 text-xs font-medium rounded-full">AI Powered</span>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">Clinical Insights</h3>
+          <p class="text-gray-400 text-sm mb-4">Get AI-powered analysis based on Arjun's screening results and progress data</p>
+          <button class="w-full py-3 bg-teal-500 hover:bg-teal-400 rounded-xl font-medium transition-colors">
+            Get Personalized Insights
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========================================================================== -->
+  <!-- ========================= COMMUNITY PAGE ================================= -->
+  <!-- ========================================================================== -->
+  <main id="page-community" class="page hidden">
+    <div class="flex">
+      <!-- Sidebar -->
+      <aside class="hidden lg:block w-64 bg-white border-r border-gray-200 min-h-[calc(100vh-64px)] sticky top-16">
+        <div class="p-4">
+          <button class="w-full py-3 gradient-pink text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Create Post
+          </button>
+        </div>
+        
+        <nav class="px-2">
+          <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-900 font-medium sidebar-active rounded-r-lg">
+            <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
+            </svg>
+            Feed
+          </a>
+          <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            Groups
+          </a>
+          <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            Events
+          </a>
+          <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Q&A
+          </a>
+          <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+            </svg>
+            Saved
+          </a>
+        </nav>
+        
+        <div class="p-4 mt-4">
+          <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">My Groups</h4>
+          <div class="space-y-2">
+            <a href="#" class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg">
+              <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <span class="text-blue-600 text-xs font-bold">S</span>
+              </div>
+              <span class="text-sm text-gray-700">Speech Therapy Parents</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg">
+              <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                <span class="text-purple-600 text-xs font-bold">A</span>
+              </div>
+              <span class="text-sm text-gray-700">ASD Support Circle</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg">
+              <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <span class="text-green-600 text-xs font-bold">M</span>
+              </div>
+              <span class="text-sm text-gray-700">Mumbai Parents</span>
+            </a>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <div class="flex-1 max-w-2xl mx-auto px-4 py-6">
+        <!-- Create Post Card -->
+        <div class="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">AG</div>
+            <input type="text" placeholder="Share something with the community..." class="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500">
+          </div>
+          <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+            <button class="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">
+              <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              Photo
+            </button>
+            <button class="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">
+              <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              Question
+            </button>
+            <button class="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">
+              <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              Event
+            </button>
+          </div>
+        </div>
+
+        <!-- Feed Posts -->
+        <div class="space-y-6">
+          <!-- Milestone Post -->
+          <article class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div class="p-4">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">RK</div>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-gray-900">Riya Kapoor</span>
+                    <span class="px-2 py-0.5 bg-pink-100 text-pink-700 text-xs font-medium rounded-full">Milestone 🎉</span>
+                  </div>
+                  <p class="text-xs text-gray-500">2 hours ago • Speech Therapy Parents</p>
+                </div>
+              </div>
+              <div class="mt-3">
+                <p class="text-gray-800">So proud of my little one! He said his first complete sentence today - "Mama, I want juice" 🥹❤️ After 8 months of speech therapy, this is the best reward. Never give up, parents!</p>
+              </div>
+            </div>
+            <div class="bg-gradient-to-r from-pink-50 to-purple-50 px-4 py-3 border-t border-gray-100">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                  <button class="flex items-center gap-1 text-gray-600 hover:text-pink-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                    </svg>
+                    <span class="text-sm">47</span>
+                  </button>
+                  <button class="flex items-center gap-1 text-gray-600 hover:text-blue-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    <span class="text-sm">12</span>
+                  </button>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Question Post -->
+          <article class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div class="p-4">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">MS</div>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-gray-900">Meera Shah</span>
+                    <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">Question</span>
+                  </div>
+                  <p class="text-xs text-gray-500">5 hours ago • ASD Support Circle</p>
+                </div>
+              </div>
+              <div class="mt-3">
+                <p class="text-gray-800 font-medium">Looking for recommendations: Best sensory toys for a 4-year-old?</p>
+                <p class="text-gray-600 mt-2">My son has been diagnosed with ASD and the OT recommended sensory toys. What has worked well for your kids? Budget around ₹2000-3000.</p>
+              </div>
+            </div>
+            <div class="px-4 py-3 border-t border-gray-100">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                  <button class="flex items-center gap-1 text-gray-600 hover:text-pink-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                    </svg>
+                    <span class="text-sm">23</span>
+                  </button>
+                  <button class="flex items-center gap-1 text-gray-600 hover:text-blue-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    <span class="text-sm">8 answers</span>
+                  </button>
+                </div>
+                <button class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Answer</button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Event Post -->
+          <article class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div class="gradient-orange p-4 text-white">
+              <div class="flex items-center gap-2 mb-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <span class="text-sm font-medium">Upcoming Event</span>
+              </div>
+              <h3 class="text-xl font-bold">Parent Support Group Meetup</h3>
+              <p class="text-orange-100 mt-1">Saturday, Feb 10 • 4:00 PM - 6:00 PM</p>
+            </div>
+            <div class="p-4">
+              <p class="text-gray-600 mb-4">Join us for our monthly virtual meetup where parents share experiences, challenges, and victories. Special guest: Dr. Anjali Sharma (Child Psychologist)</p>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="flex -space-x-2">
+                    <div class="w-8 h-8 bg-pink-200 rounded-full border-2 border-white"></div>
+                    <div class="w-8 h-8 bg-blue-200 rounded-full border-2 border-white"></div>
+                    <div class="w-8 h-8 bg-green-200 rounded-full border-2 border-white"></div>
+                  </div>
+                  <span class="text-sm text-gray-500">24 attending</span>
+                </div>
+                <button class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium">RSVP</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <!-- Right Sidebar -->
+      <aside class="hidden xl:block w-80 p-6">
+        <div class="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
+          <h3 class="font-semibold text-gray-900 mb-4">Suggested Groups</h3>
+          <div class="space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
+                <span class="text-teal-600 font-bold">O</span>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-gray-900 text-sm">OT Activities at Home</p>
+                <p class="text-xs text-gray-500">1.2k members</p>
+              </div>
+              <button class="px-3 py-1 bg-teal-100 text-teal-700 text-xs font-medium rounded-full hover:bg-teal-200">Join</button>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <span class="text-purple-600 font-bold">S</span>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-gray-900 text-sm">Sensory Play Ideas</p>
+                <p class="text-xs text-gray-500">856 members</p>
+              </div>
+              <button class="px-3 py-1 bg-teal-100 text-teal-700 text-xs font-medium rounded-full hover:bg-teal-200">Join</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-200 p-4">
+          <h3 class="font-semibold text-gray-900 mb-4">Trending Topics</h3>
+          <div class="space-y-2">
+            <a href="#" class="block p-2 hover:bg-gray-50 rounded-lg">
+              <p class="text-sm text-gray-900">#SensoryPlayIdeas</p>
+              <p class="text-xs text-gray-500">45 posts this week</p>
+            </a>
+            <a href="#" class="block p-2 hover:bg-gray-50 rounded-lg">
+              <p class="text-sm text-gray-900">#SpeechTherapyWins</p>
+              <p class="text-xs text-gray-500">32 posts this week</p>
+            </a>
+            <a href="#" class="block p-2 hover:bg-gray-50 rounded-lg">
+              <p class="text-sm text-gray-900">#InclusiveEducation</p>
+              <p class="text-xs text-gray-500">28 posts this week</p>
+            </a>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- ========================================================================== -->
+  <!-- ========================= SCREENING PAGE ================================= -->
+  <!-- ========================================================================== -->
+  <main id="page-screening" class="page hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Developmental Screening</h1>
+          <p class="text-gray-600">Track Arjun's milestones with UFMF assessment</p>
+        </div>
+        <button class="px-6 py-3 gradient-teal text-white rounded-xl font-medium flex items-center gap-2 hover:opacity-90 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          Start New Screening
+        </button>
+      </div>
+
+      <!-- Progress Overview -->
+      <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-8">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-semibold text-gray-900">Overall Progress</h2>
+          <select class="text-sm border border-gray-200 rounded-lg px-3 py-2">
+            <option>Last 6 months</option>
+            <option>Last year</option>
+            <option>All time</option>
+          </select>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
+          <!-- Motor Skills -->
+          <div class="text-center">
+            <div class="relative inline-flex mb-3">
+              <svg class="w-24 h-24 progress-ring">
+                <circle cx="48" cy="48" r="40" stroke="#e5e7eb" stroke-width="8" fill="none"/>
+                <circle cx="48" cy="48" r="40" stroke="#14b8a6" stroke-width="8" fill="none" 
+                  stroke-dasharray="251" stroke-dashoffset="50" stroke-linecap="round"/>
+              </svg>
+              <span class="absolute inset-0 flex items-center justify-center text-xl font-bold text-gray-900">80%</span>
+            </div>
+            <p class="font-medium text-gray-900">Motor</p>
+            <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">On Track</span>
+          </div>
+          
+          <!-- Language -->
+          <div class="text-center">
+            <div class="relative inline-flex mb-3">
+              <svg class="w-24 h-24 progress-ring">
+                <circle cx="48" cy="48" r="40" stroke="#e5e7eb" stroke-width="8" fill="none"/>
+                <circle cx="48" cy="48" r="40" stroke="#f59e0b" stroke-width="8" fill="none" 
+                  stroke-dasharray="251" stroke-dashoffset="100" stroke-linecap="round"/>
+              </svg>
+              <span class="absolute inset-0 flex items-center justify-center text-xl font-bold text-gray-900">60%</span>
+            </div>
+            <p class="font-medium text-gray-900">Language</p>
+            <span class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full">Monitor</span>
+          </div>
+          
+          <!-- Social -->
+          <div class="text-center">
+            <div class="relative inline-flex mb-3">
+              <svg class="w-24 h-24 progress-ring">
+                <circle cx="48" cy="48" r="40" stroke="#e5e7eb" stroke-width="8" fill="none"/>
+                <circle cx="48" cy="48" r="40" stroke="#14b8a6" stroke-width="8" fill="none" 
+                  stroke-dasharray="251" stroke-dashoffset="63" stroke-linecap="round"/>
+              </svg>
+              <span class="absolute inset-0 flex items-center justify-center text-xl font-bold text-gray-900">75%</span>
+            </div>
+            <p class="font-medium text-gray-900">Social</p>
+            <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">On Track</span>
+          </div>
+          
+          <!-- Cognitive -->
+          <div class="text-center">
+            <div class="relative inline-flex mb-3">
+              <svg class="w-24 h-24 progress-ring">
+                <circle cx="48" cy="48" r="40" stroke="#e5e7eb" stroke-width="8" fill="none"/>
+                <circle cx="48" cy="48" r="40" stroke="#14b8a6" stroke-width="8" fill="none" 
+                  stroke-dasharray="251" stroke-dashoffset="38" stroke-linecap="round"/>
+              </svg>
+              <span class="absolute inset-0 flex items-center justify-center text-xl font-bold text-gray-900">85%</span>
+            </div>
+            <p class="font-medium text-gray-900">Cognitive</p>
+            <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">On Track</span>
+          </div>
+          
+          <!-- Adaptive -->
+          <div class="text-center">
+            <div class="relative inline-flex mb-3">
+              <svg class="w-24 h-24 progress-ring">
+                <circle cx="48" cy="48" r="40" stroke="#e5e7eb" stroke-width="8" fill="none"/>
+                <circle cx="48" cy="48" r="40" stroke="#14b8a6" stroke-width="8" fill="none" 
+                  stroke-dasharray="251" stroke-dashoffset="75" stroke-linecap="round"/>
+              </svg>
+              <span class="absolute inset-0 flex items-center justify-center text-xl font-bold text-gray-900">70%</span>
+            </div>
+            <p class="font-medium text-gray-900">Adaptive</p>
+            <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">On Track</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screening History & Recommendations -->
+      <div class="grid md:grid-cols-3 gap-6">
+        <!-- History -->
+        <div class="md:col-span-2 bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-100">
+            <h3 class="font-semibold text-gray-900">Screening History</h3>
+          </div>
+          <div class="divide-y divide-gray-100">
+            <div class="px-6 py-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer">
+              <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
+                <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-gray-900">UFMF Screening - Q4 2025</p>
+                <p class="text-sm text-gray-500">Completed Jan 15, 2026</p>
+              </div>
+              <div class="text-right">
+                <p class="font-semibold text-teal-600">78%</p>
+                <p class="text-xs text-gray-500">Overall Score</p>
+              </div>
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </div>
+            <div class="px-6 py-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer">
+              <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
+                <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-gray-900">UFMF Screening - Q3 2025</p>
+                <p class="text-sm text-gray-500">Completed Oct 10, 2025</p>
+              </div>
+              <div class="text-right">
+                <p class="font-semibold text-teal-600">72%</p>
+                <p class="text-xs text-gray-500">Overall Score</p>
+              </div>
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </div>
+            <div class="px-6 py-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer">
+              <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
+                <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-gray-900">UFMF Screening - Q2 2025</p>
+                <p class="text-sm text-gray-500">Completed Jul 5, 2025</p>
+              </div>
+              <div class="text-right">
+                <p class="font-semibold text-teal-600">65%</p>
+                <p class="text-xs text-gray-500">Overall Score</p>
+              </div>
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Recommendations -->
+        <div class="space-y-6">
+          <div class="gradient-dark rounded-2xl p-6 text-white">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+              </div>
+              <span class="text-sm font-medium text-teal-300">AI Insights</span>
+            </div>
+            <p class="text-gray-300 text-sm mb-4">Based on Arjun's latest screening, we recommend focusing on language development activities.</p>
+            <button class="w-full py-2 bg-teal-500 hover:bg-teal-400 rounded-lg text-sm font-medium transition">View Detailed Analysis</button>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-gray-200 p-6">
+            <h3 class="font-semibold text-gray-900 mb-4">Next Steps</h3>
+            <div class="space-y-3">
+              <div class="flex items-start gap-3">
+                <div class="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center mt-0.5">
+                  <span class="text-yellow-600 text-xs">1</span>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-900">Schedule follow-up with SLP</p>
+                  <p class="text-xs text-gray-500">Discuss language concerns</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="w-6 h-6 bg-teal-100 rounded-full flex items-center justify-center mt-0.5">
+                  <span class="text-teal-600 text-xs">2</span>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-900">Complete daily exercises</p>
+                  <p class="text-xs text-gray-500">15 mins language activities</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="w-6 h-6 bg-teal-100 rounded-full flex items-center justify-center mt-0.5">
+                  <span class="text-teal-600 text-xs">3</span>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-900">Next screening due</p>
+                  <p class="text-xs text-gray-500">February 10, 2026</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========================================================================== -->
+  <!-- ========================= BOOKING PAGE =================================== -->
+  <!-- ========================================================================== -->
+  <main id="page-booking" class="page hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Book a Session</h1>
+          <p class="text-gray-600">Find and book sessions with verified therapists</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="relative">
+            <input type="text" placeholder="Search therapists..." class="pl-10 pr-4 py-2 border border-gray-200 rounded-xl w-64 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          <button class="p-2 border border-gray-200 rounded-xl hover:bg-gray-50">
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Category Filters -->
+      <div class="flex gap-3 mb-8 overflow-x-auto hide-scrollbar pb-2">
+        <button class="px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-medium whitespace-nowrap">All Therapists</button>
+        <button class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-full text-sm font-medium whitespace-nowrap hover:border-blue-300">Speech Therapy</button>
+        <button class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-full text-sm font-medium whitespace-nowrap hover:border-blue-300">Occupational Therapy</button>
+        <button class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-full text-sm font-medium whitespace-nowrap hover:border-blue-300">Behavioral Therapy</button>
+        <button class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-full text-sm font-medium whitespace-nowrap hover:border-blue-300">Child Psychology</button>
+        <button class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-full text-sm font-medium whitespace-nowrap hover:border-blue-300">Special Education</button>
+      </div>
+
+      <!-- Therapist Grid -->
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Therapist Card 1 -->
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden card-hover">
+          <div class="p-6">
+            <div class="flex items-start gap-4">
+              <div class="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl">PS</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <h3 class="font-semibold text-gray-900">Dr. Priya Sharma</h3>
+                  <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <p class="text-sm text-blue-600 font-medium">Speech-Language Pathologist</p>
+                <div class="flex items-center gap-1 mt-1">
+                  <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                  </svg>
+                  <span class="text-sm font-medium text-gray-900">4.9</span>
+                  <span class="text-sm text-gray-500">(124 reviews)</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span class="px-2 py-1 bg-teal-50 text-teal-700 text-xs rounded-full">Autism</span>
+              <span class="px-2 py-1 bg-teal-50 text-teal-700 text-xs rounded-full">Stammering</span>
+              <span class="px-2 py-1 bg-teal-50 text-teal-700 text-xs rounded-full">Delayed Speech</span>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+              <div>
+                <p class="text-lg font-bold text-gray-900">₹1,500</p>
+                <p class="text-xs text-gray-500">per session (60 min)</p>
+              </div>
+              <button class="px-4 py-2 gradient-blue text-white rounded-xl font-medium hover:opacity-90">Book Now</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Therapist Card 2 -->
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden card-hover">
+          <div class="p-6">
+            <div class="flex items-start gap-4">
+              <div class="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl">RM</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <h3 class="font-semibold text-gray-900">Dr. Rahul Mehta</h3>
+                  <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <p class="text-sm text-purple-600 font-medium">Occupational Therapist</p>
+                <div class="flex items-center gap-1 mt-1">
+                  <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                  </svg>
+                  <span class="text-sm font-medium text-gray-900">4.8</span>
+                  <span class="text-sm text-gray-500">(98 reviews)</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span class="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-full">Sensory Processing</span>
+              <span class="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-full">Fine Motor</span>
+              <span class="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-full">ADHD</span>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+              <div>
+                <p class="text-lg font-bold text-gray-900">₹1,800</p>
+                <p class="text-xs text-gray-500">per session (60 min)</p>
+              </div>
+              <button class="px-4 py-2 gradient-purple text-white rounded-xl font-medium hover:opacity-90">Book Now</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Therapist Card 3 -->
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden card-hover">
+          <div class="p-6">
+            <div class="flex items-start gap-4">
+              <div class="w-16 h-16 bg-gradient-to-br from-pink-400 to-rose-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl">AK</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <h3 class="font-semibold text-gray-900">Dr. Anjali Kumar</h3>
+                  <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <p class="text-sm text-pink-600 font-medium">Child Psychologist</p>
+                <div class="flex items-center gap-1 mt-1">
+                  <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                  </svg>
+                  <span class="text-sm font-medium text-gray-900">4.9</span>
+                  <span class="text-sm text-gray-500">(156 reviews)</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span class="px-2 py-1 bg-pink-50 text-pink-700 text-xs rounded-full">Anxiety</span>
+              <span class="px-2 py-1 bg-pink-50 text-pink-700 text-xs rounded-full">Behavioral Issues</span>
+              <span class="px-2 py-1 bg-pink-50 text-pink-700 text-xs rounded-full">ASD</span>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+              <div>
+                <p class="text-lg font-bold text-gray-900">₹2,000</p>
+                <p class="text-xs text-gray-500">per session (45 min)</p>
+              </div>
+              <button class="px-4 py-2 gradient-pink text-white rounded-xl font-medium hover:opacity-90">Book Now</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- My Upcoming Sessions -->
+      <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 class="font-semibold text-gray-900">My Upcoming Sessions</h3>
+          <a href="#" class="text-sm text-blue-600 font-medium">View All</a>
+        </div>
+        <div class="divide-y divide-gray-100">
+          <div class="px-6 py-4 flex items-center gap-4">
+            <div class="w-12 h-12 bg-blue-100 rounded-xl flex flex-col items-center justify-center">
+              <span class="text-xs text-blue-600 font-medium">FEB</span>
+              <span class="text-lg text-blue-700 font-bold">8</span>
+            </div>
+            <div class="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">PS</div>
+            <div class="flex-1">
+              <p class="font-medium text-gray-900">Speech Therapy with Dr. Priya Sharma</p>
+              <p class="text-sm text-gray-500">10:00 AM - 11:00 AM • Online</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Join</button>
+              <button class="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">Reschedule</button>
+            </div>
+          </div>
+          <div class="px-6 py-4 flex items-center gap-4">
+            <div class="w-12 h-12 bg-purple-100 rounded-xl flex flex-col items-center justify-center">
+              <span class="text-xs text-purple-600 font-medium">FEB</span>
+              <span class="text-lg text-purple-700 font-bold">10</span>
+            </div>
+            <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">RM</div>
+            <div class="flex-1">
+              <p class="font-medium text-gray-900">OT Session with Dr. Rahul Mehta</p>
+              <p class="text-sm text-gray-500">2:00 PM - 3:00 PM • In-person</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Confirmed</span>
+              <button class="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">Reschedule</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========================================================================== -->
+  <!-- ========================= LEARNING PAGE ================================== -->
+  <!-- ========================================================================== -->
+  <main id="page-learning" class="page hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Learning Resources</h1>
+          <p class="text-gray-600">AI-powered worksheets personalized for Arjun</p>
+        </div>
+        <button class="px-6 py-3 gradient-purple text-white rounded-xl font-medium flex items-center gap-2 hover:opacity-90 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          Create Worksheet
+        </button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex gap-4 border-b border-gray-200 mb-8">
+        <button class="px-4 py-3 text-purple-600 font-medium border-b-2 border-purple-600">Recommended</button>
+        <button class="px-4 py-3 text-gray-500 font-medium hover:text-gray-700">My Library</button>
+        <button class="px-4 py-3 text-gray-500 font-medium hover:text-gray-700">Assigned Homework</button>
+        <button class="px-4 py-3 text-gray-500 font-medium hover:text-gray-700">Community Library</button>
+      </div>
+
+      <!-- AI Recommendation Banner -->
+      <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 mb-8 text-white">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-semibold text-lg">Personalized for Arjun</h3>
+            <p class="text-purple-200 text-sm mt-1">Based on the latest UFMF screening, we recommend focusing on Language and Social Skills development. These worksheets are tailored to Arjun's current level and interests (dinosaurs!).</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Worksheet Grid -->
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Worksheet Card 1 -->
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden card-hover group">
+          <div class="aspect-[4/3] bg-gradient-to-br from-blue-50 to-purple-50 p-6 flex items-center justify-center relative">
+            <div class="w-24 h-24 bg-white rounded-2xl shadow-lg flex items-center justify-center">
+              <svg class="w-12 h-12 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+              </svg>
+            </div>
+            <span class="absolute top-4 right-4 px-2 py-1 bg-purple-500 text-white text-xs font-medium rounded-full">AI Recommended</span>
+          </div>
+          <div class="p-4">
+            <h3 class="font-semibold text-gray-900 group-hover:text-purple-700">Dino Friends: Making Conversation</h3>
+            <p class="text-sm text-gray-500 mt-1">Social story about starting conversations using dinosaur characters</p>
+            <div class="flex items-center gap-2 mt-3">
+              <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">Social Skills</span>
+              <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">Language</span>
+            </div>
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+              <div class="flex items-center gap-1">
+                <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                </svg>
+                <span class="text-sm text-gray-600">4.8</span>
+              </div>
+              <button class="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700">Download</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Worksheet Card 2 -->
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden card-hover group">
+          <div class="aspect-[4/3] bg-gradient-to-br from-teal-50 to-green-50 p-6 flex items-center justify-center relative">
+            <div class="w-24 h-24 bg-white rounded-2xl shadow-lg flex items-center justify-center">
+              <svg class="w-12 h-12 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"></path>
+              </svg>
+            </div>
+            <span class="absolute top-4 right-4 px-2 py-1 bg-teal-500 text-white text-xs font-medium rounded-full">AI Recommended</span>
+          </div>
+          <div class="p-4">
+            <h3 class="font-semibold text-gray-900 group-hover:text-teal-700">T-Rex Tracing Fun</h3>
+            <p class="text-sm text-gray-500 mt-1">Fine motor practice with dinosaur-themed tracing activities</p>
+            <div class="flex items-center gap-2 mt-3">
+              <span class="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full">Motor Skills</span>
+            </div>
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+              <div class="flex items-center gap-1">
+                <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                </svg>
+                <span class="text-sm text-gray-600">4.9</span>
+              </div>
+              <button class="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700">Download</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Worksheet Card 3 -->
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden card-hover group">
+          <div class="aspect-[4/3] bg-gradient-to-br from-orange-50 to-yellow-50 p-6 flex items-center justify-center relative">
+            <div class="w-24 h-24 bg-white rounded-2xl shadow-lg flex items-center justify-center">
+              <svg class="w-12 h-12 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="p-4">
+            <h3 class="font-semibold text-gray-900 group-hover:text-orange-700">My Morning Routine</h3>
+            <p class="text-sm text-gray-500 mt-1">Visual schedule for building independent morning habits</p>
+            <div class="flex items-center gap-2 mt-3">
+              <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">Visual Support</span>
+              <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">Adaptive</span>
+            </div>
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+              <div class="flex items-center gap-1">
+                <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                </svg>
+                <span class="text-sm text-gray-600">4.7</span>
+              </div>
+              <button class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700">Download</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Worksheet Card 4 -->
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden card-hover group">
+          <div class="aspect-[4/3] bg-gradient-to-br from-pink-50 to-rose-50 p-6 flex items-center justify-center relative">
+            <div class="w-24 h-24 bg-white rounded-2xl shadow-lg flex items-center justify-center">
+              <svg class="w-12 h-12 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="p-4">
+            <h3 class="font-semibold text-gray-900 group-hover:text-pink-700">Feelings Thermometer</h3>
+            <p class="text-sm text-gray-500 mt-1">Help identify and regulate emotions with visual cues</p>
+            <div class="flex items-center gap-2 mt-3">
+              <span class="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded-full">Emotional</span>
+              <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">Social Skills</span>
+            </div>
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+              <div class="flex items-center gap-1">
+                <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                </svg>
+                <span class="text-sm text-gray-600">4.9</span>
+              </div>
+              <button class="px-4 py-2 bg-pink-600 text-white text-sm rounded-lg hover:bg-pink-700">Download</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create Custom Card -->
+        <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-300 overflow-hidden card-hover group cursor-pointer flex flex-col items-center justify-center p-8 text-center min-h-[320px]">
+          <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <svg class="w-8 h-8 text-gray-400 group-hover:text-purple-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-gray-700 group-hover:text-purple-700">Create Custom Worksheet</h3>
+          <p class="text-sm text-gray-500 mt-1">Use AI to generate personalized learning resources</p>
+        </div>
+      </div>
+
+      <!-- Homework Section -->
+      <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+              <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+              </svg>
+            </div>
+            <h3 class="font-semibold text-gray-900">Homework from Therapist</h3>
+          </div>
+          <span class="px-3 py-1 bg-orange-100 text-orange-700 text-sm font-medium rounded-full">2 Due</span>
+        </div>
+        <div class="divide-y divide-gray-100">
+          <div class="px-6 py-4 flex items-center gap-4">
+            <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+            <div class="flex-1">
+              <p class="font-medium text-gray-900">Practice "S" sounds worksheet</p>
+              <p class="text-sm text-gray-500">Assigned by Dr. Priya Sharma • 15 min</p>
+            </div>
+            <span class="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">Due Friday</span>
+            <button class="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700">Start</button>
+          </div>
+          <div class="px-6 py-4 flex items-center gap-4">
+            <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+            <div class="flex-1">
+              <p class="font-medium text-gray-900">Fine motor tracing exercises</p>
+              <p class="text-sm text-gray-500">Assigned by Dr. Rahul Mehta • 20 min</p>
+            </div>
+            <span class="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">Due Sunday</span>
+            <button class="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700">Start</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========== JAVASCRIPT ========== -->
+  <script>
+    function showPage(pageName) {
+      // Hide all pages
+      document.querySelectorAll('.page').forEach(page => {
+        page.classList.add('hidden');
+      });
+      
+      // Show selected page
+      const selectedPage = document.getElementById('page-' + pageName);
+      if (selectedPage) {
+        selectedPage.classList.remove('hidden');
+        selectedPage.classList.add('fade-in');
+      }
+      
+      // Update nav active state
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('nav-active');
+        if (item.getAttribute('data-page') === pageName) {
+          item.classList.add('nav-active');
+        }
+      });
+      
+      // Update page buttons
+      document.querySelectorAll('.page-btn').forEach(btn => {
+        btn.classList.remove('bg-teal-500');
+        btn.classList.add('bg-gray-600');
+        if (btn.getAttribute('data-page') === pageName) {
+          btn.classList.remove('bg-gray-600');
+          btn.classList.add('bg-teal-500');
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>

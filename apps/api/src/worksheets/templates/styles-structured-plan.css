@@ -1,0 +1,874 @@
+/* Upllyft Structured Plan Worksheets — Print-optimized stylesheet */
+/* Covers: weekly-plan, daily-routine */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+:root {
+  --mint: #3ECFB4;
+  --teal: #0D9488;
+  --teal-dark: #0F766E;
+  --teal-light: #CCFBF1;
+  --bg-warm: #FEFCF8;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --border-light: #E2E8F0;
+  --accent-orange: #F59E0B;
+  --accent-blue: #3B82F6;
+  --accent-purple: #8B5CF6;
+
+  /* Activity type colors */
+  --routine-bg: #DBEAFE;
+  --routine-text: #1E40AF;
+  --therapeutic-bg: #EDE9FE;
+  --therapeutic-text: #5B21B6;
+  --play-bg: #DCFCE7;
+  --play-text: #166534;
+  --rest-bg: #FEF3C7;
+  --rest-text: #92400E;
+  --transition-bg: #FFEDD5;
+  --transition-text: #9A3412;
+
+  /* Day header gradient colors */
+  --day-1: #0D9488;
+  --day-2: #0891B2;
+  --day-3: #2563EB;
+  --day-4: #7C3AED;
+  --day-5: #DB2777;
+  --day-6: #EA580C;
+  --day-7: #65A30D;
+
+  /* Period colors */
+  --morning: #F59E0B;
+  --afternoon: #3B82F6;
+  --evening: #8B5CF6;
+
+  --morning-light: #FEF3C7;
+  --afternoon-light: #DBEAFE;
+  --evening-light: #EDE9FE;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--text-primary);
+  background: white;
+  font-size: 11pt;
+  line-height: 1.5;
+}
+
+/* ─── Header (shared) ───────────────────────── */
+
+.worksheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 3px solid var(--teal);
+  margin-bottom: 16px;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.worksheet-title {
+  font-size: 20pt;
+  font-weight: 800;
+  color: var(--teal-dark);
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.worksheet-subtitle {
+  font-size: 10pt;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.header-meta {
+  text-align: right;
+  font-size: 9pt;
+  color: var(--text-secondary);
+}
+
+.header-meta .field {
+  margin-bottom: 2px;
+}
+
+.header-meta .field-label {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.meta-tags {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.meta-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 8pt;
+  font-weight: 700;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+}
+
+/* ─── Fill-in fields (shared) ───────────────── */
+
+.fill-fields {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: #F8FAFC;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+}
+
+.fill-field {
+  font-size: 9pt;
+  color: var(--text-secondary);
+}
+
+.fill-field .line {
+  display: inline-block;
+  min-width: 120px;
+  border-bottom: 1px solid var(--text-secondary);
+  margin-left: 4px;
+}
+
+/* ─── Instructions box (shared) ─────────────── */
+
+.instructions-box {
+  background: var(--teal-light);
+  border-left: 4px solid var(--teal);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 20px;
+}
+
+.instructions-box h2 {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--teal-dark);
+  margin-bottom: 4px;
+}
+
+.instructions-box p {
+  font-size: 10pt;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* ─── Tips Section (shared) ─────────────────── */
+
+.tips-section {
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  page-break-inside: avoid;
+}
+
+.tips-section h2 {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #92400E;
+  margin-bottom: 6px;
+}
+
+.tips-section ul {
+  list-style: none;
+  padding: 0;
+}
+
+.tips-section li {
+  font-size: 9.5pt;
+  padding: 2px 0 2px 18px;
+  position: relative;
+  color: var(--text-primary);
+}
+
+.tips-section li::before {
+  content: '\2713';
+  position: absolute;
+  left: 0;
+  color: var(--accent-orange);
+  font-weight: 700;
+}
+
+/* ─── Notes Section (shared) ────────────────── */
+
+.notes-section {
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  page-break-inside: avoid;
+}
+
+.notes-section h2 {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.notes-prompt {
+  font-size: 9pt;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+.notes-lines {
+  min-height: 60px;
+}
+
+.notes-lines .line {
+  border-bottom: 1px solid var(--border-light);
+  height: 22px;
+}
+
+/* ─── Footer (shared) ───────────────────────── */
+
+.worksheet-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-light);
+  margin-top: 16px;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-text {
+  font-size: 7.5pt;
+  color: var(--text-secondary);
+}
+
+/* ─── Shared checkbox ───────────────────────── */
+
+.checkbox-box {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--teal);
+  border-radius: 3px;
+}
+
+/* ═══════════════════════════════════════════════
+   WEEKLY PLAN — 7-Column Grid Layout
+   ═══════════════════════════════════════════════ */
+
+/* ─── Weekly Goal Banner ────────────────────── */
+
+.weekly-goal-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--teal-light), #E0F2FE);
+  border: 2px solid var(--teal);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.goal-icon {
+  font-size: 22pt;
+  color: var(--accent-orange);
+  flex-shrink: 0;
+}
+
+.goal-content {
+  flex: 1;
+}
+
+.goal-label {
+  font-size: 8.5pt;
+  font-weight: 700;
+  color: var(--teal-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.goal-text {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* ─── Weekly Grid ───────────────────────────── */
+
+.weekly-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.day-column {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  overflow: hidden;
+  page-break-inside: avoid;
+}
+
+.day-header {
+  padding: 6px 8px;
+  text-align: center;
+  color: white;
+}
+
+.day-header-0 { background: var(--day-1); }
+.day-header-1 { background: var(--day-2); }
+.day-header-2 { background: var(--day-3); }
+.day-header-3 { background: var(--day-4); }
+.day-header-4 { background: var(--day-5); }
+.day-header-5 { background: var(--day-6); }
+.day-header-6 { background: var(--day-7); }
+
+.day-name {
+  font-size: 9pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.day-theme {
+  font-size: 7pt;
+  font-weight: 600;
+  opacity: 0.9;
+  margin-top: 1px;
+}
+
+.day-activities {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 120px;
+}
+
+.day-activity-card {
+  display: flex;
+  gap: 5px;
+  align-items: flex-start;
+  padding: 5px;
+  background: #F8FAFC;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.day-activity-checkbox {
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.day-activity-checkbox .checkbox-box {
+  width: 13px;
+  height: 13px;
+  border-width: 1.5px;
+}
+
+.day-activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.day-activity-name {
+  font-size: 8pt;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.day-activity-desc {
+  font-size: 7pt;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+
+.day-activity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.domain-tag {
+  display: inline-block;
+  padding: 0px 4px;
+  border-radius: 6px;
+  font-size: 6pt;
+  font-weight: 700;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+}
+
+/* ─── Progress Tracking ─────────────────────── */
+
+.progress-section {
+  margin-bottom: 20px;
+  page-break-inside: avoid;
+}
+
+.progress-section h2 {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--teal-dark);
+  margin-bottom: 10px;
+}
+
+.progress-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: #F8FAFC;
+}
+
+.progress-goal {
+  flex: 1;
+  font-size: 9.5pt;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.progress-checkboxes {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.progress-day-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.day-abbr {
+  font-size: 7pt;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.progress-day-box .checkbox-box {
+  width: 14px;
+  height: 14px;
+  border-width: 1.5px;
+}
+
+/* ─── Weekly Reflection ─────────────────────── */
+
+.reflection-section {
+  margin-bottom: 20px;
+  page-break-inside: avoid;
+}
+
+.reflection-section h2 {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--teal-dark);
+  margin-bottom: 10px;
+}
+
+.reflection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.reflection-card {
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #F8FAFC;
+}
+
+.reflection-label {
+  font-size: 9pt;
+  font-weight: 700;
+  color: var(--teal-dark);
+  margin-bottom: 6px;
+}
+
+.reflection-lines {
+  min-height: 40px;
+}
+
+.reflection-lines .line {
+  border-bottom: 1px solid var(--border-light);
+  height: 20px;
+}
+
+/* ═══════════════════════════════════════════════
+   DAILY ROUTINE — Period-based Layout
+   ═══════════════════════════════════════════════ */
+
+/* ─── Routine Periods ───────────────────────── */
+
+.routine-period {
+  margin-bottom: 20px;
+  page-break-inside: avoid;
+}
+
+.period-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  color: white;
+}
+
+.period-header-morning {
+  background: linear-gradient(135deg, var(--morning), #F97316);
+}
+
+.period-header-afternoon {
+  background: linear-gradient(135deg, var(--afternoon), #6366F1);
+}
+
+.period-header-evening {
+  background: linear-gradient(135deg, var(--evening), #A855F7);
+}
+
+.period-icon {
+  font-size: 18pt;
+  flex-shrink: 0;
+}
+
+.period-title {
+  font-size: 14pt;
+  font-weight: 800;
+  flex: 1;
+}
+
+.period-time-range {
+  font-size: 9pt;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* ─── Time Blocks ───────────────────────────── */
+
+.time-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 16px;
+}
+
+.time-block {
+  display: flex;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: white;
+  page-break-inside: avoid;
+}
+
+.time-block-time {
+  width: 56px;
+  flex-shrink: 0;
+  text-align: center;
+  padding-top: 2px;
+}
+
+.block-start {
+  font-size: 10pt;
+  font-weight: 800;
+  color: var(--teal-dark);
+  line-height: 1.2;
+}
+
+.block-end {
+  font-size: 8pt;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.time-block-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.time-block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.time-block-name {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ─── Activity Type Badges ──────────────────── */
+
+.activity-type-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.badge-routine {
+  background: var(--routine-bg);
+  color: var(--routine-text);
+}
+
+.badge-therapeutic {
+  background: var(--therapeutic-bg);
+  color: var(--therapeutic-text);
+}
+
+.badge-play {
+  background: var(--play-bg);
+  color: var(--play-text);
+}
+
+.badge-rest {
+  background: var(--rest-bg);
+  color: var(--rest-text);
+}
+
+.badge-transition {
+  background: var(--transition-bg);
+  color: var(--transition-text);
+}
+
+.time-block-description {
+  font-size: 9pt;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+/* ─── Block Steps ───────────────────────────── */
+
+.time-block-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.block-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.block-step-checkbox .checkbox-box {
+  width: 14px;
+  height: 14px;
+  border-width: 1.5px;
+}
+
+.block-step-text {
+  font-size: 9pt;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* ─── Transition Warning ────────────────────── */
+
+.transition-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: #FEF3C7;
+  border-left: 3px solid var(--accent-orange);
+  border-radius: 0 6px 6px 0;
+  margin-top: 6px;
+}
+
+.transition-warning-icon {
+  font-size: 11pt;
+  color: var(--accent-orange);
+  flex-shrink: 0;
+}
+
+.transition-warning-text {
+  font-size: 8.5pt;
+  color: #92400E;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* ─── Sensory Breaks Section ────────────────── */
+
+.sensory-breaks-section {
+  margin-bottom: 20px;
+  page-break-inside: avoid;
+}
+
+.sensory-breaks-section h2 {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--teal-dark);
+  margin-bottom: 6px;
+}
+
+.sensory-intro {
+  font-size: 9.5pt;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.sensory-break-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.sensory-break-card {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--teal-light), #F0FDFA);
+}
+
+.sensory-break-icon {
+  font-size: 18pt;
+  flex-shrink: 0;
+}
+
+.sensory-break-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sensory-break-name {
+  font-size: 9pt;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.sensory-break-desc {
+  font-size: 8pt;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+
+.sensory-break-duration {
+  font-size: 7.5pt;
+  font-weight: 600;
+  color: var(--teal-dark);
+}
+
+/* ─── Activity Type Legend ───────────────────── */
+
+.type-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #F8FAFC;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  page-break-inside: avoid;
+}
+
+.legend-title {
+  font-size: 8.5pt;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.legend-items {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  font-size: 7.5pt;
+}
+
+/* ─── Print Overrides ───────────────────────── */
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .weekly-grid {
+    page-break-inside: avoid;
+  }
+
+  .day-column {
+    page-break-inside: avoid;
+  }
+
+  .routine-period {
+    page-break-inside: avoid;
+  }
+
+  .time-block {
+    page-break-inside: avoid;
+  }
+
+  .tips-section,
+  .notes-section,
+  .progress-section,
+  .reflection-section,
+  .sensory-breaks-section {
+    page-break-inside: avoid;
+  }
+
+  .worksheet-header {
+    page-break-after: avoid;
+  }
+
+  /* For landscape weekly view if needed */
+  @page {
+    size: A4;
+    margin: 12mm 10mm;
+  }
+}

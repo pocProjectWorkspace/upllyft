@@ -1,0 +1,9 @@
+{
+    "name": "create-indexes",
+    "version": "1.0.0",
+    "description": "Script to create performance indexes",
+    "main": "index.js",
+    "scripts": {
+        "create-indexes": "node create-indexes.js"
+    }
+}

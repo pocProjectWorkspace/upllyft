@@ -1,0 +1,474 @@
+'use client';
+
+import { useState } from 'react';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import { CommunityShell } from '@/components/community-shell';
+import {
+  useCommunity,
+  useCommunityPosts,
+  useJoinCommunity,
+  useLeaveCommunity,
+} from '@/hooks/use-community';
+import {
+  Card,
+  Button,
+  Avatar,
+  Badge,
+  Skeleton,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@upllyft/ui';
+
+function formatTimeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
+function formatLabel(value: string): string {
+  return value
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatTypeLabel(type: string): string {
+  switch (type) {
+    case 'CONDITION_SPECIFIC':
+      return 'Condition';
+    case 'REGIONAL':
+      return 'Regional';
+    case 'PROFESSIONAL':
+      return 'Professional';
+    case 'ORGANIZATION':
+      return 'Organization';
+    default:
+      return type;
+  }
+}
+
+function typeBadgeColor(type: string): 'teal' | 'blue' | 'purple' | 'green' | 'gray' {
+  switch (type) {
+    case 'CONDITION_SPECIFIC':
+      return 'purple';
+    case 'REGIONAL':
+      return 'blue';
+    case 'PROFESSIONAL':
+      return 'teal';
+    case 'ORGANIZATION':
+      return 'green';
+    default:
+      return 'gray';
+  }
+}
+
+function PostsTab({ communityId }: { communityId: string }) {
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useCommunityPosts(communityId, { page, limit: 10, sort: 'recent' });
+  const posts = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / 10);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[...Array(3)].map((_, i) => (
+          <Card key={i} className="p-5">
+            <div className="flex items-start gap-3">
+              <Skeleton className="w-10 h-10 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+          </svg>
+        </div>
+        <h3 className="font-semibold text-gray-900">No posts yet</h3>
+        <p className="text-sm text-gray-500 mt-1">Be the first to start a discussion in this community!</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {posts.map((post: any) => (
+        <Link key={post.id} href={`/posts/${post.id}`}>
+          <Card hover className="p-5">
+            <div className="flex items-start gap-3">
+              <Avatar
+                src={post.author?.image || undefined}
+                name={post.author?.name || 'Anonymous'}
+                size="md"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-gray-900 text-sm">
+                    {post.isAnonymous ? 'Anonymous' : post.author?.name}
+                  </span>
+                  <span className="text-xs text-gray-400">{formatTimeAgo(post.createdAt)}</span>
+                </div>
+                <h3 className="mt-1 font-semibold text-gray-900 text-base leading-snug">
+                  {post.title}
+                </h3>
+                <p className="mt-1.5 text-sm text-gray-600 leading-relaxed line-clamp-2">
+                  {post.content}
+                </p>
+                <div className="mt-3 flex items-center gap-4 text-sm text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                    {post.upvotes ?? 0}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    {post.commentCount ?? post._count?.comments ?? 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </Link>
+      ))}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-gray-500 px-3">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MembersTab({ communityId: _communityId }: { communityId: string }) {
+  // Note: The current API uses global members; a community-specific endpoint
+  // would be used here if available. For now, showing a placeholder.
+  return (
+    <Card className="p-12 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+        <svg className="w-7 h-7 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      </div>
+      <h3 className="font-semibold text-gray-900">Community Members</h3>
+      <p className="text-sm text-gray-500 mt-1">
+        Browse all community members on the{' '}
+        <Link href="/communities" className="text-teal-600 hover:underline">
+          Communities page
+        </Link>
+      </p>
+    </Card>
+  );
+}
+
+function EventsTab() {
+  return (
+    <Card className="p-12 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+        <svg className="w-7 h-7 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <h3 className="font-semibold text-gray-900">Community Events</h3>
+      <p className="text-sm text-gray-500 mt-1">Events for this community will appear here</p>
+    </Card>
+  );
+}
+
+function AboutTab({
+  community,
+}: {
+  community: {
+    type: string;
+    isPrivate: boolean;
+    description: string;
+    tags: string[];
+    creator?: { id: string; name: string; image?: string };
+  };
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Card className="p-6">
+        <h3 className="font-semibold text-gray-900 mb-4">Community Details</h3>
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Type</p>
+            <div className="mt-1">
+              <Badge color={typeBadgeColor(community.type)}>
+                {formatTypeLabel(community.type)}
+              </Badge>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Privacy</p>
+            <p className="text-sm text-gray-700 mt-1">
+              {community.isPrivate ? 'Private - Invite only' : 'Public - Anyone can join'}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Description</p>
+            <p className="text-sm text-gray-700 mt-1 leading-relaxed">{community.description}</p>
+          </div>
+          {community.tags.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Tags</p>
+              <div className="flex flex-wrap gap-2">
+                {community.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="font-semibold text-gray-900 mb-4">Created By</h3>
+        {community.creator ? (
+          <div className="flex items-center gap-3">
+            <Avatar
+              src={community.creator.image || undefined}
+              name={community.creator.name}
+              size="lg"
+            />
+            <div>
+              <p className="font-medium text-gray-900">{community.creator.name}</p>
+              <p className="text-sm text-gray-500">Community Owner</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">Creator information unavailable</p>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+export default function CommunityDetailPage() {
+  const params = useParams();
+  const communityId = params.id as string;
+  const { data: community, isLoading, error } = useCommunity(communityId);
+  const joinMutation = useJoinCommunity();
+  const leaveMutation = useLeaveCommunity();
+
+  if (isLoading) {
+    return (
+      <CommunityShell>
+        <div className="space-y-6">
+          <Skeleton className="h-48 w-full rounded-2xl" />
+          <div className="flex items-center gap-4">
+            <Skeleton className="w-16 h-16 rounded-xl" />
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-64" />
+              <Skeleton className="h-4 w-96" />
+            </div>
+          </div>
+        </div>
+      </CommunityShell>
+    );
+  }
+
+  if (error || !community) {
+    return (
+      <CommunityShell>
+        <Card className="p-12 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="font-semibold text-gray-900">Community not found</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            This community may have been removed or you don&apos;t have access.
+          </p>
+          <Link href="/communities" className="inline-block mt-4">
+            <Button variant="outline" size="sm">
+              Back to Communities
+            </Button>
+          </Link>
+        </Card>
+      </CommunityShell>
+    );
+  }
+
+  const isMember = community.isMember || community.userMembership?.status === 'ACTIVE';
+  const isOwner = community.userMembership?.role === 'OWNER';
+  const memberCount = community._count?.members ?? community.memberCount ?? 0;
+  const postCount = community._count?.posts ?? community.postCount ?? 0;
+
+  return (
+    <CommunityShell>
+      {/* Banner */}
+      <div className="relative rounded-2xl overflow-hidden mb-6">
+        {community.bannerImage ? (
+          <img
+            src={community.bannerImage}
+            alt={`${community.name} banner`}
+            className="w-full h-48 object-cover"
+          />
+        ) : (
+          <div className="w-full h-48 bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+      </div>
+
+      {/* Header Info */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6 -mt-12 relative z-10 px-4">
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg border-4 border-white shrink-0">
+          {community.icon || community.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900">{community.name}</h1>
+          <p className="text-gray-600 mt-1 line-clamp-2">{community.description}</p>
+          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+            <span className="flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {memberCount} members
+            </span>
+            <span className="flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+              </svg>
+              {postCount} posts
+            </span>
+            <Badge color={typeBadgeColor(community.type)}>
+              {formatTypeLabel(community.type)}
+            </Badge>
+            {community.isPrivate && (
+              <Badge color="gray">
+                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Private
+              </Badge>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {isMember ? (
+            <>
+              <Link href={`/posts/create?communityId=${communityId}`}>
+                <Button size="sm">
+                  <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Create Post
+                </Button>
+              </Link>
+              {!isOwner && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => leaveMutation.mutate(communityId)}
+                  disabled={leaveMutation.isPending}
+                >
+                  Leave
+                </Button>
+              )}
+              {isOwner && (
+                <Button variant="ghost" size="sm">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </Button>
+              )}
+            </>
+          ) : (
+            <Button
+              onClick={() => joinMutation.mutate(communityId)}
+              disabled={joinMutation.isPending}
+            >
+              {joinMutation.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  Joining...
+                </>
+              ) : (
+                'Join Community'
+              )}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Content Tabs */}
+      <Tabs defaultValue="posts">
+        <TabsList className="mb-6">
+          <TabsTrigger value="posts">Posts</TabsTrigger>
+          <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="events">Events</TabsTrigger>
+          <TabsTrigger value="about">About</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="posts">
+          <PostsTab communityId={communityId} />
+        </TabsContent>
+
+        <TabsContent value="members">
+          <MembersTab communityId={communityId} />
+        </TabsContent>
+
+        <TabsContent value="events">
+          <EventsTab />
+        </TabsContent>
+
+        <TabsContent value="about">
+          <AboutTab community={community} />
+        </TabsContent>
+      </Tabs>
+    </CommunityShell>
+  );
+}

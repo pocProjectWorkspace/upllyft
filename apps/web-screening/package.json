@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3002",
+    "dev": "next dev --port 3003",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -11,12 +11,15 @@
     "clean": "rm -rf .next .turbo"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.75.5",
     "@upllyft/api-client": "workspace:*",
     "@upllyft/types": "workspace:*",
     "@upllyft/ui": "workspace:*",
     "next": "16.1.6",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "recharts": "^2.15.3",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

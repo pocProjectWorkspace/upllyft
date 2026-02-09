@@ -1,70 +1,160 @@
-import axios from 'axios';
+import axios, { type AxiosInstance } from 'axios';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const TOKEN_KEY = 'upllyft_access_token';
+const REFRESH_KEY = 'upllyft_refresh_token';
 
-export const apiClient = axios.create({
-  baseURL: BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// Cookie helpers for cross-port token sharing in development.
+// localStorage is per-origin (port-specific), but cookies on localhost
+// are shared across all ports, enabling seamless cross-app auth.
+function setCookie(name: string, value: string) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax`;
+}
 
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (value: unknown) => void;
-  reject: (reason: unknown) => void;
-}> = [];
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
-const processQueue = (error: unknown | null) => {
-  failedQueue.forEach((promise) => {
-    if (error) {
-      promise.reject(error);
-    } else {
-      promise.resolve(undefined);
-    }
+function deleteCookie(name: string) {
+  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+}
+
+let apiClient: AxiosInstance = createClient('/api');
+let storedRefreshToken: string | null = null;
+
+function createClient(baseURL: string): AxiosInstance {
+  const client = axios.create({
+    baseURL,
+    withCredentials: true,
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
-  failedQueue = [];
-};
 
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
+  let isRefreshing = false;
+  let failedQueue: Array<{
+    resolve: (value: unknown) => void;
+    reject: (reason: unknown) => void;
+  }> = [];
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then(() => apiClient(originalRequest));
+  const processQueue = (error: unknown | null) => {
+    failedQueue.forEach((promise) => {
+      if (error) {
+        promise.reject(error);
+      } else {
+        promise.resolve(undefined);
       }
+    });
+    failedQueue = [];
+  };
 
-      originalRequest._retry = true;
-      isRefreshing = true;
+  client.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const originalRequest = error.config;
 
-      try {
-        await apiClient.post('/auth/refresh');
-        processQueue(null);
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError);
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        if (!storedRefreshToken && typeof window !== 'undefined') {
+          storedRefreshToken = getCookie(REFRESH_KEY) || localStorage.getItem(REFRESH_KEY);
         }
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
-    }
+        if (!storedRefreshToken) {
+          return Promise.reject(error);
+        }
 
-    return Promise.reject(error);
-  },
-);
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          }).then(() => client(originalRequest));
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+          const { data } = await client.post('/auth/refresh', {
+            refreshToken: storedRefreshToken,
+          });
+          setAuthToken(data.accessToken);
+          if (data.refreshToken) {
+            storedRefreshToken = data.refreshToken;
+          }
+          processQueue(null);
+          return client(originalRequest);
+        } catch (refreshError) {
+          processQueue(refreshError);
+          clearStoredTokens();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
+      }
+
+      return Promise.reject(error);
+    },
+  );
+
+  return client;
+}
+
+export function initializeApiClient(baseURL: string) {
+  apiClient = createClient(baseURL);
+}
 
 export function setAuthToken(token: string | null) {
   if (token) {
     apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(TOKEN_KEY, token);
+      setCookie(TOKEN_KEY, token);
+    }
   } else {
     delete apiClient.defaults.headers.common['Authorization'];
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(TOKEN_KEY);
+      deleteCookie(TOKEN_KEY);
+    }
   }
 }
+
+export function setRefreshToken(token: string | null) {
+  storedRefreshToken = token;
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem(REFRESH_KEY, token);
+      setCookie(REFRESH_KEY, token);
+    } else {
+      localStorage.removeItem(REFRESH_KEY);
+      deleteCookie(REFRESH_KEY);
+    }
+  }
+}
+
+export function getStoredTokens(): {
+  accessToken: string | null;
+  refreshToken: string | null;
+} {
+  if (typeof window === 'undefined') {
+    return { accessToken: null, refreshToken: null };
+  }
+  // Check cookies first (shared across ports), then localStorage
+  return {
+    accessToken: getCookie(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY),
+    refreshToken: getCookie(REFRESH_KEY) || localStorage.getItem(REFRESH_KEY),
+  };
+}
+
+export function clearStoredTokens() {
+  storedRefreshToken = null;
+  delete apiClient.defaults.headers.common['Authorization'];
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_KEY);
+    deleteCookie(TOKEN_KEY);
+    deleteCookie(REFRESH_KEY);
+  }
+}
+
+export { apiClient };

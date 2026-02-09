@@ -1,21 +1,773 @@
-import { AppHeader } from "@upllyft/ui";
+'use client';
 
-export default function ScreeningPage() {
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@upllyft/api-client';
+import {
+  Button,
+  Card,
+  Badge,
+  Avatar,
+  Skeleton,
+  Label,
+  Input,
+  Textarea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  RadioGroup,
+  RadioGroupItem,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@upllyft/ui';
+import { ScreeningShell } from '@/components/screening-shell';
+import {
+  useUserChildren,
+  useChildAssessments,
+  useCreateAssessment,
+  useDeleteAssessment,
+  useShareAssessment,
+  useSearchTherapists,
+} from '@/hooks/use-assessments';
+import {
+  formatAge,
+  getAgeGroup,
+  formatAgeGroup,
+  formatDate,
+  calculateZone,
+  zoneColors,
+} from '@/lib/utils';
+import type { Assessment, Child, AccessLevel } from '@/lib/api/assessments';
+
+// ── Status badge config ──
+
+const statusConfig: Record<
+  string,
+  { label: string; color: 'blue' | 'yellow' | 'green' | 'gray' }
+> = {
+  IN_PROGRESS: { label: 'In Progress', color: 'blue' },
+  TIER1_COMPLETE: { label: 'In Progress', color: 'blue' },
+  TIER2_REQUIRED: { label: 'Tier 2 Required', color: 'yellow' },
+  COMPLETED: { label: 'Completed', color: 'green' },
+  EXPIRED: { label: 'Expired', color: 'gray' },
+};
+
+// ── Inline SVG Icons ──
+
+function PlusIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      <AppHeader userName="Sarah" />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="text-center py-20">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center mx-auto mb-6">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  );
+}
+
+function ClipboardIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+      />
+    </svg>
+  );
+}
+
+function DotsVerticalIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+      />
+    </svg>
+  );
+}
+
+function ChartIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+      />
+    </svg>
+  );
+}
+
+function ShareIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+      />
+    </svg>
+  );
+}
+
+function TrashIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+      />
+    </svg>
+  );
+}
+
+function DocumentIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+      />
+    </svg>
+  );
+}
+
+function ClockIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+function SearchIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+      />
+    </svg>
+  );
+}
+
+function WarningIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
+      />
+    </svg>
+  );
+}
+
+function ArrowRightIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+    </svg>
+  );
+}
+
+// ── Assessment Card ──
+
+function AssessmentCard({
+  assessment,
+  onShare,
+  onDelete,
+}: {
+  assessment: Assessment;
+  onShare: (assessment: Assessment) => void;
+  onDelete: (assessment: Assessment) => void;
+}) {
+  const router = useRouter();
+  const child = assessment.child;
+  const status = statusConfig[assessment.status] || statusConfig.IN_PROGRESS;
+  const isCompleted = assessment.status === 'COMPLETED';
+  const isInProgress = assessment.status === 'IN_PROGRESS' || assessment.status === 'TIER1_COMPLETE';
+  const isTier2Required = assessment.status === 'TIER2_REQUIRED';
+
+  return (
+    <Card hover className="p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Avatar name={child.firstName} size="md" />
+          <div className="min-w-0">
+            <h3 className="font-semibold text-gray-900 truncate">{child.firstName}</h3>
+            <p className="text-sm text-gray-500">{formatAge(child.dateOfBirth)}</p>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Screening</h1>
-          <p className="text-gray-500 mt-2 text-lg">Coming Soon</p>
-          <p className="text-gray-400 mt-1 max-w-md mx-auto">Developmental assessments and milestone tracking for your children</p>
         </div>
-      </main>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge color={status.color}>{status.label}</Badge>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
+                <DotsVerticalIcon className="w-4 h-4 text-gray-400" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isCompleted && (
+                <DropdownMenuItem onClick={() => router.push(`/${assessment.id}/report`)}>
+                  <DocumentIcon className="w-4 h-4 mr-2" />
+                  View Report
+                </DropdownMenuItem>
+              )}
+              {isCompleted && (
+                <DropdownMenuItem onClick={() => onShare(assessment)}>
+                  <ShareIcon className="w-4 h-4 mr-2" />
+                  Share
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={() => onDelete(assessment)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <TrashIcon className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+        <ClipboardIcon className="w-4 h-4 text-gray-400" />
+        <span>{formatAgeGroup(assessment.ageGroup)}</span>
+      </div>
+
+      {isCompleted && assessment.overallScore != null && (
+        <div className="mt-3 bg-gray-50 rounded-xl p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">Overall Score</span>
+            <span className="text-lg font-bold text-teal-600">
+              {Math.round(assessment.overallScore)}%
+            </span>
+          </div>
+          {assessment.completedAt && (
+            <p className="text-xs text-gray-400 mt-1">
+              Completed {formatDate(assessment.completedAt)}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="mt-4">
+        {isCompleted && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={() => router.push(`/${assessment.id}/report`)}
+          >
+            <ChartIcon className="w-4 h-4 mr-2" />
+            View Report
+          </Button>
+        )}
+        {(isInProgress || isTier2Required) && (
+          <Button
+            variant="primary"
+            size="sm"
+            className="w-full"
+            onClick={() =>
+              router.push(
+                `/${assessment.id}/questionnaire?tier=${isTier2Required ? '2' : '1'}`,
+              )
+            }
+          >
+            Continue Screening
+            <ArrowRightIcon className="w-4 h-4 ml-2" />
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ── Child Section ──
+
+function ChildSection({
+  child,
+  onShare,
+  onDelete,
+}: {
+  child: Child;
+  onShare: (assessment: Assessment) => void;
+  onDelete: (assessment: Assessment) => void;
+}) {
+  const { data: assessments, isLoading } = useChildAssessments(child.id);
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-4">
+        <Avatar name={child.firstName} size="lg" />
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">{child.firstName}</h2>
+          <p className="text-sm text-gray-500">{formatAge(child.dateOfBirth)}</p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2].map((i) => (
+            <Card key={i} className="p-5">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-24 mb-2" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </div>
+              <Skeleton className="h-3 w-32 mt-4" />
+              <Skeleton className="h-10 w-full mt-4 rounded-xl" />
+            </Card>
+          ))}
+        </div>
+      ) : !assessments || assessments.length === 0 ? (
+        <Card className="p-6 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+            <ClipboardIcon className="w-6 h-6 text-gray-400" />
+          </div>
+          <p className="text-sm text-gray-500">No screenings yet for {child.firstName}.</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Start a new screening to track developmental milestones.
+          </p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {assessments.map((assessment) => (
+            <AssessmentCard
+              key={assessment.id}
+              assessment={assessment}
+              onShare={onShare}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+// ── Main Page ──
+
+export default function ScreeningLibraryPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  // Redirect therapists to the shared page
+  useEffect(() => {
+    if (user?.role === 'THERAPIST') {
+      router.replace('/shared');
+    }
+  }, [user?.role, router]);
+
+  const { data: children, isLoading: childrenLoading } = useUserChildren();
+
+  // Dialog states
+  const [createOpen, setCreateOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
+
+  // Create assessment state
+  const [selectedChildId, setSelectedChildId] = useState('');
+  const selectedChild = children?.find((c) => c.id === selectedChildId);
+  const ageGroup = selectedChild ? getAgeGroup(selectedChild.dateOfBirth) : null;
+  const isOutOfRange = selectedChild && !ageGroup;
+
+  const createMutation = useCreateAssessment();
+  const deleteMutation = useDeleteAssessment();
+
+  // Share state
+  const [therapistSearch, setTherapistSearch] = useState('');
+  const [selectedTherapistId, setSelectedTherapistId] = useState('');
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>('VIEW');
+  const [shareMessage, setShareMessage] = useState('');
+  const { data: therapists } = useSearchTherapists(therapistSearch || undefined);
+  const shareMutation = useShareAssessment();
+
+  function handleOpenCreate() {
+    setSelectedChildId('');
+    setCreateOpen(true);
+  }
+
+  function handleStartScreening() {
+    if (!selectedChildId || !ageGroup) return;
+    createMutation.mutate(
+      { childId: selectedChildId, ageGroup },
+      {
+        onSuccess: (assessment) => {
+          setCreateOpen(false);
+          router.push(`/${assessment.id}/questionnaire?tier=1`);
+        },
+      },
+    );
+  }
+
+  function handleOpenShare(assessment: Assessment) {
+    setSelectedAssessment(assessment);
+    setTherapistSearch('');
+    setSelectedTherapistId('');
+    setAccessLevel('VIEW');
+    setShareMessage('');
+    setShareOpen(true);
+  }
+
+  function handleShare() {
+    if (!selectedAssessment || !selectedTherapistId) return;
+    shareMutation.mutate(
+      {
+        id: selectedAssessment.id,
+        data: {
+          therapistId: selectedTherapistId,
+          accessLevel,
+          message: shareMessage || undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          setShareOpen(false);
+          setSelectedAssessment(null);
+        },
+      },
+    );
+  }
+
+  function handleOpenDelete(assessment: Assessment) {
+    setSelectedAssessment(assessment);
+    setDeleteOpen(true);
+  }
+
+  function handleDelete() {
+    if (!selectedAssessment) return;
+    deleteMutation.mutate(selectedAssessment.id, {
+      onSuccess: () => {
+        setDeleteOpen(false);
+        setSelectedAssessment(null);
+      },
+    });
+  }
+
+  if (user?.role === 'THERAPIST') {
+    return null;
+  }
+
+  return (
+    <ScreeningShell>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
+              <ClipboardIcon className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Milestone Map</h1>
+          </div>
+          <p className="text-gray-500 mt-1 ml-[52px]">
+            Track your child&apos;s developmental milestones with evidence-based screenings.
+          </p>
+        </div>
+        <Button onClick={handleOpenCreate} className="shrink-0">
+          <PlusIcon className="w-4 h-4 mr-2" />
+          Start New Screening
+        </Button>
+      </div>
+
+      {/* Children sections */}
+      {childrenLoading ? (
+        <div className="space-y-10">
+          {[1, 2].map((i) => (
+            <div key={i}>
+              <div className="flex items-center gap-3 mb-4">
+                <Skeleton className="w-12 h-12 rounded-full" />
+                <div>
+                  <Skeleton className="h-5 w-28 mb-2" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map((j) => (
+                  <Card key={j} className="p-5">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="w-10 h-10 rounded-full" />
+                      <div className="flex-1">
+                        <Skeleton className="h-4 w-24 mb-2" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-3 w-32 mt-4" />
+                    <Skeleton className="h-10 w-full mt-4 rounded-xl" />
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : !children || children.length === 0 ? (
+        <Card className="p-12 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-100 to-teal-200 flex items-center justify-center mx-auto mb-4">
+            <ClipboardIcon className="w-8 h-8 text-teal-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No children added yet</h2>
+          <p className="text-gray-500 max-w-sm mx-auto">
+            Add a child profile from your main dashboard to start developmental screenings.
+          </p>
+        </Card>
+      ) : (
+        <div className="space-y-10">
+          {children.map((child) => (
+            <ChildSection
+              key={child.id}
+              child={child}
+              onShare={handleOpenShare}
+              onDelete={handleOpenDelete}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── Create Assessment Dialog ── */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start New Screening</DialogTitle>
+            <DialogDescription>
+              Select a child to begin a developmental milestone screening.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="child-select">Select Child</Label>
+              <Select value={selectedChildId} onValueChange={setSelectedChildId}>
+                <SelectTrigger id="child-select">
+                  <SelectValue placeholder="Choose a child..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {children?.map((child) => (
+                    <SelectItem key={child.id} value={child.id}>
+                      {child.firstName} -- {formatAge(child.dateOfBirth)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedChild && ageGroup && (
+              <Card className="p-4 bg-teal-50/50 border-teal-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
+                    <ClipboardIcon className="w-5 h-5 text-teal-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {formatAgeGroup(ageGroup)}
+                    </p>
+                    <div className="flex items-center gap-1 text-sm text-gray-500">
+                      <ClockIcon className="w-3.5 h-3.5" />
+                      <span>Estimated time: 8-10 minutes</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {isOutOfRange && (
+              <Card className="p-4 bg-yellow-50/50 border-yellow-200">
+                <div className="flex items-start gap-3">
+                  <WarningIcon className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-yellow-800">Age out of supported range</p>
+                    <p className="text-sm text-yellow-700 mt-0.5">
+                      Milestone Map screenings are designed for children between 12 months and 10
+                      years of age.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleStartScreening}
+              disabled={!selectedChildId || !ageGroup || createMutation.isPending}
+            >
+              {createMutation.isPending ? 'Starting...' : 'Start Screening'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Share Assessment Dialog ── */}
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share Assessment</DialogTitle>
+            <DialogDescription>
+              Share this screening result with a therapist for professional review.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Therapist search */}
+            <div className="space-y-2">
+              <Label>Search Therapist</Label>
+              <div className="relative">
+                <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Search by name or email..."
+                  value={therapistSearch}
+                  onChange={(e) => setTherapistSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            {/* Therapist list */}
+            {therapists && therapists.length > 0 && (
+              <div className="max-h-40 overflow-y-auto border border-gray-100 rounded-xl divide-y divide-gray-50">
+                {therapists.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setSelectedTherapistId(t.id)}
+                    className={`w-full flex items-center gap-3 p-3 text-left transition-colors hover:bg-gray-50 ${
+                      selectedTherapistId === t.id ? 'bg-teal-50 border-l-2 border-l-teal-500' : ''
+                    }`}
+                  >
+                    <Avatar name={t.name} src={t.image} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">{t.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{t.email}</p>
+                    </div>
+                    {selectedTherapistId === t.id && (
+                      <svg className="w-5 h-5 text-teal-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {therapists && therapists.length === 0 && therapistSearch && (
+              <p className="text-sm text-gray-500 text-center py-3">No therapists found.</p>
+            )}
+
+            {/* Access level */}
+            <div className="space-y-2">
+              <Label>Access Level</Label>
+              <RadioGroup
+                value={accessLevel}
+                onValueChange={(v) => setAccessLevel(v as AccessLevel)}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="VIEW" id="access-view" />
+                  <Label htmlFor="access-view" className="font-normal cursor-pointer">
+                    View Only -- Therapist can view the report
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="ANNOTATE" id="access-annotate" />
+                  <Label htmlFor="access-annotate" className="font-normal cursor-pointer">
+                    Can Annotate -- Therapist can add notes and annotations
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Message */}
+            <div className="space-y-2">
+              <Label htmlFor="share-message">Message (optional)</Label>
+              <Textarea
+                id="share-message"
+                placeholder="Add a message for the therapist..."
+                value={shareMessage}
+                onChange={(e) => setShareMessage(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleShare}
+              disabled={!selectedTherapistId || shareMutation.isPending}
+            >
+              {shareMutation.isPending ? 'Sharing...' : 'Share Assessment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Screening</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this screening
+              {selectedAssessment?.child?.firstName
+                ? ` for ${selectedAssessment.child.firstName}`
+                : ''}
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 from-red-600 to-red-700"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </ScreeningShell>
   );
 }

@@ -1,19 +1,29 @@
 export enum UserRole {
-  PARENT = 'PARENT',
+  USER = 'USER',
   THERAPIST = 'THERAPIST',
+  EDUCATOR = 'EDUCATOR',
+  ORGANIZATION = 'ORGANIZATION',
   ADMIN = 'ADMIN',
-  SPECIAL_EDUCATOR = 'SPECIAL_EDUCATOR',
+  MODERATOR = 'MODERATOR',
+}
+
+export enum VerificationStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
 }
 
 export interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  name?: string;
   role: UserRole;
-  avatar?: string;
+  image?: string;
+  bio?: string;
   phone?: string;
-  isVerified: boolean;
+  location?: string;
+  isEmailVerified: boolean;
+  verificationStatus: VerificationStatus;
   createdAt: string;
   updatedAt: string;
 }

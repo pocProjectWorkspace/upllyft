@@ -1,0 +1,981 @@
+{
+    "ageGroup": "8-10-years",
+    "framework": "UFMF v1",
+    "displayName": "8-10 Years",
+    "estimatedTime": {
+        "tier1": "12-15 minutes",
+        "tier2PerDomain": "5-8 minutes"
+    },
+    "scoringThresholds": {
+        "tier2Trigger": 0.46,
+        "greenMax": 0.29,
+        "yellowMax": 0.45
+    },
+    "answerScoring": {
+        "YES": 0.0,
+        "SOMETIMES": 0.4,
+        "NOT_SURE": 0.7,
+        "NO": 1.0
+    },
+    "domains": [
+        {
+            "id": "grossMotor",
+            "name": "Gross Motor Development",
+            "description": "Gross motor skills involve large muscle movements like walking, running, jumping, and climbing. These skills are essential for physical independence, participation in sports and play, and overall health. Strong gross motor development supports balance, coordination, and body awareness, which are foundational for more complex physical activities and daily tasks.",
+            "tier1": [
+                {
+                    "id": "T1_GM_001",
+                    "question": "Can your child participate in team sports with coordination?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Complex motor planning",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Sports require integrating multiple motor skills."
+                },
+                {
+                    "id": "T1_GM_002",
+                    "question": "Does your child have good endurance for physical activity?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Stamina",
+                    "sources": [
+                        "PE Standards"
+                    ],
+                    "whyWeAsk": "Physical health marker."
+                },
+                {
+                    "id": "T1_GM_003",
+                    "question": "Can your child run, stop, and change direction easily?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Agility",
+                    "sources": [
+                        "PE Standards"
+                    ],
+                    "whyWeAsk": "Agility is key for play and safety."
+                },
+                {
+                    "id": "T1_GM_004",
+                    "question": "Can your child jump rope or hop on one foot for an extended time?",
+                    "weight": 0.9,
+                    "redFlag": false,
+                    "construct": "Balance and rhythm",
+                    "sources": [
+                        "CDC",
+                        "PE Standards"
+                    ],
+                    "whyWeAsk": "Balance and coordination are important for physical development."
+                },
+                {
+                    "id": "T1_GM_005",
+                    "question": "Does your child catch and throw a ball accurately?",
+                    "weight": 0.8,
+                    "redFlag": false,
+                    "construct": "Hand-eye coordination",
+                    "sources": [
+                        "PE Standards"
+                    ],
+                    "whyWeAsk": "Ball skills reflect coordination and spatial awareness."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_GM_001",
+                    "question": "Can your child perform complex movements like dance steps or martial arts?",
+                    "weight": 1.0,
+                    "construct": "Sequencing",
+                    "sources": [
+                        "PE"
+                    ],
+                    "whyWeAsk": "Motor sequencing."
+                },
+                {
+                    "id": "T2_GM_002",
+                    "question": "Does your child struggle with activities requiring bilateral coordination (like swimming or climbing)?",
+                    "weight": 1.1,
+                    "construct": "Bilateral coordination",
+                    "sources": [
+                        "OT",
+                        "PE Standards"
+                    ],
+                    "whyWeAsk": "Assesses ability to use both sides of the body together."
+                },
+                {
+                    "id": "T2_GM_003",
+                    "question": "Does your child avoid playground equipment or physical challenges?",
+                    "weight": 1.0,
+                    "construct": "Motor confidence",
+                    "sources": [
+                        "OT",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Avoidance may indicate motor planning difficulties or low confidence."
+                },
+                {
+                    "id": "T2_GM_004",
+                    "question": "Does your child have difficulty judging distances when moving (bumping into things, misjudging steps)?",
+                    "weight": 1.2,
+                    "construct": "Spatial awareness",
+                    "sources": [
+                        "OT",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Spatial judgment is crucial for safe movement and motor planning."
+                },
+                {
+                    "id": "T2_GM_005",
+                    "question": "Does your child tire unusually quickly during physical activities compared to peers?",
+                    "weight": 1.1,
+                    "construct": "Physical endurance",
+                    "sources": [
+                        "PE Standards",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Low endurance may indicate underlying motor or health concerns."
+                }
+            ]
+        },
+        {
+            "id": "fineMotor",
+            "name": "Fine Motor & Graphomotor",
+            "tier1": [
+                {
+                    "id": "T1_FM_001",
+                    "question": "Is your child's handwriting consistently neat (print or cursive)?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Graphomotor",
+                    "sources": [
+                        "School"
+                    ],
+                    "whyWeAsk": "Written expression fluidity."
+                },
+                {
+                    "id": "T1_FM_002",
+                    "question": "Can your child use tools like hammers or needle/thread (with supervision)?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Tool use",
+                    "sources": [
+                        "Life Skills"
+                    ],
+                    "whyWeAsk": "Practical fine motor application."
+                },
+                {
+                    "id": "T1_FM_003",
+                    "question": "Does your child type on a keyboard/device efficiently?",
+                    "weight": 0.8,
+                    "redFlag": false,
+                    "construct": "Digital dexterity",
+                    "sources": [
+                        "ISTE"
+                    ],
+                    "whyWeAsk": "Modern fine motor skill."
+                },
+                {
+                    "id": "T1_FM_004",
+                    "question": "Can your child cut along curved lines and shapes accurately with scissors?",
+                    "weight": 0.9,
+                    "redFlag": false,
+                    "construct": "Visual-motor precision",
+                    "sources": [
+                        "OT",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Cutting skills reflect hand strength and control."
+                },
+                {
+                    "id": "T1_FM_005",
+                    "question": "Does your child manage buttons, zippers, and shoelaces independently?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Fine motor independence",
+                    "sources": [
+                        "CDC",
+                        "Life Skills"
+                    ],
+                    "whyWeAsk": "Fastening skills are essential for self-care independence."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_FM_001",
+                    "question": "Does your child build complex models (Lego, crafts)?",
+                    "weight": 1.0,
+                    "construct": "Visual-motor construction",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Visual-spatial planning."
+                },
+                {
+                    "id": "T2_FM_002",
+                    "question": "Does your child avoid drawing, coloring, or art activities?",
+                    "weight": 1.0,
+                    "construct": "Graphomotor avoidance",
+                    "sources": [
+                        "OT",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Avoidance may indicate fine motor difficulties or frustration."
+                },
+                {
+                    "id": "T2_FM_003",
+                    "question": "Does your child complain of hand fatigue when writing?",
+                    "weight": 1.1,
+                    "construct": "Hand strength and endurance",
+                    "sources": [
+                        "OT",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Hand fatigue may signal weak grip or inefficient pencil grasp."
+                },
+                {
+                    "id": "T2_FM_004",
+                    "question": "Does your child have difficulty copying from the board or organizing written work on paper?",
+                    "weight": 1.2,
+                    "construct": "Visual-motor integration",
+                    "sources": [
+                        "OT",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Copying tasks require visual processing and motor control."
+                },
+                {
+                    "id": "T2_FM_005",
+                    "question": "Does your child struggle with tasks requiring precise finger movements (like playing musical instruments or video games)?",
+                    "weight": 0.9,
+                    "construct": "Finger dexterity",
+                    "sources": [
+                        "OT",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Fine motor precision is needed for many recreational and academic tasks."
+                }
+            ]
+        },
+        {
+            "id": "speechLanguage",
+            "name": "Speech & Language",
+            "description": "Speech and language development encompasses both the ability to produce clear sounds (speech) and to understand and use words meaningfully (language). Strong communication skills are fundamental for expressing needs, building relationships, learning in school, and participating fully in social situations. Delays in this area can impact all aspects of development.",
+            "tier1": [
+                {
+                    "id": "T1_SL_001",
+                    "question": "Does your child communicate thoughts clearly and persuasively?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Pragmatics/Rhetoric",
+                    "sources": [
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Advanced communication."
+                },
+                {
+                    "id": "T1_SL_002",
+                    "question": "Does your child understand non-literal language (sarcasm, metaphors)?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Figurative language",
+                    "sources": [
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Social nuance understanding."
+                },
+                {
+                    "id": "T1_SL_003",
+                    "question": "Can your child summarize a movie or book accurately?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Narrative summary",
+                    "sources": [
+                        "Education"
+                    ],
+                    "whyWeAsk": "Comprehension and synthesis."
+                },
+                {
+                    "id": "T1_SL_004",
+                    "question": "Does your child use grammar correctly in conversations (verb tenses, pronouns)?",
+                    "weight": 1.1,
+                    "redFlag": false,
+                    "construct": "Syntax and grammar",
+                    "sources": [
+                        "ASHA",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Grammatical accuracy reflects language maturity."
+                },
+                {
+                    "id": "T1_SL_005",
+                    "question": "Can your child tell a story with a clear beginning, middle, and end?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Narrative structure",
+                    "sources": [
+                        "ASHA",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Storytelling requires sequencing and language organization."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_SL_001",
+                    "question": "Does your child participate in adult-like conversation?",
+                    "weight": 1.0,
+                    "construct": "Social pragmatics",
+                    "sources": [
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Conversational turn-taking and topic maintenance."
+                },
+                {
+                    "id": "T2_SL_002",
+                    "question": "Does your child frequently misunderstand jokes or take things too literally?",
+                    "weight": 1.1,
+                    "construct": "Pragmatic language",
+                    "sources": [
+                        "ASHA",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Difficulty with non-literal language can impact social interactions."
+                },
+                {
+                    "id": "T2_SL_003",
+                    "question": "Does your child have difficulty finding the right words when speaking?",
+                    "weight": 1.2,
+                    "construct": "Word retrieval",
+                    "sources": [
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Word-finding difficulties can affect communication fluency."
+                },
+                {
+                    "id": "T2_SL_004",
+                    "question": "Does your child struggle to follow multi-step oral directions?",
+                    "weight": 1.3,
+                    "construct": "Auditory memory",
+                    "sources": [
+                        "ASHA",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Following directions requires auditory processing and working memory."
+                },
+                {
+                    "id": "T2_SL_005",
+                    "question": "Do others frequently ask your child to repeat themselves due to unclear speech?",
+                    "weight": 1.4,
+                    "construct": "Speech clarity",
+                    "sources": [
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Speech should be fully intelligible by this age."
+                }
+            ]
+        },
+        {
+            "id": "socialEmotional",
+            "name": "Social & Emotional",
+            "description": "Social-emotional development includes the ability to understand and manage emotions, form positive relationships, and navigate social situations. These skills are critical for mental health, school readiness, and lifelong success. Children who develop strong social-emotional skills are better equipped to handle stress, resolve conflicts, and build meaningful connections with others.",
+            "tier1": [
+                {
+                    "id": "T1_SE_001",
+                    "question": "Does your child have a stable group of friends?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Peer stability",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Belonging is crucial."
+                },
+                {
+                    "id": "T1_SE_002",
+                    "question": "Is your child developing a sense of right and wrong?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Moral reasoning",
+                    "sources": [
+                        "Piaget"
+                    ],
+                    "whyWeAsk": "Internalized morality."
+                },
+                {
+                    "id": "T1_SE_003",
+                    "question": "Does your child handle frustration constructively most times?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Regulation",
+                    "sources": [
+                        "SEL"
+                    ],
+                    "whyWeAsk": "Coping skills."
+                },
+                {
+                    "id": "T1_SE_004",
+                    "question": "Can your child recognize and name their own emotions (happy, sad, frustrated, excited)?",
+                    "weight": 1.1,
+                    "redFlag": false,
+                    "construct": "Emotional awareness",
+                    "sources": [
+                        "SEL",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Emotional literacy is the foundation for self-regulation."
+                },
+                {
+                    "id": "T1_SE_005",
+                    "question": "Does your child show empathy when others are upset or hurt?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Empathy",
+                    "sources": [
+                        "SEL",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Empathy is essential for positive social relationships."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_SE_001",
+                    "question": "Is your child concerned about being liked/accepted?",
+                    "weight": 0.8,
+                    "construct": "Social awareness",
+                    "sources": [
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Typical age anxiety, but shows awareness."
+                },
+                {
+                    "id": "T2_SE_002",
+                    "question": "Does your child have frequent conflicts with peers or siblings that they cannot resolve?",
+                    "weight": 1.2,
+                    "construct": "Conflict resolution",
+                    "sources": [
+                        "SEL",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Persistent conflicts may indicate social skills deficits."
+                },
+                {
+                    "id": "T2_SE_003",
+                    "question": "Does your child become easily overwhelmed in social situations?",
+                    "weight": 1.1,
+                    "construct": "Social regulation",
+                    "sources": [
+                        "Psychology",
+                        "SEL"
+                    ],
+                    "whyWeAsk": "Social overwhelm can indicate anxiety or sensory sensitivities."
+                },
+                {
+                    "id": "T2_SE_004",
+                    "question": "Does your child have difficulty understanding social cues (facial expressions, body language)?",
+                    "weight": 1.3,
+                    "construct": "Social cognition",
+                    "sources": [
+                        "Psychology",
+                        "SEL"
+                    ],
+                    "whyWeAsk": "Reading social cues is critical for peer relationships."
+                },
+                {
+                    "id": "T2_SE_005",
+                    "question": "Does your child exhibit extreme emotional reactions (tantrums, meltdowns) regularly?",
+                    "weight": 1.4,
+                    "construct": "Emotional dysregulation",
+                    "sources": [
+                        "Psychology",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Frequent intense reactions may signal regulation challenges."
+                }
+            ]
+        },
+        {
+            "id": "cognitiveLearning",
+            "name": "Cognitive / Learning",
+            "description": "Cognitive development involves thinking, problem-solving, memory, and understanding concepts. These skills form the foundation for academic learning and everyday decision-making. Strong cognitive abilities help children make sense of their world, learn new information, and apply knowledge in different contexts.",
+            "tier1": [
+                {
+                    "id": "T1_CL_001",
+                    "question": "Is your child reading chapter books for pleasure/school?",
+                    "weight": 1.5,
+                    "redFlag": true,
+                    "construct": "Reading fluency",
+                    "sources": [
+                        "Education"
+                    ],
+                    "whyWeAsk": "Shift from 'learning to read' to 'reading to learn'."
+                },
+                {
+                    "id": "T1_CL_002",
+                    "question": "Can your child do multiplication and division?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Math operations",
+                    "sources": [
+                        "Education"
+                    ],
+                    "whyWeAsk": "3rd/4th grade math milestones."
+                },
+                {
+                    "id": "T1_CL_003",
+                    "question": "Does your child plan ahead for projects or homework?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Executive function",
+                    "sources": [
+                        "EF"
+                    ],
+                    "whyWeAsk": "Planning/Organization."
+                },
+                {
+                    "id": "T1_CL_004",
+                    "question": "Can your child solve problems using logical reasoning (puzzles, word problems)?",
+                    "weight": 1.1,
+                    "redFlag": false,
+                    "construct": "Logical reasoning",
+                    "sources": [
+                        "Education",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Problem-solving skills are critical for academic success."
+                },
+                {
+                    "id": "T1_CL_005",
+                    "question": "Does your child remember and follow routines without constant reminders?",
+                    "weight": 0.9,
+                    "redFlag": false,
+                    "construct": "Working memory",
+                    "sources": [
+                        "EF",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Memory and routine following indicate executive function development."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_CL_001",
+                    "question": "Does your child show interest in specific hobbies/topics?",
+                    "weight": 1.0,
+                    "construct": "Interest development",
+                    "sources": [
+                        "Education"
+                    ],
+                    "whyWeAsk": "Deepening interests."
+                },
+                {
+                    "id": "T2_CL_002",
+                    "question": "Does your child struggle to stay focused on tasks for age-appropriate periods?",
+                    "weight": 1.3,
+                    "construct": "Sustained attention",
+                    "sources": [
+                        "EF",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Attention difficulties can impact all areas of learning."
+                },
+                {
+                    "id": "T2_CL_003",
+                    "question": "Does your child have difficulty switching between tasks or activities?",
+                    "weight": 1.1,
+                    "construct": "Cognitive flexibility",
+                    "sources": [
+                        "EF",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Mental flexibility is important for adapting to new situations."
+                },
+                {
+                    "id": "T2_CL_004",
+                    "question": "Does your child struggle with reading comprehension despite being able to decode words?",
+                    "weight": 1.4,
+                    "construct": "Reading comprehension",
+                    "sources": [
+                        "Education",
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Comprehension difficulties can indicate language or cognitive processing issues."
+                },
+                {
+                    "id": "T2_CL_005",
+                    "question": "Does your child have difficulty with abstract concepts (time, money, fractions)?",
+                    "weight": 1.2,
+                    "construct": "Abstract thinking",
+                    "sources": [
+                        "Education",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Abstract reasoning develops during this age range."
+                }
+            ]
+        },
+        {
+            "id": "adaptiveSelfCare",
+            "name": "Adaptive & Self-Care",
+            "description": "Adaptive skills are practical life skills needed for independence, including dressing, eating, toileting, and personal hygiene. Mastering these skills builds confidence, reduces dependence on caregivers, and is essential for success in school and community settings. These abilities reflect a child's growing autonomy and self-management.",
+            "tier1": [
+                {
+                    "id": "T1_AD_001",
+                    "question": "Does your child manage personal hygiene (shower, brush teeth) independently?",
+                    "weight": 1.2,
+                    "redFlag": true,
+                    "construct": "Hygiene",
+                    "sources": [
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Expectation of independence."
+                },
+                {
+                    "id": "T1_AD_002",
+                    "question": "Does your child help with household chores regularly?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Responsibility",
+                    "sources": [
+                        "Life Skills"
+                    ],
+                    "whyWeAsk": "Community contribution."
+                },
+                {
+                    "id": "T1_AD_003",
+                    "question": "Can your child pack their own school bag or lunch with minimal supervision?",
+                    "weight": 0.9,
+                    "redFlag": false,
+                    "construct": "Organization and independence",
+                    "sources": [
+                        "Life Skills",
+                        "EF"
+                    ],
+                    "whyWeAsk": "Self-organization skills promote independence."
+                },
+                {
+                    "id": "T1_AD_004",
+                    "question": "Does your child manage money appropriately (counting change, saving allowance)?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Financial literacy",
+                    "sources": [
+                        "Life Skills",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Money management is an important life skill."
+                },
+                {
+                    "id": "T1_AD_005",
+                    "question": "Can your child tell time on both digital and analog clocks?",
+                    "weight": 0.8,
+                    "redFlag": false,
+                    "construct": "Time awareness",
+                    "sources": [
+                        "Education",
+                        "Life Skills"
+                    ],
+                    "whyWeAsk": "Time-telling supports independence and planning."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_AD_001",
+                    "question": "Can your child prepare a simple meal (sandwich)?",
+                    "weight": 1.0,
+                    "construct": "Life skills",
+                    "sources": [
+                        "Life Skills"
+                    ],
+                    "whyWeAsk": "Cooking basics."
+                },
+                {
+                    "id": "T2_AD_002",
+                    "question": "Does your child need excessive reminders for basic self-care routines?",
+                    "weight": 1.1,
+                    "construct": "Independence in self-care",
+                    "sources": [
+                        "Life Skills",
+                        "EF"
+                    ],
+                    "whyWeAsk": "Excessive prompting may indicate executive function or motivation issues."
+                },
+                {
+                    "id": "T2_AD_003",
+                    "question": "Does your child struggle with age-appropriate safety awareness (crossing streets, stranger danger)?",
+                    "weight": 1.3,
+                    "construct": "Safety judgment",
+                    "sources": [
+                        "CDC",
+                        "Life Skills"
+                    ],
+                    "whyWeAsk": "Safety awareness is essential for independent functioning."
+                },
+                {
+                    "id": "T2_AD_004",
+                    "question": "Does your child refuse or resist taking care of personal belongings?",
+                    "weight": 0.9,
+                    "construct": "Responsibility for possessions",
+                    "sources": [
+                        "Life Skills",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Caring for belongings reflects responsibility and organization."
+                },
+                {
+                    "id": "T2_AD_005",
+                    "question": "Can your child use basic household appliances safely (microwave, toaster)?",
+                    "weight": 1.0,
+                    "construct": "Practical life skills",
+                    "sources": [
+                        "Life Skills",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Safe appliance use supports independence in daily tasks."
+                }
+            ]
+        },
+        {
+            "id": "sensoryProcessing",
+            "name": "Sensory Processing",
+            "description": "Sensory processing is how the brain receives and responds to information from the senses (touch, sound, sight, taste, smell, movement, body position). Difficulties in this area can affect attention, behavior, motor skills, and emotional regulation. Understanding a child's sensory needs helps create supportive environments for learning and development.",
+            "tier1": [
+                {
+                    "id": "T1_SP_001",
+                    "question": "Does your child organize their school materials?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Executive function/Organizational",
+                    "sources": [
+                        "EF"
+                    ],
+                    "whyWeAsk": "Disorganization can impede success."
+                },
+                {
+                    "id": "T1_SP_002",
+                    "question": "Does your child tolerate varied learning environments (noisy gym, quiet library)?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Sensory modulation",
+                    "sources": [
+                        "OT"
+                    ],
+                    "whyWeAsk": "Adaptability."
+                },
+                {
+                    "id": "T1_SP_003",
+                    "question": "Does your child wear different types of clothing without discomfort (tags, textures, tightness)?",
+                    "weight": 0.9,
+                    "redFlag": false,
+                    "construct": "Tactile sensitivity",
+                    "sources": [
+                        "OT",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Tactile sensitivities can impact daily functioning and comfort."
+                },
+                {
+                    "id": "T1_SP_004",
+                    "question": "Can your child sit appropriately during class or meals without excessive fidgeting?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Proprioceptive regulation",
+                    "sources": [
+                        "OT",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Body awareness and regulation affect attention and participation."
+                },
+                {
+                    "id": "T1_SP_005",
+                    "question": "Does your child eat a variety of foods without strong aversions to textures or tastes?",
+                    "weight": 0.8,
+                    "redFlag": false,
+                    "construct": "Oral sensory processing",
+                    "sources": [
+                        "OT",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Food sensitivities may indicate oral sensory issues."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_SP_001",
+                    "question": "Does your child lose things constantly?",
+                    "weight": 0.8,
+                    "construct": "Executive function",
+                    "sources": [
+                        "EF"
+                    ],
+                    "whyWeAsk": "Persistent losing may indicate attention issues."
+                },
+                {
+                    "id": "T2_SP_002",
+                    "question": "Does your child cover their ears or become distressed in moderately loud environments?",
+                    "weight": 1.2,
+                    "construct": "Auditory sensitivity",
+                    "sources": [
+                        "OT",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Sound sensitivities can interfere with daily activities and learning."
+                },
+                {
+                    "id": "T2_SP_003",
+                    "question": "Does your child seek or avoid intense sensory experiences (spinning, crashing, heights)?",
+                    "weight": 1.0,
+                    "construct": "Sensory seeking/avoiding",
+                    "sources": [
+                        "OT",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Extreme sensory preferences may indicate processing differences."
+                },
+                {
+                    "id": "T2_SP_004",
+                    "question": "Does your child have unusual responses to pain or temperature?",
+                    "weight": 1.3,
+                    "construct": "Sensory discrimination",
+                    "sources": [
+                        "OT",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Atypical pain/temperature responses can be safety concerns."
+                },
+                {
+                    "id": "T2_SP_005",
+                    "question": "Does your child become disoriented or anxious during movement activities (swings, elevators)?",
+                    "weight": 1.1,
+                    "construct": "Vestibular processing",
+                    "sources": [
+                        "OT",
+                        "Psychology"
+                    ],
+                    "whyWeAsk": "Vestibular sensitivities affect balance and spatial orientation."
+                }
+            ]
+        },
+        {
+            "id": "visionHearing",
+            "name": "Vision & Hearing",
+            "description": "Vision and hearing are the primary channels through which children learn about their environment. Clear vision is essential for reading, writing, and visual-motor tasks, while good hearing is critical for language development and communication. Early detection of vision or hearing problems can prevent delays in other developmental areas.",
+            "tier1": [
+                {
+                    "id": "T1_VH_001",
+                    "question": "Does your child read for 20+ minutes without eye fatigue?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Visual stamina",
+                    "sources": [
+                        "Optometry"
+                    ],
+                    "whyWeAsk": "Visual endurance."
+                },
+                {
+                    "id": "T1_VH_002",
+                    "question": "Does your child follow complex verbal class instructions?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Auditory processing",
+                    "sources": [
+                        "Education"
+                    ],
+                    "whyWeAsk": "Critical for academic success."
+                },
+                {
+                    "id": "T1_VH_003",
+                    "question": "Can your child copy information from the board accurately?",
+                    "weight": 1.1,
+                    "redFlag": false,
+                    "construct": "Visual acuity and tracking",
+                    "sources": [
+                        "Optometry",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Board copying requires clear distance vision and eye coordination."
+                },
+                {
+                    "id": "T1_VH_004",
+                    "question": "Does your child hear and respond appropriately in conversations without asking for repetition frequently?",
+                    "weight": 1.0,
+                    "redFlag": false,
+                    "construct": "Hearing acuity",
+                    "sources": [
+                        "CDC",
+                        "ASHA"
+                    ],
+                    "whyWeAsk": "Clear hearing is essential for communication and learning."
+                },
+                {
+                    "id": "T1_VH_005",
+                    "question": "Can your child track moving objects smoothly (during sports or games)?",
+                    "weight": 0.9,
+                    "redFlag": false,
+                    "construct": "Visual tracking",
+                    "sources": [
+                        "Optometry",
+                        "PE Standards"
+                    ],
+                    "whyWeAsk": "Visual tracking supports reading and physical coordination."
+                }
+            ],
+            "tier2": [
+                {
+                    "id": "T2_VH_001",
+                    "question": "Does your child complain of double vision or blurring?",
+                    "weight": 1.0,
+                    "construct": "Binocular vision",
+                    "sources": [
+                        "Optometry"
+                    ],
+                    "whyWeAsk": "Vision issues affecting reading."
+                },
+                {
+                    "id": "T2_VH_002",
+                    "question": "Does your child squint, rub their eyes frequently, or complain of headaches during reading?",
+                    "weight": 1.2,
+                    "construct": "Visual discomfort",
+                    "sources": [
+                        "Optometry",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "These signs may indicate vision problems requiring evaluation."
+                },
+                {
+                    "id": "T2_VH_003",
+                    "question": "Does your child turn their head to one side to hear better?",
+                    "weight": 1.3,
+                    "construct": "Unilateral hearing loss",
+                    "sources": [
+                        "ASHA",
+                        "CDC"
+                    ],
+                    "whyWeAsk": "Head turning may indicate hearing loss in one ear."
+                },
+                {
+                    "id": "T2_VH_004",
+                    "question": "Does your child skip lines or lose their place frequently when reading?",
+                    "weight": 1.1,
+                    "construct": "Visual tracking and scanning",
+                    "sources": [
+                        "Optometry",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Tracking difficulties can impact reading fluency and comprehension."
+                },
+                {
+                    "id": "T2_VH_005",
+                    "question": "Does your child have difficulty hearing in noisy environments (classroom, cafeteria)?",
+                    "weight": 1.2,
+                    "construct": "Auditory discrimination in noise",
+                    "sources": [
+                        "ASHA",
+                        "Education"
+                    ],
+                    "whyWeAsk": "Background noise tolerance is important for classroom learning."
+                }
+            ]
+        }
+    ]
+}

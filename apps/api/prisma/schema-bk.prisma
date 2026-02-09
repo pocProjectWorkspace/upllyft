@@ -1,0 +1,1088 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                    String                  @id @default(cuid())
+  email                 String                  @unique
+  name                  String?
+  password              String?
+  role                  Role                    @default(USER)
+  emailVerified         DateTime?
+  image                 String?
+  bio                   String?
+  reputation            Int                     @default(0)
+  isEmailVerified       Boolean                 @default(false)
+  emailVerifiedAt       DateTime?
+  lastLoginAt           DateTime?
+  licenseNumber         String?
+  specialization        String[]
+  yearsOfExperience     Int?
+  organization          String?
+  phone                 String?
+  location              String?
+  website               String?
+  languages             String[]
+  education             String?
+  certifications        String[]
+  lastActive            DateTime?
+  verificationStatus    VerificationStatus      @default(PENDING)
+  verifiedAt            DateTime?
+  embedding             Float[]                 @default([])
+  embedding_vector      Unsupported("vector")?
+  trustScore            Float                   @default(0)
+  emergencyContact      String?
+  emergencyPhone        String?
+  state                 String?
+  city                  String?
+  preferredLanguage     String                  @default("en")
+  resetPasswordToken    String?                 @unique
+  resetPasswordExpiry   DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  googleId              String?                 @unique
+  bookmarks             Bookmark[]
+  comments              Comment[]
+  createdCommunities    Community[]             @relation("CreatedCommunities")
+  communityMemberships  CommunityMember[]
+  crisisIncidents       CrisisIncident[]
+  crisisVolunteer       CrisisVolunteer?
+  engagementEvents      EngagementEvent[]
+  createdEvents         Event[]                 @relation("EventCreator")
+  eventInterests        EventInterest[]
+  feedInteractions      FeedInteraction[]
+  followers             Follow[]                @relation("UserFollowers")
+  following             Follow[]                @relation("UserFollowing")
+  moderatedLogs         ModerationLog[]         @relation("ModeratorLogs")
+  actionLogs            ModerationLog[]         @relation("UserActionLogs")
+  sentNotifications     Notification[]          @relation("NotificationSender")
+  notifications         Notification[]
+  posts                 Post[]
+  postViews             PostView[]
+  reports               Report[]
+  interactionProfile    UserInteractionProfile?
+  userInterests         UserInterests[]
+  preferences           UserPreferences?
+  similarityTo          UserSimilarity[]        @relation("UserSimilarityTo")
+  similarityFrom        UserSimilarity[]        @relation("UserSimilarityFrom")
+  verificationDocs      VerificationDoc[]
+  votes                 Vote[]
+  whatsappGroupsAsAdmin WhatsAppGroup[]         @relation("WhatsAppGroupAdmin")
+  whatsappInvitations   WhatsAppInvitation[]
+
+  @@index([email])
+  @@index([role])
+  @@index([verificationStatus])
+  @@index([state, city])
+  @@index([preferredLanguage])
+  @@index([resetPasswordToken])
+  @@index([googleId])
+}
+
+model Community {
+  id                      String            @id @default(cuid())
+  slug                    String            @unique
+  name                    String
+  description             String?
+  type                    String
+  condition               String?
+  ageRange                Int[]             @default([])
+  location                String?
+  parentId                String?
+  creatorId               String
+  isPrivate               Boolean           @default(false)
+  requiresApproval        Boolean           @default(false)
+  inviteOnly              Boolean           @default(false)
+  rules                   String?
+  welcomeMessage          String?
+  bannerImage             String?
+  icon                    String?
+  tags                    String[]          @default([])
+  whatsappEnabled         Boolean           @default(false)
+  autoCreateWhatsAppGroup Boolean           @default(false)
+  whatsappGroupLimit      Int               @default(256)
+  primaryLanguage         String            @default("en")
+  supportedLanguages      String[]          @default(["en", "hi"])
+  memberCount             Int               @default(0)
+  postCount               Int               @default(0)
+  isActive                Boolean           @default(true)
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  creator                 User              @relation("CreatedCommunities", fields: [creatorId], references: [id])
+  parent                  Community?        @relation("SubCommunities", fields: [parentId], references: [id], onDelete: Cascade)
+  children                Community[]       @relation("SubCommunities")
+  members                 CommunityMember[]
+  events                  Event[]
+  posts                   Post[]
+  whatsappGroups          WhatsAppGroup[]
+
+  @@index([type])
+  @@index([condition])
+  @@index([location])
+  @@index([parentId])
+  @@index([creatorId])
+  @@index([isPrivate])
+  @@index([slug])
+}
+
+model CommunityMember {
+  id              String         @id @default(cuid())
+  userId          String
+  communityId     String
+  role            CommunityRole  @default(MEMBER)
+  permissions     Json?
+  lastActive      DateTime?
+  postCount       Int            @default(0)
+  commentCount    Int            @default(0)
+  reputation      Int            @default(0)
+  whatsappNumber  String?
+  whatsappGroupId String?
+  whatsappSynced  Boolean        @default(false)
+  status          MemberStatus   @default(ACTIVE)
+  invitedBy       String?
+  invitedAt       DateTime?
+  approvedAt      DateTime?
+  approvedBy      String?
+  joinedAt        DateTime       @default(now())
+  community       Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  whatsappGroup   WhatsAppGroup? @relation(fields: [whatsappGroupId], references: [id])
+
+  @@unique([userId, communityId])
+  @@index([userId])
+  @@index([communityId])
+  @@index([whatsappGroupId])
+  @@index([status])
+  @@index([role])
+}
+
+model WhatsAppGroup {
+  id                  String               @id @default(cuid())
+  communityId         String
+  name                String
+  description         String?
+  groupLink           String
+  qrCodeUrl           String?
+  memberLimit         Int                  @default(256)
+  currentCount        Int                  @default(0)
+  isFull              Boolean              @default(false)
+  groupNumber         Int                  @default(1)
+  isOverflow          Boolean              @default(false)
+  language            String               @default("en")
+  region              String?
+  adminUserId         String?
+  adminWhatsAppNumber String?
+  isActive            Boolean              @default(true)
+  lastSynced          DateTime?
+  syncStatus          String?
+  autoWelcomeMessage  Boolean              @default(true)
+  allowMemberInvites  Boolean              @default(true)
+  moderationEnabled   Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  members             CommunityMember[]
+  admin               User?                @relation("WhatsAppGroupAdmin", fields: [adminUserId], references: [id])
+  community           Community            @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  invitations         WhatsAppInvitation[]
+
+  @@index([communityId])
+  @@index([adminUserId])
+  @@index([isFull])
+  @@index([language])
+  @@index([isActive])
+}
+
+model WhatsAppInvitation {
+  id              String           @id @default(cuid())
+  whatsappGroupId String
+  userId          String
+  status          InvitationStatus @default(PENDING)
+  inviteCode      String           @unique
+  expiresAt       DateTime?
+  sentVia         String?
+  sentAt          DateTime?
+  joinedAt        DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  whatsappGroup   WhatsAppGroup    @relation(fields: [whatsappGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([whatsappGroupId, userId])
+  @@index([inviteCode])
+  @@index([status])
+  @@index([userId])
+}
+
+model Event {
+  id                      String          @id @default(cuid())
+  communityId             String
+  createdBy               String
+  title                   String
+  description             String
+  coverImage              String?
+  eventType               EventCategory
+  format                  EventFormat
+  startDate               DateTime
+  endDate                 DateTime?
+  timezone                String          @default("Asia/Kolkata")
+  venue                   String?
+  address                 String?
+  city                    String?
+  state                   String?
+  location                String?
+  meetingLink             String?
+  virtualLink             String?
+  platform                String?
+  ageGroup                String[]
+  languages               String[]
+  accessibilityFeatures   String[]
+  specialInstructions     String?
+  contactPhone            String?
+  contactEmail            String?
+  contactWhatsApp         String?
+  externalLink            String?
+  isPublic                Boolean         @default(true)
+  shareToFeed             Boolean         @default(true)
+  tags                    String[]
+  interestedCount         Int             @default(0)
+  viewCount               Int             @default(0)
+  status                  EventStatus     @default(PUBLISHED)
+  isCancelled             Boolean         @default(false)
+  cancellationReason      String?
+  isActive                Boolean         @default(true)
+  whatsappReminderEnabled Boolean         @default(false)
+  whatsappGroupId         String?
+  maxAttendees            Int?
+  attendeeCount           Int             @default(0)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  feedPostId              String?         @unique
+  community               Community       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  creator                 User            @relation("EventCreator", fields: [createdBy], references: [id])
+  feedPost                Post?           @relation("EventPost", fields: [feedPostId], references: [id])
+  interests               EventInterest[]
+
+  @@index([communityId])
+  @@index([startDate])
+  @@index([status])
+  @@index([eventType])
+  @@index([city, state])
+  @@index([createdBy])
+}
+
+model EventInterest {
+  id        String         @id @default(cuid())
+  eventId   String
+  userId    String
+  status    InterestStatus @default(INTERESTED)
+  createdAt DateTime       @default(now())
+  event     Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Post {
+  id                     String                 @id @default(cuid())
+  title                  String
+  content                String
+  summary                String?
+  type                   PostType
+  category               String
+  tags                   String[]
+  authorId               String
+  viewCount              Int                    @default(0)
+  upvotes                Int                    @default(0)
+  downvotes              Int                    @default(0)
+  insights               String[]               @default([])
+  needsReview            Boolean                @default(false)
+  moderationNotes        String?
+  metadata               Json?
+  isPinned               Boolean                @default(false)
+  isLocked               Boolean                @default(false)
+  isPublished            Boolean                @default(true)
+  moderationStatus       ModerationStatus       @default(PENDING)
+  sentiment              Float?
+  toxicity               Float?
+  containsCrisisKeywords Boolean                @default(false)
+  embedding              Float[]                @default([])
+  communityId            String?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  bookmarks              Bookmark[]
+  comments               Comment[]
+  engagementEvents       EngagementEvent[]
+  event                  Event?                 @relation("EventPost")
+  feedInteractions       FeedInteraction[]
+  author                 User                   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  community              Community?             @relation(fields: [communityId], references: [id])
+  engagementMetrics      PostEngagementMetrics?
+  views                  PostView[]
+  reports                Report[]
+  resources              Resource[]
+  similarPosts           SimilarPost[]          @relation("OriginalPost")
+  relatedPosts           SimilarPost[]          @relation("RelatedPost")
+  votes                  Vote[]
+
+  @@index([authorId])
+  @@index([category])
+  @@index([type])
+  @@index([createdAt(sort: Desc)])
+  @@index([moderationStatus])
+  @@index([communityId])
+  @@index([containsCrisisKeywords])
+  @@index([needsReview])
+}
+
+model UserPreferences {
+  id                    String      @id @default(cuid())
+  userId                String      @unique
+  defaultFeedView       FeedView    @default(FOR_YOU)
+  feedDensity           FeedDensity @default(COMFORTABLE)
+  showAnonymousPosts    Boolean     @default(true)
+  autoplayVideos        Boolean     @default(false)
+  preferredCategories   String[]
+  mutedKeywords         String[]
+  mutedAuthors          String[]
+  preferredLanguages    String[]
+  recencyWeight         Int         @default(30)
+  relevanceWeight       Int         @default(40)
+  engagementWeight      Int         @default(30)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  blockedCategories     String[]    @default([])
+  blockedTags           String[]    @default([])
+  contentTypes          String[]    @default([])
+  emailNotifications    Boolean     @default(true)
+  followedTags          String[]    @default([])
+  minEngagement         Int         @default(0)
+  notificationFrequency String      @default("daily")
+  notificationTypes     Json        @default("{}")
+  preferredHelplines    String[]    @default([])
+  pushNotifications     Boolean     @default(false)
+  showCrisisButton      Boolean     @default(true)
+  verifiedAuthorsOnly   Boolean     @default(false)
+  allowDirectMessages   Boolean     @default(true)
+  crisisAutoDetection   Boolean     @default(false)
+  crisisModuleEnabled   Boolean     @default(true)
+  desktopNotifications  Boolean     @default(false)
+  emailDigestFrequency  String      @default("daily")
+  emailEnabled          Boolean     @default(true)
+  inAppSoundEnabled     Boolean     @default(true)
+  notificationPrefs     Json?
+  profilePublic         Boolean     @default(true)
+  pushEnabled           Boolean     @default(false)
+  quietHoursEnabled     Boolean     @default(false)
+  quietHoursEnd         String?
+  quietHoursStart       String?
+  savedCrisisResources  Json?
+  showEmail             Boolean     @default(false)
+  showSOSButton         Boolean     @default(true)
+  emergencyContacts     String[]    @default([])
+  user                  User        @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model UserInterests {
+  id           String   @id @default(cuid())
+  userId       String
+  category     String
+  score        Float    @default(0)
+  interactions Int      @default(0)
+  lastEngaged  DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, category])
+  @@index([userId, score])
+}
+
+model FeedInteraction {
+  id          String          @id @default(cuid())
+  userId      String
+  postId      String
+  action      InteractionType
+  duration    Int?
+  scrollDepth Float?
+  timestamp   DateTime        @default(now())
+  post        Post            @relation(fields: [postId], references: [id])
+  user        User            @relation(fields: [userId], references: [id])
+
+  @@index([userId, timestamp])
+  @@index([postId, action])
+}
+
+model PostView {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  viewedAt  DateTime @default(now())
+  duration  Int?
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, viewedAt])
+  @@index([postId, createdAt])
+  @@index([userId])
+}
+
+model EngagementEvent {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  eventType String
+  value     Int?
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId, eventType, createdAt])
+  @@index([userId])
+}
+
+model PostEngagementMetrics {
+  id                 String   @id @default(cuid())
+  postId             String   @unique
+  engagementLast1h   Int      @default(0)
+  engagementLast24h  Int      @default(0)
+  engagementLast7d   Int      @default(0)
+  engagementLast30d  Int      @default(0)
+  velocityScore      Float    @default(0)
+  velocityTrend      String   @default("stable")
+  collaborativeScore Float    @default(0)
+  qualityScore       Float    @default(0)
+  relevanceScore     Float    @default(0)
+  lastCalculatedAt   DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  post               Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([velocityScore])
+  @@index([lastCalculatedAt])
+}
+
+model UserSimilarity {
+  id             String   @id @default(cuid())
+  userId         String
+  similarUserId  String
+  similarity     Float
+  lastCalculated DateTime @default(now())
+  similarUser    User     @relation("UserSimilarityTo", fields: [similarUserId], references: [id], onDelete: Cascade)
+  user           User     @relation("UserSimilarityFrom", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, similarUserId])
+  @@index([userId, similarity])
+}
+
+model UserInteractionProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  categoryPreferences Json     @default("[]")
+  tagPreferences      Json     @default("[]")
+  typePreferences     Json     @default("[]")
+  avgEngagementTime   Int      @default(0)
+  upvoteRatio         Float    @default(0.5)
+  commentFrequency    Float    @default(0)
+  activeHours         Json     @default("[]")
+  activeDays          Json     @default("[]")
+  lastUpdated         DateTime @default(now())
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id                     String    @id @default(cuid())
+  content                String
+  postId                 String
+  authorId               String
+  parentId               String?
+  upvotes                Int       @default(0)
+  downvotes              Int       @default(0)
+  isEdited               Boolean   @default(false)
+  editedAt               DateTime?
+  isDeleted              Boolean   @default(false)
+  deletedAt              DateTime?
+  deletedBy              String?
+  sentiment              Float?
+  toxicity               Float?
+  helpful                Boolean?
+  containsCrisisKeywords Boolean   @default(false)
+  flagged                Boolean   @default(false)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  author                 User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent                 Comment?  @relation("CommentToComment", fields: [parentId], references: [id])
+  replies                Comment[] @relation("CommentToComment")
+  post                   Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reports                Report[]
+  votes                  Vote[]
+
+  @@index([authorId])
+  @@index([parentId])
+  @@index([postId])
+}
+
+model Vote {
+  id         String   @id @default(cuid())
+  value      Int
+  userId     String
+  targetId   String
+  targetType String
+  postId     String?
+  commentId  String?
+  createdAt  DateTime @default(now())
+  comment    Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@unique([userId, postId])
+  @@unique([userId, targetId, targetType])
+  @@index([commentId])
+  @@index([postId])
+  @@index([targetId, targetType])
+  @@index([userId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model Resource {
+  id          String       @id @default(cuid())
+  postId      String?
+  title       String
+  description String?
+  source      String
+  url         String?
+  type        ResourceType
+  relevance   Float?
+  authors     String[]
+  publishDate DateTime?
+  doi         String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  post        Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([type])
+}
+
+model SimilarPost {
+  id             String   @id @default(cuid())
+  originalPostId String
+  relatedPostId  String
+  similarity     Float
+  reason         String?
+  createdAt      DateTime @default(now())
+  originalPost   Post     @relation("OriginalPost", fields: [originalPostId], references: [id], onDelete: Cascade)
+  relatedPost    Post     @relation("RelatedPost", fields: [relatedPostId], references: [id], onDelete: Cascade)
+
+  @@unique([originalPostId, relatedPostId])
+  @@index([originalPostId])
+  @@index([similarity])
+}
+
+model DirectMessage {
+  id             String   @id @default(cuid())
+  fromId         String
+  toId           String
+  content        String
+  read           Boolean  @default(false)
+  connectionType String?
+  matchReason    String?
+  createdAt      DateTime @default(now())
+
+  @@index([fromId])
+  @@index([toId])
+  @@index([read])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Notification {
+  id            String   @id @default(cuid())
+  userId        String
+  type          String
+  title         String
+  message       String
+  read          Boolean  @default(false)
+  relatedPostId String?
+  relatedUserId String?
+  senderId      String?
+  createdAt     DateTime @default(now())
+  sender        User?    @relation("NotificationSender", fields: [senderId], references: [id])
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model VerificationDoc {
+  id           String             @id @default(cuid())
+  userId       String
+  type         String
+  fileUrl      String
+  status       VerificationStatus @default(PENDING)
+  reviewedBy   String?
+  reviewNotes  String?
+  aiVerified   Boolean            @default(false)
+  aiConfidence Float?
+  aiNotes      Json?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Report {
+  id          String    @id @default(cuid())
+  userId      String
+  reporterId  String?
+  targetId    String
+  targetType  String?
+  type        String
+  reason      String
+  description String?
+  details     String?
+  status      String    @default("pending")
+  aiSeverity  Float?
+  aiCategory  String?
+  resolvedBy  String?
+  resolution  String?
+  resolvedAt  DateTime?
+  postId      String?
+  commentId   String?
+  createdAt   DateTime  @default(now())
+  comment     Comment?  @relation(fields: [commentId], references: [id])
+  post        Post?     @relation(fields: [postId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([targetId])
+  @@index([status])
+  @@index([targetType, targetId])
+}
+
+model ModerationLog {
+  id          String   @id @default(cuid())
+  moderatorId String
+  userId      String
+  action      String
+  targetType  String
+  targetId    String
+  reason      String?
+  details     String?
+  metadata    Json?
+  notes       String?
+  aiSuggested Boolean  @default(false)
+  aiReasoning String?
+  createdAt   DateTime @default(now())
+  moderator   User     @relation("ModeratorLogs", fields: [moderatorId], references: [id])
+  user        User     @relation("UserActionLogs", fields: [userId], references: [id])
+
+  @@index([moderatorId])
+  @@index([userId])
+  @@index([targetId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+model AiSession {
+  id         String   @id @default(cuid())
+  userId     String
+  messages   Json
+  context    Json?
+  tokensUsed Int      @default(0)
+  model      String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Analytics {
+  id         String   @id @default(cuid())
+  userId     String?
+  postId     String?
+  event      String
+  metadata   Json?
+  userIntent String?
+  category   String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([event])
+  @@index([postId])
+  @@index([userId])
+}
+
+model CrisisIncident {
+  id                String             @id @default(cuid())
+  userId            String?
+  type              CrisisType
+  urgencyLevel      UrgencyLevel
+  description       String?
+  location          String?
+  state             String?
+  city              String?
+  contactNumber     String?
+  preferredLang     String             @default("en")
+  status            CrisisStatus       @default(ACTIVE)
+  resolvedAt        DateTime?
+  resolvedBy        String?
+  resolutionNotes   String?
+  resourcesUsed     String[]
+  volunteerId       String?
+  followupScheduled DateTime?
+  followupCompleted Boolean            @default(false)
+  followupNotes     String?
+  triggerKeywords   String[]
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  auditLogs         CrisisAuditLog[]
+  connections       CrisisConnection[]
+  user              User?              @relation(fields: [userId], references: [id])
+  logs              CrisisLog[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([urgencyLevel])
+  @@index([type])
+  @@index([createdAt])
+  @@index([state, city])
+}
+
+model CrisisResource {
+  id             String       @id @default(cuid())
+  name           String
+  type           String
+  category       CrisisType[]
+  phoneNumber    String?
+  whatsappNumber String?
+  email          String?
+  website        String?
+  available24x7  Boolean      @default(false)
+  operatingHours String?
+  languages      String[]
+  country        String       @default("IN")
+  state          String?
+  city           String?
+  pincode        String?
+  address        String?
+  priority       Int          @default(100)
+  isVerified     Boolean      @default(false)
+  verifiedAt     DateTime?
+  usageCount     Int          @default(0)
+  avgRating      Float?
+  description    String?
+  specialization String[]
+  ageGroups      String[]
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([state, city])
+  @@index([type])
+  @@index([priority])
+  @@index([isActive])
+}
+
+model CrisisLog {
+  id          String         @id @default(cuid())
+  incidentId  String
+  action      String
+  details     Json?
+  performedBy String?
+  createdAt   DateTime       @default(now())
+  incident    CrisisIncident @relation(fields: [incidentId], references: [id])
+
+  @@index([incidentId])
+  @@index([createdAt])
+}
+
+model CrisisVolunteer {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  trainingCompleted Boolean            @default(false)
+  certifications    String[]
+  specializations   CrisisType[]
+  languages         String[]
+  isAvailable       Boolean            @default(false)
+  availableFrom     DateTime?
+  availableTill     DateTime?
+  maxCasesPerDay    Int                @default(3)
+  currentCases      Int                @default(0)
+  state             String
+  city              String
+  timezone          String             @default("Asia/Kolkata")
+  casesHandled      Int                @default(0)
+  avgRating         Float?
+  isActive          Boolean            @default(true)
+  approvedAt        DateTime?
+  approvedBy        String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  connections       CrisisConnection[]
+  user              User               @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isAvailable])
+  @@index([state, city])
+  @@index([isAvailable, state, city])
+}
+
+model CrisisConnection {
+  id             String           @id @default(cuid())
+  incidentId     String
+  volunteerId    String?
+  resourceId     String?
+  connectionType String
+  startedAt      DateTime         @default(now())
+  endedAt        DateTime?
+  duration       Int?
+  outcome        String?
+  notes          String?
+  rating         Int?
+  feedback       String?
+  createdAt      DateTime         @default(now())
+  incident       CrisisIncident   @relation(fields: [incidentId], references: [id])
+  volunteer      CrisisVolunteer? @relation(fields: [volunteerId], references: [id])
+
+  @@index([incidentId])
+  @@index([volunteerId])
+}
+
+model CrisisAuditLog {
+  id         String          @id @default(cuid())
+  incidentId String?
+  userId     String?
+  action     String
+  resourceId String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime        @default(now())
+  incident   CrisisIncident? @relation(fields: [incidentId], references: [id])
+
+  @@index([action])
+  @@index([incidentId])
+  @@index([timestamp])
+  @@index([userId])
+}
+
+enum Role {
+  USER
+  THERAPIST
+  EDUCATOR
+  ORGANIZATION
+  ADMIN
+  MODERATOR
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PostType {
+  QUESTION
+  DISCUSSION
+  CASE_STUDY
+  RESOURCE
+  ANNOUNCEMENT
+  STORY
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  FLAGGED
+  REJECTED
+}
+
+enum ResourceType {
+  RESEARCH_PAPER
+  GUIDELINE
+  TOOL
+  VIDEO
+  COURSE
+  ARTICLE
+  PDF
+  LINK
+}
+
+enum CostType {
+  FREE
+  PAID
+  VARIES
+}
+
+enum CrisisStatus {
+  ACTIVE
+  IN_PROGRESS
+  RESOLVED
+  FOLLOWUP_PENDING
+}
+
+enum CrisisType {
+  SUICIDE_RISK
+  SELF_HARM
+  MELTDOWN
+  PANIC_ATTACK
+  MEDICAL_EMERGENCY
+  FAMILY_CONFLICT
+  BURNOUT
+  SUICIDE_PREVENTION
+  MENTAL_HEALTH
+  AUTISM_SUPPORT
+  ADHD_SUPPORT
+  CHILD_CRISIS
+  WOMEN_CRISIS
+  POISON_CONTROL
+  LGBTQ_SUPPORT
+  PARENT_SUPPORT
+  GENERAL_COUNSELING
+}
+
+enum OrgType {
+  NATIONAL_HELPLINE
+  NGO
+  HOSPITAL
+  EMERGENCY_SERVICE
+  SUPPORT_GROUP
+}
+
+enum UrgencyLevel {
+  IMMEDIATE
+  HIGH
+  MODERATE
+  LOW
+}
+
+enum CommunityRole {
+  MEMBER
+  MODERATOR
+  ADMIN
+  OWNER
+}
+
+enum MemberStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  BANNED
+  LEFT
+}
+
+enum InvitationStatus {
+  PENDING
+  SENT
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum EventType {
+  VIRTUAL
+  IN_PERSON
+  HYBRID
+}
+
+enum FeedView {
+  FOR_YOU
+  FOLLOWING
+  COMMUNITIES
+  BOOKMARKS
+  TRENDING
+  RECENT
+}
+
+enum FeedDensity {
+  COMPACT
+  COMFORTABLE
+  SPACIOUS
+}
+
+enum InteractionType {
+  VIEW
+  CLICK
+  VOTE
+  COMMENT
+  BOOKMARK
+  SHARE
+  HIDE
+  REPORT
+}
+
+enum EventCategory {
+  THERAPY_SESSION
+  ASSESSMENT
+  CONSULTATION
+  WORKSHOP
+  WEBINAR
+  TRAINING
+  PARENT_EDUCATION
+  SUPPORT_GROUP
+  PEER_MEETUP
+  PLAYDATE
+  SOCIAL_SKILLS
+  AWARENESS_CAMPAIGN
+  FUNDRAISER
+  COMMUNITY_OUTREACH
+  SENSORY_PLAY
+  ART_THERAPY
+  MUSIC_THERAPY
+  SPORTS_ACTIVITY
+  OTHER
+}
+
+enum EventFormat {
+  VIRTUAL
+  IN_PERSON
+  HYBRID
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum InterestStatus {
+  INTERESTED
+  GOING
+}

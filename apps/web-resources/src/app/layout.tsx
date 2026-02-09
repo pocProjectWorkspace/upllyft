@@ -1,9 +1,11 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Providers } from './providers';
+import { ToastProvider } from './toast-provider';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "Upllyft - Learning Resources",
-  description: "AI-powered worksheets and educational activities for neurodivergent children",
+  title: 'Upllyft - Learning Resources',
+  description: 'AI-powered worksheets and educational activities for neurodivergent children',
 };
 
 export default function RootLayout({
@@ -13,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <Providers>
+          {children}
+          <ToastProvider />
+        </Providers>
+      </body>
     </html>
   );
 }
