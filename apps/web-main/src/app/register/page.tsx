@@ -1,9 +1,10 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useAuth, apiClient } from '@upllyft/api-client';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 type AccountType = 'individual' | 'professional';
 
@@ -59,6 +60,14 @@ function BriefcaseIcon({ className }: { className?: string }) {
   );
 }
 
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H4.598a.75.75 0 00-.75.75v3.634a.75.75 0 001.5 0v-2.033l.312.311a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm-10.624-2.85a5.5 5.5 0 019.201-2.465l.312.31H11.77a.75.75 0 000 1.5h3.634a.75.75 0 00.75-.75V3.535a.75.75 0 00-1.5 0v2.033l-.312-.31A7 7 0 002.63 8.388a.75.75 0 001.449.39z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
 function GoogleIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -66,14 +75,6 @@ function GoogleIcon() {
       <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-    </svg>
-  );
-}
-
-function AppleIcon() {
-  return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
     </svg>
   );
 }
@@ -86,6 +87,12 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
+const inputClassName =
+  'w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:bg-white focus:outline-none transition-colors';
+
+const inputWithIconClassName =
+  'w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-11 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:bg-white focus:outline-none transition-colors';
+
 export default function RegisterPage() {
   const { register, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -97,8 +104,32 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState('THERAPIST');
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [yearsOfExperience, setYearsOfExperience] = useState('');
+  const [organization, setOrganization] = useState('');
+  const [specialization, setSpecialization] = useState('');
+  const [bio, setBio] = useState('');
+  const [captcha, setCaptcha] = useState('');
+  const [captchaImage, setCaptchaImage] = useState('');
+  const [captchaLoading, setCaptchaLoading] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const loadCaptcha = useCallback(async () => {
+    setCaptchaLoading(true);
+    try {
+      const { data } = await apiClient.get<{ image: string }>('/captcha/generate');
+      setCaptchaImage(data.image);
+    } catch {
+      setError('Failed to load captcha. Please refresh.');
+    } finally {
+      setCaptchaLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCaptcha();
+  }, [loadCaptcha]);
 
   if (!authLoading && isAuthenticated) {
     router.replace('/');
@@ -119,17 +150,43 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!captcha.trim()) {
+      setError('Please enter the captcha');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await register({
+      const payload: any = {
         name,
         email,
         password,
+        captcha,
         role: accountType === 'professional' ? role : 'USER',
-      });
+      };
+
+      if (accountType === 'professional') {
+        if (licenseNumber.trim()) payload.licenseNumber = licenseNumber.trim();
+        if (yearsOfExperience.trim()) {
+          payload.yearsOfExperience = parseInt(yearsOfExperience, 10);
+        }
+        if (organization.trim()) payload.organization = organization.trim();
+        if (specialization.trim()) {
+          payload.specialization = specialization
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0);
+        }
+        if (bio.trim()) payload.bio = bio.trim();
+      }
+
+      await register(payload);
       router.push('/');
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Registration failed. Please try again.');
+      const msg = err?.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Registration failed. Please try again.');
+      loadCaptcha();
+      setCaptcha('');
     } finally {
       setSubmitting(false);
     }
@@ -142,14 +199,11 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Side — Register Form */}
-      <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-16 xl:px-24">
+      <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-16 xl:px-24 overflow-y-auto">
         <div className="w-full max-w-md mx-auto">
           {/* Logo */}
           <div className="flex items-center gap-2.5 mb-10">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-base">U</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900">Upllyft</span>
+            <img src="/logo.png" alt="Upllyft" className="h-10 w-auto" />
           </div>
 
           {/* Heading */}
@@ -163,7 +217,10 @@ export default function RegisterPage() {
             {(['individual', 'professional'] as AccountType[]).map((type) => (
               <button
                 key={type}
-                onClick={() => setAccountType(type)}
+                onClick={() => {
+                  setAccountType(type);
+                  setError('');
+                }}
                 className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   accountType === type
                     ? 'bg-white text-gray-900 shadow-sm'
@@ -184,6 +241,7 @@ export default function RegisterPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Full Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
               <div className="relative">
@@ -194,11 +252,12 @@ export default function RegisterPage() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your full name"
                   required
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-11 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:bg-white focus:outline-none transition-colors"
+                  className={inputWithIconClassName}
                 />
               </div>
             </div>
 
+            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
               <div className="relative">
@@ -209,32 +268,103 @@ export default function RegisterPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-11 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:bg-white focus:outline-none transition-colors"
+                  className={inputWithIconClassName}
                 />
               </div>
             </div>
 
+            {/* Professional Role (professional only) */}
             {accountType === 'professional' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Professional Role</label>
-                <div className="relative">
-                  <BriefcaseIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400" />
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-11 pr-4 py-3 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:bg-white focus:outline-none transition-colors appearance-none"
-                  >
-                    <option value="THERAPIST">Therapist</option>
-                    <option value="EDUCATOR">Educator</option>
-                    <option value="ORGANIZATION">Organization</option>
-                  </select>
-                  <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                  </svg>
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Professional Role</label>
+                  <Select value={role} onValueChange={setRole}>
+                    <SelectTrigger className="w-full">
+                      <div className="flex items-center gap-2">
+                        <BriefcaseIcon className="w-4.5 h-4.5 text-gray-400" />
+                        <SelectValue />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="THERAPIST">Therapist</SelectItem>
+                      <SelectItem value="EDUCATOR">Educator</SelectItem>
+                      <SelectItem value="ORGANIZATION">Organization</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
+
+                {/* License Number & Years of Experience — side by side */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      License Number <span className="text-gray-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={licenseNumber}
+                      onChange={(e) => setLicenseNumber(e.target.value)}
+                      placeholder="TH-2024-001"
+                      className={inputClassName}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Years of Experience</label>
+                    <input
+                      type="number"
+                      value={yearsOfExperience}
+                      onChange={(e) => setYearsOfExperience(e.target.value)}
+                      placeholder="5"
+                      min="0"
+                      className={inputClassName}
+                    />
+                  </div>
+                </div>
+
+                {/* Organization */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Organization <span className="text-gray-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={organization}
+                    onChange={(e) => setOrganization(e.target.value)}
+                    placeholder="ABC Therapy Center"
+                    className={inputClassName}
+                  />
+                </div>
+
+                {/* Specializations */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Specializations <span className="text-gray-400 font-normal">(comma-separated)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={specialization}
+                    onChange={(e) => setSpecialization(e.target.value)}
+                    placeholder="Pediatric Therapy, Autism Spectrum, Speech Therapy"
+                    className={inputClassName}
+                  />
+                </div>
+
+                {/* Professional Bio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Professional Bio <span className="text-gray-400 font-normal">(Optional)</span>
+                  </label>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Brief description of your experience and expertise..."
+                    rows={3}
+                    className={`${inputClassName} resize-none`}
+                  />
+                </div>
+              </>
             )}
 
+            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
               <div className="relative">
@@ -258,6 +388,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Confirm Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
               <div className="relative">
@@ -280,6 +411,52 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Captcha */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Enter the characters you see</label>
+              <div className="flex items-center gap-3 mb-2">
+                {captchaLoading ? (
+                  <div className="flex-1 h-14 bg-gray-100 rounded-xl animate-pulse flex items-center justify-center">
+                    <svg className="animate-spin h-5 w-5 text-gray-400" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  </div>
+                ) : captchaImage ? (
+                  <img
+                    src={captchaImage}
+                    alt="Captcha"
+                    className="flex-1 h-14 border border-gray-200 rounded-xl bg-white object-contain"
+                  />
+                ) : (
+                  <div className="flex-1 h-14 bg-red-50 border border-red-200 rounded-xl flex items-center justify-center">
+                    <span className="text-xs text-red-500">Failed to load</span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCaptcha('');
+                    loadCaptcha();
+                  }}
+                  disabled={captchaLoading}
+                  className="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-50"
+                  title="Refresh captcha"
+                >
+                  <RefreshIcon className={`w-4.5 h-4.5 ${captchaLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              <input
+                type="text"
+                value={captcha}
+                onChange={(e) => setCaptcha(e.target.value)}
+                placeholder="Enter captcha"
+                required
+                className={inputClassName}
+              />
+            </div>
+
+            {/* Submit */}
             <button
               type="submit"
               disabled={submitting}
@@ -294,7 +471,7 @@ export default function RegisterPage() {
                   Creating Account...
                 </span>
               ) : (
-                'Create Account'
+                accountType === 'professional' ? 'Create Professional Account' : 'Create Account'
               )}
             </button>
           </form>
@@ -306,27 +483,18 @@ export default function RegisterPage() {
             <div className="flex-1 h-px bg-gray-200" />
           </div>
 
-          {/* Social Buttons */}
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-            >
-              <GoogleIcon />
-              Continue with Google
-            </button>
-            <button
-              type="button"
-              className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-            >
-              <AppleIcon />
-              Continue with Apple
-            </button>
-          </div>
+          {/* Google Sign-In */}
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          >
+            <GoogleIcon />
+            Continue with Google
+          </button>
 
           {/* Sign In Link */}
-          <p className="text-center text-sm text-gray-500 mt-6">
+          <p className="text-center text-sm text-gray-500 mt-6 mb-8">
             Already have an account?{' '}
             <Link href="/login" className="text-teal-600 hover:text-teal-700 font-semibold">
               Sign In
@@ -335,62 +503,45 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right Side — Hero Section */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-teal-600 to-teal-800 flex-col justify-between p-12 xl:p-16 relative overflow-hidden">
-        {/* Decorative circles */}
-        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-teal-500/10" />
-        <div className="absolute bottom-[-15%] left-[-10%] w-[400px] h-[400px] rounded-full bg-teal-400/10" />
-        <div className="absolute top-[40%] right-[20%] w-[200px] h-[200px] rounded-full bg-teal-300/5" />
+      {/* Right Side — Hero Section (sticky while left form scrolls) */}
+      <div className="hidden lg:block flex-1 self-start sticky top-0 h-screen">
+        <div className="h-full bg-gradient-to-br from-teal-600 to-teal-800 flex flex-col justify-center p-12 xl:p-16 relative overflow-hidden">
+          {/* Decorative circles */}
+          <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-teal-500/10" />
+          <div className="absolute bottom-[-15%] left-[-10%] w-[400px] h-[400px] rounded-full bg-teal-400/10" />
+          <div className="absolute top-[40%] right-[20%] w-[200px] h-[200px] rounded-full bg-teal-300/5" />
 
-        {/* Headline */}
-        <div className="relative z-10 mt-8">
-          <h2 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
-            Start Your Child&apos;s Journey Today
-          </h2>
-          <p className="text-teal-100 text-lg mt-4 max-w-lg leading-relaxed">
-            Join thousands of families and professionals working together to support neurodivergent children.
-          </p>
-        </div>
-
-        {/* Features List */}
-        <div className="relative z-10">
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-lg">
-            <p className="text-white font-semibold text-base mb-4">What you&apos;ll get access to:</p>
-            <div className="space-y-3">
-              {[
-                'UFMF developmental screening tools',
-                'Connect with verified therapists',
-                'AI-powered personalized worksheets',
-                'Community support from other families',
-                'Case management & progress tracking',
-              ].map((feature) => (
-                <div key={feature} className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-teal-400/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <CheckIcon className="w-3 h-3 text-teal-200" />
-                  </div>
-                  <p className="text-white/90 text-sm">{feature}</p>
-                </div>
-              ))}
+          {/* Content — vertically centered */}
+          <div className="relative z-10 space-y-8">
+            {/* Headline */}
+            <div>
+              <h2 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
+                Start Your Child&apos;s Journey Today
+              </h2>
+              <p className="text-teal-100 text-lg mt-4 max-w-lg leading-relaxed">
+                Join thousands of families and professionals working together to support neurodivergent children.
+              </p>
             </div>
-          </div>
 
-          {/* Trust Stats */}
-          <div className="mt-8">
-            <p className="text-teal-300/70 text-xs font-semibold tracking-wider uppercase mb-4">
-              Trusted by Families
-            </p>
-            <div className="grid grid-cols-4 gap-4">
-              {[
-                { value: '5,000+', label: 'Families' },
-                { value: '200+', label: 'Therapists' },
-                { value: '50+', label: 'Assessments' },
-                { value: '4.9\u2605', label: 'Rating' },
-              ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <p className="text-white font-bold text-lg">{stat.value}</p>
-                  <p className="text-teal-200/70 text-xs">{stat.label}</p>
-                </div>
-              ))}
+            {/* Features List */}
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-lg">
+              <p className="text-white font-semibold text-base mb-4">What you&apos;ll get access to:</p>
+              <div className="space-y-3">
+                {[
+                  'UFMF developmental screening tools',
+                  'Connect with verified therapists',
+                  'AI-powered personalized worksheets',
+                  'Community support from other families',
+                  'Case management & progress tracking',
+                ].map((feature) => (
+                  <div key={feature} className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-teal-400/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <CheckIcon className="w-3 h-3 text-teal-200" />
+                    </div>
+                    <p className="text-white/90 text-sm">{feature}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

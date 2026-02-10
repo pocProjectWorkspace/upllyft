@@ -11,6 +11,12 @@ export interface RegisterPayload {
   password: string;
   name: string;
   role?: string;
+  captcha: string;
+  licenseNumber?: string;
+  specialization?: string[];
+  yearsOfExperience?: number;
+  organization?: string;
+  bio?: string;
 }
 
 export interface MembershipStatus {

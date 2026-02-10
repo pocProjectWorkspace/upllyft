@@ -2,15 +2,38 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCreateCase } from '@/hooks/use-cases';
-import { Button, Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Card } from '@upllyft/ui';
+import { useCreateCase, useTherapistPatients } from '@/hooks/use-cases';
+import {
+  Button,
+  Label,
+  Textarea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Card,
+  Avatar,
+} from '@upllyft/ui';
 import { useToast } from '@upllyft/ui';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+
+function calculateAge(dateOfBirth: string): number {
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age;
+}
 
 export function CreateCaseForm() {
   const router = useRouter();
   const { toast } = useToast();
   const createCase = useCreateCase();
+  const { data: patients, isLoading: patientsLoading } = useTherapistPatients();
 
   const [childId, setChildId] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
@@ -20,16 +43,16 @@ export function CreateCaseForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!childId.trim()) {
-      toast({ title: 'Child ID is required', variant: 'destructive' });
+    if (!childId) {
+      toast({ title: 'Please select a patient', variant: 'destructive' });
       return;
     }
 
     try {
       const result = await createCase.mutateAsync({
-        childId: childId.trim(),
+        childId,
         diagnosis: diagnosis.trim() || undefined,
-        referralSource: referralSource.trim() || undefined,
+        referralSource: referralSource || undefined,
         notes: notes.trim() || undefined,
       });
       toast({ title: 'Case created successfully' });
@@ -38,6 +61,8 @@ export function CreateCaseForm() {
       toast({ title: 'Failed to create case', variant: 'destructive' });
     }
   };
+
+  const selectedPatient = patients?.find((p) => p.id === childId);
 
   return (
     <div>
@@ -55,14 +80,45 @@ export function CreateCaseForm() {
       <Card className="p-6 border border-gray-100">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <Label htmlFor="childId">Child / Patient ID *</Label>
-            <Input
-              id="childId"
-              value={childId}
-              onChange={(e) => setChildId(e.target.value)}
-              placeholder="Enter the child's ID"
-              className="mt-1.5"
-            />
+            <Label htmlFor="childId">Patient *</Label>
+            <Select value={childId} onValueChange={setChildId}>
+              <SelectTrigger className="mt-1.5">
+                <SelectValue placeholder="Select a patient" />
+              </SelectTrigger>
+              <SelectContent>
+                {patientsLoading ? (
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    Loading patients...
+                  </div>
+                ) : !patients || patients.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    No patients available. Patients appear here after their parent books a session with you.
+                  </div>
+                ) : (
+                  patients.map((patient) => (
+                    <SelectItem key={patient.id} value={patient.id}>
+                      <div className="flex items-center gap-3">
+                        <Avatar name={patient.firstName} size="sm" />
+                        <div>
+                          <span className="font-medium">
+                            {patient.firstName}
+                            {patient.nickname ? ` (${patient.nickname})` : ''}
+                          </span>
+                          <span className="text-xs text-gray-500 ml-2">
+                            {calculateAge(patient.dateOfBirth)} yrs &middot; Parent: {patient.parentName}
+                          </span>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {selectedPatient && selectedPatient.conditions.length > 0 && (
+              <p className="mt-1.5 text-xs text-gray-500">
+                Conditions: {selectedPatient.conditions.join(', ')}
+              </p>
+            )}
           </div>
 
           <div>

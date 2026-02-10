@@ -2,6 +2,7 @@
 
 import { useCaseWorksheets } from '@/hooks/use-cases';
 import { formatDate } from '@/lib/utils';
+import { APP_URLS } from '@upllyft/api-client';
 import { Card, Badge, Skeleton } from '@upllyft/ui';
 import { BookOpen, Download, ExternalLink } from 'lucide-react';
 
@@ -50,7 +51,7 @@ export function WorksheetsTab({ caseId }: { caseId: string }) {
           Worksheets assigned to this case will appear here.
         </p>
         <a
-          href="http://localhost:3005"
+          href={APP_URLS.resources}
           className="text-sm text-teal-600 hover:text-teal-700 font-medium inline-flex items-center gap-1"
         >
           Go to Learning Resources <ExternalLink className="h-3.5 w-3.5" />

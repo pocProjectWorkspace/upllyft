@@ -358,9 +358,14 @@ export interface SessionFilters {
 
 export interface CreateSessionInput {
   scheduledAt: string;
+  actualDuration?: number;
+  attendanceStatus?: AttendanceStatus;
+  noteFormat?: SessionNoteFormat;
   sessionType?: string;
   location?: string;
   bookingId?: string;
+  rawNotes?: string;
+  structuredNotes?: Record<string, unknown>;
 }
 
 export interface UpdateSessionInput {
@@ -558,7 +563,29 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
+// ── Patient Types ──
+
+export interface TherapistPatient {
+  id: string;
+  firstName: string;
+  nickname?: string;
+  dateOfBirth: string;
+  gender: string;
+  parentId: string;
+  parentName: string;
+  parentEmail: string;
+  conditions: string[];
+}
+
 // ── API Functions ──
+
+// ============= Patients =============
+
+export async function getTherapistPatients(search?: string): Promise<TherapistPatient[]> {
+  const params = search ? { search } : {};
+  const res = await apiClient.get('/cases/patients', { params });
+  return res.data;
+}
 
 // ============= Cases CRUD =============
 

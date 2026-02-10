@@ -6,6 +6,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Upllyft - Milestone Map",
   description: "Developmental screening and milestone tracking for your children",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

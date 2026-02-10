@@ -69,7 +69,7 @@ export default function CaseDetailLayout({
 
   const status = caseData?.status ?? '';
   const caseNumber = caseData?.caseNumber ?? '';
-  const childName = caseData?.child?.name ?? 'Patient';
+  const childName = caseData?.child?.firstName ?? caseData?.child?.name ?? 'Patient';
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-64px)]">

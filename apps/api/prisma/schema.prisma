@@ -2570,6 +2570,9 @@ model Case {
   primaryTherapistId String
   primaryTherapist   TherapistProfile  @relation("PrimaryTherapistCases", fields: [primaryTherapistId], references: [id])
   status             CaseStatus        @default(ACTIVE)
+  diagnosis          String?
+  referralSource     String?
+  notes              String?
   openedAt           DateTime          @default(now())
   dischargedAt       DateTime?
   dischargeReason    String?

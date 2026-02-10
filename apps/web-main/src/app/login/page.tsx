@@ -107,10 +107,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md mx-auto">
           {/* Logo */}
           <div className="flex items-center gap-2.5 mb-10">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-base">U</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900">Upllyft</span>
+            <img src="/logo.png" alt="Upllyft" className="h-10 w-auto" />
           </div>
 
           {/* Heading */}

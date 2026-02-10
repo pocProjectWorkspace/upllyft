@@ -28,15 +28,11 @@ export function getNavItems(role: string): GlobalNavItem[] {
   }
 
   items.push(
-    { label: 'Community', app: 'community', href: APP_URLS.community },
+    { label: 'Feed', app: 'main', href: `${APP_URLS.main}/feed` },
     { label: 'Screening', app: 'screening', href: APP_URLS.screening },
     { label: 'Booking', app: 'booking', href: APP_URLS.booking },
     { label: 'Resources', app: 'resources', href: APP_URLS.resources },
   );
-
-  if (!isProfessional && !isAdmin) {
-    items.push({ label: 'Feed', app: 'main', href: `${APP_URLS.main}/feed` });
-  }
 
   if (isAdmin) {
     items.push({ label: 'Admin', app: 'main', href: `${APP_URLS.main}/admin` });

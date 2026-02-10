@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -18,13 +18,13 @@ export default function CasesAppLayout({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated || !user) {
-    router.replace('http://localhost:3000/login');
+    router.replace(`${APP_URLS.main}/login`);
     return null;
   }
 
   // Professional-only app
   if (user.role !== 'THERAPIST' && user.role !== 'EDUCATOR' && user.role !== 'ADMIN') {
-    router.replace('http://localhost:3004');
+    router.replace(APP_URLS.booking);
     return null;
   }
 

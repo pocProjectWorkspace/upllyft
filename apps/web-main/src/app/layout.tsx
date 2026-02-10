@@ -6,6 +6,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Upllyft - Dashboard",
   description: "Empowering the neurodivergent community",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@upllyft/api-client';
-import { AppHeader, Card, Avatar, Skeleton } from '@upllyft/ui';
+import { AppHeader, Card, Avatar, Skeleton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useMyProfile } from '@/hooks/use-dashboard';
 import { updateProfile } from '@/lib/api/profiles';
@@ -144,18 +144,18 @@ export default function EditProfilePage() {
               {user.role === 'USER' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Relationship to Child</label>
-                  <select
-                    value={formData.relationshipToChild}
-                    onChange={(e) => handleChange('relationshipToChild', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-                  >
-                    <option value="">Select...</option>
-                    <option value="Mother">Mother</option>
-                    <option value="Father">Father</option>
-                    <option value="Guardian">Guardian</option>
-                    <option value="Grandparent">Grandparent</option>
-                    <option value="Other">Other</option>
-                  </select>
+                  <Select value={formData.relationshipToChild} onValueChange={(v) => handleChange('relationshipToChild', v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Mother">Mother</SelectItem>
+                      <SelectItem value="Father">Father</SelectItem>
+                      <SelectItem value="Guardian">Guardian</SelectItem>
+                      <SelectItem value="Grandparent">Grandparent</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
@@ -201,18 +201,18 @@ export default function EditProfilePage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Education Level</label>
-                <select
-                  value={formData.educationLevel}
-                  onChange={(e) => handleChange('educationLevel', e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-                >
-                  <option value="">Select...</option>
-                  <option value="High School">High School</option>
-                  <option value="Bachelor's">Bachelor&apos;s</option>
-                  <option value="Master's">Master&apos;s</option>
-                  <option value="Doctorate">Doctorate</option>
-                  <option value="Other">Other</option>
-                </select>
+                <Select value={formData.educationLevel} onValueChange={(v) => handleChange('educationLevel', v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="High School">High School</SelectItem>
+                    <SelectItem value="Bachelor's">Bachelor&apos;s</SelectItem>
+                    <SelectItem value="Master's">Master&apos;s</SelectItem>
+                    <SelectItem value="Doctorate">Doctorate</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

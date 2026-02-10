@@ -6,6 +6,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Upllyft - Learning Resources',
   description: 'AI-powered worksheets and educational activities for neurodivergent children',
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

@@ -13,6 +13,8 @@ import {
   UpdateCaseTherapistDto,
   TransferCaseDto,
   ListCasesQueryDto,
+  CreateSessionDto,
+  UpdateSessionDto,
 } from './dto/cases.dto';
 
 @Injectable()
@@ -46,6 +48,65 @@ export class CasesService {
   }
 
   /**
+   * Get children/patients that the therapist can create cases for.
+   * These are children of parents who have booked sessions with this therapist.
+   */
+  async getTherapistPatients(therapistUserId: string, search?: string) {
+    const therapistProfile = await this.prisma.therapistProfile.findUnique({
+      where: { userId: therapistUserId },
+    });
+    if (!therapistProfile) {
+      throw new BadRequestException('Therapist profile not found');
+    }
+
+    // Find unique parent user IDs from bookings with this therapist
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        therapistId: therapistProfile.id,
+        status: { notIn: ['CANCELLED_BY_PATIENT', 'CANCELLED_BY_THERAPIST', 'PAYMENT_FAILED'] },
+      },
+      select: { patientId: true },
+      distinct: ['patientId'],
+    });
+
+    const parentUserIds = bookings.map((b) => b.patientId);
+    if (parentUserIds.length === 0) return [];
+
+    // Get children of those parents
+    const searchFilter: Prisma.ChildWhereInput = search
+      ? { firstName: { contains: search, mode: 'insensitive' } }
+      : {};
+
+    const children = await this.prisma.child.findMany({
+      where: {
+        profile: { userId: { in: parentUserIds } },
+        ...searchFilter,
+      },
+      include: {
+        profile: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        conditions: { select: { conditionType: true } },
+      },
+      orderBy: { firstName: 'asc' },
+    });
+
+    return children.map((child) => ({
+      id: child.id,
+      firstName: child.firstName,
+      nickname: child.nickname,
+      dateOfBirth: child.dateOfBirth,
+      gender: child.gender,
+      parentId: child.profile.user.id,
+      parentName: child.profile.user.name,
+      parentEmail: child.profile.user.email,
+      conditions: child.conditions.map((c) => c.conditionType),
+    }));
+  }
+
+  /**
    * Create a new case. The requesting therapist becomes the primary therapist.
    */
   async createCase(therapistUserId: string, dto: CreateCaseDto) {
@@ -73,6 +134,9 @@ export class CasesService {
         childId: dto.childId,
         primaryTherapistId: therapistProfile.id,
         organizationId: dto.organizationId,
+        diagnosis: dto.diagnosis,
+        referralSource: dto.referralSource,
+        notes: dto.notes,
         therapists: {
           create: {
             therapistId: therapistProfile.id,
@@ -504,6 +568,115 @@ export class CasesService {
     const nextCursor = hasMore ? items[items.length - 1].id : null;
 
     return { items, nextCursor, hasMore };
+  }
+
+  // ─── SESSION CRUD ──────────────────────────────────────────
+
+  /**
+   * List sessions for a case.
+   */
+  async listSessions(caseId: string) {
+    return this.prisma.caseSession.findMany({
+      where: { caseId },
+      orderBy: { scheduledAt: 'desc' },
+      include: {
+        therapist: { select: { id: true, name: true, image: true } },
+        goalProgress: {
+          include: {
+            goal: { select: { id: true, goalText: true, domain: true } },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Get a single session.
+   */
+  async getSession(caseId: string, sessionId: string) {
+    const session = await this.prisma.caseSession.findFirst({
+      where: { id: sessionId, caseId },
+      include: {
+        therapist: { select: { id: true, name: true, image: true } },
+        goalProgress: {
+          include: {
+            goal: { select: { id: true, goalText: true, domain: true } },
+          },
+        },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+    return session;
+  }
+
+  /**
+   * Create a new session note for a case.
+   */
+  async createSession(caseId: string, therapistUserId: string, dto: CreateSessionDto) {
+    // Verify case exists
+    const caseRecord = await this.prisma.case.findUnique({ where: { id: caseId } });
+    if (!caseRecord) throw new NotFoundException('Case not found');
+
+    const session = await this.prisma.caseSession.create({
+      data: {
+        caseId,
+        therapistId: therapistUserId,
+        scheduledAt: new Date(dto.scheduledAt),
+        actualDuration: dto.actualDuration,
+        attendanceStatus: dto.attendanceStatus || 'PRESENT',
+        noteFormat: dto.noteFormat,
+        sessionType: dto.sessionType,
+        location: dto.location,
+        bookingId: dto.bookingId,
+        rawNotes: dto.rawNotes,
+        structuredNotes: dto.structuredNotes
+          ? (dto.structuredNotes as Prisma.InputJsonValue)
+          : undefined,
+      },
+      include: {
+        therapist: { select: { id: true, name: true, image: true } },
+      },
+    });
+
+    await this.createAuditLog(caseId, therapistUserId, 'SESSION_CREATED', 'CaseSession', session.id);
+    return session;
+  }
+
+  /**
+   * Update a session note.
+   */
+  async updateSession(caseId: string, sessionId: string, userId: string, dto: UpdateSessionDto) {
+    const session = await this.prisma.caseSession.findFirst({
+      where: { id: sessionId, caseId },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    const updateData: Prisma.CaseSessionUpdateInput = {};
+    if (dto.actualDuration !== undefined) updateData.actualDuration = dto.actualDuration;
+    if (dto.attendanceStatus) updateData.attendanceStatus = dto.attendanceStatus;
+    if (dto.noteFormat) updateData.noteFormat = dto.noteFormat;
+    if (dto.sessionType !== undefined) updateData.sessionType = dto.sessionType;
+    if (dto.location !== undefined) updateData.location = dto.location;
+    if (dto.rawNotes !== undefined) updateData.rawNotes = dto.rawNotes;
+    if (dto.structuredNotes !== undefined) {
+      updateData.structuredNotes = dto.structuredNotes as Prisma.InputJsonValue;
+    }
+
+    const updated = await this.prisma.caseSession.update({
+      where: { id: sessionId },
+      data: updateData,
+      include: {
+        therapist: { select: { id: true, name: true, image: true } },
+        goalProgress: {
+          include: {
+            goal: { select: { id: true, goalText: true, domain: true } },
+          },
+        },
+      },
+    });
+
+    await this.createAuditLog(caseId, userId, 'SESSION_UPDATED', 'CaseSession', sessionId);
+    return updated;
   }
 
   /**

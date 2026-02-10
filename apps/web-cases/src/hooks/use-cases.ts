@@ -37,6 +37,15 @@ const keys = {
   worksheets: (caseId: string) => [...keys.all, 'worksheets', caseId] as const,
 };
 
+// ── Patients ──
+
+export function useTherapistPatients(search?: string) {
+  return useQuery({
+    queryKey: [...keys.all, 'patients', search] as const,
+    queryFn: () => casesApi.getTherapistPatients(search),
+  });
+}
+
 // ── Cases ──
 
 export function useCases(params?: Record<string, unknown>) {

@@ -31,6 +31,19 @@ function createClient(baseURL: string): AxiosInstance {
     },
   });
 
+  // Request interceptor: attach auth token from storage before every request.
+  // This handles the race condition where queries fire before AuthProvider
+  // has called setAuthToken (e.g. React Query hooks mount before parent effects).
+  client.interceptors.request.use((config) => {
+    if (typeof window !== 'undefined' && !config.headers['Authorization']) {
+      const token = getCookie(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+    return config;
+  });
+
   let isRefreshing = false;
   let failedQueue: Array<{
     resolve: (value: unknown) => void;
@@ -100,7 +113,7 @@ function createClient(baseURL: string): AxiosInstance {
 }
 
 export function initializeApiClient(baseURL: string) {
-  apiClient = createClient(baseURL);
+  apiClient.defaults.baseURL = baseURL;
 }
 
 export function setAuthToken(token: string | null) {

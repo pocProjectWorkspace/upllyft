@@ -109,10 +109,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <aside className="w-60 bg-white border-r border-gray-100 flex flex-col fixed inset-y-0 left-0 z-40">
         <div className="p-4 border-b border-gray-100">
           <a href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">U</span>
-            </div>
-            <span className="text-lg font-bold text-gray-900">Upllyft</span>
+            <img src="/logo.png" alt="Upllyft" className="h-8 w-auto" />
           </a>
           <p className="mt-1 text-xs text-gray-500">Admin Console</p>
         </div>

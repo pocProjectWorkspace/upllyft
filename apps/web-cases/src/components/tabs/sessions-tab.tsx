@@ -1,34 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   Badge,
   Button,
-  Input,
-  Label,
-  Textarea,
   Skeleton,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   useToast,
 } from '@upllyft/ui';
 import {
   useSessions,
-  useCreateSession,
   useGenerateAiSummary,
   useEnhanceClinicalNotes,
 } from '@/hooks/use-cases';
-import { sessionAttendanceColors, formatDate, formatDateTime } from '@/lib/utils';
+import { sessionAttendanceColors, formatDate } from '@/lib/utils';
 import {
   Plus,
   Loader2,
@@ -37,28 +23,14 @@ import {
   ChevronDown,
   ChevronUp,
   Wand2,
-  Calendar,
-  Clock,
 } from 'lucide-react';
 
 interface SessionsTabProps {
   caseId: string;
 }
 
-const NOTE_FORMAT_OPTIONS = [
-  { value: 'SOAP', label: 'SOAP' },
-  { value: 'DAP', label: 'DAP' },
-  { value: 'NARRATIVE', label: 'Narrative' },
-];
-
-const ATTENDANCE_OPTIONS = [
-  { value: 'PRESENT', label: 'Present' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-  { value: 'NO_SHOW', label: 'No Show' },
-  { value: 'LATE', label: 'Late' },
-];
-
 export function SessionsTab({ caseId }: SessionsTabProps) {
+  const router = useRouter();
   const { toast } = useToast();
 
   // ---- Queries ----
@@ -72,68 +44,16 @@ export function SessionsTab({ caseId }: SessionsTabProps) {
       : (sessionsData as any)?.sessions ?? [];
 
   // ---- Mutations ----
-  const createSession = useCreateSession();
   const generateAiSummary = useGenerateAiSummary();
   const enhanceClinicalNotes = useEnhanceClinicalNotes();
 
   // ---- Local state ----
-  const [showCreate, setShowCreate] = useState(false);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [generatingAI, setGeneratingAI] = useState<string | null>(null);
   const [enhancingNotes, setEnhancingNotes] = useState<string | null>(null);
   const [enhancedResults, setEnhancedResults] = useState<Record<string, string>>(
     {},
   );
-
-  const defaultSessionForm = {
-    scheduledAt: new Date().toISOString().split('T')[0],
-    duration: 60,
-    noteFormat: 'SOAP',
-    attendance: 'PRESENT',
-    rawNotes: '',
-    objectives: '',
-    interventions: '',
-    response: '',
-    plan: '',
-    sessionType: '',
-    location: '',
-  };
-  const [newSession, setNewSession] = useState(defaultSessionForm);
-
-  // ---- Handlers ----
-  const handleCreate = () => {
-    const structuredNotes: Record<string, string> = {};
-    if (newSession.objectives) structuredNotes.objectives = newSession.objectives;
-    if (newSession.interventions)
-      structuredNotes.interventions = newSession.interventions;
-    if (newSession.response) structuredNotes.response = newSession.response;
-    if (newSession.plan) structuredNotes.plan = newSession.plan;
-
-    createSession.mutate(
-      {
-        caseId,
-        data: {
-          scheduledAt: new Date(newSession.scheduledAt).toISOString(),
-          sessionType: newSession.sessionType || undefined,
-          location: newSession.location || undefined,
-          actualDuration: Number(newSession.duration),
-          attendanceStatus: newSession.attendance,
-          noteFormat: newSession.noteFormat,
-          rawNotes: newSession.rawNotes || undefined,
-          structuredNotes:
-            Object.keys(structuredNotes).length > 0
-              ? structuredNotes
-              : undefined,
-        },
-      },
-      {
-        onSuccess: () => {
-          setShowCreate(false);
-          setNewSession(defaultSessionForm);
-        },
-      },
-    );
-  };
 
   const handleGenerateAI = (sessionId: string, rawNotes?: string, structuredNotes?: Record<string, unknown>) => {
     setGeneratingAI(sessionId);
@@ -207,193 +127,13 @@ export function SessionsTab({ caseId }: SessionsTabProps) {
         <h3 className="font-semibold text-lg">
           Session Notes ({sessions.length})
         </h3>
-        <Dialog open={showCreate} onOpenChange={setShowCreate}>
-          <DialogTrigger asChild>
-            <Button variant="primary" className="bg-teal-600 hover:bg-teal-700">
-              <Plus className="h-4 w-4 mr-2" /> New Session
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>New Session Note</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              {/* Top row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Date</Label>
-                  <Input
-                    type="date"
-                    value={newSession.scheduledAt}
-                    onChange={(e) =>
-                      setNewSession({ ...newSession, scheduledAt: e.target.value })
-                    }
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Duration (min)</Label>
-                  <Input
-                    type="number"
-                    value={newSession.duration}
-                    onChange={(e) =>
-                      setNewSession({
-                        ...newSession,
-                        duration: Number(e.target.value),
-                      })
-                    }
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Format</Label>
-                  <Select
-                    value={newSession.noteFormat}
-                    onValueChange={(v) =>
-                      setNewSession({ ...newSession, noteFormat: v })
-                    }
-                  >
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {NOTE_FORMAT_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Attendance</Label>
-                  <Select
-                    value={newSession.attendance}
-                    onValueChange={(v) =>
-                      setNewSession({ ...newSession, attendance: v })
-                    }
-                  >
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ATTENDANCE_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Session type + location */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Session Type</Label>
-                  <Input
-                    value={newSession.sessionType}
-                    onChange={(e) =>
-                      setNewSession({ ...newSession, sessionType: e.target.value })
-                    }
-                    placeholder="e.g., Individual, Group"
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label>Location</Label>
-                  <Input
-                    value={newSession.location}
-                    onChange={(e) =>
-                      setNewSession({ ...newSession, location: e.target.value })
-                    }
-                    placeholder="e.g., Office, Telehealth"
-                    className="mt-1.5"
-                  />
-                </div>
-              </div>
-
-              {/* Notes fields */}
-              <div>
-                <Label>Raw Notes</Label>
-                <Textarea
-                  value={newSession.rawNotes}
-                  onChange={(e) =>
-                    setNewSession({ ...newSession, rawNotes: e.target.value })
-                  }
-                  placeholder="Quick notes from the session..."
-                  rows={3}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label>Objectives</Label>
-                <Textarea
-                  value={newSession.objectives}
-                  onChange={(e) =>
-                    setNewSession({ ...newSession, objectives: e.target.value })
-                  }
-                  placeholder="Session objectives..."
-                  rows={2}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label>Interventions</Label>
-                <Textarea
-                  value={newSession.interventions}
-                  onChange={(e) =>
-                    setNewSession({
-                      ...newSession,
-                      interventions: e.target.value,
-                    })
-                  }
-                  placeholder="Interventions used..."
-                  rows={2}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label>Client Response</Label>
-                <Textarea
-                  value={newSession.response}
-                  onChange={(e) =>
-                    setNewSession({ ...newSession, response: e.target.value })
-                  }
-                  placeholder="How the client responded..."
-                  rows={2}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label>Plan</Label>
-                <Textarea
-                  value={newSession.plan}
-                  onChange={(e) =>
-                    setNewSession({ ...newSession, plan: e.target.value })
-                  }
-                  placeholder="Plan for next session..."
-                  rows={2}
-                  className="mt-1.5"
-                />
-              </div>
-
-              <DialogFooter>
-                <Button
-                  variant="primary"
-                  onClick={handleCreate}
-                  disabled={createSession.isPending}
-                  className="w-full bg-teal-600 hover:bg-teal-700"
-                >
-                  {createSession.isPending && (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  )}
-                  Create Session
-                </Button>
-              </DialogFooter>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button
+          variant="primary"
+          className="bg-teal-600 hover:bg-teal-700"
+          onClick={() => router.push(`/${caseId}/sessions/new`)}
+        >
+          <Plus className="h-4 w-4 mr-2" /> New Session
+        </Button>
       </div>
 
       {/* Session list */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader } from '@upllyft/ui';
 import { useRouter, usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -19,7 +19,7 @@ export function ScreeningShell({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated || !user) {
-    router.replace('http://localhost:3000/login');
+    router.replace(`${APP_URLS.main}/login`);
     return null;
   }
 

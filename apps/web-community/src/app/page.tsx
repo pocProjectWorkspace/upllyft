@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@upllyft/api-client';
 import { CommunityShell } from '@/components/community-shell';
-import { useInfinitePosts, useTrendingPosts } from '@/hooks/use-posts';
-import { useCommunityStats } from '@/hooks/use-community';
+import { useInfinitePosts, useTrendingTags } from '@/hooks/use-posts';
+import { useMyCommunities, useBrowseCommunities } from '@/hooks/use-community';
 import { Card, Button, Avatar, Badge, Input, Skeleton } from '@upllyft/ui';
 import type { Post } from '@/lib/api/posts';
+
+// ===== Constants =====
 
 const POST_TYPE_FILTERS = [
   { label: 'All', value: undefined },
@@ -28,6 +31,16 @@ const typeBadgeColors: Record<string, 'teal' | 'blue' | 'purple' | 'green'> = {
   CASE_STUDY: 'purple',
   RESOURCE: 'green',
 };
+
+const GROUP_COLORS = [
+  { bg: 'bg-blue-100', text: 'text-blue-600' },
+  { bg: 'bg-purple-100', text: 'text-purple-600' },
+  { bg: 'bg-green-100', text: 'text-green-600' },
+  { bg: 'bg-orange-100', text: 'text-orange-600' },
+  { bg: 'bg-teal-100', text: 'text-teal-600' },
+];
+
+// ===== Helpers =====
 
 function formatTimeAgo(dateStr: string): string {
   const now = new Date();
@@ -64,6 +77,8 @@ function roleBadgeColor(role: string): 'teal' | 'blue' | 'purple' | 'green' | 'g
       return 'gray';
   }
 }
+
+// ===== Reusable Components =====
 
 function PostCard({ post }: { post: Post }) {
   const contentPreview =
@@ -159,141 +174,252 @@ function PostCardSkeleton() {
   );
 }
 
-function TrendingSidebar() {
-  const { data: trendingPosts, isLoading: trendingLoading } = useTrendingPosts(5);
-  const { data: stats, isLoading: statsLoading } = useCommunityStats();
+// ===== Layout Sections =====
+
+function LeftSidebar({ view, onViewChange }: { view: string; onViewChange: (v: string) => void }) {
+  const { data: myCommunities, isLoading: groupsLoading } = useMyCommunities();
+
+  const activeClass = 'bg-teal-50 text-teal-700';
+  const inactiveClass = 'text-gray-600 hover:bg-gray-50';
 
   return (
-    <div className="space-y-6">
-      {/* Community Stats */}
-      <Card className="p-5">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          Community Stats
-        </h3>
-        {statsLoading ? (
-          <div className="space-y-3">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-5 w-full" />
-            ))}
-          </div>
-        ) : stats ? (
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Members</span>
-              <span className="font-medium text-gray-900">{stats.totalMembers.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Verified</span>
-              <span className="font-medium text-gray-900">{stats.verifiedMembers.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Posts</span>
-              <span className="font-medium text-gray-900">{stats.totalPosts.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Active Today</span>
-              <span className="font-medium text-teal-600">{stats.activeToday.toLocaleString()}</span>
-            </div>
-          </div>
-        ) : null}
-      </Card>
-
-      {/* Trending Posts */}
-      <Card className="p-5">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-          </svg>
-          Trending
-        </h3>
-        {trendingLoading ? (
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        ) : trendingPosts && trendingPosts.length > 0 ? (
-          <div className="space-y-3">
-            {trendingPosts.map((post, index) => (
-              <Link
-                key={post.id}
-                href={`/posts/${post.id}`}
-                className="flex items-start gap-2.5 group"
-              >
-                <span className="text-xs font-bold text-teal-500 mt-0.5 min-w-[18px]">
-                  {index + 1}.
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 group-hover:text-teal-600 transition-colors leading-snug line-clamp-2">
-                    {post.title}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {post.upvotes} upvotes &middot; {post.commentCount ?? 0} comments
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-400">No trending posts yet</p>
-        )}
-      </Card>
-
-      {/* Quick Links */}
-      <Card className="p-5">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-          </svg>
-          Quick Links
-        </h3>
-        <div className="space-y-2">
-          <Link
-            href="/communities"
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors py-1"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            Browse Communities
-          </Link>
-          <Link
-            href="/communities/create"
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors py-1"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <aside className="hidden lg:block w-56 shrink-0">
+      <div className="sticky top-24">
+        {/* Create Post */}
+        <Link href="/posts/create">
+          <button className="w-full py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:from-teal-600 hover:to-teal-700 transition-all shadow-sm">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Create Community
-          </Link>
-          <Link
-            href="/questions"
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors py-1"
+            Create Post
+          </button>
+        </Link>
+
+        {/* Navigation */}
+        <nav className="mt-6 space-y-1">
+          <button
+            onClick={() => onViewChange('feed')}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${view === 'feed' ? activeClass : inactiveClass}`}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg className={`w-5 h-5 ${view === 'feed' ? 'text-teal-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
             </svg>
-            Ask a Question
+            Feed
+          </button>
+
+          <Link
+            href="/communities"
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${inactiveClass}`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Groups
           </Link>
+
           <Link
             href="/events"
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors py-1"
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${inactiveClass}`}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             Events
           </Link>
+
+          <Link
+            href="/questions"
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${inactiveClass}`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Q&A
+          </Link>
+
+          <button
+            onClick={() => onViewChange('saved')}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${view === 'saved' ? activeClass : inactiveClass}`}
+          >
+            <svg className={`w-5 h-5 ${view === 'saved' ? 'text-teal-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+            Saved
+          </button>
+        </nav>
+
+        {/* My Groups */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">My Groups</h4>
+          {groupsLoading ? (
+            <div className="space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : myCommunities && myCommunities.length > 0 ? (
+            <div className="space-y-1">
+              {myCommunities.slice(0, 4).map((community, i) => {
+                const color = GROUP_COLORS[i % GROUP_COLORS.length];
+                return (
+                  <Link
+                    key={community.id}
+                    href={`/communities/${community.id}`}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div className={`w-8 h-8 ${color.bg} rounded-lg flex items-center justify-center`}>
+                      <span className={`${color.text} text-xs font-bold`}>
+                        {community.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="text-sm text-gray-700 truncate">{community.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">No groups joined yet</p>
+          )}
         </div>
-      </Card>
+      </div>
+    </aside>
+  );
+}
+
+function CreatePostCard() {
+  const { user } = useAuth();
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
+      <div className="flex items-center gap-3">
+        <Avatar name={user?.name || 'User'} src={user?.image || undefined} size="md" />
+        <Link href="/posts/create" className="flex-1">
+          <div className="bg-gray-100 rounded-xl px-4 py-3 text-sm text-gray-500 hover:bg-gray-200 transition-colors cursor-pointer">
+            Share something with the community...
+          </div>
+        </Link>
+      </div>
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+        <Link
+          href="/posts/create"
+          className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm transition-colors"
+        >
+          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Photo
+        </Link>
+        <Link
+          href="/questions/ask"
+          className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm transition-colors"
+        >
+          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Question
+        </Link>
+        <Link
+          href="/events/create"
+          className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm transition-colors"
+        >
+          <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Event
+        </Link>
+      </div>
     </div>
   );
 }
 
+function RightSidebar() {
+  const { data: browseResult, isLoading: groupsLoading } = useBrowseCommunities({ limit: 3 });
+  const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(5);
+
+  const suggestedGroups = browseResult?.data ?? [];
+
+  return (
+    <aside className="hidden xl:block w-72 shrink-0">
+      <div className="sticky top-24 space-y-6">
+        {/* Suggested Groups */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+          <h3 className="font-semibold text-gray-900 mb-4">Suggested Groups</h3>
+          {groupsLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : suggestedGroups.length > 0 ? (
+            <div className="space-y-3">
+              {suggestedGroups.map((group, i) => {
+                const color = GROUP_COLORS[i % GROUP_COLORS.length];
+                return (
+                  <div key={group.id} className="flex items-center gap-3">
+                    <div className={`w-10 h-10 ${color.bg} rounded-lg flex items-center justify-center shrink-0`}>
+                      <span className={`${color.text} font-bold`}>
+                        {group.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <Link href={`/communities/${group.id}`}>
+                        <p className="font-medium text-gray-900 text-sm truncate hover:text-teal-600 transition-colors">
+                          {group.name}
+                        </p>
+                      </Link>
+                      <p className="text-xs text-gray-500">
+                        {(group._count?.members ?? group.memberCount ?? 0).toLocaleString()} members
+                      </p>
+                    </div>
+                    <Link
+                      href={`/communities/${group.id}`}
+                      className="px-3 py-1 bg-teal-50 text-teal-700 text-xs font-medium rounded-full hover:bg-teal-100 transition-colors shrink-0"
+                    >
+                      Join
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">No groups to suggest</p>
+          )}
+        </div>
+
+        {/* Trending Topics */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+          <h3 className="font-semibold text-gray-900 mb-4">Trending Topics</h3>
+          {tagsLoading ? (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : trendingTags && trendingTags.length > 0 ? (
+            <div className="space-y-1">
+              {trendingTags.map((item) => (
+                <div
+                  key={item.tag}
+                  className="block p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <p className="text-sm text-gray-900">#{item.tag}</p>
+                  <p className="text-xs text-gray-500">{item.count} posts this week</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">No trending topics yet</p>
+          )}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// ===== Main Page =====
+
 export default function CommunityFeedPage() {
+  const [view, setView] = useState('feed');
   const [typeFilter, setTypeFilter] = useState<
     'DISCUSSION' | 'QUESTION' | 'CASE_STUDY' | 'RESOURCE' | undefined
   >(undefined);
@@ -304,6 +430,7 @@ export default function CommunityFeedPage() {
     ...(typeFilter ? { type: typeFilter } : {}),
     sort,
     ...(search ? { search } : {}),
+    ...(view === 'saved' ? { view: 'saved' as const } : {}),
     limit: 10,
   };
 
@@ -315,40 +442,31 @@ export default function CommunityFeedPage() {
     isFetchingNextPage,
   } = useInfinitePosts(filters);
 
-  const allPosts = data?.pages.flatMap((page) => page.data) ?? [];
+  const allPosts = data?.pages.flatMap((page) => page.posts) ?? [];
 
   return (
     <CommunityShell>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Community Feed</h1>
-          <p className="text-gray-500 mt-1">
-            Connect, share, and learn with parents, therapists, and educators
-          </p>
-        </div>
-        <Link href="/posts/create">
-          <Button>
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Create Post
-          </Button>
-        </Link>
-      </div>
+      <div className="flex gap-6">
+        {/* Left Sidebar */}
+        <LeftSidebar view={view} onViewChange={setView} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-        {/* Main Feed */}
-        <div className="space-y-4">
+        {/* Center Feed */}
+        <div className="flex-1 min-w-0">
+          {/* Create Post Card */}
+          <CreatePostCard />
+
           {/* Search */}
-          <Input
-            variant="search"
-            placeholder="Search posts..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div className="mb-4">
+            <Input
+              variant="search"
+              placeholder="Search posts..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
 
           {/* Filters + Sort */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
             <div className="flex items-center gap-2 flex-wrap">
               {POST_TYPE_FILTERS.map((filter) => (
                 <button
@@ -381,6 +499,13 @@ export default function CommunityFeedPage() {
             </div>
           </div>
 
+          {/* View heading for Saved */}
+          {view === 'saved' && (
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Saved Posts</h2>
+            </div>
+          )}
+
           {/* Posts */}
           {isLoading ? (
             <div className="space-y-4">
@@ -397,11 +522,17 @@ export default function CommunityFeedPage() {
               </div>
               <h3 className="font-semibold text-gray-900">No posts found</h3>
               <p className="text-sm text-gray-500 mt-1">
-                {search ? 'Try a different search term' : 'Be the first to start a discussion!'}
+                {search
+                  ? 'Try a different search term'
+                  : view === 'saved'
+                    ? 'No saved posts yet. Bookmark posts to see them here.'
+                    : 'Be the first to start a discussion!'}
               </p>
-              <Link href="/posts/create" className="inline-block mt-4">
-                <Button size="sm">Create Post</Button>
-              </Link>
+              {view === 'feed' && (
+                <Link href="/posts/create" className="inline-block mt-4">
+                  <Button size="sm">Create Post</Button>
+                </Link>
+              )}
             </Card>
           ) : (
             <div className="space-y-4">
@@ -430,10 +561,8 @@ export default function CommunityFeedPage() {
           )}
         </div>
 
-        {/* Sidebar */}
-        <aside className="hidden lg:block">
-          <TrendingSidebar />
-        </aside>
+        {/* Right Sidebar */}
+        <RightSidebar />
       </div>
     </CommunityShell>
   );

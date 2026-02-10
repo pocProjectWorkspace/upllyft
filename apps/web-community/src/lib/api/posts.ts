@@ -61,14 +61,15 @@ export interface PostFilters {
   author?: string;
   sort?: 'recent' | 'popular' | 'trending' | 'unanswered';
   search?: string;
+  view?: 'saved' | 'following';
 }
 
 export interface PostsResponse {
-  data: Post[];
+  posts: Post[];
   total: number;
   page: number;
-  limit: number;
-  totalPages: number;
+  pages: number;
+  hasMore: boolean;
 }
 
 export interface CreatePostDto {
@@ -153,5 +154,10 @@ export async function getTrendingPosts(limit = 5): Promise<Post[]> {
 
 export async function suggestTags(content: string): Promise<string[]> {
   const { data } = await apiClient.post('/ai/suggest-tags', { content });
+  return data;
+}
+
+export async function getTrendingTags(limit = 10): Promise<{ tag: string; count: number }[]> {
+  const { data } = await apiClient.get('/posts/tags/trending', { params: { limit } });
   return data;
 }

@@ -55,8 +55,8 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-xl">U</span>
+          <div className="flex justify-center mb-4">
+            <img src="/logo.png" alt="Upllyft" className="h-12 w-auto" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Forgot Password</h1>
           <p className="text-gray-500 mt-1">Enter your email and we&apos;ll send you a reset link</p>

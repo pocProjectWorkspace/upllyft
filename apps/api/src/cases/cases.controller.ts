@@ -21,6 +21,8 @@ import {
   TransferCaseDto,
   CreateInternalNoteDto,
   ListCasesQueryDto,
+  CreateSessionDto,
+  UpdateSessionDto,
 } from './dto/cases.dto';
 
 @Controller('cases')
@@ -38,6 +40,14 @@ export class CasesController {
   @Get()
   async listCases(@Req() req: any, @Query() query: ListCasesQueryDto) {
     return this.casesService.listCases(req.user.id, query);
+  }
+
+  @Get('patients')
+  async getTherapistPatients(
+    @Req() req: any,
+    @Query('search') search?: string,
+  ) {
+    return this.casesService.getTherapistPatients(req.user.id, search);
   }
 
   @Get(':caseId')
@@ -103,6 +113,48 @@ export class CasesController {
     @Req() req: any,
   ) {
     return this.casesService.transferCase(caseId, req.user.id, dto);
+  }
+
+  // ─── SESSIONS ───────────────────────────────────────────
+
+  @Get(':caseId/sessions')
+  @UseGuards(CaseAccessGuard)
+  @CaseAccess('view')
+  async listSessions(@Param('caseId') caseId: string) {
+    return this.casesService.listSessions(caseId);
+  }
+
+  @Get(':caseId/sessions/:sessionId')
+  @UseGuards(CaseAccessGuard)
+  @CaseAccess('view')
+  async getSession(
+    @Param('caseId') caseId: string,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.casesService.getSession(caseId, sessionId);
+  }
+
+  @Post(':caseId/sessions')
+  @UseGuards(CaseAccessGuard)
+  @CaseAccess('edit')
+  async createSession(
+    @Param('caseId') caseId: string,
+    @Body() dto: CreateSessionDto,
+    @Req() req: any,
+  ) {
+    return this.casesService.createSession(caseId, req.user.id, dto);
+  }
+
+  @Patch(':caseId/sessions/:sessionId')
+  @UseGuards(CaseAccessGuard)
+  @CaseAccess('edit')
+  async updateSession(
+    @Param('caseId') caseId: string,
+    @Param('sessionId') sessionId: string,
+    @Body() dto: UpdateSessionDto,
+    @Req() req: any,
+  ) {
+    return this.casesService.updateSession(caseId, sessionId, req.user.id, dto);
   }
 
   // ─── INTERNAL NOTES ──────────────────────────────────────

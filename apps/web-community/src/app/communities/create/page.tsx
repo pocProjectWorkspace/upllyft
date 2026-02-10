@@ -11,6 +11,11 @@ import {
   Textarea,
   Badge,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@upllyft/ui';
 import type { CreateCommunityDto } from '@/lib/api/community';
 
@@ -390,22 +395,23 @@ export default function CreateCommunityPage() {
 
               <div>
                 <Label className="block text-sm font-medium text-gray-700 mb-1">Language</Label>
-                <select
-                  value={form.primaryLanguage}
-                  onChange={(e) => updateForm({ primaryLanguage: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-colors"
-                >
-                  <option value="en">English</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="de">German</option>
-                  <option value="pt">Portuguese</option>
-                  <option value="hi">Hindi</option>
-                  <option value="ar">Arabic</option>
-                  <option value="zh">Chinese</option>
-                  <option value="ja">Japanese</option>
-                  <option value="ko">Korean</option>
-                </select>
+                <Select value={form.primaryLanguage} onValueChange={(v) => updateForm({ primaryLanguage: v })}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="es">Spanish</SelectItem>
+                    <SelectItem value="fr">French</SelectItem>
+                    <SelectItem value="de">German</SelectItem>
+                    <SelectItem value="pt">Portuguese</SelectItem>
+                    <SelectItem value="hi">Hindi</SelectItem>
+                    <SelectItem value="ar">Arabic</SelectItem>
+                    <SelectItem value="zh">Chinese</SelectItem>
+                    <SelectItem value="ja">Japanese</SelectItem>
+                    <SelectItem value="ko">Korean</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>

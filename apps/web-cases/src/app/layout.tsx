@@ -6,6 +6,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Upllyft - Case Management',
   description: 'Manage patient cases, progress tracking, and clinical documentation',
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

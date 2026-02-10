@@ -5,8 +5,16 @@ import {
   IsArray,
   IsObject,
   IsDateString,
+  IsInt,
+  IsNumber,
+  Min,
 } from 'class-validator';
-import { CaseStatus, CaseTherapistRole } from '@prisma/client';
+import {
+  CaseStatus,
+  CaseTherapistRole,
+  AttendanceStatus,
+  SessionNoteFormat,
+} from '@prisma/client';
 
 export class CreateCaseDto {
   @IsString()
@@ -15,6 +23,18 @@ export class CreateCaseDto {
   @IsOptional()
   @IsString()
   organizationId?: string;
+
+  @IsOptional()
+  @IsString()
+  diagnosis?: string;
+
+  @IsOptional()
+  @IsString()
+  referralSource?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class UpdateCaseStatusDto {
@@ -87,4 +107,75 @@ export class ListCasesQueryDto {
   @IsOptional()
   @IsString()
   limit?: string;
+}
+
+// ─── SESSION DTOs ─────────────────────────────────────────
+
+export class CreateSessionDto {
+  @IsDateString()
+  scheduledAt: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  actualDuration?: number;
+
+  @IsOptional()
+  @IsEnum(AttendanceStatus)
+  attendanceStatus?: AttendanceStatus;
+
+  @IsOptional()
+  @IsEnum(SessionNoteFormat)
+  noteFormat?: SessionNoteFormat;
+
+  @IsOptional()
+  @IsString()
+  sessionType?: string;
+
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @IsOptional()
+  @IsString()
+  bookingId?: string;
+
+  @IsOptional()
+  @IsString()
+  rawNotes?: string;
+
+  @IsOptional()
+  @IsObject()
+  structuredNotes?: Record<string, unknown>;
+}
+
+export class UpdateSessionDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  actualDuration?: number;
+
+  @IsOptional()
+  @IsEnum(AttendanceStatus)
+  attendanceStatus?: AttendanceStatus;
+
+  @IsOptional()
+  @IsEnum(SessionNoteFormat)
+  noteFormat?: SessionNoteFormat;
+
+  @IsOptional()
+  @IsString()
+  sessionType?: string;
+
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @IsOptional()
+  @IsString()
+  rawNotes?: string;
+
+  @IsOptional()
+  @IsObject()
+  structuredNotes?: Record<string, unknown>;
 }

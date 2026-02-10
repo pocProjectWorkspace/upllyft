@@ -41,11 +41,11 @@ function formatTimeAgo(dateStr: string): string {
   return `${Math.floor(months / 12)}y ago`;
 }
 
-const ROLE_COLORS: Record<string, 'teal' | 'purple' | 'blue' | 'green' | 'gray'> = {
+const ROLE_COLORS: Record<string, 'teal' | 'purple' | 'blue' | 'green' | 'red' | 'gray'> = {
   USER: 'teal',
   THERAPIST: 'purple',
   EDUCATOR: 'blue',
-  ADMIN: 'red' as 'teal',
+  ADMIN: 'red',
   ORGANIZATION: 'green',
 };
 

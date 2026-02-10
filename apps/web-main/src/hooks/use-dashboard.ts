@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getMyProfile } from '@/lib/api/profiles';
 import { getTherapistAnalytics, getMyBookings } from '@/lib/api/marketplace';
-import { getTrendingPosts } from '@/lib/api/posts';
+import { getPosts, getTrendingPosts } from '@/lib/api/posts';
 
 export function useMyProfile() {
   return useQuery({
@@ -47,5 +47,14 @@ export function useTrendingPosts() {
     queryKey: ['posts', 'trending'],
     queryFn: () => getTrendingPosts(5),
     retry: 1,
+  });
+}
+
+export function useRecentFeedPosts() {
+  return useQuery({
+    queryKey: ['posts', 'recent-feed'],
+    queryFn: () => getPosts({ sort: 'recent', limit: 4, page: 1 }),
+    retry: 1,
+    select: (data) => data.posts,
   });
 }

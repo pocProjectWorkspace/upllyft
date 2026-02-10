@@ -1,7 +1,7 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
-import { AppHeader, Skeleton, Avatar } from '@upllyft/ui';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { AppHeader, Skeleton, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -30,7 +30,7 @@ const sidebarNav = [
       </svg>
     ),
     active: false,
-    href: 'http://localhost:3002/groups',
+    href: `${APP_URLS.community}/groups`,
   },
   {
     label: 'Events',
@@ -40,7 +40,7 @@ const sidebarNav = [
       </svg>
     ),
     active: false,
-    href: 'http://localhost:3002/events',
+    href: `${APP_URLS.community}/events`,
   },
   {
     label: 'Q&A',
@@ -50,7 +50,7 @@ const sidebarNav = [
       </svg>
     ),
     active: false,
-    href: 'http://localhost:3002/questions',
+    href: `${APP_URLS.community}/questions`,
   },
   {
     label: 'Saved',
@@ -189,7 +189,7 @@ export default function FeedPage() {
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">My Groups</h4>
             <div className="space-y-2">
               {myGroups.map((group) => (
-                <a key={group.name} href="http://localhost:3002/groups" className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg">
+                <a key={group.name} href={`${APP_URLS.community}/groups`} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg">
                   <div className={`w-8 h-8 ${group.bgColor} rounded-lg flex items-center justify-center`}>
                     <span className={`${group.textColor} text-xs font-bold`}>{group.initial}</span>
                   </div>
@@ -253,15 +253,16 @@ export default function FeedPage() {
                 </button>
               ))}
             </div>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortBy)}
-              className="text-sm rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-gray-600 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-            >
-              <option value="recent">Recent</option>
-              <option value="popular">Popular</option>
-              <option value="trending">Trending</option>
-            </select>
+            <Select value={sort} onValueChange={(v) => setSort(v as SortBy)}>
+              <SelectTrigger className="w-[120px] h-9 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recent">Recent</SelectItem>
+                <SelectItem value="popular">Popular</SelectItem>
+                <SelectItem value="trending">Trending</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Search */}

@@ -47,7 +47,7 @@ export function CaseDetailSidebar({ caseId, caseData }: CaseDetailSidebarProps) 
   const lastSegment = pathSegments[pathSegments.length - 1];
   const activeSegment = lastSegment === caseId ? '' : lastSegment;
 
-  const childName = caseData?.child?.name || caseData?.child?.firstName || 'Patient';
+  const childName = caseData?.child?.firstName || caseData?.child?.name || 'Patient';
   const caseNumber = caseData?.caseNumber || '';
   const status = caseData?.status || '';
 

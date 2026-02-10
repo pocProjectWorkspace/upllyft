@@ -12,6 +12,7 @@ import {
   createComment,
   voteComment,
   getTrendingPosts,
+  getTrendingTags,
   suggestTags,
   type PostFilters,
   type CreatePostDto,
@@ -42,7 +43,7 @@ export function useInfinitePosts(filters?: Omit<PostFilters, 'page'>) {
     queryKey: [...postKeys.lists(), 'infinite', filters],
     queryFn: ({ pageParam = 1 }) => getPosts({ ...filters, page: pageParam }),
     getNextPageParam: (lastPage) => {
-      if (lastPage.page < lastPage.totalPages) return lastPage.page + 1;
+      if (lastPage.page < lastPage.pages) return lastPage.page + 1;
       return undefined;
     },
     initialPageParam: 1,
@@ -157,6 +158,14 @@ export function useTrendingPosts(limit = 5) {
   return useQuery({
     queryKey: postKeys.trending(),
     queryFn: () => getTrendingPosts(limit),
+  });
+}
+
+export function useTrendingTags(limit = 10) {
+  return useQuery({
+    queryKey: [...postKeys.all, 'tags', 'trending'],
+    queryFn: () => getTrendingTags(limit),
+    staleTime: 10 * 60 * 1000,
   });
 }
 

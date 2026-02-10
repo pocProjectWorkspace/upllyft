@@ -1,8 +1,9 @@
 'use client';
 
 import type { User } from '@upllyft/types';
+import { APP_URLS } from '@upllyft/api-client';
 import { Card, Avatar, Badge, Skeleton } from '@upllyft/ui';
-import { useMyProfile, useUpcomingBookings, useTrendingPosts } from '@/hooks/use-dashboard';
+import { useMyProfile, useUpcomingBookings, useRecentFeedPosts } from '@/hooks/use-dashboard';
 import { calculateAge } from '@/lib/api/profiles';
 import { useState } from 'react';
 
@@ -13,7 +14,7 @@ interface ParentDashboardProps {
 export function ParentDashboard({ user }: ParentDashboardProps) {
   const { data: profile, isLoading: profileLoading } = useMyProfile();
   const { data: upcomingSessions, isLoading: sessionsLoading } = useUpcomingBookings();
-  const { data: trendingPosts } = useTrendingPosts();
+  const { data: recentPosts, isLoading: feedLoading } = useRecentFeedPosts();
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
   const children = profile?.children || [];
@@ -143,7 +144,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
       {/* Module Cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <a
-          href="http://localhost:3003"
+          href={APP_URLS.screening}
           className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-teal-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(13,148,136,0.2)]"
         >
           <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-teal-500 to-teal-700">
@@ -156,7 +157,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
         </a>
 
         <a
-          href="http://localhost:3004"
+          href={APP_URLS.booking}
           className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(59,130,246,0.2)]"
         >
           <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-blue-500 to-blue-700">
@@ -169,7 +170,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
         </a>
 
         <a
-          href="http://localhost:3005"
+          href={APP_URLS.resources}
           className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-purple-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(139,92,246,0.2)]"
         >
           <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-purple-500 to-purple-700">
@@ -182,7 +183,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
         </a>
 
         <a
-          href="http://localhost:3002"
+          href={APP_URLS.community}
           className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-pink-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(236,72,153,0.2)]"
         >
           <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-pink-500 to-pink-700">
@@ -201,7 +202,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Upcoming Sessions</h3>
-            <a href="http://localhost:3004" className="text-sm text-teal-600 font-medium hover:text-teal-700">
+            <a href={APP_URLS.booking} className="text-sm text-teal-600 font-medium hover:text-teal-700">
               View All
             </a>
           </div>
@@ -266,7 +267,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
             {selectedChild ? ` ${selectedChild.firstName}'s` : " your child's"} screening results and progress data
           </p>
           <a
-            href="http://localhost:3005"
+            href={APP_URLS.resources}
             className="block w-full py-3 bg-teal-500 hover:bg-teal-400 rounded-xl font-medium transition-colors text-center"
           >
             Get Personalized Insights
@@ -274,33 +275,51 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
         </div>
       </div>
 
-      {/* Trending Posts Preview */}
-      {trendingPosts && trendingPosts.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-900">Trending in Community</h2>
-            <a href="/feed" className="text-sm text-teal-600 hover:text-teal-700 font-medium">
-              View Feed
-            </a>
-          </div>
-          <div className="space-y-3">
-            {trendingPosts.slice(0, 3).map((post) => (
-              <Card key={post.id} className="p-4 hover:shadow-md transition-shadow cursor-pointer">
-                <div className="flex items-start gap-3">
-                  <Avatar name={post.author?.name || 'User'} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{post.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {post.author?.name} \u00b7 {post.upvotes} upvotes \u00b7 {post.commentCount || 0} comments
-                    </p>
-                  </div>
-                  <Badge color="gray">{post.type.replace('_', ' ')}</Badge>
-                </div>
-              </Card>
+      {/* Recent Feed */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Recent Feed</h2>
+          <a href="/feed" className="text-sm text-teal-600 hover:text-teal-700 font-medium">
+            View All
+          </a>
+        </div>
+        {feedLoading ? (
+          <div className="grid md:grid-cols-2 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-xl" />
             ))}
           </div>
-        </div>
-      )}
+        ) : recentPosts && recentPosts.length > 0 ? (
+          <div className="grid md:grid-cols-2 gap-4">
+            {recentPosts.map((post) => (
+              <a key={post.id} href="/feed" className="block">
+                <Card className="p-5 hover:shadow-md transition-shadow cursor-pointer h-full">
+                  <div className="flex items-start gap-3">
+                    <Avatar name={post.author?.name || 'User'} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 line-clamp-1">{post.title}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {post.author?.name} {'\u00b7'} {post.upvotes} upvotes {'\u00b7'} {post.commentCount || 0} comments
+                      </p>
+                      <Badge color="gray" className="mt-2">{post.type.replace('_', ' ')}</Badge>
+                    </div>
+                  </div>
+                </Card>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+            <svg className="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+            </svg>
+            <p className="text-sm text-gray-500 mb-2">No recent posts</p>
+            <a href="/feed" className="text-sm text-teal-600 hover:text-teal-700 font-medium">
+              Go to Feed
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
