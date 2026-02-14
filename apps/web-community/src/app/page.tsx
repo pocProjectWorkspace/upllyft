@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@upllyft/api-client';
 import { CommunityShell } from '@/components/community-shell';
-import { useInfinitePosts, useTrendingTags } from '@/hooks/use-posts';
+import { useInfinitePosts, useTrendingTags, useVotePost, useToggleBookmark } from '@/hooks/use-posts';
 import { useMyCommunities, useBrowseCommunities } from '@/hooks/use-community';
-import { Card, Button, Avatar, Badge, Skeleton } from '@upllyft/ui';
+import { Card, Button, Avatar, Badge, Skeleton, toast } from '@upllyft/ui';
 import type { Post } from '@/lib/api/posts';
 
 // ===== Constants =====
@@ -87,80 +88,146 @@ function roleBadgeColor(role: string): 'teal' | 'blue' | 'purple' | 'green' | 'g
 // ===== Reusable Components =====
 
 function PostCard({ post }: { post: Post }) {
+  const router = useRouter();
+  const votePost = useVotePost();
+  const toggleBookmark = useToggleBookmark();
+
+  const [liked, setLiked] = useState(post.userVote === 'up');
+  const [likeCount, setLikeCount] = useState(post.upvotes);
+  const [bookmarked, setBookmarked] = useState(post.isBookmarked ?? false);
+
   const contentPreview =
     post.content.length > 180 ? post.content.slice(0, 180) + '...' : post.content;
 
+  const handleLike = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount((prev) => (wasLiked ? prev - 1 : prev + 1));
+    votePost.mutate(
+      { id: post.id, vote: wasLiked ? null : 'up' },
+      {
+        onError: () => {
+          setLiked(wasLiked);
+          setLikeCount(post.upvotes);
+        },
+      },
+    );
+  };
+
+  const handleComment = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/posts/${post.id}#comments`);
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(`${window.location.origin}/posts/${post.id}`);
+    toast({ title: 'Link copied', description: 'Post link copied to clipboard.' });
+  };
+
+  const handleBookmark = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const wasBookmarked = bookmarked;
+    setBookmarked(!wasBookmarked);
+    toggleBookmark.mutate(post.id, {
+      onError: () => {
+        setBookmarked(wasBookmarked);
+      },
+    });
+  };
+
   return (
-    <Link href={`/posts/${post.id}`} className="block">
-      <Card hover className="p-5">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-start gap-3">
-            <Avatar
-              src={post.author.image || undefined}
-              name={post.author.name}
-              size="md"
-            />
-            <div>
-              <span className="text-sm font-semibold text-gray-900">
-                {post.isAnonymous ? 'Anonymous' : post.author.name}
-              </span>
-              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                {!post.isAnonymous && post.author.role !== 'USER' && (
-                  <Badge color={roleBadgeColor(post.author.role)}>
-                    {formatLabel(post.author.role)}
-                  </Badge>
-                )}
-                <span className="text-xs text-gray-400">
-                  {formatTimeAgo(post.createdAt)}
-                </span>
-                <Badge color={typeBadgeColors[post.type] || 'gray'}>
-                  {formatLabel(post.type)}
+    <Card hover className="p-5">
+      {/* Author row */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start gap-3">
+          <Avatar
+            src={post.author.image || undefined}
+            name={post.author.name}
+            size="md"
+          />
+          <div>
+            <span className="text-sm font-semibold text-gray-900">
+              {post.isAnonymous ? 'Anonymous' : post.author.name}
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+              {!post.isAnonymous && post.author.role !== 'USER' && (
+                <Badge color={roleBadgeColor(post.author.role)}>
+                  {formatLabel(post.author.role)}
                 </Badge>
-                {post.featured && <Badge color="yellow">Featured</Badge>}
-              </div>
+              )}
+              <span className="text-xs text-gray-400">
+                {formatTimeAgo(post.createdAt)}
+              </span>
+              <Badge color={typeBadgeColors[post.type] || 'gray'}>
+                {formatLabel(post.type)}
+              </Badge>
+              {post.featured && <Badge color="yellow">Featured</Badge>}
             </div>
           </div>
-          <button className="text-gray-400 hover:text-gray-600 p-1">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+        </div>
+        <button className="text-gray-400 hover:text-gray-600 p-1">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Title — only clickable link */}
+      <Link href={`/posts/${post.id}`}>
+        <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1 hover:text-teal-700 transition-colors">
+          {post.title}
+        </h3>
+      </Link>
+
+      {/* Content preview */}
+      <p className="text-gray-700 text-[15px] leading-relaxed mb-3">{contentPreview}</p>
+
+      {/* Action bar — each button independently clickable */}
+      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleLike}
+            className={`flex items-center gap-1.5 text-sm transition ${liked ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'}`}
+          >
+            <svg className="w-4 h-4" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            <span className="text-xs">{likeCount}</span>
+          </button>
+          <button
+            onClick={handleComment}
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-teal-600 transition"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span className="text-xs">{post.commentCount ?? 0}</span>
+          </button>
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-teal-600 transition"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
           </button>
         </div>
-
-        <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1">
-          {post.title}
-        </h3>
-
-        <p className="text-gray-700 text-[15px] leading-relaxed mb-3">{contentPreview}</p>
-
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-pink-500 transition cursor-pointer">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-              <span className="text-xs">{post.upvotes}</span>
-            </span>
-            <span className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-teal-600 transition cursor-pointer">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <span className="text-xs">{post.commentCount ?? 0}</span>
-            </span>
-            <span className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-teal-600 transition cursor-pointer">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-            </span>
-          </div>
-          <span className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-teal-600 transition cursor-pointer">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-            </svg>
-          </span>
-        </div>
-      </Card>
-    </Link>
+        <button
+          onClick={handleBookmark}
+          className={`flex items-center gap-1.5 text-sm transition ${bookmarked ? 'text-teal-600' : 'text-gray-400 hover:text-teal-600'}`}
+        >
+          <svg className="w-4 h-4" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
+        </button>
+      </div>
+    </Card>
   );
 }
 
