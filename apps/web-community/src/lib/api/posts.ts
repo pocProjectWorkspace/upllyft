@@ -28,6 +28,7 @@ export interface Post {
   upvotes: number;
   downvotes: number;
   commentCount?: number;
+  bookmarkCount?: number;
   isBookmarked?: boolean;
   userVote?: 'up' | 'down' | null;
   featured?: boolean;

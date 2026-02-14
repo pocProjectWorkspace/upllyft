@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from '@upllyft/ui';
 
 interface ShareModalProps {
@@ -8,9 +8,24 @@ interface ShareModalProps {
   onClose: () => void;
   postId: string;
   postTitle: string;
+  postContent: string;
+  postType: string;
+  authorName: string;
+  eventDate?: string;
+  eventLocation?: string;
 }
 
-export function ShareModal({ isOpen, onClose, postId, postTitle }: ShareModalProps) {
+export function ShareModal({
+  isOpen,
+  onClose,
+  postId,
+  postTitle,
+  postContent,
+  postType,
+  authorName,
+  eventDate,
+  eventLocation,
+}: ShareModalProps) {
   const [copied, setCopied] = useState(false);
   const [supportsNativeShare, setSupportsNativeShare] = useState(false);
 
@@ -18,7 +33,32 @@ export function ShareModal({ isOpen, onClose, postId, postTitle }: ShareModalPro
     typeof window !== 'undefined'
       ? `${window.location.origin}/posts/${postId}`
       : '';
-  const shareText = `Check out "${postTitle}" on Upllyft Community`;
+
+  const contentSnippet =
+    postContent.length > 150
+      ? postContent.substring(0, 150).trim() + '...'
+      : postContent;
+
+  const shareText = useMemo(() => {
+    switch (postType) {
+      case 'DISCUSSION':
+        return `\u{1F4AC} "${postTitle}"\n\n${contentSnippet}\n\n\u2014 ${authorName} on Upllyft Community`;
+      case 'QUESTION':
+        return `\u2753 ${postTitle}\n\n${contentSnippet}\n\nCan you help? Join the conversation on Upllyft Community`;
+      case 'EVENT': {
+        const dateLine = eventDate ? `\u{1F4C5} ${eventDate}` : '';
+        const locationLine = eventLocation ? `\u{1F4CD} ${eventLocation}` : '';
+        const details = [dateLine, locationLine].filter(Boolean).join('\n');
+        return `\u{1F389} Event: ${postTitle}\n${details}\n\n${contentSnippet}\n\nRSVP on Upllyft Community`;
+      }
+      case 'CASE_STUDY':
+        return `\u{1F4CB} Case Study: ${postTitle}\n\n${contentSnippet}\n\n\u2014 Shared by ${authorName} on Upllyft Community`;
+      case 'RESOURCE':
+        return `\u{1F4DA} ${postTitle}\n\n${contentSnippet}\n\n\u2014 ${authorName} on Upllyft Community`;
+      default:
+        return `${postTitle}\n\n${contentSnippet}\n\n\u2014 ${authorName} on Upllyft Community`;
+    }
+  }, [postType, postTitle, contentSnippet, authorName, eventDate, eventLocation]);
 
   useEffect(() => {
     setSupportsNativeShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
@@ -46,14 +86,15 @@ export function ShareModal({ isOpen, onClose, postId, postTitle }: ShareModalPro
 
   const handleCopyLink = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      const copyText = `${postTitle}\n${shareUrl}`;
+      await navigator.clipboard.writeText(copyText);
       setCopied(true);
       toast({ title: 'Link copied!', description: 'Post link copied to clipboard.' });
       setTimeout(() => setCopied(false), 3000);
     } catch {
       toast({ title: 'Failed to copy', description: 'Please copy the link manually.', variant: 'destructive' });
     }
-  }, [shareUrl]);
+  }, [postTitle, shareUrl]);
 
   const handleNativeShare = useCallback(async () => {
     try {
@@ -65,21 +106,37 @@ export function ShareModal({ isOpen, onClose, postId, postTitle }: ShareModalPro
     }
   }, [postTitle, shareText, shareUrl]);
 
-  const openLink = useCallback(
-    (url: string) => {
-      window.open(url, '_blank', 'noopener,noreferrer');
+  const openPlatform = useCallback(
+    (url: string, isEmail = false) => {
+      if (isEmail) {
+        window.location.href = url;
+      } else {
+        const width = 600;
+        const height = 500;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        window.open(
+          url,
+          '_blank',
+          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`,
+        );
+      }
       onClose();
     },
     [onClose],
   );
 
   const encodedUrl = encodeURIComponent(shareUrl);
-  const encodedText = encodeURIComponent(shareText);
+  const twitterText =
+    shareText.length > 200 ? shareText.substring(0, 200) + '...' : shareText;
 
   const platforms = [
     {
       name: 'WhatsApp',
-      onClick: () => openLink(`https://wa.me/?text=${encodedText}%0A${encodedUrl}`),
+      onClick: () =>
+        openPlatform(
+          `https://wa.me/?text=${encodeURIComponent(shareText + '\n\n' + shareUrl)}`,
+        ),
       hoverBg: 'hover:bg-green-50',
       hoverText: 'hover:text-green-600',
       hoverBorder: 'hover:border-green-300',
@@ -91,7 +148,10 @@ export function ShareModal({ isOpen, onClose, postId, postTitle }: ShareModalPro
     },
     {
       name: 'Twitter',
-      onClick: () => openLink(`https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`),
+      onClick: () =>
+        openPlatform(
+          `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterText)}&url=${encodedUrl}`,
+        ),
       hoverBg: 'hover:bg-blue-50',
       hoverText: 'hover:text-blue-500',
       hoverBorder: 'hover:border-blue-300',
@@ -103,7 +163,10 @@ export function ShareModal({ isOpen, onClose, postId, postTitle }: ShareModalPro
     },
     {
       name: 'LinkedIn',
-      onClick: () => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`),
+      onClick: () =>
+        openPlatform(
+          `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(contentSnippet)}&source=Upllyft`,
+        ),
       hoverBg: 'hover:bg-blue-50',
       hoverText: 'hover:text-blue-700',
       hoverBorder: 'hover:border-blue-400',
@@ -115,7 +178,10 @@ export function ShareModal({ isOpen, onClose, postId, postTitle }: ShareModalPro
     },
     {
       name: 'Facebook',
-      onClick: () => openLink(`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`),
+      onClick: () =>
+        openPlatform(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodeURIComponent(shareText)}`,
+        ),
       hoverBg: 'hover:bg-blue-50',
       hoverText: 'hover:text-blue-600',
       hoverBorder: 'hover:border-blue-300',
@@ -127,7 +193,10 @@ export function ShareModal({ isOpen, onClose, postId, postTitle }: ShareModalPro
     },
     {
       name: 'Telegram',
-      onClick: () => openLink(`https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`),
+      onClick: () =>
+        openPlatform(
+          `https://t.me/share/url?url=${encodedUrl}&text=${encodeURIComponent(shareText)}`,
+        ),
       hoverBg: 'hover:bg-sky-50',
       hoverText: 'hover:text-sky-500',
       hoverBorder: 'hover:border-sky-300',
@@ -139,10 +208,15 @@ export function ShareModal({ isOpen, onClose, postId, postTitle }: ShareModalPro
     },
     {
       name: 'Email',
-      onClick: () => {
-        window.location.href = `mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodedText}%0A${encodedUrl}`;
-        onClose();
-      },
+      onClick: () =>
+        openPlatform(
+          `mailto:?subject=${encodeURIComponent(
+            `Check this out: ${postTitle}`,
+          )}&body=${encodeURIComponent(
+            `Hi,\n\nI found this on Upllyft Community and thought you'd find it interesting:\n\n${shareText}\n\nRead more: ${shareUrl}\n`,
+          )}`,
+          true,
+        ),
       hoverBg: 'hover:bg-gray-50',
       hoverText: 'hover:text-gray-700',
       hoverBorder: 'hover:border-gray-400',

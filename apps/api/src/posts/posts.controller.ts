@@ -1287,6 +1287,13 @@ export class PostsController {
     }
   }
 
+  // Delete a post
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  async deletePost(@Param('id') id: string, @Request() req: AuthRequest) {
+    return this.postsService.remove(id, req.user.id, req.user.role);
+  }
+
   // Get comments for a post
   @Get(':id/comments')
   async getPostComments(
