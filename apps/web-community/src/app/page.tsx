@@ -8,6 +8,7 @@ import { CommunityShell } from '@/components/community-shell';
 import { useInfinitePosts, useTrendingTags, useVotePost, useToggleBookmark } from '@/hooks/use-posts';
 import { useMyCommunities, useBrowseCommunities } from '@/hooks/use-community';
 import { Card, Button, Avatar, Badge, Skeleton, toast } from '@upllyft/ui';
+import { ShareModal } from '@/components/share-modal';
 import type { Post } from '@/lib/api/posts';
 
 // ===== Constants =====
@@ -95,6 +96,7 @@ function PostCard({ post }: { post: Post }) {
   const [liked, setLiked] = useState(post.userVote === 'up');
   const [likeCount, setLikeCount] = useState(post.upvotes);
   const [bookmarked, setBookmarked] = useState(post.isBookmarked ?? false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const contentPreview =
     post.content.length > 180 ? post.content.slice(0, 180) + '...' : post.content;
@@ -125,8 +127,7 @@ function PostCard({ post }: { post: Post }) {
   const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    navigator.clipboard.writeText(`${window.location.origin}/posts/${post.id}`);
-    toast({ title: 'Link copied', description: 'Post link copied to clipboard.' });
+    setShowShareModal(true);
   };
 
   const handleBookmark = (e: React.MouseEvent) => {
@@ -227,6 +228,13 @@ function PostCard({ post }: { post: Post }) {
           </svg>
         </button>
       </div>
+
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        postId={post.id}
+        postTitle={post.title}
+      />
     </Card>
   );
 }

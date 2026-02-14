@@ -21,6 +21,7 @@ import {
   useTrendingPosts,
   useVoteComment,
 } from '@/hooks/use-posts';
+import { ShareModal } from '@/components/share-modal';
 import type { Comment } from '@/lib/api/posts';
 
 const TYPE_COLORS: Record<string, 'teal' | 'blue' | 'purple' | 'green'> = {
@@ -196,6 +197,7 @@ export default function PostDetailPage() {
   const toggleBookmark = useToggleBookmark();
 
   const [commentContent, setCommentContent] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
 
   function handleComment() {
     if (!commentContent.trim()) return;
@@ -325,11 +327,7 @@ export default function PostDetailPage() {
                 </button>
 
                 <button
-                  onClick={() => {
-                    if (typeof navigator !== 'undefined') {
-                      navigator.clipboard.writeText(window.location.href);
-                    }
-                  }}
+                  onClick={() => setShowShareModal(true)}
                   className="p-1.5 rounded-lg transition-colors flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -346,6 +344,13 @@ export default function PostDetailPage() {
                 </span>
               </div>
             </Card>
+
+            <ShareModal
+              isOpen={showShareModal}
+              onClose={() => setShowShareModal(false)}
+              postId={post.id}
+              postTitle={post.title}
+            />
 
             {/* Comments Section */}
             <Card className="p-6">

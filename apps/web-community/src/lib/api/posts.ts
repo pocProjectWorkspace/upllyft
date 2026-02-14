@@ -116,7 +116,8 @@ export async function deletePost(id: string): Promise<void> {
 }
 
 export async function votePost(id: string, vote: 'up' | 'down' | null): Promise<void> {
-  await apiClient.post(`/posts/${id}/vote`, { vote });
+  const value = vote === 'up' ? 1 : vote === 'down' ? -1 : 0;
+  await apiClient.post(`/posts/${id}/vote`, { value });
 }
 
 export async function toggleBookmark(id: string): Promise<{ bookmarked: boolean }> {
