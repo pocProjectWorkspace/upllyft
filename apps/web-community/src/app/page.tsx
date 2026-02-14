@@ -6,7 +6,7 @@ import { useAuth } from '@upllyft/api-client';
 import { CommunityShell } from '@/components/community-shell';
 import { useInfinitePosts, useTrendingTags } from '@/hooks/use-posts';
 import { useMyCommunities, useBrowseCommunities } from '@/hooks/use-community';
-import { Card, Button, Avatar, Badge, Input, Skeleton } from '@upllyft/ui';
+import { Card, Button, Avatar, Badge, Skeleton } from '@upllyft/ui';
 import type { Post } from '@/lib/api/posts';
 
 // ===== Constants =====
@@ -91,7 +91,7 @@ function PostCard({ post }: { post: Post }) {
     post.content.length > 180 ? post.content.slice(0, 180) + '...' : post.content;
 
   return (
-    <Link href={`/posts/${post.id}`}>
+    <Link href={`/posts/${post.id}`} className="block">
       <Card hover className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-start gap-3">
@@ -522,18 +522,32 @@ export default function CommunityFeedPage() {
           </div>
 
           {/* Search */}
-          <div>
-            <Input
-              variant="search"
+          <div className="relative">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
               placeholder="Search posts..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
             />
           </div>
 
           {/* Posts */}
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               {[...Array(5)].map((_, i) => (
                 <PostCardSkeleton key={i} />
               ))}
@@ -560,7 +574,7 @@ export default function CommunityFeedPage() {
               )}
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               {allPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
