@@ -240,13 +240,13 @@ export default function QuestionsPage() {
                         <div className="flex items-center justify-between mt-3">
                           <div className="flex items-center gap-2">
                             <Avatar
-                              name={q.isAnonymous ? (q.anonymousName || 'Anonymous') : q.author.name}
+                              name={q.isAnonymous ? (q.anonymousName || 'Anonymous') : (q.author.name || 'User')}
                               src={q.isAnonymous ? undefined : (q.author.image || undefined)}
                               size="sm"
                             />
                             <div className="flex items-center gap-1.5">
                               <span className="text-xs text-gray-600 font-medium">
-                                {q.isAnonymous ? (q.anonymousName || 'Anonymous') : q.author.name}
+                                {q.isAnonymous ? (q.anonymousName || 'Anonymous') : (q.author.name || 'User')}
                               </span>
                               {!q.isAnonymous && q.author.role && (
                                 <Badge color={ROLE_COLORS[q.author.role] || 'gray'} className="text-[10px]">

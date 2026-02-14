@@ -885,7 +885,56 @@ async function main() {
     await prisma.communityMember.deleteMany();
     await prisma.community.deleteMany();
     
-    // Delete user-related tables before users
+    // Delete Q&A data
+    await prisma.answerVote.deleteMany();
+    await prisma.answerComment.deleteMany();
+    await prisma.answerEdit.deleteMany();
+    await prisma.answerView.deleteMany();
+    await prisma.answerRequest.deleteMany();
+    await prisma.questionFollower.deleteMany();
+    await prisma.answer.deleteMany();
+    await prisma.question.deleteMany();
+
+    // Delete case management data
+    await prisma.caseAuditLog.deleteMany();
+    await prisma.caseConsent.deleteMany();
+    await prisma.caseBilling.deleteMany();
+    await prisma.caseDocument.deleteMany();
+    await prisma.treatmentPlan.deleteMany();
+    await prisma.milestonePlan.deleteMany();
+    await prisma.iEPGoal.deleteMany();
+    await prisma.iEP.deleteMany();
+    await prisma.caseSession.deleteMany();
+    await prisma.caseTherapist.deleteMany();
+    await prisma.case.deleteMany();
+
+    // Delete marketplace data
+    await prisma.sessionRating.deleteMany();
+    await prisma.booking.deleteMany();
+    await prisma.therapistAvailability.deleteMany();
+    await prisma.availabilityException.deleteMany();
+    await prisma.sessionPricing.deleteMany();
+    await prisma.therapistProfile.deleteMany();
+
+    // Delete worksheet data
+    await prisma.worksheetReview.deleteMany();
+    await prisma.worksheetAssignment.deleteMany();
+    await prisma.worksheet.deleteMany();
+
+    // Delete assessment data
+    await prisma.childCondition.deleteMany();
+    await prisma.assessment.deleteMany();
+
+    // Delete banner ads
+    await prisma.adAnalytics.deleteMany();
+    await prisma.bannerAd.deleteMany();
+
+    // Delete crisis data
+    await prisma.crisisAuditLog.deleteMany();
+    await prisma.crisisVolunteer.deleteMany();
+    await prisma.crisisIncident.deleteMany();
+
+    // Delete other user-related tables before users
     await prisma.userPreferences.deleteMany();
     await prisma.userInteractionProfile.deleteMany();
     await prisma.userInterests.deleteMany();
@@ -895,7 +944,16 @@ async function main() {
     await prisma.moderationLog.deleteMany();
     await prisma.analytics.deleteMany();
     await prisma.aiSession.deleteMany();
-    
+    await prisma.aiSubscription.deleteMany();
+    await prisma.aiUsage.deleteMany();
+    await prisma.fcmToken.deleteMany();
+    await prisma.userProfile.deleteMany();
+    await prisma.organizationMember.deleteMany();
+    await prisma.profileCompletenessLog.deleteMany();
+    await prisma.clinicalFeedback.deleteMany();
+    await prisma.clinicalPlan.deleteMany();
+    await prisma.clinicalConversation.deleteMany();
+
     // Finally delete users
     await prisma.user.deleteMany();
     

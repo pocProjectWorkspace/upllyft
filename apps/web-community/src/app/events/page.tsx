@@ -142,8 +142,8 @@ function EventCard({ event }: { event: CommunityEvent }) {
         {/* Creator + actions */}
         <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
           <div className="flex items-center gap-2">
-            <Avatar name={event.creator.name} src={event.creator.image} size="sm" />
-            <span className="text-sm text-gray-600">{event.creator.name}</span>
+            <Avatar name={event.creator.name || 'User'} src={event.creator.image || undefined} size="sm" />
+            <span className="text-sm text-gray-600">{event.creator.name || 'User'}</span>
           </div>
           <div className="flex gap-1.5">
             <Button

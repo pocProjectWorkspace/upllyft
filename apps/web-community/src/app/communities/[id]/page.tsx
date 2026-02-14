@@ -129,7 +129,7 @@ function PostsTab({ communityId }: { communityId: string }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-gray-900 text-sm">
-                    {post.isAnonymous ? 'Anonymous' : post.author?.name}
+                    {post.isAnonymous ? 'Anonymous' : (post.author?.name || post.author?.email?.split('@')[0] || 'User')}
                   </span>
                   <span className="text-xs text-gray-400">{formatTimeAgo(post.createdAt)}</span>
                 </div>
@@ -278,11 +278,11 @@ function AboutTab({
           <div className="flex items-center gap-3">
             <Avatar
               src={community.creator.image || undefined}
-              name={community.creator.name}
+              name={community.creator.name || 'User'}
               size="lg"
             />
             <div>
-              <p className="font-medium text-gray-900">{community.creator.name}</p>
+              <p className="font-medium text-gray-900">{community.creator.name || 'User'}</p>
               <p className="text-sm text-gray-500">Community Owner</p>
             </div>
           </div>

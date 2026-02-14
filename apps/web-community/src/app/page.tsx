@@ -275,13 +275,13 @@ function PostCard({ post }: { post: Post }) {
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-start gap-3">
           <Avatar
-            src={post.author.image || undefined}
-            name={post.author.name}
+            src={post.isAnonymous ? undefined : (post.author.image || undefined)}
+            name={post.isAnonymous ? 'Anonymous' : (post.author.name || post.author.email?.split('@')[0] || 'User')}
             size="md"
           />
           <div>
             <span className="text-sm font-semibold text-gray-900">
-              {post.isAnonymous ? 'Anonymous' : post.author.name}
+              {post.isAnonymous ? 'Anonymous' : (post.author.name || post.author.email?.split('@')[0] || 'User')}
             </span>
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {!post.isAnonymous && post.author.role !== 'USER' && (
@@ -425,7 +425,7 @@ function PostCard({ post }: { post: Post }) {
         postTitle={post.title}
         postContent={post.content}
         postType={post.type}
-        authorName={post.isAnonymous ? 'Anonymous' : post.author.name}
+        authorName={post.isAnonymous ? 'Anonymous' : (post.author.name || post.author.email?.split('@')[0] || 'User')}
       />
     </Card>
   );

@@ -15,14 +15,15 @@ const sizes = {
 
 export interface AvatarProps {
   src?: string;
-  name: string;
+  name?: string | null;
   size?: keyof typeof sizes;
   className?: string;
 }
 
 function getInitials(name: string): string {
-  return name
-    .split(' ')
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts
     .map((n) => n[0])
     .join('')
     .toUpperCase()
@@ -35,11 +36,13 @@ function getGradient(name: string): string {
 }
 
 export function Avatar({ src, name, size = 'md', className = '' }: AvatarProps) {
+  const safeName = name?.trim() || 'User';
+
   if (src) {
     return (
       <img
         src={src}
-        alt={name}
+        alt={safeName}
         className={`${sizes[size]} rounded-full object-cover ${className}`}
       />
     );
@@ -47,9 +50,9 @@ export function Avatar({ src, name, size = 'md', className = '' }: AvatarProps) 
 
   return (
     <div
-      className={`${sizes[size]} rounded-full bg-gradient-to-br ${getGradient(name)} flex items-center justify-center text-white font-semibold ${className}`}
+      className={`${sizes[size]} rounded-full bg-gradient-to-br ${getGradient(safeName)} flex items-center justify-center text-white font-semibold ${className}`}
     >
-      {getInitials(name)}
+      {getInitials(safeName)}
     </div>
   );
 }

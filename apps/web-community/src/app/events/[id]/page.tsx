@@ -307,9 +307,9 @@ export default function EventDetailPage() {
 
           {/* Creator */}
           <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-            <Avatar name={event.creator.name} src={event.creator.image} size="md" />
+            <Avatar name={event.creator.name || 'User'} src={event.creator.image || undefined} size="md" />
             <div>
-              <p className="text-sm font-medium text-gray-900">{event.creator.name}</p>
+              <p className="text-sm font-medium text-gray-900">{event.creator.name || 'User'}</p>
               <p className="text-xs text-gray-500">Organizer</p>
             </div>
           </div>

@@ -2,7 +2,7 @@ import { apiClient } from '@upllyft/api-client';
 
 export interface Author {
   id: string;
-  name: string;
+  name: string | null;
   email: string;
   image?: string | null;
   role: string;
@@ -126,9 +126,30 @@ export async function toggleBookmark(id: string): Promise<{ bookmarked: boolean 
   return data;
 }
 
+function normalizeUserVote(vote: number | string | null | undefined): 'up' | 'down' | null {
+  if (vote === 1 || vote === 'up') return 'up';
+  if (vote === -1 || vote === 'down') return 'down';
+  return null;
+}
+
+function normalizeComment(c: any): Comment {
+  return {
+    ...c,
+    userVote: normalizeUserVote(c.userVote),
+    upvotes: c.upvotes ?? 0,
+    downvotes: c.downvotes ?? 0,
+    replies: c.replies?.map(normalizeComment) ?? c.children?.map(normalizeComment),
+  };
+}
+
 export async function getPostComments(postId: string, page = 1, limit = 20): Promise<{ data: Comment[]; total: number }> {
   const { data } = await apiClient.get(`/posts/${postId}/comments`, { params: { page, limit } });
-  return data;
+  // API returns { comments: [...], total } but we normalize to { data: [...], total }
+  const rawComments = data.comments ?? data.data ?? [];
+  return {
+    data: rawComments.map(normalizeComment),
+    total: data.total ?? 0,
+  };
 }
 
 export async function createComment(postId: string, dto: { content: string; parentId?: string }): Promise<Comment> {

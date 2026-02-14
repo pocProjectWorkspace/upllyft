@@ -30,12 +30,15 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:seed:events": "tsx prisma/seed-questions-events.ts",
+    "db:seed:qa": "tsx prisma/seeds/seed-questions-answers.ts",
     "db:seed:crisis": "tsx prisma/seeds/crisis-resources.seed.ts",
     "db:import:csv": "tsx prisma/seeds/import-crisis-resources-csv.ts",
     "prisma:generate": "prisma generate --schema=../../packages/database/prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema=../../packages/database/prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema=../../packages/database/prisma/schema.prisma",
-    "db:seed:all": "npm run db:seed && npm run db:seed:crisis"
+    "db:seed:all": "pnpm db:seed && pnpm db:seed:events && pnpm db:seed:qa && pnpm db:seed:crisis"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.72.1",

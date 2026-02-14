@@ -57,22 +57,22 @@ export function AppHeader({ currentApp, localNavItems, logo }: AppHeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Left: Logo + Nav */}
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-8 min-w-0 flex-1 overflow-hidden">
             {logo || (
-              <a href={APP_URLS.main} className="flex items-center gap-2">
+              <a href={APP_URLS.main} className="flex items-center gap-2 flex-shrink-0">
                 <img src="/logo.png" alt="Upllyft" className="h-8 w-auto" />
               </a>
             )}
 
             {/* Navigation */}
-            <nav className="flex items-center gap-1">
+            <nav className="flex items-center gap-1 min-w-0 overflow-hidden">
               {globalNav.map((item) => {
                 const isActive = item.app === currentApp;
                 return (
                   <a
                     key={item.label}
                     href={item.href}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                       isActive
                         ? 'bg-teal-50 text-teal-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -84,12 +84,12 @@ export function AppHeader({ currentApp, localNavItems, logo }: AppHeaderProps) {
               })}
               {localNavItems && localNavItems.length > 0 && (
                 <>
-                  <div className="w-px h-5 bg-gray-200 mx-1" />
+                  <div className="w-px h-5 bg-gray-200 mx-1 flex-shrink-0" />
                   {localNavItems.map((item) => (
                     <a
                       key={item.href}
                       href={item.href}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                         item.active
                           ? 'bg-teal-50 text-teal-700'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -103,8 +103,8 @@ export function AppHeader({ currentApp, localNavItems, logo }: AppHeaderProps) {
             </nav>
           </div>
 
-          {/* Right: Notifications + User + Mobile Menu */}
-          <div className="flex items-center gap-3">
+          {/* Right: Notifications + User */}
+          <div className="flex items-center gap-3 flex-shrink-0 relative z-10">
             {/* Notification Bell */}
             <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,7 +124,7 @@ export function AppHeader({ currentApp, localNavItems, logo }: AppHeaderProps) {
                 className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <Avatar name={displayName} src={user.image || undefined} size="sm" />
-                <span className="hidden sm:block text-sm font-medium text-gray-700">
+                <span className="hidden sm:block text-sm font-medium text-gray-700 max-w-[120px] truncate">
                   {displayName}
                 </span>
                 <svg className="hidden sm:block w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,15 +196,9 @@ export function AppHeader({ currentApp, localNavItems, logo }: AppHeaderProps) {
                 </div>
               )}
             </div>
-
-
-
           </div>
         </div>
       </div>
-
-
-
     </header>
   );
 }

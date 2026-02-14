@@ -66,7 +66,10 @@ function createClient(baseURL: string): AxiosInstance {
     async (error) => {
       const originalRequest = error.config;
 
-      if (error.response?.status === 401 && !originalRequest._retry) {
+      // Skip refresh logic if the failing request IS the refresh endpoint itself
+      const isRefreshRequest = originalRequest.url?.includes('/auth/refresh');
+
+      if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
         if (!storedRefreshToken && typeof window !== 'undefined') {
           storedRefreshToken = getCookie(REFRESH_KEY) || localStorage.getItem(REFRESH_KEY);
         }

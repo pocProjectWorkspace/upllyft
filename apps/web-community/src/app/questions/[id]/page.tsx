@@ -122,7 +122,7 @@ function AnswerCard({
               size="sm"
             />
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-medium text-gray-900">{answer.author.name}</span>
+              <span className="text-sm font-medium text-gray-900">{answer.author.name || 'User'}</span>
               {answer.author.role && (
                 <Badge color={ROLE_COLORS[answer.author.role] || 'gray'} className="text-[10px]">
                   {answer.author.role}
@@ -256,14 +256,14 @@ export default function QuestionDetailPage() {
               {/* Author info */}
               <div className="flex items-center gap-3 mb-4">
                 <Avatar
-                  name={question.isAnonymous ? (question.anonymousName || 'Anonymous') : question.author.name}
+                  name={question.isAnonymous ? (question.anonymousName || 'Anonymous') : (question.author.name || 'User')}
                   src={question.isAnonymous ? undefined : (question.author.image || undefined)}
                   size="md"
                 />
                 <div>
                   <div className="flex items-center gap-1.5">
                     <span className="font-medium text-gray-900">
-                      {question.isAnonymous ? (question.anonymousName || 'Anonymous') : question.author.name}
+                      {question.isAnonymous ? (question.anonymousName || 'Anonymous') : (question.author.name || 'User')}
                     </span>
                     {!question.isAnonymous && question.author.role && (
                       <Badge color={ROLE_COLORS[question.author.role] || 'gray'} className="text-[10px]">

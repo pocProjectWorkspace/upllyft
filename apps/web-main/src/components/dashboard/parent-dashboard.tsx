@@ -2,10 +2,12 @@
 
 import type { User } from '@upllyft/types';
 import { APP_URLS } from '@upllyft/api-client';
-import { Card, Avatar, Badge, Skeleton } from '@upllyft/ui';
+import { Card, Avatar, Badge, Skeleton, Popover, PopoverTrigger, PopoverContent } from '@upllyft/ui';
 import { useMyProfile, useUpcomingBookings, useRecentFeedPosts } from '@/hooks/use-dashboard';
 import { calculateAge } from '@/lib/api/profiles';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const SELECTED_CHILD_KEY = 'upllyft_selected_child';
 
 interface ParentDashboardProps {
   user: User;
@@ -15,12 +17,25 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
   const { data: profile, isLoading: profileLoading } = useMyProfile();
   const { data: upcomingSessions, isLoading: sessionsLoading } = useUpcomingBookings();
   const { data: recentPosts, isLoading: feedLoading } = useRecentFeedPosts();
-  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(SELECTED_CHILD_KEY);
+    }
+    return null;
+  });
+  const [childDropdownOpen, setChildDropdownOpen] = useState(false);
 
   const children = profile?.children || [];
   const selectedChild = selectedChildId
-    ? children.find((c) => c.id === selectedChildId)
+    ? children.find((c) => c.id === selectedChildId) || children[0]
     : children[0];
+
+  // Persist selected child to localStorage
+  useEffect(() => {
+    if (selectedChild) {
+      localStorage.setItem(SELECTED_CHILD_KEY, selectedChild.id);
+    }
+  }, [selectedChild]);
 
   const displayName = user.name || user.email?.split('@')[0] || 'Parent';
 
@@ -39,31 +54,85 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
                 : "Here's what's happening with your children's progress"}
             </p>
           </div>
-          {selectedChild && (
-            <div
-              className="bg-white/80 backdrop-blur rounded-xl px-4 py-3 flex items-center gap-3 border border-teal-200 cursor-pointer"
-              onClick={() => {
-                if (children.length <= 1) return;
-                const idx = children.findIndex((c) => c.id === selectedChild.id);
-                const next = children[(idx + 1) % children.length];
-                setSelectedChildId(next.id);
-              }}
-            >
-              <Avatar name={selectedChild.firstName} size="md" />
-              <div>
-                <p className="font-semibold text-gray-900">{selectedChild.firstName}</p>
-                <p className="text-xs text-gray-500">
-                  Age {calculateAge(selectedChild.dateOfBirth)} years
-                  {selectedChild.grade ? ` \u00b7 Grade ${selectedChild.grade}` : ''}
-                </p>
-              </div>
+          {children.length > 0 && selectedChild ? (
+            <Popover open={childDropdownOpen} onOpenChange={setChildDropdownOpen}>
+              <PopoverTrigger asChild>
+                <button className="bg-white/80 backdrop-blur rounded-xl px-4 py-3 flex items-center gap-3 border border-teal-200 hover:border-teal-300 transition-colors">
+                  <Avatar name={selectedChild.firstName} size="md" />
+                  <div className="text-left">
+                    <p className="font-semibold text-gray-900">{selectedChild.firstName}</p>
+                    <p className="text-xs text-gray-500">
+                      Age {calculateAge(selectedChild.dateOfBirth)} years
+                      {selectedChild.grade ? ` \u00b7 Grade ${selectedChild.grade}` : ''}
+                    </p>
+                  </div>
+                  {children.length > 1 && (
+                    <svg
+                      className={`w-5 h-5 text-gray-400 transition-transform ${childDropdownOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </button>
+              </PopoverTrigger>
               {children.length > 1 && (
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                <PopoverContent align="end" className="w-64 p-2">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider px-3 py-1.5">
+                    Switch Child
+                  </p>
+                  {children.map((child) => {
+                    const isSelected = selectedChild.id === child.id;
+                    return (
+                      <button
+                        key={child.id}
+                        onClick={() => {
+                          setSelectedChildId(child.id);
+                          setChildDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                          isSelected ? 'bg-teal-50' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <Avatar name={child.firstName} size="sm" />
+                        <div className="flex-1 text-left min-w-0">
+                          <p className={`text-sm font-medium ${isSelected ? 'text-teal-700' : 'text-gray-900'}`}>
+                            {child.firstName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Age {calculateAge(child.dateOfBirth)}
+                            {child.grade ? ` \u00b7 Grade ${child.grade}` : ''}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <svg className="w-4 h-4 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </PopoverContent>
               )}
-            </div>
-          )}
+            </Popover>
+          ) : !profileLoading && children.length === 0 ? (
+            <a
+              href="/profile"
+              className="bg-white/80 backdrop-blur rounded-xl px-4 py-3 flex items-center gap-3 border border-teal-200 hover:border-teal-300 transition-colors"
+            >
+              <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Add a Child</p>
+                <p className="text-xs text-gray-500">Get started with your child's profile</p>
+              </div>
+            </a>
+          ) : null}
         </div>
       </div>
 

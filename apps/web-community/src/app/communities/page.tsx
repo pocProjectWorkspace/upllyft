@@ -174,9 +174,9 @@ function MemberCard({ member }: { member: CommunityMember }) {
   return (
     <Card hover className="p-5">
       <div className="flex items-center gap-3">
-        <Avatar src={member.image || undefined} name={member.name} size="lg" />
+        <Avatar src={member.image || undefined} name={member.name || member.email?.split('@')[0] || 'User'} size="lg" />
         <div className="min-w-0 flex-1">
-          <h4 className="font-semibold text-gray-900 truncate">{member.name}</h4>
+          <h4 className="font-semibold text-gray-900 truncate">{member.name || member.email?.split('@')[0] || 'User'}</h4>
           <div className="flex items-center gap-2 mt-0.5">
             {member.role !== 'USER' && (
               <Badge color={roleBadgeColor(member.role)}>
@@ -233,9 +233,9 @@ function ContributorRow({
       >
         {rank}
       </span>
-      <Avatar src={member.image || undefined} name={member.name} size="sm" />
+      <Avatar src={member.image || undefined} name={member.name || member.email?.split('@')[0] || 'User'} size="sm" />
       <div className="min-w-0 flex-1">
-        <p className="font-medium text-gray-900 text-sm truncate">{member.name}</p>
+        <p className="font-medium text-gray-900 text-sm truncate">{member.name || member.email?.split('@')[0] || 'User'}</p>
         <div className="flex items-center gap-2">
           {member.role !== 'USER' && (
             <Badge color={roleBadgeColor(member.role)}>
