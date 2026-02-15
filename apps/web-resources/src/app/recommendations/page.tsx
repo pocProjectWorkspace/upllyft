@@ -77,16 +77,33 @@ export default function RecommendationsPage() {
 
         {activeChildId && !isLoading && recommendations.length > 0 && (
           <div className="space-y-4">
+            {/* AI Recommendation Banner */}
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Personalized Recommendations</h3>
+                  <p className="text-purple-200 text-sm mt-0.5">
+                    AI-curated worksheets based on this child&apos;s progress, strengths, and areas for growth.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {recommendations.map((rec, idx) => {
               const ws = rec.worksheet;
               const relevancePct = Math.round(rec.relevanceScore * 100);
               const suggestedDiff = rec.suggestedDifficulty;
 
               return (
-                <Card key={ws.id} className="p-5">
+                <Card key={ws.id} className="p-5 card-hover">
                   <div className="flex flex-col md:flex-row md:items-start gap-4">
                     {/* Rank */}
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-lg">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg">
                       {idx + 1}
                     </div>
 
@@ -108,11 +125,11 @@ export default function RecommendationsPage() {
                       <div>
                         <div className="flex items-center justify-between text-sm mb-1">
                           <span className="text-gray-600">Relevance</span>
-                          <span className="font-medium text-teal-700">{relevancePct}%</span>
+                          <span className="font-medium text-purple-700">{relevancePct}%</span>
                         </div>
                         <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-teal-500 rounded-full transition-all"
+                            className="h-full bg-purple-500 rounded-full transition-all"
                             style={{ width: `${relevancePct}%` }}
                           />
                         </div>

@@ -40,6 +40,7 @@ import {
   assignmentStatusColors,
   formatShortDate,
   isOverdue,
+  getDueDateStyle,
 } from '@/lib/utils';
 
 const STATUS_OPTIONS: Array<{ value: WorksheetAssignmentStatus | 'ALL'; label: string }> = [
@@ -128,7 +129,7 @@ function TherapistSentAssignments() {
             {data.data.map((assignment) => (
               <Card
                 key={assignment.id}
-                className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                className="p-4 card-hover cursor-pointer"
                 onClick={() => setSelectedAssignment(assignment)}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -140,11 +141,10 @@ function TherapistSentAssignments() {
                       <span>To: {assignment.assignedTo?.name || 'Unknown'}</span>
                       <span>Child: {assignment.child?.nickname || assignment.child?.firstName || 'N/A'}</span>
                       <span>Sent: {formatShortDate(assignment.createdAt)}</span>
-                      {assignment.dueDate && (
-                        <span className={isOverdue(assignment.dueDate) && assignment.status !== 'COMPLETED' ? 'text-red-500' : ''}>
-                          Due: {formatShortDate(assignment.dueDate)}
-                        </span>
-                      )}
+                      {assignment.dueDate && (() => {
+                        const ds = getDueDateStyle(assignment.dueDate, assignment.status);
+                        return <span className={ds.className}>{ds.label}</span>;
+                      })()}
                     </div>
                   </div>
                   <Badge
@@ -399,11 +399,10 @@ function ParentReceivedAssignments() {
                       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
                         <span>From: {assignment.assignedBy?.name || 'Unknown'}</span>
                         <span>Child: {assignment.child?.nickname || assignment.child?.firstName || 'N/A'}</span>
-                        {assignment.dueDate && (
-                          <span className={isOverdue(assignment.dueDate) && assignment.status !== 'COMPLETED' ? 'text-red-500 font-medium' : ''}>
-                            Due: {formatShortDate(assignment.dueDate)}
-                          </span>
-                        )}
+                        {assignment.dueDate && (() => {
+                          const ds = getDueDateStyle(assignment.dueDate, assignment.status);
+                          return <span className={ds.className}>{ds.label}</span>;
+                        })()}
                       </div>
                       {assignment.notes && (
                         <p className="text-sm text-gray-500 mt-1 italic">&quot;{assignment.notes}&quot;</p>
@@ -416,10 +415,14 @@ function ParentReceivedAssignments() {
                         {assignmentStatusLabels[assignment.status]}
                       </Badge>
                       {actions.map((action) => (
-                        <Button
+                        <button
                           key={action.label}
-                          size="sm"
-                          variant="outline"
+                          type="button"
+                          className={
+                            action.label === 'Start'
+                              ? 'bg-purple-600 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50'
+                              : 'border border-gray-200 text-gray-700 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50'
+                          }
                           onClick={() => {
                             if (action.action) {
                               action.action();
@@ -430,7 +433,7 @@ function ParentReceivedAssignments() {
                           disabled={updateMutation.isPending}
                         >
                           {action.label}
-                        </Button>
+                        </button>
                       ))}
                     </div>
                   </div>

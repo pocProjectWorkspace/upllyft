@@ -4,7 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Card, Badge, Input, Label, Textarea, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@upllyft/ui';
 import { ResourcesShell } from '@/components/resources-shell';
-import { useGenerateWorksheet, useWorksheetStatus } from '@/hooks/use-worksheets';
+import {
+  useGenerateWorksheet,
+  useWorksheetStatus,
+  useChildScreenings,
+  useScreeningSummary,
+  useIEPGoals,
+  useSessionNotes,
+} from '@/hooks/use-worksheets';
 import { downloadWorksheetPdf } from '@/lib/api/worksheets';
 import type { WorksheetType, WorksheetDataSource, WorksheetDifficulty, WorksheetColorMode, GenerateWorksheetInput } from '@/lib/api/worksheets';
 import {
@@ -49,6 +56,19 @@ export default function CreateWorksheetPage() {
   const [childAge, setChildAge] = useState('');
   const [conditions, setConditions] = useState('');
   const [devNotes, setDevNotes] = useState('');
+  const [childIdInput, setChildIdInput] = useState('');
+  const [activeChildId, setActiveChildId] = useState('');
+  const [caseIdInput, setCaseIdInput] = useState('');
+  const [activeCaseId, setActiveCaseId] = useState('');
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState('');
+  const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([]);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
+
+  // Data source queries
+  const screeningsQuery = useChildScreenings(activeChildId);
+  const screeningSummaryQuery = useScreeningSummary(selectedAssessmentId);
+  const iepGoalsQuery = useIEPGoals(activeCaseId);
+  const sessionNotesQuery = useSessionNotes(activeCaseId);
 
   // Step 2 — Type
   const [wsType, setWsType] = useState<WorksheetType | ''>('');
@@ -107,6 +127,21 @@ export default function CreateWorksheetPage() {
         ...(conditions && { conditions: conditions.split(',').map((c) => c.trim()) }),
         ...(devNotes && { developmentalNotes: devNotes }),
       };
+    }
+    if (dataSource === 'SCREENING' && selectedAssessmentId && activeChildId) {
+      input.screeningInput = { assessmentId: selectedAssessmentId, childId: activeChildId };
+      input.childId = activeChildId;
+    }
+    if (dataSource === 'UPLOADED_REPORT' && childIdInput.trim()) {
+      input.childId = childIdInput.trim();
+    }
+    if (dataSource === 'IEP_GOALS' && activeCaseId && selectedGoalIds.length > 0) {
+      input.iepGoalsInput = { caseId: activeCaseId, goalIds: selectedGoalIds };
+      input.caseId = activeCaseId;
+    }
+    if (dataSource === 'SESSION_NOTES' && activeCaseId && selectedSessionIds.length > 0) {
+      input.sessionNotesInput = { caseId: activeCaseId, sessionIds: selectedSessionIds };
+      input.caseId = activeCaseId;
     }
     const ws = await generateMutation.mutateAsync(input);
     setGeneratedId(ws.id);
@@ -188,11 +223,195 @@ export default function CreateWorksheetPage() {
           </Card>
         )}
 
-        {dataSource && dataSource !== 'MANUAL' && (
-          <Card className="p-5 mt-4">
+        {dataSource === 'SCREENING' && (
+          <Card className="p-5 space-y-4 mt-4">
+            <h3 className="font-medium text-gray-900">Select Screening Results</h3>
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <Label>Child ID</Label>
+                <Input
+                  placeholder="Enter child ID"
+                  value={childIdInput}
+                  onChange={(e) => setChildIdInput(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setActiveChildId(childIdInput.trim())}
+                disabled={!childIdInput.trim()}
+              >
+                Load Screenings
+              </Button>
+            </div>
+            {screeningsQuery.isLoading && (
+              <p className="text-sm text-gray-500">Loading screenings...</p>
+            )}
+            {screeningsQuery.data?.assessments && screeningsQuery.data.assessments.length > 0 && (
+              <div className="space-y-2">
+                <Label>Select a completed screening</Label>
+                {screeningsQuery.data.assessments.map((a) => (
+                  <Card
+                    key={a.id}
+                    className={`p-3 cursor-pointer transition-all ${
+                      selectedAssessmentId === a.id ? 'ring-2 ring-teal-500 bg-teal-50/50' : 'hover:shadow-sm'
+                    }`}
+                    onClick={() => setSelectedAssessmentId(a.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-900">Age Group: {a.ageGroup}</span>
+                      <Badge color={a.status === 'COMPLETED' ? 'green' : 'gray'}>{a.status}</Badge>
+                    </div>
+                    {a.completedAt && <p className="text-xs text-gray-500 mt-1">Completed: {new Date(a.completedAt).toLocaleDateString()}</p>}
+                  </Card>
+                ))}
+              </div>
+            )}
+            {screeningsQuery.data?.assessments?.length === 0 && activeChildId && (
+              <p className="text-sm text-gray-500">No screenings found for this child.</p>
+            )}
+            {screeningSummaryQuery.data && (
+              <div className="bg-teal-50 rounded-lg p-3">
+                <p className="text-sm font-medium text-teal-800 mb-1">Screening Summary</p>
+                <p className="text-xs text-teal-600">
+                  Suggested domains: {screeningSummaryQuery.data.suggestedWorksheetDomains.join(', ')}
+                </p>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {dataSource === 'UPLOADED_REPORT' && (
+          <Card className="p-5 space-y-4 mt-4">
+            <h3 className="font-medium text-gray-900">Upload Clinical Report</h3>
             <p className="text-sm text-gray-500">
-              The <span className="font-medium text-gray-700">{dataSourceLabels[dataSource]}</span> source requires selecting a child and associated records. For now, generation will proceed with default parameters. You can integrate child/case selection in a future update.
+              Report parsing will extract child details, conditions, and developmental domains from uploaded clinical reports. Enter a child ID to associate the worksheet.
             </p>
+            <div>
+              <Label>Child ID (optional)</Label>
+              <Input
+                placeholder="Enter child ID"
+                value={childIdInput}
+                onChange={(e) => setChildIdInput(e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-gray-400">
+              Report upload and parsing will run during generation. Proceed to the next step.
+            </p>
+          </Card>
+        )}
+
+        {dataSource === 'IEP_GOALS' && (
+          <Card className="p-5 space-y-4 mt-4">
+            <h3 className="font-medium text-gray-900">Select IEP Goals</h3>
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <Label>Case ID</Label>
+                <Input
+                  placeholder="Enter case ID"
+                  value={caseIdInput}
+                  onChange={(e) => setCaseIdInput(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setActiveCaseId(caseIdInput.trim())}
+                disabled={!caseIdInput.trim()}
+              >
+                Load Goals
+              </Button>
+            </div>
+            {iepGoalsQuery.isLoading && <p className="text-sm text-gray-500">Loading IEP goals...</p>}
+            {iepGoalsQuery.data?.goals && iepGoalsQuery.data.goals.length > 0 && (
+              <div className="space-y-2">
+                <Label>Select goals to focus on</Label>
+                {iepGoalsQuery.data.goals.map((goal) => (
+                  <label
+                    key={goal.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      selectedGoalIds.includes(goal.id)
+                        ? 'border-teal-500 bg-teal-50/50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedGoalIds.includes(goal.id)}
+                      onChange={() =>
+                        setSelectedGoalIds((prev) =>
+                          prev.includes(goal.id) ? prev.filter((id) => id !== goal.id) : [...prev, goal.id]
+                        )
+                      }
+                      className="mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{goal.description}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Domain: {goal.domain} &middot; {goal.status}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+            {iepGoalsQuery.data?.goals?.length === 0 && activeCaseId && (
+              <p className="text-sm text-gray-500">No IEP goals found for this case.</p>
+            )}
+          </Card>
+        )}
+
+        {dataSource === 'SESSION_NOTES' && (
+          <Card className="p-5 space-y-4 mt-4">
+            <h3 className="font-medium text-gray-900">Select Session Notes</h3>
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <Label>Case ID</Label>
+                <Input
+                  placeholder="Enter case ID"
+                  value={caseIdInput}
+                  onChange={(e) => setCaseIdInput(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setActiveCaseId(caseIdInput.trim())}
+                disabled={!caseIdInput.trim()}
+              >
+                Load Sessions
+              </Button>
+            </div>
+            {sessionNotesQuery.isLoading && <p className="text-sm text-gray-500">Loading session notes...</p>}
+            {sessionNotesQuery.data?.sessions && sessionNotesQuery.data.sessions.length > 0 && (
+              <div className="space-y-2">
+                <Label>Select sessions to use</Label>
+                {sessionNotesQuery.data.sessions.map((session) => (
+                  <label
+                    key={session.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      selectedSessionIds.includes(session.id)
+                        ? 'border-teal-500 bg-teal-50/50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSessionIds.includes(session.id)}
+                      onChange={() =>
+                        setSelectedSessionIds((prev) =>
+                          prev.includes(session.id) ? prev.filter((id) => id !== session.id) : [...prev, session.id]
+                        )
+                      }
+                      className="mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{new Date(session.date).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{session.notes}</p>
+                      {session.progress && <p className="text-xs text-teal-600 mt-0.5">Progress: {session.progress}</p>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+            {sessionNotesQuery.data?.sessions?.length === 0 && activeCaseId && (
+              <p className="text-sm text-gray-500">No session notes found for this case.</p>
+            )}
           </Card>
         )}
       </div>

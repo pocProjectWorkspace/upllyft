@@ -15,6 +15,7 @@ import {
   domainLabels,
   subTypeLabels,
   formatRelativeDate,
+  renderStars,
 } from '@/lib/utils';
 
 const TYPES: WorksheetType[] = ['ACTIVITY', 'VISUAL_SUPPORT', 'STRUCTURED_PLAN'];
@@ -144,32 +145,40 @@ export default function MyLibraryPage() {
             <Button onClick={() => router.push('/create')}>Create Worksheet</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {worksheets.map((ws) => (
               <Card
                 key={ws.id}
-                className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                className="overflow-hidden cursor-pointer card-hover group"
                 onClick={() => router.push(`/${ws.id}`)}
               >
                 {/* Preview image or fallback */}
-                <div className="h-40 bg-gradient-to-br from-teal-50 to-teal-100 flex items-center justify-center relative">
+                <div className="aspect-[4/3] bg-gradient-to-br from-teal-50 to-teal-100 flex items-center justify-center relative">
                   {ws.previewUrl ? (
                     <img src={ws.previewUrl} alt={ws.title} className="w-full h-full object-cover" />
                   ) : (
-                    <svg className="w-10 h-10 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={typeIcons[ws.type] || typeIcons.ACTIVITY} />
-                    </svg>
+                    <div className="w-16 h-16 bg-white rounded-2xl shadow flex items-center justify-center">
+                      <svg className="w-8 h-8 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={typeIcons[ws.type] || typeIcons.ACTIVITY} />
+                      </svg>
+                    </div>
                   )}
                   {ws.status === 'GENERATING' && (
                     <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
                       <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
+                  {/* AI Recommended badge */}
+                  {ws.dataSource === 'SCREENING' && (
+                    <span className="absolute top-4 right-4 px-2 py-1 bg-purple-500 text-white text-xs font-medium rounded-full">
+                      AI Recommended
+                    </span>
+                  )}
                 </div>
 
                 {/* Content */}
                 <div className="p-4 space-y-3">
-                  <h3 className="font-semibold text-gray-900 line-clamp-1">{ws.title}</h3>
+                  <h3 className="font-semibold text-gray-900 line-clamp-1 group-hover:text-teal-700">{ws.title}</h3>
 
                   <div className="flex flex-wrap gap-1.5">
                     <Badge color={(worksheetStatusColors[ws.status] ?? 'gray') as 'green' | 'blue' | 'yellow' | 'red' | 'gray' | 'purple'}>
@@ -185,13 +194,36 @@ export default function MyLibraryPage() {
                     <p className="text-xs text-gray-500">{subTypeLabels[ws.subType] ?? ws.subType}</p>
                   )}
 
-                  <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
-                    <span>{ws.child ? ws.child.firstName : 'No child linked'}</span>
-                    <span>{formatRelativeDate(ws.createdAt)}</span>
+                  {/* Separator */}
+                  <div className="border-t border-gray-100" />
+
+                  {/* Footer with star rating */}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-yellow-400 flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      <span className="text-gray-600">{ws.averageRating > 0 ? ws.averageRating.toFixed(1) : '—'}</span>
+                    </span>
+                    <span className="text-gray-400">{formatRelativeDate(ws.createdAt)}</span>
                   </div>
                 </div>
               </Card>
             ))}
+
+            {/* Create Custom Worksheet card */}
+            <div
+              className="border-2 border-dashed border-gray-300 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center min-h-[320px] cursor-pointer group hover:border-purple-300 hover:from-purple-50/50 hover:to-purple-100/30 transition-all"
+              onClick={() => router.push('/create')}
+            >
+              <div className="w-14 h-14 rounded-2xl bg-gray-200 group-hover:bg-purple-100 flex items-center justify-center mb-3 transition-colors">
+                <svg className="w-7 h-7 text-gray-400 group-hover:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-gray-700 group-hover:text-purple-700 transition-colors">Create Custom Worksheet</h3>
+              <p className="text-sm text-gray-400 mt-1">AI-powered generation</p>
+            </div>
           </div>
         )}
 

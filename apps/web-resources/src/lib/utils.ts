@@ -160,3 +160,15 @@ export function isOverdue(dueDate?: string): boolean {
   if (!dueDate) return false;
   return new Date(dueDate) < new Date();
 }
+
+export function getDueDateStyle(dueDate?: string, status?: string): { className: string; label: string } {
+  if (!dueDate) return { className: '', label: '' };
+  if (status === 'COMPLETED') return { className: 'text-gray-500', label: `Due: ${formatShortDate(dueDate)}` };
+  const now = new Date();
+  const due = new Date(dueDate);
+  const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return { className: 'px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium', label: 'Overdue' };
+  if (diffDays <= 3) return { className: 'px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-medium', label: `Due in ${diffDays}d` };
+  if (diffDays <= 7) return { className: 'px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium', label: `Due ${formatShortDate(dueDate)}` };
+  return { className: 'text-gray-500', label: `Due: ${formatShortDate(dueDate)}` };
+}
