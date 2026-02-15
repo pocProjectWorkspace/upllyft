@@ -45,6 +45,13 @@ import {
   approveVerification,
   linkWorksheetToCase,
   getCaseWorksheets,
+  updateReview,
+  getTopEffectiveWorksheets,
+  getContributorProfile,
+  revokeVerification,
+  updateCompletion,
+  getWorksheetCompletions,
+  getChildCompletions,
   type WorksheetFilters,
   type CommunityFilters,
   type AssignmentFilters,
@@ -552,5 +559,71 @@ export function useCaseWorksheets(caseId: string) {
     queryKey: keys.caseWorksheets(caseId),
     queryFn: () => getCaseWorksheets(caseId),
     enabled: !!caseId,
+  });
+}
+
+// Additional hooks for new API functions
+
+export function useUpdateReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ worksheetId, reviewId, data }: { worksheetId: string; reviewId: string; data: { rating?: number; reviewText?: string } }) =>
+      updateReview(worksheetId, reviewId, data),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: keys.reviews(variables.worksheetId) });
+      qc.invalidateQueries({ queryKey: keys.detail(variables.worksheetId) });
+    },
+  });
+}
+
+export function useTopEffectiveWorksheets(params?: { domain?: string; limit?: number }) {
+  return useQuery({
+    queryKey: [...keys.all, 'top-effective', params] as const,
+    queryFn: () => getTopEffectiveWorksheets(params),
+  });
+}
+
+export function useContributorProfile(userId: string) {
+  return useQuery({
+    queryKey: [...keys.all, 'contributor', userId] as const,
+    queryFn: () => getContributorProfile(userId),
+    enabled: !!userId,
+  });
+}
+
+export function useRevokeVerification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => revokeVerification(userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...keys.all, 'contributors'] });
+    },
+  });
+}
+
+export function useUpdateCompletion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ completionId, data }: { completionId: string; data: Partial<RecordCompletionDto> }) =>
+      updateCompletion(completionId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.all });
+    },
+  });
+}
+
+export function useWorksheetCompletions(worksheetId: string, params?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: [...keys.detail(worksheetId), 'completions', params] as const,
+    queryFn: () => getWorksheetCompletions(worksheetId, params),
+    enabled: !!worksheetId,
+  });
+}
+
+export function useChildCompletions(childId: string, params?: { page?: number; limit?: number; worksheetId?: string }) {
+  return useQuery({
+    queryKey: [...keys.all, 'child-completions', childId, params] as const,
+    queryFn: () => getChildCompletions(childId, params),
+    enabled: !!childId,
   });
 }

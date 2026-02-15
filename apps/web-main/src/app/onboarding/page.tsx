@@ -7,13 +7,14 @@ import { useState } from 'react';
 import { updateProfile, addChild } from '@/lib/api/profiles';
 import { useQueryClient } from '@tanstack/react-query';
 
-type Step = 'welcome' | 'profile' | 'child' | 'preferences' | 'complete';
+type Step = 'welcome' | 'profile' | 'child' | 'preferences' | 'notifications' | 'complete';
 
 const STEPS: { id: Step; label: string }[] = [
   { id: 'welcome', label: 'Welcome' },
   { id: 'profile', label: 'Your Details' },
   { id: 'child', label: 'Child Info' },
   { id: 'preferences', label: 'Preferences' },
+  { id: 'notifications', label: 'Notifications' },
   { id: 'complete', label: 'Done' },
 ];
 
@@ -21,6 +22,7 @@ const THERAPIST_STEPS: { id: Step; label: string }[] = [
   { id: 'welcome', label: 'Welcome' },
   { id: 'profile', label: 'Your Details' },
   { id: 'preferences', label: 'Preferences' },
+  { id: 'notifications', label: 'Notifications' },
   { id: 'complete', label: 'Done' },
 ];
 
@@ -60,6 +62,15 @@ export default function OnboardingPage() {
 
   // Preferences
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  // Notification preferences
+  const [notifPrefs, setNotifPrefs] = useState({
+    sessionReminders: true,
+    communityReplies: true,
+    worksheetAssignments: true,
+    screeningResults: true,
+    pushNotifications: false,
+  });
 
   if (authLoading) {
     return (
@@ -414,6 +425,60 @@ export default function OnboardingPage() {
                   )}
                   {cat}
                 </button>
+              ))}
+            </div>
+
+            <div className="flex justify-between pt-6">
+              <button onClick={prevStep} className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">
+                Back
+              </button>
+              <button
+                onClick={nextStep}
+                className="bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl px-6 py-2.5 text-sm font-medium hover:from-teal-600 hover:to-teal-700 shadow-md transition-all"
+              >
+                Continue
+              </button>
+            </div>
+          </Card>
+        )}
+
+        {/* Notifications */}
+        {currentStep === 'notifications' && (
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Notification Preferences</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Choose how you&apos;d like to be notified. You can change these later in settings.
+            </p>
+
+            <div className="space-y-4">
+              {[
+                { key: 'sessionReminders' as const, label: 'Session reminders', desc: 'Get notified before upcoming sessions' },
+                { key: 'communityReplies' as const, label: 'Community replies', desc: 'When someone replies to your posts' },
+                { key: 'worksheetAssignments' as const, label: 'Worksheet assignments', desc: 'When a therapist assigns homework' },
+                { key: 'screeningResults' as const, label: 'Screening results', desc: 'When screening results are available' },
+                { key: 'pushNotifications' as const, label: 'Push notifications', desc: 'Receive real-time browser notifications' },
+              ].map((item) => (
+                <label key={item.key} className="flex items-center justify-between cursor-pointer group">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                    <p className="text-xs text-gray-500">{item.desc}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={notifPrefs[item.key]}
+                    onClick={() => setNotifPrefs((p) => ({ ...p, [item.key]: !p[item.key] }))}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      notifPrefs[item.key] ? 'bg-teal-500' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        notifPrefs[item.key] ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </label>
               ))}
             </div>
 

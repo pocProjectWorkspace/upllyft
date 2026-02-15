@@ -159,3 +159,13 @@ export async function getFollowedQuestions(page = 1, limit = 20): Promise<Questi
   const { data } = await apiClient.get('/questions', { params: { page, limit, following: true } });
   return data;
 }
+
+export async function getAnswerHistory(userId: string, page = 1, limit = 20): Promise<{ data: Answer[]; total: number }> {
+  const { data } = await apiClient.get(`/users/${userId}/answers`, { params: { page, limit } });
+  return data;
+}
+
+export async function createAnswerComment(answerId: string, content: string): Promise<{ id: string; content: string; createdAt: string }> {
+  const { data } = await apiClient.post(`/answers/${answerId}/comments`, { content });
+  return data;
+}

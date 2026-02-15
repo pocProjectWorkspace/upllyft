@@ -189,3 +189,13 @@ export async function reportPost(id: string, dto: { reason: string; description?
   const { data } = await apiClient.post(`/posts/${id}/report`, dto);
   return data;
 }
+
+export async function getSimilarPosts(postId: string, limit = 5): Promise<Post[]> {
+  const { data } = await apiClient.get(`/posts/${postId}/similar`, { params: { limit } });
+  return data;
+}
+
+export async function getUserPosts(userId: string, filters?: PostFilters): Promise<PostsResponse> {
+  const { data } = await apiClient.get(`/users/${userId}/posts`, { params: filters });
+  return data;
+}

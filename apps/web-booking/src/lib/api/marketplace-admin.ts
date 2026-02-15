@@ -57,3 +57,35 @@ export async function updateTherapistCommission(
     commissionPercentage,
   });
 }
+
+// Organization Commissions
+
+export interface OrganizationCommission {
+  id: string;
+  name: string;
+  slug: string;
+  logo?: string;
+  customCommission?: number;
+  effectiveCommission: number;
+  therapistCount: number;
+  totalBookings: number;
+  totalRevenue: number;
+}
+
+export async function getOrganizationsWithCommission(params?: {
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ organizations: OrganizationCommission[]; total: number }> {
+  const res = await apiClient.get('/marketplace/admin/organizations', { params });
+  return res.data;
+}
+
+export async function updateOrganizationCommission(
+  organizationId: string,
+  commissionPercentage: number,
+): Promise<void> {
+  await apiClient.patch(`/marketplace/admin/organizations/${organizationId}/commission`, {
+    commissionPercentage,
+  });
+}

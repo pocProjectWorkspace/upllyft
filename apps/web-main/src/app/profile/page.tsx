@@ -1,15 +1,31 @@
 'use client';
 
+import { useState } from 'react';
 import { useAuth } from '@upllyft/api-client';
 import { AppHeader, Card, Avatar, Badge, Skeleton, ProgressRing } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { useMyProfile } from '@/hooks/use-dashboard';
-import { calculateAge } from '@/lib/api/profiles';
+import { calculateAge, getMySocialProfile } from '@/lib/api/profiles';
+import { ContributionStats } from '@/components/profile/contribution-stats';
+import { TrustScore } from '@/components/profile/trust-score';
+import { BadgeDisplay } from '@/components/profile/badge-display';
+import { ActivityFeed } from '@/components/profile/activity-feed';
+import { FollowersDialog } from '@/components/profile/followers-dialog';
 
 export default function ProfilePage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { data: profile, isLoading: profileLoading } = useMyProfile();
   const router = useRouter();
+
+  const { data: social } = useQuery({
+    queryKey: ['social', 'me'],
+    queryFn: getMySocialProfile,
+    enabled: isAuthenticated,
+  });
+
+  const [followersOpen, setFollowersOpen] = useState(false);
+  const [followersTab, setFollowersTab] = useState<'followers' | 'following'>('followers');
 
   if (authLoading) {
     return (
@@ -25,6 +41,11 @@ export default function ProfilePage() {
   }
 
   const displayName = user.name || user.email?.split('@')[0] || 'User';
+
+  const openFollowers = (tab: 'followers' | 'following') => {
+    setFollowersTab(tab);
+    setFollowersOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -62,6 +83,24 @@ export default function ProfilePage() {
                   {user.bio && (
                     <p className="text-sm text-gray-600 mt-3">{user.bio}</p>
                   )}
+
+                  {/* Follower / Following counts */}
+                  {social && (
+                    <div className="flex items-center gap-4 mt-3">
+                      <button
+                        onClick={() => openFollowers('followers')}
+                        className="text-sm text-gray-600 hover:text-teal-600"
+                      >
+                        <span className="font-bold text-gray-900">{social.followerCount}</span> followers
+                      </button>
+                      <button
+                        onClick={() => openFollowers('following')}
+                        className="text-sm text-gray-600 hover:text-teal-600"
+                      >
+                        <span className="font-bold text-gray-900">{social.followingCount}</span> following
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <a
                   href="/profile/edit"
@@ -71,6 +110,27 @@ export default function ProfilePage() {
                 </a>
               </div>
             </Card>
+
+            {/* Badges */}
+            {social && social.badges.length > 0 && (
+              <BadgeDisplay badges={social.badges} />
+            )}
+
+            {/* Trust Score */}
+            {social && (
+              <Card className="p-5">
+                <TrustScore score={social.trustScore} />
+              </Card>
+            )}
+
+            {/* Contribution Stats */}
+            {social && (
+              <ContributionStats
+                stats={social.contributionStats}
+                onFollowerClick={() => openFollowers('followers')}
+                onFollowingClick={() => openFollowers('following')}
+              />
+            )}
 
             {/* Profile Completeness */}
             {profile && profile.completenessScore < 100 && (
@@ -119,6 +179,11 @@ export default function ProfilePage() {
                 </div>
               </div>
             </Card>
+
+            {/* Activity Feed */}
+            {social && social.recentActivity.length > 0 && (
+              <ActivityFeed activities={social.recentActivity} />
+            )}
 
             {/* Children (Parents Only) */}
             {user.role === 'USER' && (
@@ -176,6 +241,19 @@ export default function ProfilePage() {
           </div>
         )}
       </main>
+
+      {/* Followers Dialog */}
+      {social && user && (
+        <FollowersDialog
+          open={followersOpen}
+          onOpenChange={setFollowersOpen}
+          userId={user.id}
+          userName={displayName}
+          initialTab={followersTab}
+          followerCount={social.followerCount}
+          followingCount={social.followingCount}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth, getNavItems, APP_URLS, type AppName } from '@upllyft/api-client';
 import { Avatar } from '../components/Avatar';
 import { NotificationBell } from '../components/NotificationBell';
+import { SOSButton } from '../components/SOSButton';
 
 export interface NavItem {
   label: string;
@@ -18,9 +19,11 @@ export interface AppHeaderProps {
   localNavItems?: NavItem[];
   /** Override the logo element */
   logo?: React.ReactNode;
+  /** Callback when the SOS button is clicked */
+  onSOSClick?: () => void;
 }
 
-export function AppHeader({ currentApp, localNavItems, logo }: AppHeaderProps) {
+export function AppHeader({ currentApp, localNavItems, logo, onSOSClick }: AppHeaderProps) {
   const { user, isAuthenticated, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -106,6 +109,9 @@ export function AppHeader({ currentApp, localNavItems, logo }: AppHeaderProps) {
 
           {/* Right: Notifications + User */}
           <div className="flex items-center gap-3 flex-shrink-0 relative z-10">
+            {/* SOS Button */}
+            <SOSButton compact onActivate={onSOSClick} />
+
             {/* Notification Bell */}
             <NotificationBell />
 

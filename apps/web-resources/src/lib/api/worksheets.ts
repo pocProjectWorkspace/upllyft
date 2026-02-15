@@ -578,3 +578,60 @@ export async function getCaseWorksheets(caseId: string): Promise<Worksheet[]> {
   const res = await apiClient.get(`/worksheets/cases/${caseId}/worksheets`);
   return res.data;
 }
+
+// Additional API Functions
+
+export async function updateReview(
+  worksheetId: string,
+  reviewId: string,
+  data: { rating?: number; reviewText?: string },
+): Promise<WorksheetReview> {
+  const res = await apiClient.patch(`/worksheets/${worksheetId}/reviews/${reviewId}`, data);
+  return res.data;
+}
+
+export async function getTopEffectiveWorksheets(params?: {
+  domain?: string;
+  limit?: number;
+}): Promise<{ data: Array<{ worksheet: Worksheet; effectivenessScore: number }> }> {
+  const res = await apiClient.get('/worksheets/analytics/top-effective', { params });
+  return res.data;
+}
+
+export async function getContributorProfile(userId: string): Promise<{
+  user: TopContributor;
+  worksheets: Worksheet[];
+  totalReviews: number;
+  joinedAt: string;
+}> {
+  const res = await apiClient.get(`/worksheets/contributors/${userId}`);
+  return res.data;
+}
+
+export async function revokeVerification(userId: string): Promise<void> {
+  await apiClient.delete(`/worksheets/contributors/${userId}/verify`);
+}
+
+export async function updateCompletion(
+  completionId: string,
+  data: Partial<RecordCompletionDto>,
+): Promise<WorksheetCompletion> {
+  const res = await apiClient.patch(`/worksheets/completions/${completionId}`, data);
+  return res.data;
+}
+
+export async function getWorksheetCompletions(
+  worksheetId: string,
+  params?: { page?: number; limit?: number },
+): Promise<PaginatedResponse<WorksheetCompletion>> {
+  const res = await apiClient.get(`/worksheets/${worksheetId}/completions`, { params });
+  return res.data;
+}
+
+export async function getChildCompletions(
+  childId: string,
+  params?: { page?: number; limit?: number; worksheetId?: string },
+): Promise<PaginatedResponse<WorksheetCompletion>> {
+  const res = await apiClient.get(`/worksheets/children/${childId}/completions`, { params });
+  return res.data;
+}

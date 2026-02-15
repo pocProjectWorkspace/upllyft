@@ -9,7 +9,7 @@ export default function SettingsPage() {
   const { user, isLoading: authLoading, isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'account' | 'notifications' | 'privacy'>('account');
+  const [activeTab, setActiveTab] = useState<'account' | 'notifications' | 'privacy' | 'crisis' | 'feed'>('account');
 
   // Change password state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -118,6 +118,8 @@ export default function SettingsPage() {
     { id: 'account' as const, label: 'Account' },
     { id: 'notifications' as const, label: 'Notifications' },
     { id: 'privacy' as const, label: 'Privacy' },
+    { id: 'crisis' as const, label: 'Crisis' },
+    { id: 'feed' as const, label: 'Feed' },
   ];
 
   return (
@@ -392,6 +394,94 @@ export default function SettingsPage() {
                 >
                   {downloading ? 'Exporting...' : 'Download My Data'}
                 </button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'crisis' && (
+          <div className="space-y-6">
+            <Card className="p-6">
+              <h2 className="text-base font-semibold text-gray-900 mb-4">Crisis Detection</h2>
+              <p className="text-sm text-gray-500 mb-4">Configure how crisis detection works for your account</p>
+              <div className="space-y-4">
+                <NotificationToggle
+                  settingKey="crisisDetectionEnabled"
+                  label="Enable crisis detection"
+                  description="Automatically detect crisis-related content in posts and messages"
+                  defaultChecked={true}
+                />
+                <NotificationToggle
+                  settingKey="crisisAutoNotify"
+                  label="Auto-notify emergency contacts"
+                  description="Automatically alert your emergency contacts during a detected crisis"
+                  defaultChecked={false}
+                />
+                <NotificationToggle
+                  settingKey="crisisShowResources"
+                  label="Show crisis resources"
+                  description="Display helpline numbers and resources when crisis content is detected"
+                  defaultChecked={true}
+                />
+              </div>
+            </Card>
+            <Card className="p-6">
+              <h2 className="text-base font-semibold text-gray-900 mb-4">Emergency Contacts</h2>
+              <p className="text-sm text-gray-500 mb-3">Manage contacts who will be notified during a crisis</p>
+              <button className="text-sm text-teal-600 hover:text-teal-700 font-medium border border-teal-200 rounded-xl px-4 py-2 hover:bg-teal-50 transition-colors">
+                Manage Emergency Contacts
+              </button>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'feed' && (
+          <div className="space-y-6">
+            <Card className="p-6">
+              <h2 className="text-base font-semibold text-gray-900 mb-4">Feed Preferences</h2>
+              <p className="text-sm text-gray-500 mb-4">Customize what appears in your feed</p>
+              <div className="space-y-4">
+                <NotificationToggle
+                  settingKey="feedShowTrending"
+                  label="Show trending posts"
+                  description="Display trending content in your feed"
+                  defaultChecked={true}
+                />
+                <NotificationToggle
+                  settingKey="feedShowRecommendations"
+                  label="Show recommendations"
+                  description="Display personalized content recommendations"
+                  defaultChecked={true}
+                />
+                <NotificationToggle
+                  settingKey="feedShowAds"
+                  label="Show sponsored content"
+                  description="Display sponsored posts and advertisements in your feed"
+                  defaultChecked={true}
+                />
+                <NotificationToggle
+                  settingKey="feedAutoplayMedia"
+                  label="Autoplay media"
+                  description="Automatically play videos and animations in posts"
+                  defaultChecked={false}
+                />
+              </div>
+            </Card>
+            <Card className="p-6">
+              <h2 className="text-base font-semibold text-gray-900 mb-4">Content Filters</h2>
+              <div className="space-y-4">
+                <NotificationToggle
+                  settingKey="feedFilterSensitive"
+                  label="Filter sensitive content"
+                  description="Hide posts that may contain sensitive or triggering content"
+                  defaultChecked={false}
+                />
+                <NotificationToggle
+                  settingKey="feedCompactMode"
+                  label="Compact feed mode"
+                  description="Show more posts with less spacing"
+                  defaultChecked={false}
+                />
               </div>
             </Card>
           </div>

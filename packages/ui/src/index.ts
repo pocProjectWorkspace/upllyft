@@ -20,6 +20,9 @@ export { RadioGroup, RadioGroupItem } from './components/radio-group';
 // Notification
 export { NotificationBell } from './components/NotificationBell';
 
+// Crisis
+export { SOSButton, type SOSButtonProps } from './components/SOSButton';
+
 // Composite
 export { ProgressRing, type ProgressRingProps } from './components/ProgressRing';
 export { StatCard, type StatCardProps } from './components/StatCard';
@@ -159,6 +162,19 @@ export {
 
 // Hooks
 export { useToast, toast } from './hooks/use-toast';
+export { useDebounce } from './hooks/use-debounce';
+export { useIntersectionObserver } from './hooks/use-intersection-observer';
+export { useCommandPalette } from './hooks/use-command-palette';
+
+// Command Palette
+export {
+  CommandPalette,
+  CommandPaletteProvider,
+  useCommandPaletteContext,
+  type CommandPaletteItem,
+  type CommandPaletteProps,
+  type CommandPaletteProviderProps,
+} from './components/CommandPalette';
 
 // Layouts
 export { AppHeader, type AppHeaderProps, type NavItem } from './layouts/AppHeader';

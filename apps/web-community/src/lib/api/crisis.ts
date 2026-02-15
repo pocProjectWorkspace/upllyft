@@ -51,3 +51,44 @@ export async function detectCrisis(content: string): Promise<CrisisDetectionResu
   const { data } = await apiClient.post('/crisis/detect', { content });
   return data;
 }
+
+// --- Incidents ---
+
+export interface CrisisIncident {
+  id: string;
+  type: string;
+  urgencyLevel: string;
+  status: 'ACTIVE' | 'IN_PROGRESS' | 'RESOLVED';
+  description?: string;
+  location?: string;
+  contactNumber?: string;
+  connections?: { id: string }[];
+  followupScheduled?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateIncidentDto {
+  type: string;
+  urgencyLevel: string;
+  description?: string;
+  location?: string;
+  contactNumber?: string;
+  preferredLang?: string;
+}
+
+export interface IncidentResponse {
+  incident: CrisisIncident;
+  resources: CrisisResource[];
+  nextSteps: string[];
+}
+
+export async function createCrisisIncident(dto: CreateIncidentDto): Promise<IncidentResponse> {
+  const { data } = await apiClient.post('/crisis/incident', dto);
+  return data;
+}
+
+export async function getMyCrisisIncidents(): Promise<CrisisIncident[]> {
+  const { data } = await apiClient.get('/crisis/incidents/my');
+  return data;
+}
