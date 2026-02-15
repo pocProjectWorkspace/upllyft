@@ -348,7 +348,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Recent Feed</h2>
-          <a href="/feed" className="text-sm text-teal-600 hover:text-teal-700 font-medium">
+          <a href={APP_URLS.community} className="text-sm text-teal-600 hover:text-teal-700 font-medium">
             View All
           </a>
         </div>
@@ -361,7 +361,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
         ) : recentPosts && recentPosts.length > 0 ? (
           <div className="grid md:grid-cols-2 gap-4">
             {recentPosts.map((post) => (
-              <a key={post.id} href="/feed" className="block">
+              <a key={post.id} href={`${APP_URLS.community}/posts/${post.id}`} className="block">
                 <Card className="p-5 hover:shadow-md transition-shadow cursor-pointer h-full">
                   <div className="flex items-start gap-3">
                     <Avatar name={post.author?.name || 'User'} size="sm" />
@@ -383,7 +383,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
             </svg>
             <p className="text-sm text-gray-500 mb-2">No recent posts</p>
-            <a href="/feed" className="text-sm text-teal-600 hover:text-teal-700 font-medium">
+            <a href={APP_URLS.community} className="text-sm text-teal-600 hover:text-teal-700 font-medium">
               Go to Feed
             </a>
           </div>

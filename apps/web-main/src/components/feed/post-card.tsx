@@ -2,7 +2,8 @@
 
 import { Avatar } from '@upllyft/ui';
 import type { Post } from '@/lib/api/posts';
-import type { FeedDensity } from '@/lib/api/feeds';
+
+type FeedDensity = 'compact' | 'comfortable' | 'spacious';
 import { votePost, bookmarkPost, unbookmarkPost } from '@/lib/api/posts';
 import { useState } from 'react';
 

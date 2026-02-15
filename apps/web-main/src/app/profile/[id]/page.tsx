@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@upllyft/api-client';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader, Card, Avatar, Badge, Skeleton } from '@upllyft/ui';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -77,7 +77,7 @@ export default function UserProfilePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             <p className="text-gray-500 text-sm">Profile not found</p>
-            <a href="/feed" className="text-sm text-teal-600 hover:text-teal-700 font-medium mt-2 inline-block">
+            <a href={APP_URLS.community} className="text-sm text-teal-600 hover:text-teal-700 font-medium mt-2 inline-block">
               Back to Feed
             </a>
           </Card>

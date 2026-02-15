@@ -28,7 +28,7 @@ export function getNavItems(role: string): GlobalNavItem[] {
   }
 
   items.push(
-    { label: 'Feed', app: 'main', href: `${APP_URLS.main}/feed` },
+    { label: 'Feed', app: 'community', href: APP_URLS.community },
     { label: 'Screening', app: 'screening', href: APP_URLS.screening },
     { label: 'Booking', app: 'booking', href: APP_URLS.booking },
     { label: 'Resources', app: 'resources', href: APP_URLS.resources },

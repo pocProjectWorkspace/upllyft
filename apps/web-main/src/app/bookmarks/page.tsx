@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader, Skeleton } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -90,7 +90,7 @@ export default function BookmarksPage() {
                 Save posts, resources, and discussions for quick access later.
               </p>
               <a
-                href="/feed"
+                href={APP_URLS.community}
                 className="inline-flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700 font-medium"
               >
                 Browse Feed

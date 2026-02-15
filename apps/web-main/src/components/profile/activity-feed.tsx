@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Card } from '@upllyft/ui';
+import { APP_URLS } from '@upllyft/api-client';
 import { type Activity } from '@/lib/api/profiles';
 
 function formatTimeAgo(dateStr: string): string {
@@ -81,7 +82,7 @@ export function ActivityFeed({ activities, className }: ActivityFeedProps) {
           return (
             <a
               key={activity.id}
-              href={activity.postId ? `/feed` : '#'}
+              href={activity.postId ? `${APP_URLS.community}/posts/${activity.postId}` : '#'}
               className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors group"
             >
               <div className={`p-2 rounded-lg ${config.bg}`}>

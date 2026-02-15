@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader, Avatar, Badge, Card, Skeleton } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -67,7 +67,7 @@ export default function TrendingPage() {
             <p className="text-sm text-gray-500 mt-1">Popular posts across the community</p>
           </div>
           <a
-            href="/feed"
+            href={APP_URLS.community}
             className="inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 font-medium"
           >
             View All
@@ -85,7 +85,7 @@ export default function TrendingPage() {
           ) : posts && posts.length > 0 ? (
             posts.map((post: Post, index: number) => (
               <Card key={post.id} className="p-5 hover:shadow-md transition-shadow">
-                <a href={`/posts/${post.id}`} className="block">
+                <a href={`${APP_URLS.community}/posts/${post.id}`} className="block">
                   <div className="flex items-start gap-4">
                     {/* Rank */}
                     <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center">
@@ -158,7 +158,7 @@ export default function TrendingPage() {
                 Be the first to start a conversation in the community.
               </p>
               <a
-                href="/feed"
+                href={APP_URLS.community}
                 className="inline-flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700 font-medium"
               >
                 Browse Feed
