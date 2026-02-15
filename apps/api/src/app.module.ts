@@ -126,7 +126,6 @@ import { WorksheetsModule } from './worksheets/worksheets.module';
     AnswersModule,
     ProfileModule,
     OrganizationsModule,
-    ProfileModule,
     FcmTokenModule,
     AssessmentsModule,
 

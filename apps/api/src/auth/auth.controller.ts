@@ -13,6 +13,7 @@ import {
   Req,
   Res,
   Session,
+  Logger,
   BadRequestException,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -31,6 +32,8 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) { }
 
   @Post('register')
@@ -86,11 +89,11 @@ export class AuthController {
     @Res({ passthrough: false }) res: express.Response,
   ) {
     try {
-      console.log('🔵 Google callback received');
-      console.log('🔵 req.user:', req.user);
+      this.logger.log('Google callback received');
+      this.logger.debug(`Google user data: ${JSON.stringify(req.user?.email)}`);
 
       if (!req.user) {
-        console.error('❌ No user data from Google');
+        this.logger.error('No user data from Google');
         throw new Error('No user from Google auth');
       }
 
@@ -100,7 +103,7 @@ export class AuthController {
       const fullProfile = await this.authService.getProfile(req.user.id);
       const memberships = fullProfile.organizationMemberships || [];
 
-      console.log('🔍 Checking memberships for Google user:', memberships.length);
+      this.logger.debug(`Checking memberships for Google user: ${memberships.length}`);
 
       const suspendedMemberships = memberships.filter(
         (m: any) => m.status === 'SUSPENDED'
@@ -111,7 +114,7 @@ export class AuthController {
 
       // If ALL memberships are deactivated, redirect to account status page
       if (memberships.length > 0 && deactivatedMemberships.length === memberships.length) {
-        console.log('❌ All memberships DEACTIVATED - blocking Google login');
+        this.logger.warn('All memberships DEACTIVATED - blocking Google login');
         const orgsParam = deactivatedMemberships.map((m: any) => m.organization?.name).filter(Boolean).join(',');
         return res.redirect(`${frontendUrl}/account-status?status=deactivated&organizations=${encodeURIComponent(orgsParam)}`);
       }
@@ -121,31 +124,30 @@ export class AuthController {
         (m: any) => m.status !== 'DEACTIVATED'
       );
       if (activeMemberships.length > 0 && activeMemberships.every((m: any) => m.status === 'SUSPENDED')) {
-        console.log('❌ All active memberships SUSPENDED - blocking Google login');
+        this.logger.warn('All active memberships SUSPENDED - blocking Google login');
         const orgsParam = suspendedMemberships.map((m: any) => m.organization?.name).filter(Boolean).join(',');
         return res.redirect(`${frontendUrl}/account-status?status=suspended&organizations=${encodeURIComponent(orgsParam)}`);
       }
 
       // Generate JWT tokens for the user
       const tokens = await this.authService.googleLogin(req.user);
-      console.log('✅ Tokens generated successfully');
+      this.logger.log('Tokens generated successfully');
 
       // Check if this is a mobile redirect (state param carries the mobile redirect URI)
       const mobileRedirectUri = req.query.state as string | undefined;
       if (mobileRedirectUri && mobileRedirectUri.startsWith('upllyft://')) {
+        this.logger.log('Redirecting to mobile app');
         const redirectUrl = `${mobileRedirectUri}?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
-        console.log('✅ Redirecting to mobile:', redirectUrl);
         return res.redirect(redirectUrl);
       }
 
       // Redirect to frontend with tokens
       const redirectUrl = `${frontendUrl}/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
 
-      console.log('✅ Redirecting to:', redirectUrl);
+      this.logger.log('Redirecting to frontend');
       return res.redirect(redirectUrl);
     } catch (error) {
-      console.error('❌ Google auth error:', error.message);
-      console.error('❌ Stack:', error.stack);
+      this.logger.error(`Google auth error: ${error.message}`, error.stack);
 
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
@@ -245,7 +247,7 @@ export class AuthController {
         expiresIn: 300000, // 5 minutes in milliseconds
       };
     } catch (error) {
-      console.error('Generate captcha error:', error);
+      this.logger.error('Failed to generate captcha', error);
       throw new BadRequestException('Failed to generate captcha');
     }
   }
@@ -260,21 +262,17 @@ export class AuthController {
     @Session() session: any,
   ) {
     try {
-      console.log('🔵 Forgot Password Request:', {
-        email: forgotPasswordDto.email,
-        captchaProvided: !!forgotPasswordDto.captcha,
-        sessionCaptchaExists: !!session?.captcha
-      });
+      this.logger.debug(`Forgot password request for: ${forgotPasswordDto.email}`);
 
       // Validate session exists
       if (!session) {
-        console.error('❌ Session is undefined');
+        this.logger.error('Session is undefined');
         throw new BadRequestException('Session initialization failed. Please refresh the page.');
       }
 
       // Validate captcha object in session
       if (!session.captcha) {
-        console.error('❌ Captcha not found in session');
+        this.logger.warn('Captcha not found in session');
         throw new BadRequestException('Captcha not found. Please generate a new captcha.');
       }
 
@@ -286,20 +284,20 @@ export class AuthController {
       } else if (typeof session.captcha === 'object' && session.captcha.text) {
         sessionCaptchaText = session.captcha.text;
       } else {
-        console.error('❌ Invalid captcha format in session:', session.captcha);
+        this.logger.error('Invalid captcha format in session');
         throw new BadRequestException('Captcha invalid. Please generate a new captcha.');
       }
 
       // Validate captcha in DTO
       if (!forgotPasswordDto.captcha) {
-        console.error('❌ Captcha missing in request body');
+        this.logger.warn('Captcha missing in request body');
         throw new BadRequestException('Captcha is required');
       }
 
       const normalizedSessionCaptcha = sessionCaptchaText.toLowerCase();
       const normalizedUserCaptcha = forgotPasswordDto.captcha.toLowerCase().trim();
 
-      console.log(`🔍 Verifying Captcha: Session='${normalizedSessionCaptcha}', User='${normalizedUserCaptcha}'`);
+      this.logger.debug('Verifying captcha input against session');
 
       const isValidCaptcha = normalizedSessionCaptcha === normalizedUserCaptcha;
 
@@ -312,7 +310,7 @@ export class AuthController {
 
       return await this.authService.forgotPassword(forgotPasswordDto.email);
     } catch (error) {
-      console.error('❌ Forgot Password Controller Error:', error);
+      this.logger.error(`Forgot password error: ${error.message}`);
       throw error;
     }
   }
@@ -341,6 +339,22 @@ export class AuthController {
   // ==========================================
   // SECURITY & LOGOUT ENDPOINTS
   // ==========================================
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Logout current session' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async logout(@Request() req: any, @Body('refreshToken') refreshToken: string) {
+    if (refreshToken) {
+      await this.authService.revokeRefreshToken(req.user.id, refreshToken);
+    }
+    return {
+      message: 'Logged out successfully',
+      success: true,
+    };
+  }
 
   @Post('revoke-token')
   @UseGuards(JwtAuthGuard)

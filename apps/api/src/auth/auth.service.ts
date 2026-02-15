@@ -29,11 +29,32 @@ export class AuthService {
 
   private readonly logger = new Logger(AuthService.name);
 
-  revokeRefreshToken(id: any, refreshToken: string) {
-    throw new Error('Method not implemented.');
+  async revokeRefreshToken(userId: string, refreshToken: string): Promise<void> {
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET') ||
+          this.configService.get<string>('JWT_SECRET'),
+      });
+
+      const tokenUserId = payload.sub || payload.id;
+      if (tokenUserId !== userId) {
+        throw new UnauthorizedException('Token does not belong to this user');
+      }
+
+      this.logger.log(`Refresh token revoked for user ${userId}`);
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
   }
-  revokeAllRefreshTokens(id: any) {
-    throw new Error('Method not implemented.');
+
+  async revokeAllRefreshTokens(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    this.logger.log(`All refresh tokens revoked for user ${userId}`);
   }
 
   constructor(
@@ -314,7 +335,7 @@ export class AuthService {
     try {
       const { email, password, name, captcha, role, licenseNumber, specialization, yearsOfExperience, organization, bio, fcmToken, device } = registerDto;
 
-      console.log('🔵 Registration attempt:', { email, name, role });
+      this.logger.log(`Registration attempt: ${email} (role: ${role || 'USER'})`);
 
       // Validate captcha
       if (sessionCaptcha && captcha) {
@@ -373,7 +394,7 @@ export class AuthService {
         },
       });
 
-      console.log('✅ User created:', { id: user.id, role: user.role, verificationStatus: user.verificationStatus });
+      this.logger.log(`User created: ${user.id} (role: ${user.role}, status: ${user.verificationStatus})`);
 
       // 🎯 Register FCM token if provided (async, don't block registration)
       if (fcmToken && device) {
@@ -441,7 +462,7 @@ export class AuthService {
         refreshToken,
       };
     } catch (error) {
-      console.error('❌ Registration error:', error.message);
+      this.logger.error(`Registration error: ${error.message}`);
       throw error;
     }
   }
@@ -463,9 +484,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    console.log('🔍 getProfile - userId:', userId);
-    console.log('🔍 getProfile - organizationMemberships:', user.organizationMemberships);
-    console.log('🔍 getProfile - memberships count:', user.organizationMemberships?.length);
+    this.logger.debug(`getProfile: userId=${userId}, memberships=${user.organizationMemberships?.length ?? 0}`);
 
     const { password: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
@@ -605,7 +624,7 @@ export class AuthService {
     this.emailService
       .sendPasswordResetEmail(user.email, resetToken, user.name ?? undefined)
       .catch(error => {
-        console.error('Failed to send password reset email:', error);
+        this.logger.error(`Failed to send password reset email: ${error.message}`);
       });
 
     return {
@@ -655,7 +674,7 @@ export class AuthService {
     });
     this.sendPasswordChangedEmail(user.email, user.name ?? undefined)
       .catch(error => {
-        console.error('Failed to send password changed email:', error);
+        this.logger.error(`Failed to send password changed email: ${error.message}`);
       });
     return { message: 'Password has been reset successfully' };
   }

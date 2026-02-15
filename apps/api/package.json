@@ -1,21 +1,6 @@
 {
   "name": "@upllyft/api",
   "version": "0.0.1",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@firebase/util",
-      "@nestjs/core",
-      "@prisma/client",
-      "@prisma/engines",
-      "@scarf/scarf",
-      "bcrypt",
-      "canvas",
-      "esbuild",
-      "prisma",
-      "protobufjs",
-      "puppeteer"
-    ]
-  },
   "scripts": {
     "dev": "nest start --watch",
     "build": "node --max-old-space-size=4096 node_modules/@nestjs/cli/bin/nest.js build",
@@ -57,7 +42,7 @@
     "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.6",
-    "@nestjs/platform-fastify": "^11.1.8",
+
     "@nestjs/platform-socket.io": "^11.1.9",
     "@nestjs/schedule": "^6.0.1",
     "@nestjs/swagger": "^11.2.0",

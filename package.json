@@ -15,15 +15,17 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@firebase/util",
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "@scarf/scarf",
       "bcrypt",
       "canvas",
       "esbuild",
       "prisma",
-      "@prisma/client",
-      "@prisma/engines",
-      "puppeteer",
-      "@nestjs/core",
-      "protobufjs"
+      "protobufjs",
+      "puppeteer"
     ]
   }
 }
