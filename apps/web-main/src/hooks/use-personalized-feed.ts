@@ -38,7 +38,8 @@ export function usePersonalizedFeed({
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      abortControllerRef.current = new AbortController();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       try {
         setLoading(true);
@@ -51,7 +52,7 @@ export function usePersonalizedFeed({
           page: currentPage,
           limit,
           filters: debouncedFilters,
-          signal: abortControllerRef.current.signal,
+          signal: controller.signal,
         });
 
         if (reset) {
@@ -68,7 +69,12 @@ export function usePersonalizedFeed({
           setError(err.message || 'Failed to fetch posts');
         }
       } finally {
-        setLoading(false);
+        // Only clear loading if this request wasn't aborted —
+        // prevents a cancelled request from flipping loading=false
+        // while a newer request is still in flight.
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     },
     [view, page, debouncedFilters, limit, enabled],

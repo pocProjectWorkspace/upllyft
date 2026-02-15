@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Skeleton } from '@upllyft/ui';
 import { usePersonalizedFeed } from '@/hooks/use-personalized-feed';
 import { useFeedPreferences } from '@/hooks/use-feed-preferences';
@@ -29,10 +29,10 @@ export function PersonalizedFeed({ isAuthenticated, categories }: PersonalizedFe
   const [search, setSearch] = useState('');
   const observerRef = useRef<HTMLDivElement>(null);
 
-  const mergedFilters: FeedFilters = {
+  const mergedFilters = useMemo<FeedFilters>(() => ({
     ...filters,
     ...(search && { search }),
-  };
+  }), [filters, search]);
 
   const {
     posts,
