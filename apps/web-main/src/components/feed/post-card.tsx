@@ -2,12 +2,14 @@
 
 import { Avatar } from '@upllyft/ui';
 import type { Post } from '@/lib/api/posts';
+import type { FeedDensity } from '@/lib/api/feeds';
 import { votePost, bookmarkPost, unbookmarkPost } from '@/lib/api/posts';
 import { useState } from 'react';
 
 interface PostCardProps {
   post: Post;
   onVoteChange?: () => void;
+  density?: FeedDensity;
 }
 
 const typeBadgeConfig: Record<string, { bg: string; text: string; label: string }> = {
@@ -17,7 +19,7 @@ const typeBadgeConfig: Record<string, { bg: string; text: string; label: string 
   RESOURCE: { bg: 'bg-teal-100', text: 'text-teal-700', label: 'Resource' },
 };
 
-export function PostCard({ post, onVoteChange }: PostCardProps) {
+export function PostCard({ post, onVoteChange, density = 'comfortable' }: PostCardProps) {
   const [localUpvotes, setLocalUpvotes] = useState(post.upvotes);
   const [isLiked, setIsLiked] = useState(post.userVote === 'up');
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
@@ -52,9 +54,11 @@ export function PostCard({ post, onVoteChange }: PostCardProps) {
   const isMilestoneType = post.type === 'CASE_STUDY';
   const isQuestionType = post.type === 'QUESTION';
 
+  const isCompact = density === 'compact';
+
   return (
     <article className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      <div className="p-4">
+      <div className={isCompact ? 'p-3' : 'p-4'}>
         {/* Author Header */}
         <div className="flex items-start gap-3">
           <Avatar name={post.author?.name || 'User'} size="sm" src={post.author?.image || undefined} />
@@ -84,7 +88,7 @@ export function PostCard({ post, onVoteChange }: PostCardProps) {
           {!isQuestionType && post.title && (
             <h3 className="text-base font-semibold text-gray-900 mb-1">{post.title}</h3>
           )}
-          <p className={`${isQuestionType ? 'text-gray-600 mt-2' : 'text-gray-800'} line-clamp-3`}>{post.content}</p>
+          <p className={`${isQuestionType ? 'text-gray-600 mt-2' : 'text-gray-800'} ${isCompact ? 'line-clamp-2' : 'line-clamp-3'}`}>{post.content}</p>
         </div>
 
         {/* Tags */}

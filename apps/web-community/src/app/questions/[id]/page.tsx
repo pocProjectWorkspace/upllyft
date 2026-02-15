@@ -475,7 +475,7 @@ export default function QuestionDetailPage() {
             <Card className="p-4 bg-gradient-to-br from-teal-50 to-teal-100/50 border-teal-100">
               <h3 className="font-semibold text-teal-900 mb-1">Have a question?</h3>
               <p className="text-sm text-teal-700 mb-3">Get answers from experienced professionals and parents.</p>
-              <Button size="sm" onClick={() => router.push('/questions/ask')} className="w-full">
+              <Button size="sm" onClick={() => router.push('/posts/create?type=QUESTION')} className="w-full">
                 Ask a Question
               </Button>
             </Card>

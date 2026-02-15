@@ -17,6 +17,9 @@ export { Switch } from './components/switch';
 export { Slider } from './components/slider';
 export { RadioGroup, RadioGroupItem } from './components/radio-group';
 
+// Notification
+export { NotificationBell } from './components/NotificationBell';
+
 // Composite
 export { ProgressRing, type ProgressRingProps } from './components/ProgressRing';
 export { StatCard, type StatCardProps } from './components/StatCard';

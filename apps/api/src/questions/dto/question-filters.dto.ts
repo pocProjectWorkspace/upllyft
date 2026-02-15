@@ -58,4 +58,9 @@ export class QuestionFiltersDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiProperty({ description: 'Filter by author ID', required: false })
+  @IsOptional()
+  @IsString()
+  authorId?: string;
 }

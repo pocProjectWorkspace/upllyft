@@ -173,6 +173,7 @@ export class QuestionsService {
         hasAcceptedAnswer,
         following,
         search,
+        authorId,
       } = filters;
 
       const skip = (page - 1) * limit;
@@ -199,6 +200,10 @@ export class QuestionsService {
         where.followers = {
           some: { userId },
         };
+      }
+
+      if (authorId) {
+        where.authorId = authorId;
       }
 
       if (search) {

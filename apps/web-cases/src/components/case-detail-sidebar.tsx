@@ -65,9 +65,9 @@ export function CaseDetailSidebar({ caseId, caseData }: CaseDetailSidebarProps) 
             <a
               key={item.segment || 'overview'}
               href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                 isActive
-                  ? 'bg-teal-50 text-teal-700 border-l-[3px] border-teal-600'
+                  ? 'sidebar-active'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >

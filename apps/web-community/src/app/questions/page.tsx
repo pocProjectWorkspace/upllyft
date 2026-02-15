@@ -20,6 +20,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@upllyft/ui';
+import { useAuth } from '@upllyft/api-client';
 import { CommunityShell } from '@/components/community-shell';
 import { useQuestions, useQuestionsStats } from '@/hooks/use-questions';
 import type { QuestionFilters } from '@/lib/api/questions';
@@ -51,6 +52,7 @@ const ROLE_COLORS: Record<string, 'teal' | 'purple' | 'blue' | 'green' | 'red' |
 
 export default function QuestionsPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
   const [sort, setSort] = useState<QuestionFilters['sort']>('recent');
   const [search, setSearch] = useState('');
@@ -64,6 +66,7 @@ export default function QuestionsPage() {
     ...(activeTab === 'answered' ? { hasAcceptedAnswer: true } : {}),
     ...(activeTab === 'unanswered' ? { hasAcceptedAnswer: false } : {}),
     ...(activeTab === 'following' ? { following: true } : {}),
+    ...(activeTab === 'mine' && user?.id ? { authorId: user.id } : {}),
   };
 
   const { data: questionsData, isLoading } = useQuestions(filters);
@@ -81,7 +84,7 @@ export default function QuestionsPage() {
             <h1 className="text-2xl font-bold text-gray-900">Questions</h1>
             <p className="text-gray-500 mt-1">Ask and answer questions from the community</p>
           </div>
-          <Button onClick={() => router.push('/questions/ask')}>
+          <Button onClick={() => router.push('/posts/create?type=QUESTION')}>
             <span className="flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -155,6 +158,7 @@ export default function QuestionsPage() {
             <TabsTrigger value="answered">Answered</TabsTrigger>
             <TabsTrigger value="unanswered">Unanswered</TabsTrigger>
             <TabsTrigger value="following">Following</TabsTrigger>
+            {user && <TabsTrigger value="mine">My Questions</TabsTrigger>}
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-4">
@@ -185,7 +189,7 @@ export default function QuestionsPage() {
                 </div>
                 <p className="text-gray-500 font-medium">No questions found</p>
                 <p className="text-gray-400 text-sm mt-1">Try adjusting your filters or be the first to ask.</p>
-                <Button variant="secondary" className="mt-4" onClick={() => router.push('/questions/ask')}>
+                <Button variant="secondary" className="mt-4" onClick={() => router.push('/posts/create?type=QUESTION')}>
                   Ask a Question
                 </Button>
               </div>

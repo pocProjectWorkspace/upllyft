@@ -1,15 +1,12 @@
 'use client';
 
 import { useAuth, APP_URLS } from '@upllyft/api-client';
-import { AppHeader, Skeleton, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useToast } from '@upllyft/ui';
+import { AppHeader, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getPosts, createPost, type PostFilters, type CreatePostDto } from '@/lib/api/posts';
-import { PostCard } from '@/components/feed/post-card';
-
-type FeedView = 'for-you' | 'following' | 'saved';
-type SortBy = 'recent' | 'popular' | 'trending';
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createPost, type CreatePostDto } from '@/lib/api/posts';
+import { PersonalizedFeed } from '@/components/feed/personalized-feed';
 
 const sidebarNav = [
   {
@@ -92,10 +89,6 @@ export default function FeedPage() {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [view, setView] = useState<FeedView>('for-you');
-  const [sort, setSort] = useState<SortBy>('recent');
-  const [search, setSearch] = useState('');
-  const observerRef = useRef<HTMLDivElement>(null);
 
   // Create post modal state
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -105,30 +98,6 @@ export default function FeedPage() {
   const [postCategory, setPostCategory] = useState('General');
   const [postTags, setPostTags] = useState('');
   const [postAnonymous, setPostAnonymous] = useState(false);
-
-  const filters: PostFilters = {
-    sort,
-    limit: 10,
-    ...(search && { search }),
-    ...(view === 'saved' && { bookmarked: true } as Record<string, boolean>),
-    ...(view === 'following' && { following: true } as Record<string, boolean>),
-  };
-
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-    refetch,
-  } = useInfiniteQuery({
-    queryKey: ['posts', view, sort, search],
-    queryFn: ({ pageParam = 1 }) => getPosts({ ...filters, page: pageParam }),
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.page + 1 : undefined,
-    initialPageParam: 1,
-    enabled: isAuthenticated,
-  });
 
   const createPostMutation = useMutation({
     mutationFn: createPost,
@@ -165,25 +134,6 @@ export default function FeedPage() {
     });
   }
 
-  // Intersection observer for infinite scroll
-  const handleObserver = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      const target = entries[0];
-      if (target.isIntersecting && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
-      }
-    },
-    [fetchNextPage, hasNextPage, isFetchingNextPage],
-  );
-
-  useEffect(() => {
-    const el = observerRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(handleObserver, { threshold: 0.1 });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [handleObserver]);
-
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
@@ -198,7 +148,6 @@ export default function FeedPage() {
   }
 
   const displayName = user.name || user.email?.split('@')[0] || 'User';
-  const posts = data?.pages.flatMap((page) => page.posts) || [];
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -419,80 +368,11 @@ export default function FeedPage() {
             </div>
           )}
 
-          {/* View Tabs + Sort */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-              {(['for-you', 'following', 'saved'] as FeedView[]).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    view === v
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {v === 'for-you' ? 'For You' : v === 'following' ? 'Following' : 'Saved'}
-                </button>
-              ))}
-            </div>
-            <Select value={sort} onValueChange={(v) => setSort(v as SortBy)}>
-              <SelectTrigger className="w-[120px] h-9 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Recent</SelectItem>
-                <SelectItem value="popular">Popular</SelectItem>
-                <SelectItem value="trending">Trending</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Search */}
-          <div className="mb-4">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search posts..."
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-            />
-          </div>
-
-          {/* Posts */}
-          <div className="space-y-6">
-            {isLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-48 rounded-2xl" />
-              ))
-            ) : posts.length > 0 ? (
-              posts.map((post) => (
-                <PostCard key={post.id} post={post} onVoteChange={() => refetch()} />
-              ))
-            ) : (
-              <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
-                <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                </svg>
-                <p className="text-gray-500 text-sm">
-                  {view === 'saved'
-                    ? 'No saved posts yet. Bookmark posts to find them here.'
-                    : view === 'following'
-                      ? 'No posts from people you follow yet.'
-                      : 'No posts yet. Be the first to share!'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Infinite scroll sentinel */}
-          <div ref={observerRef} className="py-4">
-            {isFetchingNextPage && (
-              <div className="flex justify-center">
-                <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-          </div>
+          {/* Personalized Feed */}
+          <PersonalizedFeed
+            isAuthenticated={isAuthenticated}
+            categories={POST_CATEGORIES}
+          />
         </div>
 
         {/* Right Sidebar */}

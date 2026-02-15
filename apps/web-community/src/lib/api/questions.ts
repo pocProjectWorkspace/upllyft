@@ -73,6 +73,7 @@ export interface QuestionFilters {
   hasAcceptedAnswer?: boolean;
   following?: boolean;
   search?: string;
+  authorId?: string;
 }
 
 export interface QuestionsResponse {

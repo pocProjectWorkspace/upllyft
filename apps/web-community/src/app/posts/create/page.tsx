@@ -21,6 +21,7 @@ import {
 } from '@upllyft/ui';
 import { CommunityShell } from '@/components/community-shell';
 import { useCreatePost, useSuggestTags } from '@/hooks/use-posts';
+import { useCreateQuestion } from '@/hooks/use-questions';
 import { useMyCommunities } from '@/hooks/use-community';
 import type { CreatePostDto } from '@/lib/api/posts';
 
@@ -40,7 +41,7 @@ const POST_TYPES = [
   {
     value: 'QUESTION' as const,
     label: 'Question',
-    description: 'Ask the community for help or advice',
+    description: 'Ask a question and get answers from the community',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -79,12 +80,16 @@ const CATEGORIES_BY_TYPE: Record<string, string[]> = {
     'Industry News',
   ],
   QUESTION: [
-    'Clinical Questions',
-    'Career Advice',
-    'Technical Help',
-    'Resource Requests',
-    'Best Practices',
-    'Certification & Training',
+    'General',
+    'Autism Spectrum',
+    'ADHD',
+    'Cerebral Palsy',
+    'Down Syndrome',
+    'Learning Disabilities',
+    'Speech Disorders',
+    'Sensory Processing',
+    'Therapy',
+    'Education',
   ],
   CASE_STUDY: [
     'Pediatric Cases',
@@ -107,7 +112,7 @@ const CATEGORIES_BY_TYPE: Record<string, string[]> = {
 function getContentPlaceholder(type: string | null): string {
   switch (type) {
     case 'QUESTION':
-      return 'Provide context and details about your question. What have you tried? What specific help do you need?';
+      return 'Provide more details about your question. Include relevant context like age, diagnosis, what you have tried, etc. Markdown is supported.';
     case 'CASE_STUDY':
       return 'Present the case background, interventions, outcomes, and key learnings. Remember to maintain confidentiality.';
     case 'RESOURCE':
@@ -120,7 +125,7 @@ function getContentPlaceholder(type: string | null): string {
 function getTitlePlaceholder(type: string | null): string {
   switch (type) {
     case 'QUESTION':
-      return "What's your question?";
+      return 'What is your question? Be specific...';
     case 'CASE_STUDY':
       return 'Brief case title (keep it confidential)';
     case 'RESOURCE':
@@ -212,13 +217,17 @@ function CreatePostForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const createPost = useCreatePost();
+  const createQuestion = useCreateQuestion();
   const suggestTags = useSuggestTags();
   const { data: myCommunities, isLoading: communitiesLoading } = useMyCommunities();
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const urlCommunityId = searchParams.get('communityId');
+  const urlType = searchParams.get('type');
 
-  const [type, setType] = useState<CreatePostDto['type'] | null>(null);
+  const [type, setType] = useState<CreatePostDto['type'] | 'QUESTION' | null>(
+    urlType === 'QUESTION' ? 'QUESTION' : null
+  );
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
@@ -230,6 +239,9 @@ function CreatePostForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [aiTagsRequested, setAiTagsRequested] = useState(false);
+
+  const isQuestion = type === 'QUESTION';
+  const isMutating = createPost.isPending || createQuestion.isPending;
 
   // Reset category when type changes
   useEffect(() => {
@@ -243,10 +255,11 @@ function CreatePostForm() {
     if (!type) newErrors.type = 'Please select a post type';
     if (title.length < 10) newErrors.title = 'Title must be at least 10 characters';
     if (title.length > 200) newErrors.title = 'Title must be less than 200 characters';
-    if (content.length < 50) newErrors.content = 'Content must be at least 50 characters';
+    const minContent = isQuestion ? 20 : 50;
+    if (content.length < minContent) newErrors.content = `Content must be at least ${minContent} characters`;
     if (content.length > 10000) newErrors.content = 'Content must be less than 10,000 characters';
     if (!category) newErrors.category = 'Please select a category';
-    if (tags.length < 1) newErrors.tags = 'Add at least one tag';
+    if (!isQuestion && tags.length < 1) newErrors.tags = 'Add at least one tag';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -254,29 +267,46 @@ function CreatePostForm() {
   async function handleSubmit(published: boolean) {
     if (!validate() || !type) return;
 
-    const communityId = selectedCommunity !== 'public' ? selectedCommunity : undefined;
-
-    createPost.mutate(
-      {
-        title: title.trim(),
-        content: content.trim(),
-        type,
-        category,
-        tags,
-        isAnonymous,
-        published,
-        communityId,
-      },
-      {
-        onSuccess: (post) => {
-          if (communityId) {
-            router.push(`/communities/${communityId}`);
-          } else {
-            router.push(`/posts/${post.id}`);
-          }
+    if (isQuestion) {
+      createQuestion.mutate(
+        {
+          title: title.trim(),
+          content: content.trim(),
+          category,
+          tags,
+          isAnonymous,
         },
-      },
-    );
+        {
+          onSuccess: (question) => {
+            router.push(`/questions/${question.id}`);
+          },
+        },
+      );
+    } else {
+      const communityId = selectedCommunity !== 'public' ? selectedCommunity : undefined;
+
+      createPost.mutate(
+        {
+          title: title.trim(),
+          content: content.trim(),
+          type: type as CreatePostDto['type'],
+          category,
+          tags,
+          isAnonymous,
+          published,
+          communityId,
+        },
+        {
+          onSuccess: (post) => {
+            if (communityId) {
+              router.push(`/communities/${communityId}`);
+            } else {
+              router.push(`/posts/${post.id}`);
+            }
+          },
+        },
+      );
+    }
   }
 
   function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -330,11 +360,15 @@ function CreatePostForm() {
               </svg>
               Back
             </button>
-            <h1 className="text-2xl font-bold text-gray-900">Create a Post</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {isQuestion ? 'Ask a Question' : 'Create a Post'}
+            </h1>
             <p className="text-gray-500 mt-1">
-              {selectedCommunity !== 'public' && myCommunities
-                ? `Posting to ${myCommunities.find((c: any) => c.id === selectedCommunity)?.name || 'community'}`
-                : 'Share your thoughts, questions, or resources with the community'}
+              {isQuestion
+                ? 'Get help from parents, therapists, and educators in the community'
+                : selectedCommunity !== 'public' && myCommunities
+                  ? `Posting to ${myCommunities.find((c: any) => c.id === selectedCommunity)?.name || 'community'}`
+                  : 'Share your thoughts, questions, or resources with the community'}
             </p>
           </div>
           <Button
@@ -350,8 +384,8 @@ function CreatePostForm() {
           </Button>
         </div>
 
-        {/* Community/Group Selector */}
-        {!communitiesLoading && myCommunities && myCommunities.length > 0 && (
+        {/* Community/Group Selector — hidden for questions */}
+        {!isQuestion && !communitiesLoading && myCommunities && myCommunities.length > 0 && (
           <Card className="p-4 mb-6">
             <div className="flex items-center gap-3 mb-2">
               <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -427,6 +461,28 @@ function CreatePostForm() {
           {errors.type && <p className="mt-1.5 text-xs text-red-500">{errors.type}</p>}
         </div>
 
+        {/* Tips Card — shown for questions */}
+        {isQuestion && (
+          <Card className="p-4 mb-6 bg-teal-50/50 border-teal-100">
+            <div className="flex gap-3">
+              <div className="p-2 bg-teal-100 rounded-xl text-teal-600 h-fit">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-teal-900">Tips for a great question</p>
+                <ul className="text-xs text-teal-700 mt-1 space-y-0.5 list-disc ml-4">
+                  <li>Be specific and clear about what you are asking</li>
+                  <li>Include relevant context (age, diagnosis, etc.)</li>
+                  <li>Mention what you have already tried</li>
+                  <li>Use tags to help others find your question</li>
+                </ul>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Title */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-1">
@@ -465,7 +521,7 @@ function CreatePostForm() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-1">
             <Label className="text-sm font-medium text-gray-700">
-              {type === 'CASE_STUDY' ? 'Case Details' : 'Content'} <span className="text-red-500">*</span>
+              {type === 'CASE_STUDY' ? 'Case Details' : isQuestion ? 'Details' : 'Content'} <span className="text-red-500">*</span>
             </Label>
             <span className={`text-xs ${content.length > 10000 ? 'text-red-500' : 'text-gray-400'}`}>
               {content.length}/10,000 &middot; Markdown supported
@@ -628,28 +684,30 @@ function CreatePostForm() {
           <Button
             variant="ghost"
             onClick={() => router.push('/')}
-            disabled={createPost.isPending}
+            disabled={isMutating}
           >
             Cancel
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleSubmit(false)}
-            disabled={createPost.isPending}
-          >
-            Save Draft
-          </Button>
+          {!isQuestion && (
+            <Button
+              variant="outline"
+              onClick={() => handleSubmit(false)}
+              disabled={isMutating}
+            >
+              Save Draft
+            </Button>
+          )}
           <Button
             onClick={() => handleSubmit(true)}
-            disabled={createPost.isPending}
+            disabled={isMutating}
           >
-            {createPost.isPending ? (
+            {isMutating ? (
               <span className="flex items-center gap-2">
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Publishing...
+                {isQuestion ? 'Submitting...' : 'Publishing...'}
               </span>
             ) : (
-              'Publish'
+              isQuestion ? 'Submit Question' : 'Publish'
             )}
           </Button>
         </div>
