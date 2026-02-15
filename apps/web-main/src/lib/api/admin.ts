@@ -60,7 +60,7 @@ export interface AdminUser {
   id: string;
   name?: string;
   email: string;
-  image?: string;
+  avatar?: string;
   role: string;
   status: string;
   createdAt: string;

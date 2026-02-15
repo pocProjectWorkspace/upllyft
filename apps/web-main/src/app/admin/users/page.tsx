@@ -195,7 +195,7 @@ export default function UsersPage() {
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar name={user.name || user.email} src={user.image || undefined} size="sm" />
+                      <Avatar name={user.name || user.email} src={user.avatar || undefined} size="sm" />
                       <div>
                         <p className="font-medium text-gray-900">{user.name || '—'}</p>
                         <p className="text-xs text-gray-500">{user.email}</p>

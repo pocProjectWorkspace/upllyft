@@ -4,4 +4,5 @@ export * from './screening';
 export * from './session';
 export * from './worksheet';
 export * from './community';
+export * from './organization';
 export * from './api';

@@ -26,6 +26,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (payload: authApi.RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -101,6 +102,15 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const userData = await authApi.getCurrentUser();
+      setUser(userData);
+    } catch {
+      // If refresh fails, don't clear user — caller can handle
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -110,6 +120,7 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
         login,
         register,
         logout,
+        refreshUser,
       }}
     >
       {children}

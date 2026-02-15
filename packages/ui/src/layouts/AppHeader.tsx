@@ -123,7 +123,7 @@ export function AppHeader({ currentApp, localNavItems, logo }: AppHeaderProps) {
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                <Avatar name={displayName} src={user.image || undefined} size="sm" />
+                <Avatar name={displayName} src={user.avatar || undefined} size="sm" />
                 <span className="hidden sm:block text-sm font-medium text-gray-700 max-w-[120px] truncate">
                   {displayName}
                 </span>

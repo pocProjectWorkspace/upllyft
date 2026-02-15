@@ -1,41 +1,55 @@
+import type { PostAuthor } from './user';
+
+export enum PostType {
+  GENERAL = 'GENERAL',
+  QUESTION = 'QUESTION',
+  MILESTONE = 'MILESTONE',
+  EVENT = 'EVENT',
+  POLL = 'POLL',
+}
+
 export interface Post {
   id: string;
-  authorId: string;
-  title?: string;
   content: string;
-  groupId?: string;
-  likes: number;
-  commentCount: number;
+  type: PostType;
+  authorId: string;
+  author: PostAuthor;
+  communityId?: string;
+  images?: string[];
+  likesCount: number;
+  commentsCount: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface Comment {
   id: string;
-  postId: string;
-  authorId: string;
   content: string;
+  authorId: string;
+  author: PostAuthor;
+  postId: string;
   parentId?: string;
-  likes: number;
+  likesCount: number;
   createdAt: string;
-  updatedAt: string;
 }
 
-export interface Group {
+export interface Community {
   id: string;
   name: string;
-  description?: string;
-  avatar?: string;
+  description: string;
+  image?: string;
   memberCount: number;
+  isJoined: boolean;
   isPrivate: boolean;
-  createdAt: string;
 }
 
 export interface Event {
   id: string;
   title: string;
   description?: string;
-  groupId?: string;
+  communityId?: string;
   hostId: string;
   startAt: string;
   endAt: string;

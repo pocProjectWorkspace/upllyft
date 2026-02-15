@@ -42,7 +42,7 @@ export default function ProfilePage() {
             {/* Profile Header */}
             <Card className="p-6">
               <div className="flex items-start gap-5">
-                <Avatar name={displayName} src={user.image || undefined} size="xl" />
+                <Avatar name={displayName} src={user.avatar || undefined} size="xl" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h1 className="text-xl font-bold text-gray-900">{displayName}</h1>

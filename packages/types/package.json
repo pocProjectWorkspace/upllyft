@@ -12,6 +12,7 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@upllyft/config": "workspace:*",
     "typescript": "^5.7.0"
   }
 }

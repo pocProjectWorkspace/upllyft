@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@upllyft/api-client';
 import { CommunityShell } from '@/components/community-shell';
 import { useInfinitePosts, useTrendingTags, useVotePost, useToggleBookmark, useDeletePost } from '@/hooks/use-posts';
+import { useQuestions } from '@/hooks/use-questions';
 import { useMyCommunities, useBrowseCommunities } from '@/hooks/use-community';
 import { Card, Button, Avatar, Badge, Skeleton, toast } from '@upllyft/ui';
 import { ShareModal } from '@/components/share-modal';
 import type { Post } from '@/lib/api/posts';
+import type { Question, QuestionFilters } from '@/lib/api/questions';
 
 // ===== Constants =====
 
@@ -308,7 +310,7 @@ function PostCard({ post }: { post: Post }) {
       </div>
 
       {/* Title — only clickable link */}
-      <Link href={`/posts/${post.id}`}>
+      <Link href={`/posts/${post.id}`} className="block relative z-10">
         <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1 hover:text-teal-700 transition-colors">
           {post.title}
         </h3>
@@ -452,6 +454,203 @@ function PostCardSkeleton() {
   );
 }
 
+// ===== Question Feed Components =====
+
+function QuestionFeedCard({ question }: { question: Question }) {
+  const statusBadge = question.hasAcceptedAnswer
+    ? { label: 'Answered', color: 'green' as const }
+    : { label: 'Unanswered', color: 'gray' as const };
+
+  const answerCountColor = question.hasAcceptedAnswer
+    ? 'text-green-600 bg-green-50 border-green-200'
+    : question.answerCount > 0
+      ? 'text-teal-600 bg-teal-50 border-teal-200'
+      : 'text-gray-400 bg-gray-50 border-gray-200';
+
+  return (
+    <Card hover className="p-5 border-l-4 border-l-blue-500">
+      <div className="flex gap-4">
+        {/* Answer count box */}
+        <div className={`hidden sm:flex flex-col items-center justify-center w-16 h-16 rounded-xl border ${answerCountColor} flex-shrink-0`}>
+          <span className="text-lg font-bold">{question.answerCount}</span>
+          <span className="text-[10px] font-medium">
+            {question.answerCount === 1 ? 'answer' : 'answers'}
+          </span>
+          {question.hasAcceptedAnswer && (
+            <svg className="w-3.5 h-3.5 text-green-600 mt-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+            </svg>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {/* Badges */}
+          <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+            <Badge color="blue">Question</Badge>
+            <Badge color={statusBadge.color}>{statusBadge.label}</Badge>
+            {question.category && (
+              <span className="text-xs text-gray-400">{question.category}</span>
+            )}
+          </div>
+
+          {/* Title */}
+          <Link href={`/questions/${question.id}`} className="block relative z-10">
+            <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1 hover:text-teal-700 transition-colors">
+              {question.title}
+            </h3>
+          </Link>
+
+          {/* Content preview */}
+          <p className="text-gray-600 text-sm leading-relaxed mb-2 line-clamp-2">
+            {question.content.length > 180 ? question.content.slice(0, 180) + '...' : question.content}
+          </p>
+
+          {/* Tags */}
+          {question.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {question.tags.slice(0, 5).map((tag) => (
+                <span
+                  key={tag}
+                  className="text-xs text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full"
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Stats + CTA row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 text-xs text-gray-400">
+              <span className="flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                {question.viewCount} views
+              </span>
+              <span className="flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {question.followerCount} followers
+              </span>
+              <span className="text-xs text-gray-400">
+                {formatTimeAgo(question.createdAt)}
+              </span>
+            </div>
+            <Link
+              href={`/questions/${question.id}`}
+              className="text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors"
+            >
+              {question.answerCount > 0 ? 'View answers' : 'Be the first to answer'}
+            </Link>
+          </div>
+
+          {/* Author */}
+          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+            <Avatar
+              src={question.isAnonymous ? undefined : (question.author.image || undefined)}
+              name={question.isAnonymous ? 'Anonymous' : (question.author.name || 'User')}
+              size="sm"
+            />
+            <span className="text-xs text-gray-500">
+              Asked by {question.isAnonymous ? 'Anonymous' : (question.author.name || 'User')}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function QuestionFeedSection({
+  sort,
+  search,
+}: {
+  sort: 'recent' | 'popular' | 'trending';
+  search: string;
+}) {
+  const [page, setPage] = useState(1);
+
+  // Map feed sort values to question sort values
+  const questionSort: QuestionFilters['sort'] =
+    sort === 'popular' ? 'popular' : sort === 'trending' ? 'active' : 'recent';
+
+  const filters: QuestionFilters = {
+    page,
+    limit: 10,
+    sort: questionSort,
+    ...(search ? { search } : {}),
+  };
+
+  const { data, isLoading } = useQuestions(filters);
+
+  const questions = data?.data ?? [];
+  const totalPages = data?.totalPages ?? 1;
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4">
+        {[...Array(5)].map((_, i) => (
+          <PostCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="font-semibold text-gray-900">No questions found</h3>
+        <p className="text-sm text-gray-500 mt-1">
+          {search ? 'Try a different search term' : 'Be the first to ask a question!'}
+        </p>
+        <Link href="/posts/create?type=QUESTION" className="inline-block mt-4">
+          <Button size="sm">Ask a Question</Button>
+        </Link>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {questions.map((question) => (
+        <QuestionFeedCard key={question.id} question={question} />
+      ))}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-gray-500">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===== Layout Sections =====
 
 function LeftSidebar({ view, onViewChange }: { view: string; onViewChange: (v: string) => void }) {
@@ -572,7 +771,7 @@ function CreatePostCard() {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
       <div className="flex items-center gap-3">
-        <Avatar name={user?.name || 'User'} src={user?.image || undefined} size="md" />
+        <Avatar name={user?.name || 'User'} src={user?.avatar || undefined} size="md" />
         <Link href="/posts/create" className="flex-1">
           <div className="bg-gray-100 rounded-full px-4 py-2.5 text-sm text-gray-400 hover:bg-gray-200 transition-colors cursor-pointer">
             Share something with the community...
@@ -590,7 +789,7 @@ function CreatePostCard() {
           Photo
         </Link>
         <Link
-          href="/questions/ask"
+          href="/posts/create?type=QUESTION"
           className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
         >
           <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -712,8 +911,10 @@ export default function CommunityFeedPage() {
   const [sort, setSort] = useState<'recent' | 'popular' | 'trending'>('recent');
   const [search, setSearch] = useState('');
 
+  const isQuestionFilter = typeFilter === 'QUESTION';
+
   const filters = {
-    ...(typeFilter ? { type: typeFilter } : {}),
+    ...(typeFilter && !isQuestionFilter ? { type: typeFilter } : {}),
     sort,
     ...(search ? { search } : {}),
     ...(view === 'saved' ? { view: 'saved' as const } : {}),
@@ -805,15 +1006,17 @@ export default function CommunityFeedPage() {
             </svg>
             <input
               type="text"
-              placeholder="Search posts..."
+              placeholder={isQuestionFilter ? 'Search questions...' : 'Search posts...'}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
             />
           </div>
 
-          {/* Posts */}
-          {isLoading ? (
+          {/* Posts / Questions */}
+          {isQuestionFilter ? (
+            <QuestionFeedSection sort={sort} search={search} />
+          ) : isLoading ? (
             <div className="flex flex-col gap-4">
               {[...Array(5)].map((_, i) => (
                 <PostCardSkeleton key={i} />

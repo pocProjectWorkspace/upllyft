@@ -119,7 +119,15 @@ export class AuthService {
       });
     }
 
-    const tokens = this.generateTokens(user);
+    const tokens = this.generateTokens({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      verificationStatus: user.verificationStatus,
+      name: user.name ?? undefined,
+      avatar: user.image ?? undefined,
+      bio: user.bio ?? undefined,
+    });
 
     // Log successful login
     this.appLogger.logAuth('LOGIN_SUCCESS', user.id, {
@@ -197,7 +205,7 @@ export class AuthService {
       role: userWithoutPassword.role,
       verificationStatus: userWithoutPassword.verificationStatus,
       name: userWithoutPassword.name ?? undefined,
-      image: userWithoutPassword.image ?? undefined,
+      avatar: userWithoutPassword.image ?? undefined,
       bio: userWithoutPassword.bio ?? undefined,
     });
   }
@@ -508,7 +516,7 @@ export class AuthService {
     role: Role;
     verificationStatus: VerificationStatus;
     name?: string;
-    image?: string;
+    avatar?: string;
     bio?: string;
   }) {
     const payload = {
@@ -538,7 +546,7 @@ export class AuthService {
         name: user.name,
         role: user.role,
         verificationStatus: user.verificationStatus,
-        image: user.image,
+        avatar: user.avatar,
         bio: user.bio,
       },
     };

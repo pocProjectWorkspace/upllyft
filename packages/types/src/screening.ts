@@ -1,30 +1,56 @@
-export enum ScreeningDomain {
-  COMMUNICATION = 'COMMUNICATION',
-  GROSS_MOTOR = 'GROSS_MOTOR',
-  FINE_MOTOR = 'FINE_MOTOR',
-  PROBLEM_SOLVING = 'PROBLEM_SOLVING',
-  PERSONAL_SOCIAL = 'PERSONAL_SOCIAL',
+export enum Domain {
+  MOTOR = 'MOTOR',
+  LANGUAGE = 'LANGUAGE',
+  SOCIAL = 'SOCIAL',
+  COGNITIVE = 'COGNITIVE',
+  ADAPTIVE = 'ADAPTIVE',
+  SENSORY = 'SENSORY',
 }
 
-export enum ScreeningStatus {
-  PENDING = 'PENDING',
+export enum AssessmentStatus {
   IN_PROGRESS = 'IN_PROGRESS',
+  TIER2_REQUIRED = 'TIER2_REQUIRED',
   COMPLETED = 'COMPLETED',
+  EXPIRED = 'EXPIRED',
 }
 
-export interface ScreeningResult {
-  domain: ScreeningDomain;
+export type DomainStatusType = 'ON_TRACK' | 'MONITOR' | 'CONCERN';
+
+export interface DomainScore {
+  domain: Domain;
   score: number;
   maxScore: number;
-  status: 'on_track' | 'monitor' | 'at_risk';
+  percentile: number;
+  status: DomainStatusType;
 }
 
-export interface Screening {
+export interface Assessment {
   id: string;
   childId: string;
-  status: ScreeningStatus;
-  results: ScreeningResult[];
+  type: string;
+  status: AssessmentStatus;
+  score?: number;
   completedAt?: string;
   createdAt: string;
-  updatedAt: string;
+}
+
+export interface AssessmentResult {
+  assessmentId: string;
+  domains: DomainScore[];
+  overallScore: number;
+  recommendations: string[];
+}
+
+export interface QuestionOption {
+  id: string;
+  text: string;
+  value: number;
+}
+
+export interface Question {
+  id: string;
+  text: string;
+  domain: Domain;
+  ageRange: string;
+  options: QuestionOption[];
 }

@@ -1,12 +1,9 @@
 export interface Child {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   dateOfBirth: string;
   gender?: string;
-  avatar?: string;
+  conditions?: string[];
   parentId: string;
-  notes?: string;
   createdAt: string;
-  updatedAt: string;
 }

@@ -21,6 +21,9 @@ export { RadioGroup, RadioGroupItem } from './components/radio-group';
 export { ProgressRing, type ProgressRingProps } from './components/ProgressRing';
 export { StatCard, type StatCardProps } from './components/StatCard';
 export { ModuleCard, type ModuleCardProps } from './components/ModuleCard';
+export { TherapistCard, type TherapistCardProps } from './components/TherapistCard';
+export { WorksheetCard, type WorksheetCardProps } from './components/WorksheetCard';
+export { PostCard, type PostCardProps, type PostCardAuthor } from './components/PostCard';
 
 // Dialog
 export {

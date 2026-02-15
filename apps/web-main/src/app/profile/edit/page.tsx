@@ -97,7 +97,7 @@ export default function EditProfilePage() {
         {/* Avatar */}
         <Card className="p-6 mb-6">
           <div className="flex items-center gap-4">
-            <Avatar name={displayName} src={user.image || undefined} size="xl" />
+            <Avatar name={displayName} src={user.avatar || undefined} size="xl" />
             <div>
               <p className="text-sm font-medium text-gray-900">{displayName}</p>
               <p className="text-xs text-gray-500">{user.email}</p>
