@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookingShell } from '@/components/booking-shell';
 import { useSearchTherapists } from '@/hooks/use-marketplace';
+import { formatCurrency } from '@/lib/utils';
 import type { TherapistSearchFilters } from '@/lib/api/marketplace';
 import {
   Card,
@@ -11,11 +12,6 @@ import {
   Avatar,
   Skeleton,
   Input,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
   Button,
 } from '@upllyft/ui';
 
@@ -102,22 +98,15 @@ function ChevronRightIcon({ className }: { className?: string }) {
   );
 }
 
-// ── Specialization options ──
+// ── Category filter options ──
 
-const SPECIALIZATIONS = [
-  'All Specializations',
-  'Anxiety',
-  'Depression',
-  'ADHD',
-  'Autism',
-  'Trauma',
-  'Family Therapy',
-  'Child Development',
-  'Speech Therapy',
-  'Occupational Therapy',
-  'Behavioral Therapy',
-  'CBT',
-  'Play Therapy',
+const CATEGORIES = [
+  { label: 'All Therapists', value: '' },
+  { label: 'Speech Therapy', value: 'Speech Therapy' },
+  { label: 'Occupational Therapy', value: 'Occupational Therapy' },
+  { label: 'Behavioral Therapy', value: 'Behavioral Therapy' },
+  { label: 'Child Psychology', value: 'Child Psychology' },
+  { label: 'Special Education', value: 'Special Education' },
 ];
 
 const ITEMS_PER_PAGE = 9;
@@ -130,7 +119,7 @@ function RatingStars({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((star) => (
         <StarIcon
           key={star}
-          className={`w-4 h-4 ${star <= Math.round(rating) ? 'text-amber-400' : 'text-gray-300'}`}
+          className={`w-4 h-4 ${star <= Math.round(rating) ? 'text-yellow-400' : 'text-gray-300'}`}
           filled={star <= Math.round(rating)}
         />
       ))}
@@ -202,11 +191,6 @@ export default function MarketplacePage() {
   const therapists = data?.therapists ?? [];
   const totalPages = data?.totalPages ?? 1;
 
-  const handleSpecializationChange = useCallback((value: string) => {
-    setSpecialization(value === 'All Specializations' ? '' : value);
-    setPage(1);
-  }, []);
-
   return (
     <BookingShell>
       <div className="space-y-8">
@@ -215,15 +199,15 @@ export default function MarketplacePage() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center mx-auto mb-4">
             <HeartIcon className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Find a Therapist</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Book a Session</h1>
           <p className="text-gray-500 mt-2 text-lg max-w-xl mx-auto">
-            Connect with qualified professionals who specialize in your needs
+            Find and book sessions with verified therapists
           </p>
         </div>
 
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mx-auto">
-          <div className="relative flex-1">
+        {/* Search */}
+        <div className="max-w-2xl mx-auto">
+          <div className="relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
               placeholder="Search by name, specialization..."
@@ -232,18 +216,23 @@ export default function MarketplacePage() {
               className="pl-10 rounded-xl h-11"
             />
           </div>
-          <Select value={specialization || 'All Specializations'} onValueChange={handleSpecializationChange}>
-            <SelectTrigger className="w-full sm:w-56 rounded-xl h-11">
-              <SelectValue placeholder="Specialization" />
-            </SelectTrigger>
-            <SelectContent>
-              {SPECIALIZATIONS.map((spec) => (
-                <SelectItem key={spec} value={spec}>
-                  {spec}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        </div>
+
+        {/* Category Pills */}
+        <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.value}
+              onClick={() => { setSpecialization(cat.value); setPage(1); }}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                specialization === cat.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
         </div>
 
         {/* Results */}
@@ -284,7 +273,12 @@ export default function MarketplacePage() {
                       <div className="flex items-start gap-4 mb-4">
                         <Avatar src={avatarUrl || undefined} name={name} size="xl" className="border-2 border-teal-100" />
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">{name}</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                            {name}
+                            <svg className="w-4 h-4 text-blue-500 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          </h3>
                           <p className="text-sm text-gray-500 truncate">{therapist.title}</p>
                           <RatingStars rating={therapist.overallRating} />
                         </div>
@@ -319,6 +313,14 @@ export default function MarketplacePage() {
                       <p className="text-sm text-gray-600 line-clamp-2 mb-4">
                         {therapist.bio || 'No bio available.'}
                       </p>
+
+                      {/* Price */}
+                      {therapist.startingPrice != null && therapist.startingPrice > 0 && (
+                        <div className="mb-4">
+                          <span className="text-lg font-bold text-gray-900">{formatCurrency(therapist.startingPrice)}</span>
+                          <span className="text-xs text-gray-500 ml-1">per session (60 min)</span>
+                        </div>
+                      )}
 
                       {/* Actions */}
                       <div className="flex gap-2">

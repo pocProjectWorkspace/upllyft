@@ -2,11 +2,15 @@
 
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 import { BookingShell } from '@/components/booking-shell';
+import { InlineCalendar } from '@/components/inline-calendar';
 import {
   useBooking,
   useCancelBooking,
   useRateSession,
+  useAvailableSlots,
+  useRescheduleBooking,
 } from '@/hooks/use-marketplace';
 import {
   bookingStatusLabels,
@@ -153,7 +157,7 @@ function RatingStars({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((star) => (
         <StarIcon
           key={star}
-          className={`w-4 h-4 ${star <= Math.round(rating) ? 'text-amber-400' : 'text-gray-300'}`}
+          className={`w-4 h-4 ${star <= Math.round(rating) ? 'text-yellow-400' : 'text-gray-300'}`}
           filled={star <= Math.round(rating)}
         />
       ))}
@@ -185,7 +189,7 @@ function StarRatingInput({
         >
           <StarIcon
             className={`w-8 h-8 ${
-              star <= (hoverValue || value) ? 'text-amber-400' : 'text-gray-300'
+              star <= (hoverValue || value) ? 'text-yellow-400' : 'text-gray-300'
             }`}
             filled={star <= (hoverValue || value)}
           />
@@ -219,11 +223,25 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const { data: booking, isLoading } = useBooking(id);
   const cancelBooking = useCancelBooking();
   const rateSession = useRateSession();
+  const rescheduleBooking = useRescheduleBooking();
 
   const [showRatingDialog, setShowRatingDialog] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [cancelReason, setCancelReason] = useState('');
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState<Date | null>(null);
+  const [rescheduleSlot, setRescheduleSlot] = useState<string | null>(null);
+
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const rescheduleDateStr = rescheduleDate ? format(rescheduleDate, 'yyyy-MM-dd') : '';
+
+  const { data: rescheduleSlots, isLoading: loadingRescheduleSlots } = useAvailableSlots(
+    booking?.therapistId ?? '',
+    rescheduleDateStr,
+    booking?.sessionTypeId ?? '',
+    timezone,
+  );
 
   if (isLoading) {
     return (
@@ -292,6 +310,23 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
           setShowRatingDialog(false);
           setRatingValue(0);
           setReviewText('');
+        },
+      },
+    );
+  };
+
+  const handleReschedule = () => {
+    if (!rescheduleSlot) return;
+    rescheduleBooking.mutate(
+      {
+        id: booking.id,
+        data: { startDateTime: rescheduleSlot, timezone },
+      },
+      {
+        onSuccess: () => {
+          setShowRescheduleDialog(false);
+          setRescheduleDate(null);
+          setRescheduleSlot(null);
         },
       },
     );
@@ -432,7 +467,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
         <Card className="rounded-2xl">
           <div className="p-6">
             <div className="flex flex-wrap items-center gap-3">
-              {/* CONFIRMED: Join Session + Cancel */}
+              {/* CONFIRMED: Join Session + Reschedule + Cancel */}
               {booking.status === 'CONFIRMED' && (
                 <>
                   {booking.meetLink && (
@@ -444,6 +479,15 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                       Join Session
                     </Button>
                   )}
+
+                  <Button
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={() => setShowRescheduleDialog(true)}
+                  >
+                    <CalendarIcon className="w-4 h-4 mr-2" />
+                    Reschedule
+                  </Button>
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -494,8 +538,17 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 </Button>
               )}
 
-              {/* PENDING_ACCEPTANCE: Cancel */}
+              {/* PENDING_ACCEPTANCE: Reschedule + Cancel */}
               {booking.status === 'PENDING_ACCEPTANCE' && (
+                <>
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => setShowRescheduleDialog(true)}
+                >
+                  <CalendarIcon className="w-4 h-4 mr-2" />
+                  Reschedule
+                </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" className="rounded-xl text-red-600 border-red-200 hover:bg-red-50">
@@ -522,6 +575,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+                </>
               )}
 
               {/* Cancelled info */}
@@ -540,7 +594,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
           <Card className="rounded-2xl">
             <div className="p-6 pb-0">
               <h3 className="flex items-center gap-2 text-lg font-semibold">
-                <StarIcon className="w-5 h-5 text-amber-400" filled />
+                <StarIcon className="w-5 h-5 text-yellow-400" filled />
                 Your Review
               </h3>
             </div>
@@ -614,6 +668,102 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 disabled={ratingValue === 0 || rateSession.isPending}
               >
                 {rateSession.isPending ? 'Submitting...' : 'Submit Review'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reschedule dialog */}
+        <Dialog open={showRescheduleDialog} onOpenChange={(open) => {
+          setShowRescheduleDialog(open);
+          if (!open) {
+            setRescheduleDate(null);
+            setRescheduleSlot(null);
+          }
+        }}>
+          <DialogContent className="rounded-2xl sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Reschedule Booking</DialogTitle>
+              <DialogDescription>
+                Choose a new date and time for your session with {therapistName}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              {/* Date picker */}
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-3">Select a new date</p>
+                <div className="max-w-sm mx-auto">
+                  <InlineCalendar
+                    selectedDate={rescheduleDate}
+                    onSelectDate={(date) => {
+                      setRescheduleDate(date);
+                      setRescheduleSlot(null);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Time slots */}
+              {rescheduleDate && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-3">
+                    Select a new time &middot; {format(rescheduleDate, 'EEEE, MMMM d')}
+                  </p>
+                  {loadingRescheduleSlots ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <Skeleton key={i} className="h-10 rounded-xl" />
+                      ))}
+                    </div>
+                  ) : rescheduleSlots && rescheduleSlots.length > 0 ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                      {rescheduleSlots.map((slot) => {
+                        const timeLabel = new Date(slot.startTime).toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        });
+                        const isSelected = rescheduleSlot === slot.startTime;
+
+                        return (
+                          <button
+                            key={slot.startTime}
+                            onClick={() => slot.available && setRescheduleSlot(slot.startTime)}
+                            disabled={!slot.available}
+                            className={`
+                              h-10 rounded-xl text-sm font-medium transition-all
+                              ${isSelected ? 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-sm' : ''}
+                              ${slot.available && !isSelected ? 'border border-gray-200 text-gray-700 hover:border-teal-400 hover:bg-teal-50' : ''}
+                              ${!slot.available ? 'bg-gray-100 text-gray-400 cursor-not-allowed line-through' : ''}
+                            `}
+                          >
+                            {timeLabel}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <CalendarIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No available slots for this date.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                className="rounded-xl"
+                onClick={() => setShowRescheduleDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white"
+                onClick={handleReschedule}
+                disabled={!rescheduleSlot || rescheduleBooking.isPending}
+              >
+                {rescheduleBooking.isPending ? 'Rescheduling...' : 'Confirm Reschedule'}
               </Button>
             </DialogFooter>
           </DialogContent>

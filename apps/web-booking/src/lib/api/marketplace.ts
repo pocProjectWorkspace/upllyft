@@ -34,6 +34,7 @@ export interface TherapistProfile {
   stripeAccountId?: string;
   isActive: boolean;
   acceptingBookings: boolean;
+  startingPrice?: number;
   user?: { id: string; name: string; email: string; image?: string };
 }
 
@@ -193,6 +194,11 @@ export interface RejectBookingDto {
 
 export interface CancelBookingDto {
   reason?: string;
+}
+
+export interface RescheduleBookingDto {
+  startDateTime: string;
+  timezone: string;
 }
 
 export interface RateSessionDto {
@@ -418,6 +424,11 @@ export async function cancelBooking(bookingId: string, data?: CancelBookingDto):
 
 export async function confirmSessionCompletion(bookingId: string): Promise<Booking> {
   const res = await apiClient.post(`/marketplace/bookings/${bookingId}/complete`);
+  return res.data;
+}
+
+export async function rescheduleBooking(bookingId: string, data: RescheduleBookingDto): Promise<Booking> {
+  const res = await apiClient.post(`/marketplace/bookings/${bookingId}/reschedule`, data);
   return res.data;
 }
 

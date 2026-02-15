@@ -44,7 +44,9 @@ import {
   type AddAvailabilityExceptionDto,
   type RejectBookingDto,
   type CancelBookingDto,
+  type RescheduleBookingDto,
   type RateSessionDto,
+  rescheduleBooking,
 } from '@/lib/api/marketplace';
 
 const keys = {
@@ -364,6 +366,21 @@ export function useConfirmCompletion() {
     },
     onError: () => {
       toast({ title: 'Error', description: 'Failed to confirm completion.', variant: 'destructive' });
+    },
+  });
+}
+
+export function useRescheduleBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: RescheduleBookingDto }) => rescheduleBooking(id, data),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: keys.booking(variables.id) });
+      qc.invalidateQueries({ queryKey: keys.bookings() });
+      toast({ title: 'Booking rescheduled', description: 'The new date and time have been confirmed.' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to reschedule booking.', variant: 'destructive' });
     },
   });
 }

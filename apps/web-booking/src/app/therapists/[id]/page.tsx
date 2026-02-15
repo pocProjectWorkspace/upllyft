@@ -116,7 +116,7 @@ function RatingStars({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'l
       {[1, 2, 3, 4, 5].map((star) => (
         <StarIcon
           key={star}
-          className={`${sizeClass} ${star <= Math.round(rating) ? 'text-amber-400' : 'text-gray-300'}`}
+          className={`${sizeClass} ${star <= Math.round(rating) ? 'text-yellow-400' : 'text-gray-300'}`}
           filled={star <= Math.round(rating)}
         />
       ))}
@@ -315,10 +315,10 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                           return (
                             <div key={star} className="flex items-center gap-2 text-sm">
                               <span className="w-3 text-gray-600">{star}</span>
-                              <StarIcon className="w-3.5 h-3.5 text-amber-400" filled />
+                              <StarIcon className="w-3.5 h-3.5 text-yellow-400" filled />
                               <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
                                 <div
-                                  className="bg-amber-400 h-full rounded-full transition-all"
+                                  className="bg-yellow-400 h-full rounded-full transition-all"
                                   style={{ width: `${pct}%` }}
                                 />
                               </div>

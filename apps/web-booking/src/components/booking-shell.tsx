@@ -34,6 +34,7 @@ export function BookingShell({ children }: { children: ReactNode }) {
   const therapistLocal = [
     { label: 'Dashboard', href: '/therapist/dashboard', active: pathname === '/therapist/dashboard' },
     { label: 'Bookings', href: '/therapist/bookings', active: pathname === '/therapist/bookings' },
+    { label: 'Earnings', href: '/therapist/earnings', active: pathname === '/therapist/earnings' },
     { label: 'Availability', href: '/therapist/availability', active: pathname === '/therapist/availability' },
     { label: 'Pricing', href: '/therapist/pricing', active: pathname === '/therapist/pricing' },
   ];
