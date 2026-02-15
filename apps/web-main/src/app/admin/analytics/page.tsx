@@ -65,7 +65,38 @@ export default function AnalyticsPage() {
           </Select>
           <Button
             variant="outline"
-            onClick={() => toast({ title: 'Export started', description: 'Report will be downloaded shortly' })}
+            onClick={() => {
+              if (!data) {
+                toast({ title: 'No data', description: 'No analytics data to export' });
+                return;
+              }
+              const rows = [['Metric', 'Value']];
+              rows.push(['Total Users', String(totalUsers)]);
+              rows.push(['Total Posts', String(totalPosts)]);
+              rows.push(['Total AI Calls', String(totalAiCalls)]);
+              rows.push(['Engagement Rate', `${engagementRate.toFixed(1)}%`]);
+              if (data.userGrowth) {
+                rows.push([]);
+                rows.push(['Date', 'New Users']);
+                data.userGrowth.forEach((d) => rows.push([d.date, String(d.count)]));
+              }
+              if (data.contentStats) {
+                rows.push([]);
+                rows.push(['Content Type', 'Count']);
+                data.contentStats.forEach((c) => rows.push([c.type, String(c.count)]));
+              }
+              const csv = rows.map((r) => r.join(',')).join('\n');
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `upllyft-analytics-${range}-${new Date().toISOString().split('T')[0]}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              toast({ title: 'Export complete', description: 'CSV report has been downloaded' });
+            }}
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

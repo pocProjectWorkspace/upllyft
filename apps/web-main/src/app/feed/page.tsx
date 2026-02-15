@@ -1,11 +1,11 @@
 'use client';
 
 import { useAuth, APP_URLS } from '@upllyft/api-client';
-import { AppHeader, Skeleton, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
+import { AppHeader, Skeleton, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { getPosts, type PostFilters } from '@/lib/api/posts';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getPosts, createPost, type PostFilters, type CreatePostDto } from '@/lib/api/posts';
 import { PostCard } from '@/components/feed/post-card';
 
 type FeedView = 'for-you' | 'following' | 'saved';
@@ -81,18 +81,37 @@ const trendingTopics = [
   { tag: '#InclusiveEducation', count: '28 posts this week' },
 ];
 
+const POST_CATEGORIES = [
+  'General', 'Autism Spectrum', 'ADHD', 'Speech & Language',
+  'Occupational Therapy', 'Sensory Processing', 'Behavioral',
+  'Education', 'Parenting Tips', 'Success Stories',
+];
+
 export default function FeedPage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [view, setView] = useState<FeedView>('for-you');
   const [sort, setSort] = useState<SortBy>('recent');
   const [search, setSearch] = useState('');
   const observerRef = useRef<HTMLDivElement>(null);
 
+  // Create post modal state
+  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [postTitle, setPostTitle] = useState('');
+  const [postContent, setPostContent] = useState('');
+  const [postType, setPostType] = useState<CreatePostDto['type']>('DISCUSSION');
+  const [postCategory, setPostCategory] = useState('General');
+  const [postTags, setPostTags] = useState('');
+  const [postAnonymous, setPostAnonymous] = useState(false);
+
   const filters: PostFilters = {
     sort,
     limit: 10,
     ...(search && { search }),
+    ...(view === 'saved' && { bookmarked: true } as Record<string, boolean>),
+    ...(view === 'following' && { following: true } as Record<string, boolean>),
   };
 
   const {
@@ -110,6 +129,41 @@ export default function FeedPage() {
     initialPageParam: 1,
     enabled: isAuthenticated,
   });
+
+  const createPostMutation = useMutation({
+    mutationFn: createPost,
+    onSuccess: () => {
+      toast({ title: 'Post created', description: 'Your post has been published' });
+      setShowCreatePost(false);
+      setPostTitle('');
+      setPostContent('');
+      setPostType('DISCUSSION');
+      setPostCategory('General');
+      setPostTags('');
+      setPostAnonymous(false);
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Error',
+        description: err?.response?.data?.message || 'Failed to create post',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  function handleCreatePost(e: React.FormEvent) {
+    e.preventDefault();
+    if (!postTitle.trim() || !postContent.trim()) return;
+    createPostMutation.mutate({
+      title: postTitle.trim(),
+      content: postContent.trim(),
+      type: postType,
+      category: postCategory,
+      tags: postTags.split(',').map((t) => t.trim()).filter(Boolean),
+      isAnonymous: postAnonymous,
+    });
+  }
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(
@@ -156,7 +210,7 @@ export default function FeedPage() {
           <div className="p-4">
             <button
               className="w-full py-3 bg-gradient-to-br from-pink-500 to-pink-700 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 transition"
-              onClick={() => {/* TODO: create post modal */}}
+              onClick={() => setShowCreatePost(true)}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -209,32 +263,161 @@ export default function FeedPage() {
               <input
                 type="text"
                 placeholder="Share something with the community..."
-                className="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-                onFocus={() => {/* TODO: open create post modal */}}
+                className="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
+                onClick={() => setShowCreatePost(true)}
                 readOnly
               />
             </div>
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-              <button className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">
+              <button
+                onClick={() => { setPostType('DISCUSSION'); setShowCreatePost(true); }}
+                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
+              >
                 <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 Photo
               </button>
-              <button className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">
+              <button
+                onClick={() => { setPostType('QUESTION'); setShowCreatePost(true); }}
+                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
+              >
                 <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Question
               </button>
-              <button className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">
+              <button
+                onClick={() => { setPostType('RESOURCE'); setShowCreatePost(true); }}
+                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
+              >
                 <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
-                Event
+                Resource
               </button>
             </div>
           </div>
+
+          {/* Create Post Modal */}
+          {showCreatePost && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                  <h2 className="text-lg font-semibold text-gray-900">Create Post</h2>
+                  <button
+                    onClick={() => setShowCreatePost(false)}
+                    className="text-gray-400 hover:text-gray-600 p-1"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <form onSubmit={handleCreatePost} className="p-4 space-y-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Avatar name={displayName} src={user.avatar || undefined} size="sm" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {postAnonymous ? 'Anonymous' : displayName}
+                      </p>
+                      <p className="text-xs text-gray-500">Posting as {postAnonymous ? 'anonymous' : user.role?.toLowerCase()}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <input
+                      type="text"
+                      value={postTitle}
+                      onChange={(e) => setPostTitle(e.target.value)}
+                      placeholder="Post title..."
+                      required
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <textarea
+                      value={postContent}
+                      onChange={(e) => setPostContent(e.target.value)}
+                      placeholder="What's on your mind? Share your thoughts, questions, or experiences..."
+                      required
+                      rows={5}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none resize-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                      <Select value={postType} onValueChange={(v) => setPostType(v as CreatePostDto['type'])}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="DISCUSSION">Discussion</SelectItem>
+                          <SelectItem value="QUESTION">Question</SelectItem>
+                          <SelectItem value="RESOURCE">Resource</SelectItem>
+                          <SelectItem value="CASE_STUDY">Case Study</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                      <Select value={postCategory} onValueChange={setPostCategory}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {POST_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                    <input
+                      type="text"
+                      value={postTags}
+                      onChange={(e) => setPostTags(e.target.value)}
+                      placeholder="autism, sensory, tips (comma-separated)"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={postAnonymous}
+                      onChange={(e) => setPostAnonymous(e.target.checked)}
+                      className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                    />
+                    <span className="text-sm text-gray-600">Post anonymously</span>
+                  </label>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreatePost(false)}
+                      className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={createPostMutation.isPending || !postTitle.trim() || !postContent.trim()}
+                      className="bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl px-6 py-2 text-sm font-medium hover:from-teal-600 hover:to-teal-700 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {createPostMutation.isPending ? 'Publishing...' : 'Publish'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           {/* View Tabs + Sort */}
           <div className="flex items-center justify-between mb-4">
@@ -291,7 +474,13 @@ export default function FeedPage() {
                 <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                 </svg>
-                <p className="text-gray-500 text-sm">No posts yet. Be the first to share!</p>
+                <p className="text-gray-500 text-sm">
+                  {view === 'saved'
+                    ? 'No saved posts yet. Bookmark posts to find them here.'
+                    : view === 'following'
+                      ? 'No posts from people you follow yet.'
+                      : 'No posts yet. Be the first to share!'}
+                </p>
               </div>
             )}
           </div>

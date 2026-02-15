@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const publicPaths = ['/login', '/register', '/forgot-password'];
+const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -11,7 +11,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Since we use JWT in memory (not cookies), proxy/middleware can't verify auth state.
+  // Since we use JWT in memory (not cookies), middleware can't verify auth state.
   // Client-side components handle auth redirects via useAuth().
   return NextResponse.next();
 }
