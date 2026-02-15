@@ -55,7 +55,7 @@ import {
   calculateZone,
   zoneColors,
 } from '@/lib/utils';
-import type { Assessment, Child, AccessLevel } from '@/lib/api/assessments';
+import type { Assessment, Child, AccessLevel, DomainScore } from '@/lib/api/assessments';
 
 // ── Status badge config ──
 
@@ -203,6 +203,94 @@ function ArrowRightIcon({ className = 'w-4 h-4' }: { className?: string }) {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
     </svg>
   );
+}
+
+// ── Progress Ring SVG ──
+
+const RING_RADIUS = 40;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+const OVERVIEW_DOMAINS = [
+  { key: 'grossMotor', label: 'Motor', color: '#0d9488' },
+  { key: 'speechLanguage', label: 'Language', color: '#7c3aed' },
+  { key: 'socialEmotional', label: 'Social', color: '#2563eb' },
+  { key: 'cognitiveLearning', label: 'Cognitive', color: '#d97706' },
+  { key: 'adaptiveSelfCare', label: 'Adaptive', color: '#059669' },
+];
+
+function ProgressRing({
+  percentage,
+  color,
+  label,
+  zone,
+}: {
+  percentage: number;
+  color: string;
+  label: string;
+  zone: 'green' | 'yellow' | 'red';
+}) {
+  const offset = RING_CIRCUMFERENCE * (1 - percentage / 100);
+  const zoneBadge = {
+    green: { label: 'On Track', bg: 'bg-green-100', text: 'text-green-700' },
+    yellow: { label: 'Monitor', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+    red: { label: 'Concern', bg: 'bg-red-100', text: 'text-red-700' },
+  }[zone];
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <svg className="progress-ring w-24 h-24" viewBox="0 0 96 96">
+        <circle className="progress-ring__circle-bg" cx="48" cy="48" r={RING_RADIUS} />
+        <circle
+          className="progress-ring__circle"
+          cx="48"
+          cy="48"
+          r={RING_RADIUS}
+          stroke={color}
+          strokeDasharray={RING_CIRCUMFERENCE}
+          strokeDashoffset={offset}
+        />
+        <text
+          x="48"
+          y="48"
+          textAnchor="middle"
+          dominantBaseline="central"
+          className="text-xl font-bold"
+          fill="#111827"
+          style={{ transform: 'rotate(90deg)', transformOrigin: '48px 48px' }}
+        >
+          {Math.round(percentage)}%
+        </text>
+      </svg>
+      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <span className={`text-xs px-2 py-0.5 rounded-full ${zoneBadge.bg} ${zoneBadge.text}`}>
+        {zoneBadge.label}
+      </span>
+    </div>
+  );
+}
+
+function LightbulbIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+    </svg>
+  );
+}
+
+// ── Helper: get latest completed assessment scores ──
+
+function getLatestScores(
+  childAssessments: Assessment[] | undefined,
+): { childName: string; scores: Record<string, DomainScore> } | null {
+  if (!childAssessments) return null;
+  const completed = childAssessments
+    .filter((a) => a.status === 'COMPLETED' && a.domainScores)
+    .sort((a, b) => new Date(b.completedAt || b.createdAt).getTime() - new Date(a.completedAt || a.createdAt).getTime());
+  if (completed.length === 0) return null;
+  return {
+    childName: completed[0].child.firstName,
+    scores: completed[0].domainScores!,
+  };
 }
 
 // ── Assessment Card ──
@@ -385,6 +473,58 @@ function ChildSection({
   );
 }
 
+// ── Progress Overview Component ──
+
+function ProgressOverview({ childrenList }: { childrenList: Child[] | undefined }) {
+  // For each child, fetch their assessments and find the latest completed one
+  const firstChild = childrenList?.[0];
+  const { data: assessments } = useChildAssessments(firstChild?.id || '');
+
+  if (!firstChild || !assessments) return null;
+
+  const completed = assessments
+    .filter((a) => a.status === 'COMPLETED' && a.domainScores)
+    .sort(
+      (a, b) =>
+        new Date(b.completedAt || b.createdAt).getTime() -
+        new Date(a.completedAt || a.createdAt).getTime(),
+    );
+
+  if (completed.length === 0) return null;
+
+  const latest = completed[0];
+  const scores = latest.domainScores!;
+
+  return (
+    <Card className="p-6 rounded-2xl border border-gray-200 mb-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Progress Overview</h2>
+          <p className="text-sm text-gray-600">{latest.child.firstName}&apos;s latest screening results</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        {OVERVIEW_DOMAINS.map((domain) => {
+          const score = scores[domain.key];
+          if (!score) return null;
+          // Convert risk index to progress (inverted: low risk = high progress)
+          const progressPct = Math.round((1 - score.riskIndex) * 100);
+          const zone = calculateZone(score.riskIndex);
+          return (
+            <ProgressRing
+              key={domain.key}
+              percentage={progressPct}
+              color={domain.color}
+              label={domain.label}
+              zone={zone}
+            />
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 // ── Main Page ──
 
 export default function ScreeningLibraryPage() {
@@ -509,6 +649,67 @@ export default function ScreeningLibraryPage() {
           Start New Screening
         </Button>
       </div>
+
+      {/* ── Progress Overview ── */}
+      <ProgressOverview childrenList={children} />
+
+      {/* ── AI Insights Card + Next Steps ── */}
+      {children && children.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* AI Insights Card */}
+          <Card className="p-6 bg-gradient-to-br from-gray-800 to-gray-900 text-white border-0 rounded-2xl">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                <LightbulbIcon className="w-6 h-6 text-teal-300" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-teal-300 text-sm font-semibold uppercase tracking-wider mb-1">
+                  AI Insights
+                </h3>
+                <p className="text-white font-semibold mb-2">
+                  Developmental Analysis Available
+                </p>
+                <p className="text-gray-300 text-sm leading-relaxed mb-4">
+                  Get AI-powered clinical insights, evidence-based recommendations, and research-backed
+                  developmental observations based on your screening data.
+                </p>
+                <a href="/insights">
+                  <Button
+                    size="sm"
+                    className="bg-teal-500 hover:bg-teal-400 text-white border-0 rounded-xl"
+                  >
+                    View Detailed Analysis
+                    <ArrowRightIcon className="w-4 h-4 ml-2" />
+                  </Button>
+                </a>
+              </div>
+            </div>
+          </Card>
+
+          {/* Next Steps Card */}
+          <Card className="p-6 rounded-2xl">
+            <h3 className="font-semibold text-gray-900 mb-4">Next Steps</h3>
+            <div className="space-y-4">
+              {[
+                { num: 1, color: 'bg-yellow-400', title: 'Review Screening Results', detail: 'Check domain scores and flagged areas for each child' },
+                { num: 2, color: 'bg-teal-500', title: 'Share with Professional', detail: 'Send results to your therapist or pediatrician for review' },
+                { num: 3, color: 'bg-teal-500', title: 'Explore AI Insights', detail: 'Get personalized recommendations and research-backed guidance' },
+                { num: 4, color: 'bg-teal-500', title: 'Schedule Follow-up', detail: 'Plan a follow-up screening in 3-6 months to track progress' },
+              ].map((step) => (
+                <div key={step.num} className="flex items-start gap-3">
+                  <span className={`w-7 h-7 rounded-full ${step.color} text-white text-sm font-bold flex items-center justify-center shrink-0`}>
+                    {step.num}
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{step.title}</p>
+                    <p className="text-xs text-gray-500">{step.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Children sections */}
       {childrenLoading ? (

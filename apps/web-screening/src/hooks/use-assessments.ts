@@ -23,6 +23,13 @@ import {
   type AddAnnotationDto,
   type ReportV2,
 } from '@/lib/api/assessments';
+import {
+  analyzeCase,
+  getInsightsHistory,
+  getInsightConversation,
+  followUp,
+  submitFeedback,
+} from '@/lib/api/insights';
 
 const assessmentKeys = {
   all: ['assessments'] as const,
@@ -210,5 +217,66 @@ export function useSearchTherapists(search?: string) {
     queryKey: assessmentKeys.therapists(search),
     queryFn: () => searchTherapists(search),
     staleTime: 60 * 1000,
+  });
+}
+
+// ── Insights Hooks ──
+
+const insightKeys = {
+  all: ['insights'] as const,
+  history: () => [...insightKeys.all, 'history'] as const,
+  conversation: (id: string) => [...insightKeys.all, 'conversation', id] as const,
+};
+
+export function useInsightsHistory() {
+  return useQuery({
+    queryKey: insightKeys.history(),
+    queryFn: getInsightsHistory,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useInsightConversation(id: string) {
+  return useQuery({
+    queryKey: insightKeys.conversation(id),
+    queryFn: () => getInsightConversation(id),
+    enabled: !!id,
+  });
+}
+
+export function useAnalyzeCase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (query: string) => analyzeCase(query),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: insightKeys.history() });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to analyze case.', variant: 'destructive' });
+    },
+  });
+}
+
+export function useFollowUp() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ conversationId, query }: { conversationId: string; query: string }) =>
+      followUp(conversationId, query),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: insightKeys.conversation(variables.conversationId) });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to send follow-up.', variant: 'destructive' });
+    },
+  });
+}
+
+export function useSubmitFeedback() {
+  return useMutation({
+    mutationFn: ({ conversationId, value }: { conversationId: string; value: 1 | -1 }) =>
+      submitFeedback(conversationId, value),
+    onSuccess: () => {
+      toast({ title: 'Feedback submitted', description: 'Thank you for your feedback.' });
+    },
   });
 }

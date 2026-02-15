@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { ScreeningShell } from '@/components/screening-shell';
 import {
@@ -45,10 +45,56 @@ export default function QuestionnairePage() {
   const id = params.id as string;
   const tier = Number(searchParams.get('tier') || '1');
 
-  const [currentDomainIndex, setCurrentDomainIndex] = useState(0);
-  const [responses, setResponses] = useState<Record<string, AnswerType>>({});
+  // ── LocalStorage persistence ──
+  const storageKey = `screening-draft-${id}-tier${tier}`;
+  const restoredRef = useRef(false);
+
+  const [currentDomainIndex, setCurrentDomainIndex] = useState(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.domainIndex || 0;
+      }
+    } catch { /* ignore */ }
+    return 0;
+  });
+
+  const [responses, setResponses] = useState<Record<string, AnswerType>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        restoredRef.current = true;
+        return parsed.responses || {};
+      }
+    } catch { /* ignore */ }
+    return {};
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
+
+  // Save progress to localStorage whenever responses or domain changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({ responses, domainIndex: currentDomainIndex }),
+      );
+    } catch { /* storage full or unavailable */ }
+  }, [responses, currentDomainIndex, storageKey]);
+
+  // Clear storage after successful submission
+  function clearDraft() {
+    try {
+      localStorage.removeItem(storageKey);
+      // Also clear the other tier's draft since we're moving on
+      localStorage.removeItem(`screening-draft-${id}-tier${tier === 1 ? 2 : 1}`);
+    } catch { /* ignore */ }
+  }
 
   const { data: assessment, isLoading: assessmentLoading } = useAssessment(id);
 
@@ -87,9 +133,12 @@ export default function QuestionnairePage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentDomainIndex]);
 
-  // Reset domain index when tier changes
+  // Reset domain index when tier changes (only if no saved draft)
   useEffect(() => {
-    setCurrentDomainIndex(0);
+    if (!restoredRef.current) {
+      setCurrentDomainIndex(0);
+    }
+    restoredRef.current = false;
   }, [tier]);
 
   const domains = questionnaire?.domains || [];
@@ -109,13 +158,13 @@ export default function QuestionnairePage() {
 
   const handleNext = useCallback(() => {
     if (currentDomainIndex < totalDomains - 1) {
-      setCurrentDomainIndex((prev) => prev + 1);
+      setCurrentDomainIndex((prev: number) => prev + 1);
     }
   }, [currentDomainIndex, totalDomains]);
 
   const handlePrevious = useCallback(() => {
     if (currentDomainIndex > 0) {
-      setCurrentDomainIndex((prev) => prev - 1);
+      setCurrentDomainIndex((prev: number) => prev - 1);
     }
   }, [currentDomainIndex]);
 
@@ -133,6 +182,7 @@ export default function QuestionnairePage() {
     try {
       if (tier === 1) {
         const result = await submitTier1.mutateAsync({ id, responses: responseArray });
+        clearDraft();
         if (result.tier2Required) {
           setResponses({});
           router.push(`/${id}/questionnaire?tier=2`);
@@ -141,6 +191,7 @@ export default function QuestionnairePage() {
         }
       } else {
         await submitTier2.mutateAsync({ id, responses: responseArray });
+        clearDraft();
         router.push(`/${id}/report`);
       }
     } catch {

@@ -25,6 +25,7 @@ export function ScreeningShell({ children }: { children: ReactNode }) {
 
   const localNavItems = [
     { label: 'My Screenings', href: '/', active: pathname === '/' },
+    { label: 'Insights', href: '/insights', active: pathname.startsWith('/insights') },
     ...(user.role === 'THERAPIST'
       ? [{ label: 'Shared With Me', href: '/shared', active: pathname === '/shared' }]
       : []),

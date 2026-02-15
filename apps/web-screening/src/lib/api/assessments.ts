@@ -298,3 +298,14 @@ export async function getUserProfile(): Promise<{ children: Child[] }> {
   const res = await apiClient.get('/profile/me');
   return res.data;
 }
+
+export async function downloadReport(
+  id: string,
+  type: 'summary' | 'detailed' = 'summary',
+): Promise<Blob> {
+  const res = await apiClient.get(`/assessments/${id}/report/download`, {
+    params: { type },
+    responseType: 'blob',
+  });
+  return res.data;
+}
