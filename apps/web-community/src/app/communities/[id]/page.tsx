@@ -7,9 +7,12 @@ import { CommunityShell } from '@/components/community-shell';
 import {
   useCommunity,
   useCommunityPosts,
+  useCommunityMembersList,
   useJoinCommunity,
   useLeaveCommunity,
 } from '@/hooks/use-community';
+import { useEvents } from '@/hooks/use-events';
+import type { CommunityEvent } from '@/lib/api/events';
 import {
   Card,
   Button,
@@ -185,38 +188,189 @@ function PostsTab({ communityId }: { communityId: string }) {
   );
 }
 
-function MembersTab({ communityId: _communityId }: { communityId: string }) {
-  // Note: The current API uses global members; a community-specific endpoint
-  // would be used here if available. For now, showing a placeholder.
-  return (
-    <Card className="p-12 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
-        <svg className="w-7 h-7 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
+function MembersTab({ communityId }: { communityId: string }) {
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useCommunityMembersList(communityId, { page, limit: 12 });
+  const members = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / 12);
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[...Array(6)].map((_, i) => (
+          <Card key={i} className="p-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-12 h-12 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
-      <h3 className="font-semibold text-gray-900">Community Members</h3>
-      <p className="text-sm text-gray-500 mt-1">
-        Browse all community members on the{' '}
-        <Link href="/communities" className="text-teal-600 hover:underline">
-          Communities page
-        </Link>
-      </p>
-    </Card>
+    );
+  }
+
+  if (members.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-7 h-7 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        </div>
+        <h3 className="font-semibold text-gray-900">No members yet</h3>
+        <p className="text-sm text-gray-500 mt-1">Be the first to join this community!</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {members.map((member) => (
+          <Card key={member.id} className="p-4">
+            <div className="flex items-center gap-3">
+              <Avatar
+                src={member.image || undefined}
+                name={member.name || member.email?.split('@')[0] || 'User'}
+                size="md"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-900 text-sm truncate">
+                  {member.name || member.email?.split('@')[0] || 'User'}
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {member.role && member.role !== 'USER' && (
+                    <Badge color={member.role === 'THERAPIST' ? 'blue' : member.role === 'EDUCATOR' ? 'purple' : 'green'}>
+                      {formatLabel(member.role)}
+                    </Badge>
+                  )}
+                  {member.verificationStatus === 'VERIFIED' && (
+                    <span className="text-xs text-green-600 font-medium">Verified</span>
+                  )}
+                </div>
+                {member.bio && (
+                  <p className="text-xs text-gray-500 mt-1 line-clamp-1">{member.bio}</p>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-gray-500 px-3">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
-function EventsTab() {
-  return (
-    <Card className="p-12 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
-        <svg className="w-7 h-7 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function EventsTab({ communityId }: { communityId: string }) {
+  const { data, isLoading } = useEvents({ communityId, limit: 12 });
+  const events = data?.data ?? [];
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="overflow-hidden">
+            <Skeleton className="w-full h-32 rounded-none" />
+            <div className="p-4 space-y-2">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          </Card>
+        ))}
       </div>
-      <h3 className="font-semibold text-gray-900">Community Events</h3>
-      <p className="text-sm text-gray-500 mt-1">Events for this community will appear here</p>
-    </Card>
+    );
+  }
+
+  if (events.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-7 h-7 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <h3 className="font-semibold text-gray-900">No events yet</h3>
+        <p className="text-sm text-gray-500 mt-1">No events have been created for this community.</p>
+        <Link href="/events/create" className="inline-block mt-4">
+          <Button size="sm">Create Event</Button>
+        </Link>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {events.map((event: CommunityEvent) => (
+        <Link key={event.id} href={`/events/${event.id}`}>
+          <Card hover className="overflow-hidden">
+            {event.coverImage ? (
+              <img src={event.coverImage} alt={event.title} className="w-full h-32 object-cover" />
+            ) : (
+              <div className="w-full h-32 bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                <svg className="w-8 h-8 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            )}
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge color="yellow">{formatLabel(event.type)}</Badge>
+                <Badge color="blue">{formatLabel(event.format)}</Badge>
+              </div>
+              <h4 className="font-semibold text-gray-900 line-clamp-1">{event.title}</h4>
+              <p className="text-sm text-gray-500 mt-1 line-clamp-1">{event.description}</p>
+              <div className="flex items-center gap-1.5 mt-2 text-sm text-gray-600">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {formatDate(event.startDate)}
+              </div>
+              <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                <span>{event.interestedCount} interested</span>
+                <span>{event.goingCount} going</span>
+              </div>
+            </div>
+          </Card>
+        </Link>
+      ))}
+    </div>
   );
 }
 
@@ -462,7 +616,7 @@ export default function CommunityDetailPage() {
         </TabsContent>
 
         <TabsContent value="events">
-          <EventsTab />
+          <EventsTab communityId={communityId} />
         </TabsContent>
 
         <TabsContent value="about">

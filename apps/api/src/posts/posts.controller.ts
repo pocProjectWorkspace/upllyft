@@ -1287,6 +1287,48 @@ export class PostsController {
     }
   }
 
+  // Report a post
+  @Post(':id/report')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async reportPost(
+    @Param('id') id: string,
+    @Body() body: { reason: string; description?: string },
+    @Request() req: AuthRequest,
+  ) {
+    const userId = req.user.id;
+
+    // Verify post exists
+    const post = await this.prisma.post.findUnique({ where: { id } });
+    if (!post) {
+      throw new HttpException('Post not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Prevent duplicate reports
+    const existing = await this.prisma.report.findFirst({
+      where: { reporterId: userId, postId: id, status: 'pending' },
+    });
+    if (existing) {
+      throw new HttpException('You have already reported this post', HttpStatus.CONFLICT);
+    }
+
+    const report = await this.prisma.report.create({
+      data: {
+        userId: post.authorId,
+        reporterId: userId,
+        targetId: id,
+        targetType: 'POST',
+        type: 'POST_REPORT',
+        reason: body.reason,
+        description: body.description,
+        postId: id,
+        status: 'pending',
+      },
+    });
+
+    return { id: report.id, message: 'Report submitted successfully' };
+  }
+
   // Delete a post
   @Delete(':id')
   @UseGuards(JwtAuthGuard)

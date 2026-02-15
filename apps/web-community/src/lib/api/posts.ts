@@ -16,7 +16,7 @@ export interface Post {
   id: string;
   title: string;
   content: string;
-  type: 'DISCUSSION' | 'QUESTION' | 'CASE_STUDY' | 'RESOURCE';
+  type: 'DISCUSSION' | 'QUESTION' | 'CASE_STUDY' | 'RESOURCE' | 'MILESTONE';
   category: string;
   tags: string[];
   author: Author;
@@ -56,7 +56,7 @@ export interface Comment {
 export interface PostFilters {
   page?: number;
   limit?: number;
-  type?: 'DISCUSSION' | 'QUESTION' | 'CASE_STUDY' | 'RESOURCE';
+  type?: 'DISCUSSION' | 'QUESTION' | 'CASE_STUDY' | 'RESOURCE' | 'MILESTONE';
   category?: string;
   tags?: string[];
   author?: string;
@@ -76,7 +76,7 @@ export interface PostsResponse {
 export interface CreatePostDto {
   title: string;
   content: string;
-  type: 'DISCUSSION' | 'QUESTION' | 'CASE_STUDY' | 'RESOURCE';
+  type: 'DISCUSSION' | 'QUESTION' | 'CASE_STUDY' | 'RESOURCE' | 'MILESTONE';
   category: string;
   tags: string[];
   isAnonymous?: boolean;
@@ -182,5 +182,10 @@ export async function suggestTags(content: string): Promise<string[]> {
 
 export async function getTrendingTags(limit = 10): Promise<{ tag: string; count: number }[]> {
   const { data } = await apiClient.get('/posts/tags/trending', { params: { limit } });
+  return data;
+}
+
+export async function reportPost(id: string, dto: { reason: string; description?: string }): Promise<{ id: string; message: string }> {
+  const { data } = await apiClient.post(`/posts/${id}/report`, dto);
   return data;
 }

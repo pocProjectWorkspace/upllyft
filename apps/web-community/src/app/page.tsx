@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@upllyft/api-client';
 import { CommunityShell } from '@/components/community-shell';
-import { useInfinitePosts, useTrendingTags, useVotePost, useToggleBookmark, useDeletePost } from '@/hooks/use-posts';
+import { useInfinitePosts, useTrendingTags, useVotePost, useToggleBookmark, useDeletePost, useReportPost } from '@/hooks/use-posts';
 import { useQuestions } from '@/hooks/use-questions';
 import { useMyCommunities, useBrowseCommunities } from '@/hooks/use-community';
 import { Card, Button, Avatar, Badge, Skeleton, toast } from '@upllyft/ui';
@@ -21,6 +21,7 @@ const POST_TYPE_FILTERS = [
   { label: 'Question', value: 'QUESTION' as const },
   { label: 'Case Study', value: 'CASE_STUDY' as const },
   { label: 'Resource', value: 'RESOURCE' as const },
+  { label: 'Milestone', value: 'MILESTONE' as const },
 ] as const;
 
 const SORT_OPTIONS = [
@@ -35,11 +36,12 @@ const VIEW_TABS = [
   { label: 'Saved', value: 'saved' },
 ] as const;
 
-const typeBadgeColors: Record<string, 'teal' | 'blue' | 'purple' | 'green'> = {
+const typeBadgeColors: Record<string, 'teal' | 'blue' | 'purple' | 'green' | 'red'> = {
   DISCUSSION: 'teal',
   QUESTION: 'blue',
   CASE_STUDY: 'purple',
   RESOURCE: 'green',
+  MILESTONE: 'red',
 };
 
 const typeBorderColors: Record<string, string> = {
@@ -47,6 +49,7 @@ const typeBorderColors: Record<string, string> = {
   QUESTION: 'border-l-blue-500',
   CASE_STUDY: 'border-l-purple-500',
   RESOURCE: 'border-l-green-500',
+  MILESTONE: 'border-l-pink-500',
   EVENT: 'border-l-orange-500',
   PHOTO: 'border-l-green-400',
 };
@@ -104,14 +107,18 @@ function PostMenu({
   userId,
   userRole,
   onDelete,
+  onReport,
 }: {
   post: Post;
   userId?: string;
   userRole?: string;
   onDelete: () => void;
+  onReport: (reason: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportReason, setReportReason] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -182,7 +189,7 @@ function PostMenu({
             Copy Link
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); toast({ title: 'Reported', description: 'Thank you. We will review this post.' }); setOpen(false); }}
+            onClick={(e) => { e.stopPropagation(); setShowReportDialog(true); setOpen(false); }}
             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,6 +226,52 @@ function PostMenu({
           </div>
         </div>
       )}
+
+      {/* Report dialog */}
+      {showReportDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowReportDialog(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Report Post</h3>
+            <p className="text-sm text-gray-500 mb-3">Why are you reporting this post?</p>
+            <div className="space-y-2 mb-4">
+              {['Spam', 'Harassment', 'Misinformation', 'Inappropriate content', 'Other'].map((reason) => (
+                <button
+                  key={reason}
+                  onClick={() => setReportReason(reason)}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                    reportReason === reason
+                      ? 'bg-teal-50 text-teal-700 font-medium border border-teal-200'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-transparent'
+                  }`}
+                >
+                  {reason}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowReportDialog(false); setReportReason(''); }}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (reportReason) {
+                    onReport(reportReason);
+                    setShowReportDialog(false);
+                    setReportReason('');
+                  }
+                }}
+                disabled={!reportReason}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Submit Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -229,6 +282,7 @@ function PostCard({ post }: { post: Post }) {
   const votePost = useVotePost();
   const toggleBookmark = useToggleBookmark();
   const deletePostMutation = useDeletePost();
+  const reportPostMutation = useReportPost();
 
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(post.userVote ?? null);
   const [voteScore, setVoteScore] = useState(post.upvotes - post.downvotes);
@@ -239,6 +293,10 @@ function PostCard({ post }: { post: Post }) {
     post.content.length > 180 ? post.content.slice(0, 180) + '...' : post.content;
 
   const borderColor = typeBorderColors[post.type] || 'border-l-gray-300';
+
+  const handleReport = (reason: string) => {
+    reportPostMutation.mutate({ id: post.id, reason });
+  };
 
   const handleVote = (direction: 'up' | 'down', e: React.MouseEvent) => {
     e.stopPropagation();
@@ -294,9 +352,15 @@ function PostCard({ post }: { post: Post }) {
               <span className="text-xs text-gray-400">
                 {formatTimeAgo(post.createdAt)}
               </span>
-              <Badge color={typeBadgeColors[post.type] || 'gray'}>
-                {formatLabel(post.type)}
-              </Badge>
+              {post.type === 'MILESTONE' ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-700">
+                  Milestone {'\u{1F389}'}
+                </span>
+              ) : (
+                <Badge color={typeBadgeColors[post.type] || 'gray'}>
+                  {formatLabel(post.type)}
+                </Badge>
+              )}
               {post.featured && <Badge color="yellow">Featured</Badge>}
             </div>
           </div>
@@ -306,6 +370,7 @@ function PostCard({ post }: { post: Post }) {
           userId={user?.id}
           userRole={user?.role}
           onDelete={handleDelete}
+          onReport={handleReport}
         />
       </div>
 
@@ -358,6 +423,13 @@ function PostCard({ post }: { post: Post }) {
           {post.bookmarkCount ?? 0} saves
         </span>
       </div>
+
+      {/* Milestone gradient footer */}
+      {post.type === 'MILESTONE' && (
+        <div className="bg-gradient-to-r from-pink-50 to-purple-50 -mx-5 px-5 py-3 mb-0 rounded-b-none">
+          <p className="text-xs font-medium text-pink-600">A milestone worth celebrating!</p>
+        </div>
+      )}
 
       {/* Action bar */}
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
@@ -660,7 +732,7 @@ function LeftSidebar({ view, onViewChange }: { view: string; onViewChange: (v: s
   const inactiveClass = 'text-gray-600 hover:bg-gray-50 hover:text-gray-900';
 
   return (
-    <aside className="hidden lg:block w-60 flex-shrink-0">
+    <aside className="hidden lg:block w-64 flex-shrink-0">
       <div className="sticky top-24">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2">
           {/* Create Post */}
@@ -818,7 +890,7 @@ function RightSidebar() {
   const suggestedGroups = browseResult?.data ?? [];
 
   return (
-    <aside className="hidden xl:block w-[300px] flex-shrink-0">
+    <aside className="hidden xl:block w-80 flex-shrink-0">
       <div className="sticky top-24 space-y-4">
         {/* Suggested Groups */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
@@ -906,7 +978,7 @@ function RightSidebar() {
 export default function CommunityFeedPage() {
   const [view, setView] = useState('feed');
   const [typeFilter, setTypeFilter] = useState<
-    'DISCUSSION' | 'QUESTION' | 'CASE_STUDY' | 'RESOURCE' | undefined
+    'DISCUSSION' | 'QUESTION' | 'CASE_STUDY' | 'RESOURCE' | 'MILESTONE' | undefined
   >(undefined);
   const [sort, setSort] = useState<'recent' | 'popular' | 'trending'>('recent');
   const [search, setSearch] = useState('');

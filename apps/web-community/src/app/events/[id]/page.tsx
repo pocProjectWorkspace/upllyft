@@ -119,7 +119,7 @@ export default function EventDetailPage() {
         {event.coverImage ? (
           <img src={event.coverImage} alt={event.title} className="w-full h-64 sm:h-80 object-cover rounded-2xl" />
         ) : (
-          <div className="w-full h-64 sm:h-80 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl flex items-center justify-center">
+          <div className="w-full h-64 sm:h-80 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center">
             <svg className="w-16 h-16 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>

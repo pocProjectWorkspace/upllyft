@@ -11,6 +11,7 @@ import {
   getTopContributors,
   getCommunityWhatsAppGroups,
   getCommunityPosts,
+  getCommunityMembersList,
   type BrowseCommunitiesParams,
   type CreateCommunityDto,
 } from '@/lib/api/community';
@@ -112,6 +113,14 @@ export function useCommunityPosts(communityId: string, params?: { page?: number;
   return useQuery({
     queryKey: communityKeys.posts(communityId, params),
     queryFn: () => getCommunityPosts(communityId, params),
+    enabled: !!communityId,
+  });
+}
+
+export function useCommunityMembersList(communityId: string, params?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: [...communityKeys.detail(communityId), 'members-list', params],
+    queryFn: () => getCommunityMembersList(communityId, params),
     enabled: !!communityId,
   });
 }

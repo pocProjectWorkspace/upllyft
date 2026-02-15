@@ -153,3 +153,8 @@ export async function getCommunityPosts(communityId: string, params?: { page?: n
   const { data } = await apiClient.get(`/community/${communityId}/posts`, { params });
   return data;
 }
+
+export async function getCommunityMembersList(communityId: string, params?: { page?: number; limit?: number }): Promise<{ data: CommunityMember[]; total: number }> {
+  const { data } = await apiClient.get(`/community/${communityId}/community-members`, { params });
+  return data;
+}

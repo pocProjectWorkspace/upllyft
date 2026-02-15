@@ -14,6 +14,7 @@ import {
   getTrendingPosts,
   getTrendingTags,
   suggestTags,
+  reportPost,
   type PostFilters,
   type CreatePostDto,
   type UpdatePostDto,
@@ -172,5 +173,19 @@ export function useTrendingTags(limit = 10) {
 export function useSuggestTags() {
   return useMutation({
     mutationFn: (content: string) => suggestTags(content),
+  });
+}
+
+export function useReportPost() {
+  return useMutation({
+    mutationFn: ({ id, reason, description }: { id: string; reason: string; description?: string }) =>
+      reportPost(id, { reason, description }),
+    onSuccess: () => {
+      toast({ title: 'Report submitted', description: 'Thank you. We will review this post.' });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to submit report.';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    },
   });
 }
