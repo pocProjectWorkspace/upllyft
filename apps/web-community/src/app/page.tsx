@@ -37,15 +37,15 @@ const VIEW_TABS = [
 ] as const;
 
 const typeBadgeColors: Record<string, 'teal' | 'blue' | 'purple' | 'green' | 'red'> = {
-  DISCUSSION: 'teal',
+  DISCUSSION: 'green',
   QUESTION: 'blue',
   CASE_STUDY: 'purple',
-  RESOURCE: 'green',
+  RESOURCE: 'teal',
   MILESTONE: 'red',
 };
 
 const typeBorderColors: Record<string, string> = {
-  DISCUSSION: 'border-l-teal-500',
+  DISCUSSION: 'border-l-pink-500',
   QUESTION: 'border-l-blue-500',
   CASE_STUDY: 'border-l-purple-500',
   RESOURCE: 'border-l-green-500',
@@ -59,7 +59,7 @@ const GROUP_COLORS = [
   { bg: 'bg-purple-100', text: 'text-purple-600' },
   { bg: 'bg-green-100', text: 'text-green-600' },
   { bg: 'bg-orange-100', text: 'text-orange-600' },
-  { bg: 'bg-teal-100', text: 'text-teal-600' },
+  { bg: 'bg-pink-100', text: 'text-pink-600' },
 ];
 
 // ===== Helpers =====
@@ -80,6 +80,7 @@ function formatTimeAgo(dateStr: string): string {
 }
 
 function formatLabel(value: string): string {
+  if (!value) return '';
   return value
     .replace(/_/g, ' ')
     .toLowerCase()
@@ -240,7 +241,7 @@ function PostMenu({
                   onClick={() => setReportReason(reason)}
                   className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
                     reportReason === reason
-                      ? 'bg-teal-50 text-teal-700 font-medium border border-teal-200'
+                      ? 'bg-pink-50 text-pink-700 font-medium border border-pink-200'
                       : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-transparent'
                   }`}
                 >
@@ -376,7 +377,7 @@ function PostCard({ post }: { post: Post }) {
 
       {/* Title — only clickable link */}
       <Link href={`/posts/${post.id}`} className="block relative z-10">
-        <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1 hover:text-teal-700 transition-colors">
+        <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1 hover:text-pink-700 transition-colors">
           {post.title}
         </h3>
       </Link>
@@ -390,7 +391,7 @@ function PostCard({ post }: { post: Post }) {
           {post.tags.slice(0, 5).map((tag) => (
             <span
               key={tag}
-              className="text-xs text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full"
+              className="text-xs text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full"
             >
               #{tag}
             </span>
@@ -438,14 +439,14 @@ function PostCard({ post }: { post: Post }) {
           <div className="flex items-center border border-gray-200 rounded-lg">
             <button
               onClick={(e) => handleVote('up', e)}
-              className={`p-1.5 rounded-l-lg transition ${userVote === 'up' ? 'text-teal-600 bg-teal-50' : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'}`}
+              className={`p-1.5 rounded-l-lg transition ${userVote === 'up' ? 'text-pink-600 bg-pink-50' : 'text-gray-400 hover:text-pink-600 hover:bg-pink-50'}`}
             >
               <svg className="w-4 h-4" fill={userVote === 'up' ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
               </svg>
             </button>
             <span className={`px-2 text-sm font-semibold min-w-[2rem] text-center ${
-              voteScore > 0 ? 'text-teal-600' : voteScore < 0 ? 'text-red-500' : 'text-gray-700'
+              voteScore > 0 ? 'text-pink-600' : voteScore < 0 ? 'text-red-500' : 'text-gray-700'
             }`}>
               {voteScore}
             </span>
@@ -462,7 +463,7 @@ function PostCard({ post }: { post: Post }) {
           {/* Reply */}
           <button
             onClick={(e) => { e.stopPropagation(); router.push(`/posts/${post.id}#comments`); }}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-teal-600 transition"
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-pink-600 transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
@@ -473,7 +474,7 @@ function PostCard({ post }: { post: Post }) {
           {/* Share */}
           <button
             onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-teal-600 transition"
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-pink-600 transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -536,7 +537,7 @@ function QuestionFeedCard({ question }: { question: Question }) {
   const answerCountColor = question.hasAcceptedAnswer
     ? 'text-green-600 bg-green-50 border-green-200'
     : question.answerCount > 0
-      ? 'text-teal-600 bg-teal-50 border-teal-200'
+      ? 'text-pink-600 bg-pink-50 border-pink-200'
       : 'text-gray-400 bg-gray-50 border-gray-200';
 
   return (
@@ -568,7 +569,7 @@ function QuestionFeedCard({ question }: { question: Question }) {
 
           {/* Title */}
           <Link href={`/questions/${question.id}`} className="block relative z-10">
-            <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1 hover:text-teal-700 transition-colors">
+            <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1 hover:text-pink-700 transition-colors">
               {question.title}
             </h3>
           </Link>
@@ -584,7 +585,7 @@ function QuestionFeedCard({ question }: { question: Question }) {
               {question.tags.slice(0, 5).map((tag) => (
                 <span
                   key={tag}
-                  className="text-xs text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full"
+                  className="text-xs text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full"
                 >
                   #{tag}
                 </span>
@@ -614,7 +615,7 @@ function QuestionFeedCard({ question }: { question: Question }) {
             </div>
             <Link
               href={`/questions/${question.id}`}
-              className="text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors"
+              className="text-xs font-medium text-pink-600 hover:text-pink-700 transition-colors"
             >
               {question.answerCount > 0 ? 'View answers' : 'Be the first to answer'}
             </Link>
@@ -728,7 +729,7 @@ function QuestionFeedSection({
 function LeftSidebar({ view, onViewChange }: { view: string; onViewChange: (v: string) => void }) {
   const { data: myCommunities, isLoading: groupsLoading } = useMyCommunities();
 
-  const activeClass = 'bg-teal-50 text-teal-700 font-semibold border-l-3 border-teal-600';
+  const activeClass = 'bg-pink-50 text-pink-700 font-semibold border-l-3 border-pink-600';
   const inactiveClass = 'text-gray-600 hover:bg-gray-50 hover:text-gray-900';
 
   return (
@@ -914,7 +915,7 @@ function RightSidebar() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <Link href={`/communities/${group.id}`}>
-                        <p className="font-medium text-gray-900 text-sm truncate hover:text-teal-600 transition-colors">
+                        <p className="font-medium text-gray-900 text-sm truncate hover:text-pink-600 transition-colors">
                           {group.name}
                         </p>
                       </Link>
@@ -924,7 +925,7 @@ function RightSidebar() {
                     </div>
                     <Link
                       href={`/communities/${group.id}`}
-                      className="px-3 py-1 bg-teal-50 text-teal-700 text-xs font-medium rounded-full hover:bg-teal-100 transition-colors shrink-0"
+                      className="px-3 py-1 bg-pink-50 text-pink-700 text-xs font-medium rounded-full hover:bg-pink-100 transition-colors shrink-0"
                     >
                       Join
                     </Link>
@@ -937,7 +938,7 @@ function RightSidebar() {
           )}
           <Link
             href="/communities"
-            className="block mt-3 text-sm text-teal-600 hover:text-teal-700 font-medium"
+            className="block mt-3 text-sm text-pink-600 hover:text-pink-700 font-medium"
           >
             See All
           </Link>
@@ -1050,10 +1051,10 @@ export default function CommunityFeedPage() {
               <button
                 key={filter.label}
                 onClick={() => setTypeFilter(filter.value)}
-                className={`px-3.5 py-1.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                   typeFilter === filter.value
-                    ? 'bg-teal-500 text-white shadow-sm'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:border-teal-300 hover:text-teal-600'
+                    ? 'bg-pink-600 text-white shadow-sm'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-pink-300 hover:text-pink-600'
                 }`}
               >
                 {filter.label}
@@ -1081,7 +1082,7 @@ export default function CommunityFeedPage() {
               placeholder={isQuestionFilter ? 'Search questions...' : 'Search posts...'}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
             />
           </div>
 
@@ -1129,7 +1130,7 @@ export default function CommunityFeedPage() {
                   >
                     {isFetchingNextPage ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-gray-300 border-t-teal-500 rounded-full animate-spin mr-2" />
+                        <div className="w-4 h-4 border-2 border-gray-300 border-t-pink-500 rounded-full animate-spin mr-2" />
                         Loading...
                       </>
                     ) : (

@@ -167,14 +167,14 @@ export default function CrisisPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="w-full sm:w-56">
                 <Select
-                  value={typeFilter}
-                  onValueChange={setTypeFilter}
+                  value={typeFilter || 'all'}
+                  onValueChange={(val) => setTypeFilter(val === 'all' ? '' : val)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All Crisis Types" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Crisis Types</SelectItem>
+                    <SelectItem value="all">All Crisis Types</SelectItem>
                     {CRISIS_TYPES.map((t) => (
                       <SelectItem key={t} value={t}>{t}</SelectItem>
                     ))}
@@ -183,14 +183,14 @@ export default function CrisisPage() {
               </div>
               <div className="w-full sm:w-56">
                 <Select
-                  value={languageFilter}
-                  onValueChange={setLanguageFilter}
+                  value={languageFilter || 'all'}
+                  onValueChange={(val) => setLanguageFilter(val === 'all' ? '' : val)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All Languages" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Languages</SelectItem>
+                    <SelectItem value="all">All Languages</SelectItem>
                     {LANGUAGES.map((l) => (
                       <SelectItem key={l} value={l}>{l}</SelectItem>
                     ))}

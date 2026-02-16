@@ -65,12 +65,12 @@ export default function CrisisResourcesPage() {
         {/* Filter bar */}
         <Card className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select value={typeFilter || 'all'} onValueChange={(val) => setTypeFilter(val === 'all' ? '' : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 {CRISIS_TYPES.map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
@@ -89,12 +89,12 @@ export default function CrisisResourcesPage() {
               onChange={(e) => setCityFilter(e.target.value)}
             />
 
-            <Select value={languageFilter} onValueChange={setLanguageFilter}>
+            <Select value={languageFilter || 'all'} onValueChange={(val) => setLanguageFilter(val === 'all' ? '' : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Languages" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Languages</SelectItem>
+                <SelectItem value="all">All Languages</SelectItem>
                 {LANGUAGES.map((l) => (
                   <SelectItem key={l} value={l}>{l}</SelectItem>
                 ))}

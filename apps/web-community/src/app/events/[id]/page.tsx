@@ -24,6 +24,7 @@ import {
 } from '@upllyft/ui';
 
 function formatLabel(value: string): string {
+  if (!value) return '';
   return value
     .split('_')
     .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
@@ -144,8 +145,8 @@ export default function EventDetailPage() {
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Date & Time</h3>
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -188,7 +189,7 @@ export default function EventDetailPage() {
                         href={event.meetingLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-teal-600 hover:text-teal-700 underline"
+                        className="text-sm text-pink-600 hover:text-pink-700 underline"
                       >
                         Join Meeting
                       </a>

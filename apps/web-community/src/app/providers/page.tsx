@@ -28,7 +28,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
               <h3 className="font-semibold text-gray-900 truncate">{provider.organizationName}</h3>
               {provider.isVerified && (
                 <div className="flex-shrink-0">
-                  <svg className="w-5 h-5 text-teal-500" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-pink-500" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 </div>
@@ -158,8 +158,8 @@ export default function ProvidersPage() {
             <StatCardItem
               label="Total Providers"
               value={stats.total}
-              color="bg-teal-50"
-              icon={<svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
+              color="bg-pink-50"
+              icon={<svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
             />
             <StatCardItem
               label="Verified"
@@ -200,9 +200,9 @@ export default function ProvidersPage() {
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="w-full sm:w-48">
               <Select
-                value={cityFilter}
+                value={cityFilter || 'all'}
                 onValueChange={(val) => {
-                  setCityFilter(val);
+                  setCityFilter(val === 'all' ? '' : val);
                   setPage(1);
                 }}
               >
@@ -210,7 +210,7 @@ export default function ProvidersPage() {
                   <SelectValue placeholder="All Cities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Cities</SelectItem>
+                  <SelectItem value="all">All Cities</SelectItem>
                   {cities?.map((c) => (
                     <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                   ))}
@@ -219,9 +219,9 @@ export default function ProvidersPage() {
             </div>
             <div className="w-full sm:w-56">
               <Select
-                value={orgTypeFilter}
+                value={orgTypeFilter || 'all'}
                 onValueChange={(val) => {
-                  setOrgTypeFilter(val);
+                  setOrgTypeFilter(val === 'all' ? '' : val);
                   setPage(1);
                 }}
               >
@@ -229,7 +229,7 @@ export default function ProvidersPage() {
                   <SelectValue placeholder="All Organization Types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   {orgTypes?.map((t) => (
                     <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                   ))}
@@ -244,7 +244,7 @@ export default function ProvidersPage() {
               }}
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
                 verifiedOnly
-                  ? 'bg-teal-50 border-teal-200 text-teal-700'
+                  ? 'bg-pink-50 border-pink-200 text-pink-700'
                   : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
             >
@@ -290,8 +290,8 @@ export default function ProvidersPage() {
           </div>
         ) : providers.length === 0 ? (
           <Card className="p-12 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 rounded-2xl bg-pink-50 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>

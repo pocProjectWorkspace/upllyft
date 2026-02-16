@@ -50,6 +50,7 @@ const FORMAT_COLORS: Record<EventFormat, 'teal' | 'blue' | 'purple'> = {
 };
 
 function formatLabel(value: string): string {
+  if (!value) return '';
   return value
     .split('_')
     .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
@@ -106,7 +107,7 @@ function EventCard({ event }: { event: CommunityEvent }) {
 
         {/* Title & description */}
         <Link href={`/events/${event.id}`} className="group">
-          <h3 className="font-semibold text-gray-900 group-hover:text-teal-600 transition-colors line-clamp-2">
+          <h3 className="font-semibold text-gray-900 group-hover:text-pink-600 transition-colors line-clamp-2">
             {event.title}
           </h3>
         </Link>
@@ -240,9 +241,9 @@ export default function EventsPage() {
             </div>
             <div className="w-full sm:w-48">
               <Select
-                value={type}
+                value={type || 'all'}
                 onValueChange={(val) => {
-                  setType(val as EventType | '');
+                  setType(val === 'all' ? '' : (val as EventType));
                   setPage(1);
                 }}
               >
@@ -250,7 +251,7 @@ export default function EventsPage() {
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   {EVENT_TYPES.map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
@@ -261,9 +262,9 @@ export default function EventsPage() {
             </div>
             <div className="w-full sm:w-48">
               <Select
-                value={format}
+                value={format || 'all'}
                 onValueChange={(val) => {
-                  setFormat(val as EventFormat | '');
+                  setFormat(val === 'all' ? '' : (val as EventFormat));
                   setPage(1);
                 }}
               >
@@ -271,7 +272,7 @@ export default function EventsPage() {
                   <SelectValue placeholder="All Formats" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Formats</SelectItem>
+                  <SelectItem value="all">All Formats</SelectItem>
                   {EVENT_FORMATS.map((f) => (
                     <SelectItem key={f.value} value={f.value}>
                       {f.label}

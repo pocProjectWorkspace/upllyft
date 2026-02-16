@@ -7,6 +7,7 @@ import { CommunityShell } from '@/components/community-shell';
 import { useEvents } from '@/hooks/use-events';
 
 function formatLabel(value: string): string {
+  if (!value) return '';
   return value.split('_').map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
 }
 
