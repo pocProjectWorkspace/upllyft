@@ -4,7 +4,7 @@ import { useAuth } from '@upllyft/api-client';
 import { AppHeader, Card, Avatar, Skeleton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Badge, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useMyProfile } from '@/hooks/use-dashboard';
-import { updateProfile, updateAvatar, addChild, updateChild, deleteChild, calculateAge, type Child } from '@/lib/api/profiles';
+import { updateProfile, updateAvatar, deleteChild, calculateAge } from '@/lib/api/profiles';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, useRef } from 'react';
 
@@ -32,20 +32,6 @@ export default function EditProfilePage() {
 
   // Avatar upload state
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-
-  // Children management state
-  const [showAddChild, setShowAddChild] = useState(false);
-  const [editingChildId, setEditingChildId] = useState<string | null>(null);
-  const [childForm, setChildForm] = useState({
-    firstName: '',
-    dateOfBirth: '',
-    gender: '',
-    grade: '',
-    schoolType: '',
-    hasCondition: false,
-    diagnosisStatus: '',
-  });
-  const [savingChild, setSavingChild] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -139,59 +125,6 @@ export default function EditProfilePage() {
     }
   }
 
-  function resetChildForm() {
-    setChildForm({
-      firstName: '',
-      dateOfBirth: '',
-      gender: '',
-      grade: '',
-      schoolType: '',
-      hasCondition: false,
-      diagnosisStatus: '',
-    });
-  }
-
-  function startEditChild(child: Child) {
-    setEditingChildId(child.id);
-    setChildForm({
-      firstName: child.firstName,
-      dateOfBirth: child.dateOfBirth?.split('T')[0] || '',
-      gender: child.gender || '',
-      grade: child.grade || '',
-      schoolType: child.schoolType || '',
-      hasCondition: child.hasCondition,
-      diagnosisStatus: child.diagnosisStatus || '',
-    });
-    setShowAddChild(false);
-  }
-
-  async function handleSaveChild(e: React.FormEvent) {
-    e.preventDefault();
-    if (!childForm.firstName || !childForm.dateOfBirth) return;
-    setSavingChild(true);
-    try {
-      if (editingChildId) {
-        await updateChild(editingChildId, childForm);
-        toast({ title: 'Child updated', description: `${childForm.firstName}'s information has been updated` });
-        setEditingChildId(null);
-      } else {
-        await addChild(childForm);
-        toast({ title: 'Child added', description: `${childForm.firstName} has been added to your profile` });
-        setShowAddChild(false);
-      }
-      resetChildForm();
-      await queryClient.invalidateQueries({ queryKey: ['profile'] });
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err?.response?.data?.message || 'Failed to save child information',
-        variant: 'destructive',
-      });
-    } finally {
-      setSavingChild(false);
-    }
-  }
-
   async function handleDeleteChild(childId: string, childName: string) {
     if (!confirm(`Remove ${childName} from your profile?`)) return;
     try {
@@ -206,109 +139,6 @@ export default function EditProfilePage() {
       });
     }
   }
-
-  const childFormJsx = (
-    <form onSubmit={handleSaveChild} className="space-y-3 p-4 bg-gray-50 rounded-xl">
-      <h3 className="text-sm font-semibold text-gray-900">
-        {editingChildId ? 'Edit Child' : 'Add a Child'}
-      </h3>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-          <input
-            type="text"
-            value={childForm.firstName}
-            onChange={(e) => setChildForm((f) => ({ ...f, firstName: e.target.value }))}
-            required
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-          <input
-            type="date"
-            value={childForm.dateOfBirth}
-            onChange={(e) => setChildForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
-            required
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-          <Select value={childForm.gender} onValueChange={(v) => setChildForm((f) => ({ ...f, gender: v }))}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Male">Male</SelectItem>
-              <SelectItem value="Female">Female</SelectItem>
-              <SelectItem value="Non-binary">Non-binary</SelectItem>
-              <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
-          <input
-            type="text"
-            value={childForm.grade}
-            onChange={(e) => setChildForm((f) => ({ ...f, grade: e.target.value }))}
-            placeholder="e.g., 3rd"
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">School Type</label>
-          <Select value={childForm.schoolType} onValueChange={(v) => setChildForm((f) => ({ ...f, schoolType: v }))}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Public">Public</SelectItem>
-              <SelectItem value="Private">Private</SelectItem>
-              <SelectItem value="Homeschool">Homeschool</SelectItem>
-              <SelectItem value="Special Education">Special Education</SelectItem>
-              <SelectItem value="Not in school">Not in school</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Diagnosis Status</label>
-          <Select value={childForm.diagnosisStatus} onValueChange={(v) => setChildForm((f) => ({ ...f, diagnosisStatus: v }))}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Diagnosed">Diagnosed</SelectItem>
-              <SelectItem value="Suspected">Suspected</SelectItem>
-              <SelectItem value="Under evaluation">Under evaluation</SelectItem>
-              <SelectItem value="None">None</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="flex gap-2 pt-1">
-        <button
-          type="submit"
-          disabled={savingChild}
-          className="bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl px-4 py-2 text-sm font-medium hover:from-teal-600 hover:to-teal-700 shadow-md transition-all disabled:opacity-50"
-        >
-          {savingChild ? 'Saving...' : editingChildId ? 'Update' : 'Add Child'}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setShowAddChild(false);
-            setEditingChildId(null);
-            resetChildForm();
-          }}
-          className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -490,17 +320,15 @@ export default function EditProfilePage() {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-900">Children</h2>
-              {!showAddChild && !editingChildId && (
-                <button
-                  onClick={() => { setShowAddChild(true); resetChildForm(); }}
-                  className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add Child
-                </button>
-              )}
+              <a
+                href="/profile/children/add"
+                className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Child
+              </a>
             </div>
 
             {profile?.children && profile.children.length > 0 && (
@@ -524,15 +352,15 @@ export default function EditProfilePage() {
                       )}
                     </div>
                     <div className="flex gap-1">
-                      <button
-                        onClick={() => startEditChild(child)}
+                      <a
+                        href={`/profile/children/${child.id}/edit`}
                         className="text-gray-400 hover:text-teal-600 p-1"
                         title="Edit"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
-                      </button>
+                      </a>
                       <button
                         onClick={() => handleDeleteChild(child.id, child.firstName)}
                         className="text-gray-400 hover:text-red-600 p-1"
@@ -548,20 +376,18 @@ export default function EditProfilePage() {
               </div>
             )}
 
-            {(showAddChild || editingChildId) && childFormJsx}
-
-            {!showAddChild && !editingChildId && (!profile?.children || profile.children.length === 0) && (
+            {(!profile?.children || profile.children.length === 0) && (
               <div className="text-center py-6">
                 <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 <p className="text-sm text-gray-500 mb-2">No children added yet</p>
-                <button
-                  onClick={() => { setShowAddChild(true); resetChildForm(); }}
+                <a
+                  href="/profile/children/add"
                   className="text-sm text-teal-600 hover:text-teal-700 font-medium"
                 >
                   Add your first child
-                </button>
+                </a>
               </div>
             )}
           </Card>

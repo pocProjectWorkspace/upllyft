@@ -162,14 +162,8 @@ export class ProfileService {
       const child = await this.prisma.child.create({
         data: {
           profileId: profile.id,
-          firstName: childData.firstName,
-          nickname: childData.nickname,
-          dateOfBirth: childData.dateOfBirth,
-          gender: childData.gender,
-          schoolType: childData.schoolType,
-          grade: childData.grade,
+          ...childData,
           hasCondition: childData.hasCondition || false,
-          diagnosisStatus: childData.diagnosisStatus,
         },
         include: {
           conditions: true,
@@ -211,17 +205,11 @@ export class ProfileService {
         throw new BadRequestException('Date of birth cannot be in the future');
       }
 
+      const { childId: _, ...fields } = updateData;
       const updated = await this.prisma.child.update({
         where: { id: childId },
         data: {
-          firstName: updateData.firstName,
-          nickname: updateData.nickname,
-          dateOfBirth: updateData.dateOfBirth,
-          gender: updateData.gender,
-          schoolType: updateData.schoolType,
-          grade: updateData.grade,
-          hasCondition: updateData.hasCondition,
-          diagnosisStatus: updateData.diagnosisStatus,
+          ...fields,
           updatedAt: new Date(),
         },
         include: {

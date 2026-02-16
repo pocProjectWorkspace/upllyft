@@ -205,7 +205,7 @@ export default function FeedPage() {
           {/* Create Post Card */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
             <div className="flex items-center gap-3">
-              <Avatar name={displayName} src={user.image || undefined} size="sm" />
+              <Avatar name={displayName} src={user.avatar || undefined} size="sm" />
               <input
                 type="text"
                 placeholder="Share something with the community..."

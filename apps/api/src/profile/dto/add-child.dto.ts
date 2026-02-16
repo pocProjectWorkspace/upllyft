@@ -254,7 +254,8 @@ export class AddChildDto {
 }
 
 export class UpdateChildDto extends AddChildDto {
-  @ApiProperty({ description: 'Child ID' })
+  @ApiPropertyOptional({ description: 'Child ID (provided via URL param)' })
+  @IsOptional()
   @IsString()
-  childId: string;
+  childId?: string;
 }

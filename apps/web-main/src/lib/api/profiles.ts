@@ -11,6 +11,44 @@ export interface Child {
   grade?: string;
   hasCondition: boolean;
   diagnosisStatus?: string;
+  // Basic info
+  birthOrder?: string;
+  nationality?: string;
+  primaryLanguage?: string;
+  placeOfBirth?: string;
+  caregiverRelationship?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  // Education
+  currentSchool?: string;
+  mediumOfInstruction?: string;
+  attendancePattern?: string;
+  teacherConcerns?: string;
+  learningDifficulties?: string;
+  // Birth history
+  mothersHealthDuringPregnancy?: string;
+  deliveryType?: string;
+  prematureBirth?: boolean;
+  gestationalAge?: string;
+  birthWeight?: string;
+  birthComplications?: string;
+  delayedMilestones?: boolean;
+  delayedMilestonesDetails?: string;
+  // Current health
+  currentMedicalConditions?: string;
+  visionHearingIssues?: string;
+  takingMedications?: boolean;
+  medicationDetails?: string;
+  familyHistoryOfDevelopmentalDisorders?: string;
+  sleepIssues?: boolean;
+  sleepDetails?: string;
+  eatingIssues?: boolean;
+  eatingDetails?: string;
+  developmentalConcerns?: string;
+  previousAssessments?: boolean;
+  referralSource?: string;
   conditions: ChildCondition[];
   createdAt: string;
   updatedAt: string;
@@ -20,12 +58,17 @@ export interface ChildCondition {
   id: string;
   childId: string;
   conditionType: string;
+  diagnosedAt?: string;
+  diagnosedBy?: string;
   severity?: string;
+  specificDiagnosis?: string;
   currentTherapies: string[];
   medications: string[];
   primaryChallenges?: string;
   strengths?: string;
   notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface UserProfile {
@@ -105,7 +148,10 @@ export async function getCompleteness(): Promise<CompletenessBreakdown> {
 export interface AddChildConditionData {
   childId: string;
   conditionType: string;
+  diagnosedAt?: string;
+  diagnosedBy?: string;
   severity?: string;
+  specificDiagnosis?: string;
   currentTherapies?: string[];
   medications?: string[];
   primaryChallenges?: string;
