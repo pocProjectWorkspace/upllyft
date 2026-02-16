@@ -103,12 +103,21 @@ export interface BrowseCommunitiesParams {
 
 export async function getCommunityStats(): Promise<CommunityStats> {
   const { data } = await apiClient.get('/community/stats');
-  return data;
+  return {
+    totalMembers: data.totalMembers ?? 0,
+    verifiedMembers: data.verifiedMembers ?? data.verifiedProfessionals ?? 0,
+    totalPosts: data.totalPosts ?? 0,
+    totalComments: data.totalComments ?? 0,
+    activeToday: data.activeToday ?? 0,
+  };
 }
 
 export async function browseCommunities(params?: BrowseCommunitiesParams): Promise<{ data: Community[]; total: number }> {
   const { data } = await apiClient.get('/community/browse', { params });
-  return data;
+  return {
+    data: data.communities ?? data.data ?? [],
+    total: data.total ?? 0,
+  };
 }
 
 export async function getMyCommunities(): Promise<Community[]> {
