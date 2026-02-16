@@ -148,6 +148,7 @@ export default function ReportPage() {
   const [shareAccessLevel, setShareAccessLevel] = useState<AccessLevel>('VIEW');
   const [shareMessage, setShareMessage] = useState('');
   const [therapistSearch, setTherapistSearch] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { data: reportData, isLoading: reportLoading, error: reportError } = useReportData(id);
   const { data: reportV2Data, isLoading: v2Loading } = useReportV2Data(id);
@@ -245,8 +246,6 @@ export default function ReportPage() {
   }
 
   // ── Download Report Handler ──
-  const [isDownloading, setIsDownloading] = useState(false);
-
   async function handleDownloadReport(type: 'summary' | 'detailed' = 'summary') {
     setIsDownloading(true);
     try {
