@@ -92,7 +92,13 @@ export interface CreateEventDto {
 
 export async function getEvents(filters?: EventFilters): Promise<EventsResponse> {
   const { data } = await apiClient.get('/events', { params: filters });
-  return data;
+  return {
+    data: data.events ?? data.data ?? [],
+    total: data.total ?? 0,
+    page: data.page ?? 1,
+    limit: data.limit ?? 12,
+    totalPages: data.totalPages ?? data.pages ?? 1,
+  };
 }
 
 export async function getEvent(id: string): Promise<CommunityEvent> {

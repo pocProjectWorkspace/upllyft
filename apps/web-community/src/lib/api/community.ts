@@ -160,10 +160,19 @@ export async function getCommunityWhatsAppGroups(communityId: string): Promise<W
 
 export async function getCommunityPosts(communityId: string, params?: { page?: number; limit?: number; sort?: string }): Promise<{ data: any[]; total: number }> {
   const { data } = await apiClient.get(`/community/${communityId}/posts`, { params });
-  return data;
+  return {
+    data: data.posts ?? data.data ?? [],
+    total: data.total ?? 0,
+  };
 }
 
 export async function getCommunityMembersList(communityId: string, params?: { page?: number; limit?: number }): Promise<{ data: CommunityMember[]; total: number }> {
   const { data } = await apiClient.get(`/community/${communityId}/community-members`, { params });
-  return data;
+  const raw = data.members ?? data.data ?? [];
+  // Backend returns CommunityMember records with nested `user` — flatten to match CommunityMember interface
+  const members = raw.map((m: any) => (m.user ? { ...m.user, role: m.user.role ?? m.role } : m));
+  return {
+    data: members,
+    total: data.total ?? 0,
+  };
 }
