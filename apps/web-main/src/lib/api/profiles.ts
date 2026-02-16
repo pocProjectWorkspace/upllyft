@@ -64,7 +64,15 @@ export async function getProfile(userId: string): Promise<UserProfile> {
 }
 
 export async function updateProfile(updates: Partial<UserProfile>): Promise<UserProfile> {
-  const { data } = await apiClient.put<UserProfile>('/profile/me', updates);
+  // Strip empty strings so @IsOptional() fields are omitted rather than
+  // failing validation (e.g. @MinLength, @IsEnum) on ''.
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== '') {
+      cleaned[key] = value;
+    }
+  }
+  const { data } = await apiClient.put<UserProfile>('/profile/me', cleaned);
   return data;
 }
 

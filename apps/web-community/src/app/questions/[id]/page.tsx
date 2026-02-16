@@ -79,7 +79,7 @@ function AnswerCard({
           <button
             onClick={() => voteAnswer.mutate({ answerId: answer.id, vote: answer.userVote === 'up' ? null : 'up' })}
             className={`p-1.5 rounded-lg transition-colors ${
-              answer.userVote === 'up' ? 'text-teal-600 bg-teal-50' : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'
+              answer.userVote === 'up' ? 'text-pink-600 bg-pink-50' : 'text-gray-400 hover:text-pink-600 hover:bg-pink-50'
             }`}
           >
             <svg className="w-5 h-5" fill={answer.userVote === 'up' ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -87,7 +87,7 @@ function AnswerCard({
             </svg>
           </button>
           <span className={`text-sm font-semibold ${
-            answer.userVote === 'up' ? 'text-teal-600' : answer.userVote === 'down' ? 'text-red-500' : 'text-gray-700'
+            answer.userVote === 'up' ? 'text-pink-600' : answer.userVote === 'down' ? 'text-red-500' : 'text-gray-700'
           }`}>
             {answer.upvotes - answer.downvotes}
           </span>
@@ -282,7 +282,7 @@ export default function QuestionDetailPage() {
               <div className="flex items-center gap-2 flex-wrap mb-4">
                 <Badge color="blue">{question.category}</Badge>
                 {question.tags.map((tag) => (
-                  <span key={tag} className="text-xs bg-teal-50 text-teal-600 px-2 py-0.5 rounded-full">#{tag}</span>
+                  <span key={tag} className="text-xs bg-pink-50 text-pink-600 px-2 py-0.5 rounded-full">#{tag}</span>
                 ))}
               </div>
 
@@ -455,7 +455,7 @@ export default function QuestionDetailPage() {
                       onClick={() => router.push(`/questions/${rq.relatedQuestion.id}`)}
                       className="block w-full text-left group"
                     >
-                      <p className="text-sm font-medium text-gray-700 group-hover:text-teal-600 transition-colors line-clamp-2">
+                      <p className="text-sm font-medium text-gray-700 group-hover:text-pink-600 transition-colors line-clamp-2">
                         {rq.relatedQuestion.title}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
@@ -472,9 +472,9 @@ export default function QuestionDetailPage() {
             )}
 
             {/* Ask a question CTA */}
-            <Card className="p-4 bg-gradient-to-br from-teal-50 to-teal-100/50 border-teal-100">
-              <h3 className="font-semibold text-teal-900 mb-1">Have a question?</h3>
-              <p className="text-sm text-teal-700 mb-3">Get answers from experienced professionals and parents.</p>
+            <Card className="p-4 bg-gradient-to-br from-pink-50 to-pink-100/50 border-pink-100">
+              <h3 className="font-semibold text-pink-900 mb-1">Have a question?</h3>
+              <p className="text-sm text-pink-700 mb-3">Get answers from experienced professionals and parents.</p>
               <Button size="sm" onClick={() => router.push('/posts/create?type=QUESTION')} className="w-full">
                 Ask a Question
               </Button>

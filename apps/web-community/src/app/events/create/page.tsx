@@ -175,7 +175,7 @@ export default function CreateEventPage() {
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
-                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-colors"
+                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 focus:outline-none transition-colors"
                 />
               </div>
               <div>
@@ -186,7 +186,7 @@ export default function CreateEventPage() {
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   required
-                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-colors"
+                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 focus:outline-none transition-colors"
                 />
               </div>
             </div>

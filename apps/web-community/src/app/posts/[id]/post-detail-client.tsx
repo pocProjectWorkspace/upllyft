@@ -33,7 +33,7 @@ const GROUP_COLORS = [
   { bg: 'bg-purple-100', text: 'text-purple-600' },
   { bg: 'bg-green-100', text: 'text-green-600' },
   { bg: 'bg-orange-100', text: 'text-orange-600' },
-  { bg: 'bg-teal-100', text: 'text-teal-600' },
+  { bg: 'bg-pink-100', text: 'text-pink-600' },
 ];
 
 const TYPE_COLORS: Record<string, 'teal' | 'blue' | 'purple' | 'green'> = {
@@ -44,7 +44,7 @@ const TYPE_COLORS: Record<string, 'teal' | 'blue' | 'purple' | 'green'> = {
 };
 
 const TYPE_BORDER: Record<string, string> = {
-  DISCUSSION: 'border-l-teal-500',
+  DISCUSSION: 'border-l-pink-500',
   QUESTION: 'border-l-blue-500',
   CASE_STUDY: 'border-l-purple-500',
   RESOURCE: 'border-l-green-500',
@@ -88,7 +88,7 @@ function VoteButtons({
       <button
         onClick={() => onVote(userVote === 'up' ? null : 'up')}
         className={`p-1.5 rounded-lg transition-colors ${
-          userVote === 'up' ? 'text-teal-600 bg-teal-50' : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'
+          userVote === 'up' ? 'text-pink-600 bg-pink-50' : 'text-gray-400 hover:text-pink-600 hover:bg-pink-50'
         }`}
       >
         <svg className={iconSize} fill={userVote === 'up' ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -96,7 +96,7 @@ function VoteButtons({
         </svg>
       </button>
       <span className={`font-semibold text-sm min-w-[2ch] text-center ${
-        userVote === 'up' ? 'text-teal-600' : userVote === 'down' ? 'text-red-500' : 'text-gray-700'
+        userVote === 'up' ? 'text-pink-600' : userVote === 'down' ? 'text-red-500' : 'text-gray-700'
       }`}>
         {upvotes - downvotes}
       </span>
@@ -167,7 +167,7 @@ function CommentItem({
               {depth === 0 && (
                 <button
                   onClick={() => setShowReply(!showReply)}
-                  className="text-xs text-gray-500 hover:text-teal-600 font-medium transition-colors"
+                  className="text-xs text-gray-500 hover:text-pink-600 font-medium transition-colors"
                 >
                   Reply
                 </button>
@@ -509,7 +509,7 @@ export default function PostDetailClient() {
               <div className="flex flex-wrap gap-1.5 mt-4">
                 <Badge color="gray">{post.category}</Badge>
                 {post.tags.map((tag) => (
-                  <span key={tag} className="text-xs text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">#{tag}</span>
+                  <span key={tag} className="text-xs text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full">#{tag}</span>
                 ))}
               </div>
             )}
@@ -634,7 +634,7 @@ export default function PostDetailClient() {
             {/* Trending Posts */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <svg className="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
                 Trending Posts
@@ -647,7 +647,7 @@ export default function PostDetailClient() {
                       onClick={() => router.push(`/posts/${tp.id}`)}
                       className="block w-full text-left group"
                     >
-                      <p className="text-sm font-medium text-gray-700 group-hover:text-teal-600 transition-colors line-clamp-2">
+                      <p className="text-sm font-medium text-gray-700 group-hover:text-pink-600 transition-colors line-clamp-2">
                         {tp.title}
                       </p>
                       <div className="flex items-center gap-2 mt-1">

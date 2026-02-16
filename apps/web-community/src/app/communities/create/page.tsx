@@ -52,7 +52,7 @@ const COMMUNITY_TYPES = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
       </svg>
     ),
-    gradient: 'from-teal-400 to-teal-600',
+    gradient: 'from-pink-400 to-rose-500',
   },
 ] as const;
 
@@ -77,7 +77,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
             <div
               className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
                 currentStep >= step.number
-                  ? 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-md'
+                  ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-md'
                   : 'bg-gray-100 text-gray-400'
               }`}
             >
@@ -91,7 +91,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
             </div>
             <span
               className={`text-xs mt-1.5 font-medium ${
-                currentStep >= step.number ? 'text-teal-600' : 'text-gray-400'
+                currentStep >= step.number ? 'text-pink-600' : 'text-gray-400'
               }`}
             >
               {step.label}
@@ -100,7 +100,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
           {index < steps.length - 1 && (
             <div
               className={`w-20 h-0.5 mx-3 mt-[-20px] transition-all duration-200 ${
-                currentStep > step.number ? 'bg-teal-500' : 'bg-gray-200'
+                currentStep > step.number ? 'bg-pink-500' : 'bg-gray-200'
               }`}
             />
           )}
@@ -236,7 +236,7 @@ export default function CreateCommunityPage() {
                       onClick={() => updateForm({ type: type.value })}
                       className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                         form.type === type.value
-                          ? 'border-teal-500 bg-teal-50/50 shadow-sm'
+                          ? 'border-pink-500 bg-pink-50/50 shadow-sm'
                           : 'border-gray-200 hover:border-gray-300 bg-white'
                       }`}
                     >
@@ -258,13 +258,13 @@ export default function CreateCommunityPage() {
                   {form.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-50 text-pink-700 text-xs font-medium"
                     >
                       {tag}
                       <button
                         type="button"
                         onClick={() => removeTag(tag)}
-                        className="hover:text-teal-900"
+                        className="hover:text-pink-900"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -339,12 +339,12 @@ export default function CreateCommunityPage() {
                     onClick={() => updateForm({ isPrivate: false })}
                     className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                       !form.isPrivate
-                        ? 'border-teal-500 bg-teal-50/50 shadow-sm'
+                        ? 'border-pink-500 bg-pink-50/50 shadow-sm'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <p className="font-medium text-gray-900 text-sm">Public</p>
@@ -356,7 +356,7 @@ export default function CreateCommunityPage() {
                     onClick={() => updateForm({ isPrivate: true })}
                     className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                       form.isPrivate
-                        ? 'border-teal-500 bg-teal-50/50 shadow-sm'
+                        ? 'border-pink-500 bg-pink-50/50 shadow-sm'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
@@ -381,7 +381,7 @@ export default function CreateCommunityPage() {
                     type="button"
                     onClick={() => updateForm({ requiresApproval: !form.requiresApproval })}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      form.requiresApproval ? 'bg-teal-500' : 'bg-gray-200'
+                      form.requiresApproval ? 'bg-pink-500' : 'bg-gray-200'
                     }`}
                   >
                     <span
@@ -460,10 +460,10 @@ export default function CreateCommunityPage() {
             <div className="space-y-6">
               {/* Preview Card */}
               <div className="rounded-xl border border-gray-200 overflow-hidden">
-                <div className="h-24 bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600" />
+                <div className="h-24 bg-gradient-to-r from-pink-400 via-pink-500 to-rose-600" />
                 <div className="p-5 -mt-6">
                   <div className="flex items-end gap-3 mb-3">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-bold text-xl shadow-lg border-3 border-white shrink-0">
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-bold text-xl shadow-lg border-3 border-white shrink-0">
                       {form.name.charAt(0).toUpperCase() || '?'}
                     </div>
                     <div>
@@ -508,7 +508,7 @@ export default function CreateCommunityPage() {
                       <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Tags</p>
                       <div className="flex flex-wrap gap-1.5">
                         {form.tags.map((tag) => (
-                          <Badge key={tag} color="teal">{tag}</Badge>
+                          <Badge key={tag} color="red">{tag}</Badge>
                         ))}
                       </div>
                     </div>

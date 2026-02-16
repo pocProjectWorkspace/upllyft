@@ -91,7 +91,7 @@ export default function EditProfilePage() {
     setSuccess(false);
 
     try {
-      await updateProfile(formData as any);
+      await updateProfile(formData);
       await queryClient.invalidateQueries({ queryKey: ['profile'] });
       setSuccess(true);
     } catch (err: any) {
@@ -407,10 +407,9 @@ export default function EditProfilePage() {
                       <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Mother">Mother</SelectItem>
-                      <SelectItem value="Father">Father</SelectItem>
+                      <SelectItem value="Parent">Parent</SelectItem>
                       <SelectItem value="Guardian">Guardian</SelectItem>
-                      <SelectItem value="Grandparent">Grandparent</SelectItem>
+                      <SelectItem value="Caregiver">Caregiver</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>

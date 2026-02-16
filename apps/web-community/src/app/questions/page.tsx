@@ -210,7 +210,7 @@ export default function QuestionsPage() {
                             q.hasAcceptedAnswer
                               ? 'bg-green-100 text-green-700 border border-green-200'
                               : q.answerCount > 0
-                                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                ? 'bg-pink-50 text-pink-700 border border-pink-200'
                                 : 'bg-gray-50 text-gray-500 border border-gray-200'
                           }`}
                         >
@@ -226,7 +226,7 @@ export default function QuestionsPage() {
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900 hover:text-teal-600 transition-colors line-clamp-2">
+                        <h3 className="font-medium text-gray-900 hover:text-pink-600 transition-colors line-clamp-2">
                           {q.title}
                         </h3>
                         {q.summary && (
@@ -235,7 +235,7 @@ export default function QuestionsPage() {
 
                         <div className="flex items-center gap-2 flex-wrap mt-3">
                           {q.tags.map((tag) => (
-                            <span key={tag} className="text-xs bg-teal-50 text-teal-600 px-2 py-0.5 rounded-full">
+                            <span key={tag} className="text-xs bg-pink-50 text-pink-600 px-2 py-0.5 rounded-full">
                               {tag}
                             </span>
                           ))}

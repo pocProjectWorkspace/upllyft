@@ -77,13 +77,13 @@ export class CommunityService {
 
   async getMembers(query: any) {
     const {
-      page = 1,
-      limit = 20,
       role,
       verificationStatus,
       search
     } = query;
 
+    const page = parseInt(query.page, 10) || 1;
+    const limit = parseInt(query.limit, 10) || 20;
     const skip = (page - 1) * limit;
 
     const where: any = {};

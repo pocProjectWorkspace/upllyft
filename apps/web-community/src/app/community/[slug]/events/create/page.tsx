@@ -64,13 +64,13 @@ export default function CreateCommunityEventPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Event Type</Label>
-                <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as EventType }))} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none">
+                <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as EventType }))} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 focus:outline-none">
                   {EVENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
               <div>
                 <Label>Format</Label>
-                <select value={form.format} onChange={(e) => setForm((f) => ({ ...f, format: e.target.value as EventFormat }))} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none">
+                <select value={form.format} onChange={(e) => setForm((f) => ({ ...f, format: e.target.value as EventFormat }))} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 focus:outline-none">
                   {EVENT_FORMATS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
                 </select>
               </div>
