@@ -333,7 +333,7 @@ export class AvailabilityService {
         return availableSlots.map((slot) => ({
             startTime: slot.start.toISOString(),
             endTime: slot.end.toISOString(),
-            isAvailable: true,
+            available: true,
             displayTime: this.formatSlotInTimezone(slot.start, slot.end, patientTimezone),
         }));
     }
