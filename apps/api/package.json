@@ -23,6 +23,7 @@
     "prisma:generate": "prisma generate --schema=../../packages/database/prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema=../../packages/database/prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema=../../packages/database/prisma/schema.prisma",
+    "db:seed:cases": "tsx prisma/seeds/seed-dr-meena-cases.ts",
     "db:seed:all": "pnpm db:seed && pnpm db:seed:events && pnpm db:seed:qa && pnpm db:seed:crisis"
   },
   "dependencies": {
