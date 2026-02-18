@@ -8,10 +8,6 @@ import {
   Card,
   Badge,
   Skeleton,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -40,11 +36,13 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  toast,
 } from '@upllyft/ui';
 import { ScreeningShell } from '@/components/screening-shell';
 import {
   useReportData,
   useReportV2Data,
+  useGenerateReportV2,
   useDeleteAssessment,
   useShareAssessment,
   useSearchTherapists,
@@ -55,6 +53,7 @@ import {
   zoneColors,
   calculateZone,
   statusToZone,
+  resolveDomainKey,
   formatDate,
   formatAge,
   formatAgeGroup,
@@ -96,19 +95,28 @@ function getBarColor(riskIndex: number): string {
   return '#ef4444';
 }
 
-function getConfidenceBadge(confidence: 'HIGH' | 'MEDIUM' | 'LOW') {
-  switch (confidence) {
+function getConfidenceBadge(confidence: string) {
+  switch (confidence?.toUpperCase()) {
     case 'HIGH':
       return { bg: 'bg-green-100', text: 'text-green-700', label: 'High Confidence' };
     case 'MEDIUM':
       return { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Medium Confidence' };
     case 'LOW':
+    default:
       return { bg: 'bg-red-100', text: 'text-red-700', label: 'Low Confidence' };
   }
 }
 
+function normalizeDomainStatus(status: string): 'GREEN' | 'YELLOW' | 'RED' | null {
+  const s = status?.toUpperCase();
+  if (s === 'GREEN' || s === 'ON TRACK') return 'GREEN';
+  if (s === 'YELLOW' || s === 'MONITOR') return 'YELLOW';
+  if (s === 'RED' || s === 'CONCERN') return 'RED';
+  return null;
+}
+
 function getDomainStatusColor(status: string): string {
-  switch (status) {
+  switch (normalizeDomainStatus(status)) {
     case 'GREEN':
       return 'border-green-400';
     case 'YELLOW':
@@ -121,7 +129,7 @@ function getDomainStatusColor(status: string): string {
 }
 
 function getDomainStatusBadge(status: string) {
-  switch (status) {
+  switch (normalizeDomainStatus(status)) {
     case 'GREEN':
       return { bg: 'bg-green-100', text: 'text-green-700', label: 'On Track' };
     case 'YELLOW':
@@ -152,6 +160,7 @@ export default function ReportPage() {
 
   const { data: reportData, isLoading: reportLoading, error: reportError } = useReportData(id);
   const { data: reportV2Data, isLoading: v2Loading } = useReportV2Data(id);
+  const generateV2 = useGenerateReportV2();
   const deleteAssessment = useDeleteAssessment();
   const shareAssessment = useShareAssessment();
   const { data: therapists } = useSearchTherapists(therapistSearch || undefined);
@@ -198,6 +207,12 @@ export default function ReportPage() {
 
   const { assessment, child, domainScores, recommendations, responses, developmentalAgeEquivalent, overallInterpretation } = reportData;
   const flaggedCount = domainScores.filter((d) => d.zone === 'red' || d.zone === 'yellow').length;
+
+  // Calculate overall score as mean of domain risk indices, converted to development percentage
+  const avgRiskIndex = domainScores.length > 0
+    ? domainScores.reduce((sum, d) => sum + d.riskIndex, 0) / domainScores.length
+    : 0;
+  const overallPercentage = Math.round((1 - avgRiskIndex) * 100);
 
   // ── Chart Data ──
   const chartData = domainScores.map((d) => ({
@@ -249,19 +264,25 @@ export default function ReportPage() {
   async function handleDownloadReport(type: 'summary' | 'detailed' = 'summary') {
     setIsDownloading(true);
     try {
-      const { downloadReport } = await import('@/lib/api/assessments');
-      const blob = await downloadReport(id, type);
+      const childName = child.nickname || child.firstName || 'child';
+      let blob: Blob;
+      if (type === 'detailed') {
+        const { downloadReportV2 } = await import('@/lib/api/assessments');
+        blob = await downloadReportV2(id);
+      } else {
+        const { downloadReport } = await import('@/lib/api/assessments');
+        blob = await downloadReport(id, 'summary');
+      }
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `screening-report-${type}-${id.slice(0, 8)}.pdf`;
+      link.download = `MilestoneMap-${childName}-${type}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch {
-      // Fallback to window.print() if API download fails
-      window.print();
+      toast({ title: 'Download failed', description: 'Could not download the report. Please try again.', variant: 'destructive' });
     } finally {
       setIsDownloading(false);
     }
@@ -323,7 +344,7 @@ export default function ReportPage() {
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <div className="text-3xl font-bold text-gray-900">
-                    {assessment.overallScore != null ? `${Math.round(assessment.overallScore)}%` : '--'}
+                    {`${overallPercentage}%`}
                   </div>
                   <div className="text-xs text-gray-500 mt-1">Overall Score</div>
                 </div>
@@ -615,15 +636,17 @@ export default function ReportPage() {
                         {domainTitles[domain] || domain}
                       </h3>
                       <div className="space-y-3">
-                        {domainResponses.map((r) => (
+                        {domainResponses.map((r, idx) => (
                           <div key={r.id} className="flex items-start justify-between gap-4 py-2 border-b border-gray-100 last:border-0">
                             <div className="flex-1">
-                              <p className="text-sm text-gray-700">{r.questionId}</p>
+                              <p className="text-sm text-gray-700">
+                                Q{idx + 1}: {r.question || r.questionId}
+                              </p>
                               <p className="text-xs text-gray-400 mt-0.5">
-                                Tier {r.tier} | Score: {r.score}
+                                {r.questionId} | Tier {r.tier} | Score: {r.score}
                               </p>
                             </div>
-                            <span className={`text-sm font-medium ${getAnswerColor(r.answer)}`}>
+                            <span className={`text-sm font-medium shrink-0 ${getAnswerColor(r.answer)}`}>
                               {getAnswerLabel(r.answer)}
                             </span>
                           </div>
@@ -640,13 +663,45 @@ export default function ReportPage() {
         {/* ── V2 View: Deep Insight ── */}
         {viewMode === 'v2' && (
           <div className="space-y-8">
-            {/* Loading State */}
+            {/* Not Yet Generated State */}
+            {!v2Loading && !reportV2Data && (
+              <Card className="p-12 rounded-2xl border-0 shadow-sm text-center">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-100 to-teal-100 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Deep Insight Report</h3>
+                <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+                  A comprehensive developmental insight based on your child&apos;s screening responses and profile
+                  information. Includes developmental narrative, clinical correlations, domain analysis, and a
+                  strategic roadmap.
+                </p>
+                <Button
+                  onClick={() => generateV2.mutate(id)}
+                  disabled={generateV2.isPending}
+                  className="rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700"
+                >
+                  {generateV2.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Generating...
+                    </>
+                  ) : (
+                    'Generate Deep Insight'
+                  )}
+                </Button>
+              </Card>
+            )}
+
+            {/* Loading / Processing State */}
             {(v2Loading || reportV2Data?.status === 'PROCESSING') && (
               <Card className="p-12 rounded-2xl border-0 shadow-sm text-center">
                 <div className="w-12 h-12 border-3 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Analyzing Clinical Patterns...</h3>
                 <p className="text-sm text-gray-500 max-w-md mx-auto">
-                  Our AI is performing a deep analysis of the assessment data. This usually takes 30-60 seconds.
+                  Generating a comprehensive developmental insight based on the screening data.
+                  This usually takes about 60 seconds.
                 </p>
               </Card>
             )}
@@ -666,15 +721,16 @@ export default function ReportPage() {
                 <Button
                   variant="outline"
                   className="rounded-xl"
-                  onClick={() => window.location.reload()}
+                  onClick={() => generateV2.mutate(id)}
+                  disabled={generateV2.isPending}
                 >
-                  Retry Analysis
+                  {generateV2.isPending ? 'Regenerating...' : 'Retry Analysis'}
                 </Button>
               </Card>
             )}
 
             {/* Completed V2 Report */}
-            {reportV2Data?.status === 'COMPLETED' && (
+            {reportV2Data && reportV2Data.status !== 'PROCESSING' && reportV2Data.status !== 'FAILED' && (reportV2Data.executiveSummary || reportV2Data.developmentalNarrative) && (
               <div className="space-y-8">
                 {/* Report Title */}
                 {reportV2Data.reportTitle && (
@@ -762,15 +818,18 @@ export default function ReportPage() {
                       </div>
                       Clinical Correlations
                     </h2>
-                    <div className="relative pl-6 border-l-2 border-teal-200 space-y-6">
+                    <div className="relative space-y-6">
+                      {/* Vertical timeline line */}
+                      <div className="absolute left-[7px] top-0 bottom-0 w-0.5 bg-teal-200" />
+
                       {reportV2Data.clinicalCorrelations.map((correlation, idx) => {
                         const conf = getConfidenceBadge(correlation.confidence);
                         return (
                           <div key={idx} className="relative">
-                            {/* Timeline dot */}
-                            <div className="absolute -left-[25px] top-1 w-3 h-3 rounded-full bg-teal-400 border-2 border-white" />
+                            {/* Timeline dot — centered on the line */}
+                            <div className="absolute left-0 top-5 w-4 h-4 rounded-full bg-teal-500 border-2 border-white z-10" />
 
-                            <Card className="p-5 rounded-xl border-0 shadow-sm">
+                            <Card className="ml-8 p-5 rounded-xl border-0 shadow-sm">
                               <div className="flex items-start justify-between gap-3 mb-3">
                                 <h3 className="font-semibold text-gray-900 text-sm">{correlation.observation}</h3>
                                 <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${conf.bg} ${conf.text}`}>
@@ -810,18 +869,24 @@ export default function ReportPage() {
                       {reportV2Data.domainDeepDives.map((domain) => {
                         const statusBadge = getDomainStatusBadge(domain.status);
                         const borderColor = getDomainStatusColor(domain.status);
-                        const scorePercent = Math.round(domain.score * 100);
+                        const domainKey = resolveDomainKey(domain.domainId, domain.domainName);
+                        const scorePercent = domain.scorePercent != null
+                          ? Math.round(domain.scorePercent)
+                          : Math.round((domain.score || 0) * 100);
+                        const impactText = domain.impactTrajectory
+                          || [domain.impactOnDailyLife, domain.trajectory].filter(Boolean).join('\n\n')
+                          || '';
 
                         return (
                           <Card
-                            key={domain.domainId}
+                            key={domainKey}
                             className={`p-5 rounded-xl border-0 shadow-sm border-l-4 ${borderColor}`}
                           >
                             <div className="flex items-center justify-between mb-4">
                               <div className="flex items-center gap-3">
-                                <span className="text-xl">{domainIcons[domain.domainId] || '?'}</span>
+                                <span className="text-xl">{domainIcons[domainKey] || '?'}</span>
                                 <h3 className="font-semibold text-gray-900">
-                                  {domainTitles[domain.domainId] || domain.domainName}
+                                  {domainTitles[domainKey] || domain.domainName}
                                 </h3>
                               </div>
                               <div className="flex items-center gap-2">
@@ -846,7 +911,7 @@ export default function ReportPage() {
                                   Impact & Trajectory
                                 </h4>
                                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                                  {domain.impactTrajectory}
+                                  {impactText}
                                 </p>
                               </div>
                             </div>

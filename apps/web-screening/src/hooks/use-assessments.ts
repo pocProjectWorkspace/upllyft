@@ -166,6 +166,19 @@ export function useReportV2Data(id: string, enabled = true) {
   });
 }
 
+export function useGenerateReportV2() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => getReportV2Data(id, true),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: assessmentKeys.reportV2(id) });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to generate deep insight report.', variant: 'destructive' });
+    },
+  });
+}
+
 export function useShareAssessment() {
   const queryClient = useQueryClient();
   return useMutation({

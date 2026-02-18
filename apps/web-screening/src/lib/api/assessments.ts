@@ -108,6 +108,7 @@ export interface ReportData {
     tier: number;
     domain: string;
     questionId: string;
+    question?: string;
     answer: AnswerType;
     score: number;
   }>;
@@ -116,7 +117,7 @@ export interface ReportData {
 }
 
 export interface ReportV2 {
-  status: 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  status?: 'PROCESSING' | 'COMPLETED' | 'FAILED';
   reportTitle?: string;
   executiveSummary?: string;
   developmentalNarrative?: {
@@ -128,15 +129,18 @@ export interface ReportV2 {
     observation: string;
     relatedHistory: string;
     insight: string;
-    confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+    confidence: string;
   }>;
   domainDeepDives?: Array<{
-    domainId: string;
+    domainId?: string;
     domainName: string;
-    score: number;
-    status: DomainStatus;
+    score?: number;
+    scorePercent?: number;
+    status: string;
     clinicalAnalysis: string;
-    impactTrajectory: string;
+    impactTrajectory?: string;
+    impactOnDailyLife?: string;
+    trajectory?: string;
   }>;
   strategicRoadmap?: {
     immediatePriorities: Array<{ action: string; area: string; reason: string }>;
@@ -305,6 +309,13 @@ export async function downloadReport(
 ): Promise<Blob> {
   const res = await apiClient.get(`/assessments/${id}/report/download`, {
     params: { type },
+    responseType: 'blob',
+  });
+  return res.data;
+}
+
+export async function downloadReportV2(id: string): Promise<Blob> {
+  const res = await apiClient.get(`/assessments/${id}/report-v2/download`, {
     responseType: 'blob',
   });
   return res.data;

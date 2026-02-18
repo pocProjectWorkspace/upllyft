@@ -158,7 +158,7 @@ export class AssessmentsController {
     @ApiResponse({ status: 400, description: 'Assessment not completed' })
     @ApiResponse({ status: 404, description: 'Assessment not found' })
     async getReportData(@Param('id') id: string, @Request() req) {
-        return this.assessmentsService.getReportData(id, req.user.userId);
+        return this.assessmentsService.getReportData(id, req.user.id);
     }
 
     @Get(':id/report-v2')
@@ -180,6 +180,28 @@ export class AssessmentsController {
         );
     }
 
+    @Get(':id/report-v2/download')
+    @ApiOperation({ summary: 'Download V2 PDF report' })
+    @ApiResponse({ status: 200, description: 'V2 PDF report downloaded' })
+    @ApiResponse({ status: 400, description: 'Assessment not completed' })
+    @ApiResponse({ status: 404, description: 'Assessment not found' })
+    async downloadReportV2(
+        @Param('id') id: string,
+        @Request() req,
+        @Res() res,
+    ) {
+        await this.assessmentsService.getAssessment(id, req.user.id);
+
+        const result = await this.reportGeneratorV2.generateV2ReportPDF(id);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="assessment-report-${id}-v2.pdf"`,
+        );
+        res.send(result.pdfBuffer);
+    }
+
     @Get(':id/report/download')
     @ApiOperation({ summary: 'Download PDF report' })
     @ApiResponse({ status: 200, description: 'PDF report downloaded' })
@@ -194,7 +216,7 @@ export class AssessmentsController {
         const result = await this.assessmentsService.downloadReport(
             id,
             type.toUpperCase() as 'SUMMARY' | 'DETAILED',
-            req.user.userId,
+            req.user.id,
         );
 
         res.setHeader('Content-Type', 'application/pdf');

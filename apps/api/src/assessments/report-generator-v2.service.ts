@@ -2,11 +2,11 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import * as puppeteer from 'puppeteer';
 import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ACTIVITY_PLAYBOOK } from './activity-playbook';
+import { renderV2Report } from './pdf/pdf-report-v2.renderer';
 
 @Injectable()
 export class ReportGeneratorV2Service {
@@ -324,13 +324,7 @@ ${JSON.stringify(screeningResults, null, 2)}
      */
     async generateV2ReportPDF(assessmentId: string): Promise<{ pdfBuffer: Buffer }> {
         // 1. Get or generate JSON content
-        const existingReport = await this.prisma.assessmentReport.findFirst({
-            where: { assessmentId, reportType: 'ENHANCED' as any },
-        });
-
-        const reportData = (existingReport && (existingReport as any).v2Content)
-            ? (existingReport as any).v2Content
-            : await this.generateV2Report(assessmentId);
+        const reportData = await this.getOrGenerateV2Report(assessmentId);
 
         // 2. Fetch assessment and child for metadata
         const assessment = await this.prisma.assessment.findUnique({
@@ -342,132 +336,40 @@ ${JSON.stringify(screeningResults, null, 2)}
             throw new NotFoundException('Assessment not found');
         }
 
-        // 3. Generate Chart Image
-        const chartImage = await this.generateDomainChart(reportData.interpretations.domainInterpretations);
+        // 3. Generate Chart Image (raw PNG buffer)
+        const chartBuffer = await this.generateDomainChart(reportData.domainDeepDives || []);
 
-        // 4. Generate HTML
-        const html = await this.generateV2ReportHTML(reportData, assessment.child, chartImage);
-
-        // 5. Generate PDF using Puppeteer
-        const browser = await puppeteer.launch({
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        // 4. Generate PDF using PDFKit
+        const pdfBuffer = await renderV2Report(reportData, assessment.child, chartBuffer, {
+            calculateAge: (dob) => this.calculateAge(dob),
         });
 
-        try {
-            const page = await browser.newPage();
-            await page.setContent(html, { waitUntil: 'networkidle0' });
-
-            const pdfBuffer = await page.pdf({
-                format: 'A4',
-                printBackground: true,
-                margin: {
-                    top: '20px',
-                    right: '20px',
-                    bottom: '20px',
-                    left: '20px',
-                },
-            });
-
-            return { pdfBuffer: Buffer.from(pdfBuffer) };
-        } finally {
-            await browser.close();
-        }
+        return { pdfBuffer };
     }
 
-    /**
-     * Generate V2 PDF Report with pre-transformed data
-     */
-    async generateV2ReportPDFWithData(assessmentId: string, transformedData: any): Promise<{ pdfBuffer: Buffer }> {
-        try {
-            this.logger.log(`🎨 Starting PDF generation for assessment ${assessmentId}`);
-
-            // 1. Fetch assessment and child for metadata
-            this.logger.debug(`Fetching assessment and child data...`);
-            const assessment = await this.prisma.assessment.findUnique({
-                where: { id: assessmentId },
-                include: { child: true },
-            });
-
-            if (!assessment) {
-                this.logger.error(`Assessment ${assessmentId} not found`);
-                throw new NotFoundException('Assessment not found');
-            }
-            this.logger.debug(`✅ Assessment and child data fetched`);
-
-            // 2. Generate Chart Image
-            this.logger.debug(`Generating domain chart...`);
-            this.logger.debug(`Domain interpretations count: ${transformedData.interpretations?.domainInterpretations?.length || 0}`);
-
-            let chartImage: string;
-            try {
-                chartImage = await this.generateDomainChart(transformedData.interpretations.domainInterpretations);
-                this.logger.debug(`✅ Chart generated successfully`);
-            } catch (chartError) {
-                this.logger.error(`❌ Chart generation failed:`, chartError.message);
-                throw new Error(`Chart generation failed: ${chartError.message}`);
-            }
-
-            // 3. Generate HTML
-            this.logger.debug(`Generating HTML...`);
-            let html: string;
-            try {
-                html = await this.generateV2ReportHTML(transformedData, assessment.child, chartImage);
-                this.logger.debug(`✅ HTML generated successfully (length: ${html.length})`);
-            } catch (htmlError) {
-                this.logger.error(`❌ HTML generation failed:`, htmlError.message);
-                throw new Error(`HTML generation failed: ${htmlError.message}`);
-            }
-
-            // 4. Generate PDF using Puppeteer
-            this.logger.debug(`Launching Puppeteer...`);
-            const browser = await puppeteer.launch({
-                headless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox'],
-            });
-
-            try {
-                this.logger.debug(`Creating new page...`);
-                const page = await browser.newPage();
-
-                this.logger.debug(`Setting HTML content...`);
-                await page.setContent(html, { waitUntil: 'networkidle2' });
-
-                this.logger.debug(`Generating PDF...`);
-                const pdfBuffer = await page.pdf({
-                    format: 'A4',
-                    printBackground: true,
-                    margin: {
-                        top: '20px',
-                        right: '20px',
-                        bottom: '20px',
-                        left: '20px',
-                    },
-                });
-
-                this.logger.log(`✅ PDF generated successfully (size: ${pdfBuffer.length} bytes)`);
-                return { pdfBuffer: Buffer.from(pdfBuffer) };
-            } catch (pdfError) {
-                this.logger.error(`❌ PDF generation with Puppeteer failed:`, pdfError.message);
-                throw new Error(`PDF generation failed: ${pdfError.message}`);
-            } finally {
-                await browser.close();
-                this.logger.debug(`Browser closed`);
-            }
-        } catch (error) {
-            this.logger.error(`❌ generateV2ReportPDFWithData failed:`, error.message);
-            this.logger.error(`Stack:`, error.stack);
-            throw error;
+    private async generateDomainChart(domainDeepDives: any[]): Promise<Buffer> {
+        if (!domainDeepDives || domainDeepDives.length === 0) {
+            // Return a 1x1 transparent PNG if no data
+            return Buffer.from(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                'base64',
+            );
         }
-    }
 
-    private async generateDomainChart(domainInterpretations: any[]): Promise<string> {
-        const labels = domainInterpretations.map(d => d.domain);
-        const scores = domainInterpretations.map(d => d.developmentScore);
+        const labels = domainDeepDives.map(d => d.domainName || 'Unknown');
+        const scores = domainDeepDives.map(d => d.scorePercent || 0);
 
-        const colors = domainInterpretations.map(d => {
-            if (d.zone === 'Green') return 'rgba(34, 197, 94, 0.8)';
-            if (d.zone === 'Yellow') return 'rgba(234, 179, 8, 0.8)';
+        const statusToZone = (status: string) => {
+            const s = (status || '').toLowerCase();
+            if (s.includes('on track') || s === 'green') return 'Green';
+            if (s.includes('monitor') || s === 'yellow') return 'Yellow';
+            return 'Red';
+        };
+
+        const colors = domainDeepDives.map(d => {
+            const zone = statusToZone(d.status);
+            if (zone === 'Green') return 'rgba(34, 197, 94, 0.8)';
+            if (zone === 'Yellow') return 'rgba(234, 179, 8, 0.8)';
             return 'rgba(239, 68, 68, 0.8)';
         });
 
@@ -496,196 +398,10 @@ ${JSON.stringify(screeningResults, null, 2)}
             }
         };
 
-        const imageBuffer = await this.chartJSNodeCanvas.renderToBuffer(configuration as any);
-        return `data:image/png;base64,${imageBuffer.toString('base64')}`;
+        return this.chartJSNodeCanvas.renderToBuffer(configuration as any);
     }
 
-    private async generateV2ReportHTML(report: any, child: any, chartImage: string): Promise<string> {
-        return `
-            <!DOCTYPE html>
-            <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-                    <style>
-        :root {
-            --primary: #2563eb;
-            --success: #16a34a;
-            --warning: #ca8a04;
-            --danger: #dc2626;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --bg-light: #f8fafc;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            color: var(--text-main);
-            line-height: 1.6;
-            padding: 40px;
-            background: #fff;
-        }
-        .header {
-            border-bottom: 2px solid var(--bg-light);
-            padding-bottom: 24px;
-            margin-bottom: 32px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
-        .header-left h1 { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
-        .header-left p { color: var(--text-muted); font-size: 14px; }
-        .confidence-badge {
-            background: var(--bg-light);
-            padding: 8px 16px;
-            border-radius: 99px;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--primary);
-            border: 1px solid #e2e8f0;
-        }
-        .profile-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            margin-bottom: 40px;
-            background: var(--bg-light);
-            padding: 24px;
-            border-radius: 12px;
-        }
-        .profile-item label { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-        .profile-item span { font-size: 15px; font-weight: 600; }
-        
-        .section-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-        .section-title::before { content: ''; width: 4px; height: 18px; background: var(--primary); border-radius: 2px; }
-        
-        .synthesis-card {
-            background: #eff6ff;
-            border: 1px solid #dbeafe;
-            padding: 24px;
-            border-radius: 12px;
-            margin-bottom: 40px;
-        }
-        .synthesis-card p { font-size: 15px; }
-
-        .chart-section { text-align: center; margin-bottom: 40px; }
-        .chart-section img { max-width: 100%; border-radius: 12px; }
-
-        .domain-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
-        .domain-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 24px;
-            page-break-inside: avoid;
-        }
-        .domain-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .domain-name { font-weight: 700; font-size: 17px; }
-        .zone-pill {
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .zone-Green { background: #dcfce7; color: #166534; }
-        .zone-Yellow { background: #fef9c3; color: #854d0e; }
-        .zone-Red { background: #fee2e2; color: #991b1b; }
-
-        .recommendation-list { list-style: none; margin-top: 16px; }
-        .recommendation-item {
-            position: relative;
-            padding-left: 24px;
-            font-size: 14px;
-            margin-bottom: 8px;
-            color: var(--text-main);
-        }
-        .recommendation-item::before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: var(--primary);
-            font-weight: bold;
-        }
-
-        .pathway-section {
-            background: #fafafa;
-            border-top: 2px solid var(--bg-light);
-            margin-top: 40px;
-            padding-top: 32px;
-            page-break-before: always;
-        }
-        .footer {
-            margin-top: 60px;
-            font-size: 11px;
-            color: var(--text-muted);
-            text-align: center;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
-        }
-</style>
-    </head>
-    < body >
-    <div class="header" >
-        <div class="header-left" >
-            <h1>Enhanced Developmental Screening Report </h1>
-                < p > Case - Aware Synthesis • Unified Framework V2 </p>
-                    </div>
-                    < div class="confidence-badge" > Confidence Level: ${report.interpretations.overallSynthesis.confidenceLevel} </div>
-                        </div>
-
-                        < div class="profile-grid" >
-                            <div class="profile-item" > <label>Child Name < /label><span>${child.firstName}</span > </div>
-                                < div class="profile-item" > <label>Age < /label><span>${this.calculateAge(child.dateOfBirth)}</span > </div>
-                                    < div class="profile-item" > <label>Assessment ID < /label><span>#${child.id.substring(0, 8)}</span > </div>
-                                        </div>
-
-                                        < div class="section-title" > Clinical Synthesis </div>
-                                            < div class="synthesis-card" >
-                                                <p>${report.interpretations.overallSynthesis.summary} </p>
-                                                    </div>
-
-                                                    < div class="chart-section" >
-                                                        <img src="${chartImage}" />
-                                                            </div>
-
-                                                            < div class="section-title" > Domain Analysis </div>
-                                                                < div class="domain-grid" >
-                                                                    ${report.interpretations.domainInterpretations.map(d => `
-            <div class="domain-card">
-                <div class="domain-header">
-                    <span class="domain-name">${d.domain}</span>
-                    <span class="zone-pill zone-${d.zone}">${d.zone === 'Green' ? 'On Track' : d.zone === 'Yellow' ? 'Monitor' : 'Support Recommended'}</span>
-                </div>
-                <p style="font-size: 14px; margin-bottom: 12px;">${d.interpretation}</p>
-                <div style="font-weight: 600; font-size: 13px; color: var(--text-muted);">Activities & Guidance:</div>
-                <ul class="recommendation-list">
-                    ${d.recommendations.map(r => `<li class="recommendation-item">${r}</li>`).join('')}
-                </ul>
-            </div>
-        `).join('')
-            }
-</div>
-
-    < div class="pathway-section" >
-        <div class="section-title" > Support Pathways </div>
-            < p style = "font-size: 15px; margin-bottom: 16px;" > <strong>Strategic Approach: </strong> ${report.supportPathways.strategy}</p >
-                <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px;" > Recommended Next Steps: </div>
-                    < ul class="recommendation-list" >
-                        ${report.supportPathways.steps.map(s => `<li class="recommendation-item">${s}</li>`).join('')}
-</ul>
-    < div style = "margin-top: 24px; padding: 16px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; font-size: 13px;" >
-        <strong>Professional Guidance: </strong> ${report.supportPathways.professionalGuidance}
-            </div>
-            </div>
-
-            < div class="footer" >
-                This report is a screening guidance tool generated with AI assistance based on parent - reported data and screening questionnaires. 
-        It is NOT a medical diagnosis and should be discussed with a qualified professional.
-        Upllyft Framework © 2026
-    </div>
-    </body>
-    </html>
-        `;
-    }
+    // generateV2ReportHTML removed — replaced by pdf/pdf-report-v2.renderer.ts
 
     private calculateAge(dateOfBirth: Date): string {
         const now = new Date();

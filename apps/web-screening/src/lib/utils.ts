@@ -14,13 +14,39 @@ export const domainTitles: Record<string, string> = {
 export const domainIcons: Record<string, string> = {
   grossMotor: '🏃',
   fineMotor: '✋',
-  speechLanguage: '🗣️',
+  speechLanguage: '🗣',
   socialEmotional: '🤝',
   cognitiveLearning: '🧠',
-  adaptiveSelfCare: '🪥',
-  sensoryProcessing: '👁️',
-  visionHearing: '👂',
+  adaptiveSelfCare: '🧹',
+  sensoryProcessing: '🌀',
+  visionHearing: '👁',
 };
+
+const domainNameToKey: Record<string, string> = {
+  'gross motor': 'grossMotor',
+  'fine motor': 'fineMotor',
+  'speech & language': 'speechLanguage',
+  'speech and language': 'speechLanguage',
+  'social-emotional': 'socialEmotional',
+  'social emotional': 'socialEmotional',
+  'cognitive/learning': 'cognitiveLearning',
+  'cognitive': 'cognitiveLearning',
+  'adaptive/self-care': 'adaptiveSelfCare',
+  'adaptive self-care': 'adaptiveSelfCare',
+  'self-care': 'adaptiveSelfCare',
+  'sensory processing': 'sensoryProcessing',
+  'sensory': 'sensoryProcessing',
+  'vision & hearing': 'visionHearing',
+  'vision and hearing': 'visionHearing',
+};
+
+/** Resolve a domain ID or human-readable name to the canonical camelCase key */
+export function resolveDomainKey(domainId?: string, domainName?: string): string {
+  if (domainId && domainTitles[domainId]) return domainId;
+  if (domainName && domainTitles[domainName]) return domainName;
+  const normalized = (domainName || domainId || '').toLowerCase().trim();
+  return domainNameToKey[normalized] || domainId || domainName || '';
+}
 
 export const zoneColors: Record<ZoneType, { bg: string; text: string; border: string; progress: string }> = {
   green: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', progress: 'bg-green-500' },
@@ -81,7 +107,8 @@ export function getAgeGroup(dob: string | Date): string | null {
   return null;
 }
 
-export function formatAgeGroup(ageGroup: string): string {
+export function formatAgeGroup(ageGroup: string | undefined | null): string {
+  if (!ageGroup) return 'Unknown';
   return ageGroup
     .replace(/-/g, ' ')
     .replace(/(\d+)\s(\d+)\s(\w+)/, '$1-$2 $3')

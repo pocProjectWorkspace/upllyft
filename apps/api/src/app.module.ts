@@ -57,7 +57,8 @@ import { AssessmentsModule } from './assessments/assessments.module';
 import { PaymentModule } from './marketplace/payment/payment.module';
 import { BookingModule } from './marketplace/booking/booking.module';
 import { OrganizationModule } from './marketplace/organization/organization.module';
-import { NotificationModule } from './marketplace/notifications/notification.module';
+import { NotificationModule as MarketplaceNotificationModule } from './marketplace/notifications/notification.module';
+import { NotificationModule } from './notification/notification.module';
 import { RatingModule } from './marketplace/rating/rating.module';
 import { AdminModule as MarketplaceAdminModule } from './marketplace/admin/admin.module';
 import { AdminModule } from './admin/admin.module';
@@ -134,7 +135,7 @@ import { WorksheetsModule } from './worksheets/worksheets.module';
     BookingModule,
     TherapistModule,
     OrganizationModule,
-    NotificationModule,
+    MarketplaceNotificationModule,
     RatingModule,
     MarketplaceAdminModule,
     PackageModule,
@@ -150,6 +151,9 @@ import { WorksheetsModule } from './worksheets/worksheets.module';
     CaseBillingModule,
     CaseAuditModule,
     CaseConsentsModule,
+
+    // Notifications (controller + gateway)
+    NotificationModule,
 
     // Onboarding
     OnboardingModule,
