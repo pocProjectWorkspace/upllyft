@@ -99,7 +99,8 @@ export async function analyzeCase(
   query: string,
 ): Promise<ClinicalInsight & { conversationId: string }> {
   const res = await apiClient.post('/agents/clinical-insights/analyze', { query });
-  return res.data;
+  const body = res.data;
+  return body?.data ?? body;
 }
 
 export async function getInsightsHistory(): Promise<ConversationSummary[]> {
@@ -122,7 +123,8 @@ export async function followUp(
     `/agents/clinical-insights/conversation/${conversationId}/follow-up`,
     { query },
   );
-  return res.data;
+  const body = res.data;
+  return body?.data ?? body;
 }
 
 export async function submitFeedback(
