@@ -2,8 +2,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import { AiService } from '../ai/ai.service'; // Use for embeddings only
-import OpenAI from 'openai'; // Use for text generation
+import { AiService } from '../ai/ai.service';
+import OpenAI from 'openai';
 import axios from 'axios';
 import * as xml2js from 'xml2js';
 import {
@@ -13,7 +13,14 @@ import {
   SimilarCase,
   ExpertConnection,
   RelevantCommunity,
+  RelevantPost,
   StreamProgressEvent,
+  EnrichedClinicalInsight,
+  AnalyzeAssessmentDto,
+  OverallAssessment,
+  DomainAnalysisItem,
+  ClinicalCorrelation,
+  StrategicRoadmap,
 } from './clinical-insights.types';
 
 @Injectable()
@@ -24,28 +31,307 @@ export class ClinicalInsightsService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
-    private aiService: AiService, // Keep this for embeddings
+    private aiService: AiService,
   ) {
-    // Initialize OpenAI for text generation
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     this.openai = new OpenAI({ apiKey });
   }
 
-  /**
-   * Main entry point - orchestrates everything
-   */
+  // ─────────────────────────────────────────────────────────────────────────
+  // Assessment-based analysis (new wizard flow)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async analyzeAssessment(
+    dto: AnalyzeAssessmentDto,
+    userId: string,
+  ): Promise<EnrichedClinicalInsight & { conversationId: string }> {
+    this.logger.log(`Analyzing assessment ${dto.assessmentId} for user ${userId}`);
+
+    // 1. Fetch child + assessment data
+    const [child, assessment] = await Promise.all([
+      this.prisma.child.findUnique({
+        where: { id: dto.childId },
+        include: { conditions: true },
+      }),
+      this.prisma.assessment.findUnique({
+        where: { id: dto.assessmentId },
+        include: {
+          reports: { where: { reportType: 'ENHANCED' }, take: 1 },
+        },
+      }),
+    ]);
+
+    if (!child) throw new Error('Child not found');
+    if (!assessment) throw new Error('Assessment not found');
+
+    // 2. Calculate child age
+    const dob = new Date(child.dateOfBirth);
+    const now = new Date();
+    let ageYears = now.getFullYear() - dob.getFullYear();
+    let ageMonths = now.getMonth() - dob.getMonth();
+    if (ageMonths < 0) { ageYears--; ageMonths += 12; }
+    const ageStr = ageMonths > 0
+      ? `${ageYears} years, ${ageMonths} months`
+      : `${ageYears} years`;
+
+    // 3. Build case parameters from assessment data
+    const conditions = (child.conditions || []).map(c => c.conditionType || c.specificDiagnosis || '').filter(Boolean);
+    const therapies = (child.conditions || []).flatMap(c => c.currentTherapies || []);
+    const challenges = (child.conditions || []).map(c => c.primaryChallenges || '').filter(Boolean);
+    const flaggedDomains = assessment.flaggedDomains || [];
+
+    const caseParams: CaseParameters = {
+      age: ageStr,
+      diagnosis: conditions.length > 0 ? conditions : flaggedDomains,
+      interventions: therapies,
+      challenges: [...challenges, ...flaggedDomains.map(d => `${d} concerns`)],
+      goals: dto.focusAreas || [],
+    };
+
+    // 4. Build domain scores map for AI analysis
+    const domainScores = assessment.domainScores as Record<string, { riskIndex: number; status: string }> | null;
+
+    // 5. Run comprehensive AI analysis + standard pipeline in parallel
+    const query = this.buildAssessmentQuery(child, assessment, dto.context, dto.focusAreas);
+    const [comprehensiveResult, queryEmbedding] = await Promise.all([
+      this.generateComprehensiveAnalysis(child, assessment, domainScores, dto.context, dto.focusAreas),
+      this.aiService.generateEmbedding(query).catch(() => [] as number[]),
+    ]);
+
+    const [similarCases, researchArticles, recommendations, expertConnections, communities, organizations] = await Promise.all([
+      this.findSimilarCases(query, caseParams, userId, queryEmbedding),
+      this.searchPubMed(caseParams),
+      this.generateRecommendations(query, caseParams),
+      this.findRelevantExperts(caseParams, queryEmbedding),
+      this.findRelevantCommunities(caseParams),
+      this.findRelevantOrganizations(caseParams),
+    ]);
+
+    // 6. Compile enriched insights
+    const insights: EnrichedClinicalInsight = {
+      caseAnalysis: caseParams,
+      similarCases: similarCases.slice(0, 3),
+      researchArticles: researchArticles.slice(0, 5),
+      evidenceBasedRecommendations: recommendations.recommendations,
+      alternativeApproaches: recommendations.alternatives,
+      expertConnections: expertConnections.slice(0, 3),
+      communities: communities.slice(0, 3),
+      organizations: organizations.slice(0, 5),
+      confidence: this.calculateConfidence(similarCases, researchArticles),
+      citations: this.compileCitations(researchArticles),
+      overallAssessment: comprehensiveResult.overallAssessment,
+      domainAnalysis: comprehensiveResult.domainAnalysis,
+      clinicalCorrelations: comprehensiveResult.clinicalCorrelations,
+      strategicRoadmap: comprehensiveResult.strategicRoadmap,
+      child: {
+        id: child.id,
+        name: child.firstName,
+        age: ageStr,
+        dateOfBirth: child.dateOfBirth.toISOString(),
+      },
+      assessmentId: dto.assessmentId,
+      assessmentDate: assessment.completedAt?.toISOString() || assessment.createdAt.toISOString(),
+    };
+
+    // 7. Save conversation
+    const conversation = await this.saveConversation(userId, query, insights);
+    await this.logAgentUsage(userId, query, insights);
+
+    return { ...insights, conversationId: conversation.id };
+  }
+
+  private buildAssessmentQuery(
+    child: any,
+    assessment: any,
+    context?: string,
+    focusAreas?: string[],
+  ): string {
+    const parts: string[] = [];
+    parts.push(`Child: ${child.firstName}, Age: ${child.dateOfBirth}`);
+    parts.push(`Assessment status: ${assessment.status}`);
+    if (assessment.overallScore != null) {
+      parts.push(`Overall score: ${Math.round(assessment.overallScore)}%`);
+    }
+    if (assessment.flaggedDomains?.length > 0) {
+      parts.push(`Flagged domains: ${assessment.flaggedDomains.join(', ')}`);
+    }
+    if (context) parts.push(`Additional context: ${context}`);
+    if (focusAreas?.length) parts.push(`Focus areas: ${focusAreas.join(', ')}`);
+    return parts.join('. ');
+  }
+
+  private async generateComprehensiveAnalysis(
+    child: any,
+    assessment: any,
+    domainScores: Record<string, { riskIndex: number; status: string }> | null,
+    context?: string,
+    focusAreas?: string[],
+  ): Promise<{
+    overallAssessment: OverallAssessment;
+    domainAnalysis: DomainAnalysisItem[];
+    clinicalCorrelations: ClinicalCorrelation[];
+    strategicRoadmap: StrategicRoadmap;
+  }> {
+    const domainSummary = domainScores
+      ? Object.entries(domainScores).map(([key, val]) => {
+          const score = Math.round((1 - val.riskIndex) * 100);
+          return `- ${key}: ${score}% (${val.status})`;
+        }).join('\n')
+      : 'No domain scores available';
+
+    const conditions = (child.conditions || []).map((c: any) =>
+      `${c.conditionType}${c.specificDiagnosis ? ` (${c.specificDiagnosis})` : ''}${c.severity ? `, severity: ${c.severity}` : ''}`
+    ).join('; ') || 'None documented';
+
+    const prompt = `You are a senior developmental assessment analyst specializing in pediatric development.
+
+Analyze this child's developmental screening data and provide a comprehensive clinical insight.
+
+CHILD PROFILE:
+- Name: ${child.firstName}
+- Age: ${child.dateOfBirth ? new Date().getFullYear() - new Date(child.dateOfBirth).getFullYear() : 'Unknown'} years
+- Gender: ${child.gender || 'Not specified'}
+- Diagnosed conditions: ${conditions}
+${child.developmentalConcerns ? `- Developmental concerns: ${child.developmentalConcerns}` : ''}
+${child.learningDifficulties ? `- Learning difficulties: ${child.learningDifficulties}` : ''}
+${child.teacherConcerns ? `- Teacher concerns: ${child.teacherConcerns}` : ''}
+${child.prematureBirth ? `- Born premature at ${child.gestationalAge || 'unknown'} weeks` : ''}
+${child.sleepIssues ? `- Sleep issues: ${child.sleepDetails || 'Yes'}` : ''}
+${child.takingMedications ? `- Medications: ${child.medicationDetails || 'Yes'}` : ''}
+
+SCREENING RESULTS:
+- Overall Score: ${assessment.overallScore != null ? Math.round(assessment.overallScore) + '%' : 'Not available'}
+- Flagged Domains: ${(assessment.flaggedDomains || []).join(', ') || 'None'}
+- Domain Scores:
+${domainSummary}
+
+${context ? `ADDITIONAL PARENT CONTEXT: ${context}` : ''}
+${focusAreas?.length ? `FOCUS AREAS REQUESTED: ${focusAreas.join(', ')}` : ''}
+
+Return ONLY valid JSON (no markdown) with this exact structure:
+{
+  "overallAssessment": {
+    "riskLevel": "low|moderate|high",
+    "developmentalAge": "estimated developmental age equivalent if determinable, or null",
+    "headline": "One-sentence headline finding about the child's development",
+    "summary": "Two-paragraph comprehensive summary of the screening results, contextualizing the findings with the child's history and profile. Frame positively while being honest about areas of concern."
+  },
+  "domainAnalysis": [
+    {
+      "domain": "Domain Name",
+      "score": 75,
+      "status": "on-track|monitor|concern",
+      "clinicalAnalysis": "Detailed paragraph analyzing this domain in context of the child's history, conditions, and profile. Reference specific data points.",
+      "impact": "How this domain's performance affects daily life, school, and developmental trajectory. Contrast supported vs unsupported paths."
+    }
+  ],
+  "clinicalCorrelations": [
+    {
+      "title": "Correlation title (e.g. 'Motor-Language Connection')",
+      "relatedHistory": "Related historical/medical factor",
+      "insight": "Clinical interpretation of how these factors connect and what it means for the child's development"
+    }
+  ],
+  "strategicRoadmap": {
+    "shortTerm": [
+      {"area": "Focus area", "action": "Specific action to take", "reason": "Why this is important now"}
+    ],
+    "mediumTerm": [
+      {"area": "Focus area", "action": "Action for 3-6 months", "reason": "Expected benefit"}
+    ],
+    "longTerm": [
+      {"area": "Focus area", "action": "Long-term goal", "reason": "Developmental trajectory impact"}
+    ]
+  }
+}
+
+RULES:
+- Include analysis for EVERY domain present in the screening results
+- Map domain status: GREEN = "on-track", YELLOW = "monitor", RED = "concern"
+- Generate 3-5 clinical correlations connecting history to current findings
+- Frame findings as support pathways, NOT diagnoses
+- Use empathetic, parent-friendly language while being clinically accurate
+- Reference specific data points from the profile
+- Strategic roadmap: 2-3 items per phase`;
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4-turbo-preview',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        max_tokens: 4000,
+        response_format: { type: 'json_object' },
+      });
+
+      const content = response.choices[0]?.message?.content || '{}';
+      const parsed = JSON.parse(content);
+
+      return {
+        overallAssessment: parsed.overallAssessment || this.getDefaultOverallAssessment(assessment),
+        domainAnalysis: parsed.domainAnalysis || this.getDefaultDomainAnalysis(domainScores),
+        clinicalCorrelations: parsed.clinicalCorrelations || [],
+        strategicRoadmap: parsed.strategicRoadmap || { shortTerm: [], mediumTerm: [], longTerm: [] },
+      };
+    } catch (error) {
+      this.logger.error('Failed to generate comprehensive analysis:', error);
+      return {
+        overallAssessment: this.getDefaultOverallAssessment(assessment),
+        domainAnalysis: this.getDefaultDomainAnalysis(domainScores),
+        clinicalCorrelations: [],
+        strategicRoadmap: { shortTerm: [], mediumTerm: [], longTerm: [] },
+      };
+    }
+  }
+
+  private getDefaultOverallAssessment(assessment: any): OverallAssessment {
+    const score = assessment.overallScore;
+    const flagged = assessment.flaggedDomains?.length || 0;
+    let riskLevel: 'low' | 'moderate' | 'high' = 'low';
+    if (flagged >= 3 || (score != null && score < 50)) riskLevel = 'high';
+    else if (flagged >= 1 || (score != null && score < 70)) riskLevel = 'moderate';
+
+    return {
+      riskLevel,
+      headline: flagged > 0
+        ? `${flagged} developmental domain${flagged > 1 ? 's' : ''} flagged for attention`
+        : 'Development appears largely on track',
+      summary: 'This screening provides an overview of developmental progress across multiple domains. Please consult with a qualified professional for comprehensive evaluation and personalized guidance.',
+    };
+  }
+
+  private getDefaultDomainAnalysis(
+    domainScores: Record<string, { riskIndex: number; status: string }> | null,
+  ): DomainAnalysisItem[] {
+    if (!domainScores) return [];
+    return Object.entries(domainScores).map(([key, val]) => {
+      const score = Math.round((1 - val.riskIndex) * 100);
+      const statusMap: Record<string, 'on-track' | 'monitor' | 'concern'> = {
+        GREEN: 'on-track', YELLOW: 'monitor', RED: 'concern',
+      };
+      return {
+        domain: key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim(),
+        score,
+        status: statusMap[val.status] || 'monitor',
+        clinicalAnalysis: 'Detailed analysis requires AI generation.',
+        impact: 'Impact assessment requires AI generation.',
+      };
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Free-text analysis (original flow)
+  // ─────────────────────────────────────────────────────────────────────────
+
   async generateInsights(query: string, userId: string): Promise<ClinicalInsight & { conversationId: string }> {
     try {
       this.logger.log(`Generating clinical insights for user ${userId}`);
 
-      // Step 1: Extract case parameters and generate embedding in parallel
       const [caseParams, queryEmbedding] = await Promise.all([
         this.extractCaseParameters(query),
         this.aiService.generateEmbedding(query).catch(() => [] as number[]),
       ]);
       this.logger.debug('Extracted case parameters:', caseParams);
 
-      // Step 2: Run parallel searches (sharing the pre-computed embedding)
       const [similarCases, researchArticles, recommendations, expertConnections, communities, organizations] = await Promise.all([
         this.findSimilarCases(query, caseParams, userId, queryEmbedding),
         this.searchPubMed(caseParams),
@@ -55,7 +341,6 @@ export class ClinicalInsightsService {
         this.findRelevantOrganizations(caseParams),
       ]);
 
-      // Step 3: Compile and return insights
       const insights: ClinicalInsight = {
         caseAnalysis: caseParams,
         similarCases: similarCases.slice(0, 3),
@@ -69,24 +354,16 @@ export class ClinicalInsightsService {
         citations: this.compileCitations(researchArticles),
       };
 
-      // Step 4: Save conversation
       const conversation = await this.saveConversation(userId, query, insights);
-
-      // Step 5: Log for analytics
       await this.logAgentUsage(userId, query, insights);
 
       return { ...insights, conversationId: conversation.id };
-
-
     } catch (error) {
       this.logger.error('Failed to generate insights:', error);
       throw error;
     }
   }
 
-  /**
-   * Streaming version — yields progress events as each step completes
-   */
   async *generateInsightsStreamed(
     query: string,
     userId: string,
@@ -108,7 +385,6 @@ export class ClinicalInsightsService {
         data: { caseAnalysis: caseParams },
       };
 
-      // Batch 1: searches
       const [similarCases, researchArticles, communities, organizations] = await Promise.all([
         this.findSimilarCases(query, caseParams, userId, queryEmbedding),
         this.searchPubMed(caseParams),
@@ -118,7 +394,6 @@ export class ClinicalInsightsService {
 
       yield { step: 'searching', progress: 55, message: 'Search complete. Generating recommendations...' };
 
-      // Batch 2: AI generation + experts
       const [recommendations, expertConnections] = await Promise.all([
         this.generateRecommendations(query, caseParams),
         this.findRelevantExperts(caseParams, queryEmbedding),
@@ -154,6 +429,10 @@ export class ClinicalInsightsService {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Conversation management
+  // ─────────────────────────────────────────────────────────────────────────
+
   async getHistory(userId: string) {
     return this.prisma.clinicalConversation.findMany({
       where: { userId },
@@ -163,9 +442,9 @@ export class ClinicalInsightsService {
         title: true,
         updatedAt: true,
         _count: {
-          select: { messages: true }
-        }
-      }
+          select: { messages: true },
+        },
+      },
     });
   }
 
@@ -174,9 +453,9 @@ export class ClinicalInsightsService {
       where: { id: conversationId },
       include: {
         messages: {
-          orderBy: { createdAt: 'asc' }
-        }
-      }
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
 
     if (!conversation || conversation.userId !== userId) {
@@ -199,7 +478,6 @@ export class ClinicalInsightsService {
     query: string,
     userId: string,
   ): Promise<ClinicalInsight & { conversationId: string }> {
-    // Load existing conversation with last 5 messages for context
     const conversation = await this.prisma.clinicalConversation.findUnique({
       where: { id: conversationId },
       include: {
@@ -214,23 +492,19 @@ export class ClinicalInsightsService {
       throw new Error('Conversation not found');
     }
 
-    // Build context from previous assistant message metadata (original case params)
     const lastAssistantMsg = conversation.messages.find(m => m.role === 'assistant');
     const previousInsights = lastAssistantMsg?.metadata as any;
     const previousCaseParams = previousInsights?.caseAnalysis as CaseParameters | undefined;
 
-    // Enrich query with previous context
     const enrichedQuery = previousCaseParams
       ? `Previous context - Diagnosis: ${previousCaseParams.diagnosis.join(', ')}. Challenges: ${previousCaseParams.challenges.join(', ')}. Follow-up question: ${query}`
       : query;
 
-    // Run the same pipeline with enriched context
     const [caseParams, queryEmbedding] = await Promise.all([
       this.extractCaseParameters(enrichedQuery),
       this.aiService.generateEmbedding(enrichedQuery).catch(() => [] as number[]),
     ]);
 
-    // Merge previous params with new ones
     if (previousCaseParams) {
       caseParams.diagnosis = [...new Set([...previousCaseParams.diagnosis, ...caseParams.diagnosis])];
       caseParams.challenges = [...new Set([...previousCaseParams.challenges, ...caseParams.challenges])];
@@ -261,7 +535,6 @@ export class ClinicalInsightsService {
       citations: this.compileCitations(researchArticles),
     };
 
-    // Append messages to existing conversation
     await this.prisma.clinicalMessage.createMany({
       data: [
         { conversationId, role: 'user', content: query },
@@ -280,7 +553,7 @@ export class ClinicalInsightsService {
   async createStructuredPlan(recommendation: any, userId: string): Promise<any> {
     const prompt = `Create a detailed, week-by-week implementation plan for this recommendation:
     ${JSON.stringify(recommendation)}
-    
+
     Return as JSON with structure:
     {
       "title": "Plan Title",
@@ -294,17 +567,14 @@ export class ClinicalInsightsService {
         model: 'gpt-4-turbo-preview',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
-        max_tokens: 4000, // Increase token limit to prevent truncation
-        response_format: { type: 'json_object' }, // Enforce JSON mode
+        max_tokens: 4000,
+        response_format: { type: 'json_object' },
       });
 
       const content = response.choices[0]?.message?.content || '{}';
-      // Clean up potentially wrapped content (even with valid JSON mode, sometimes extra text appears or we just want to be safe)
       const jsonStr = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
       const planContent = JSON.parse(jsonStr);
 
-      // Save to database
       // @ts-ignore
       const plan = await this.prisma.clinicalPlan.create({
         data: {
@@ -314,10 +584,7 @@ export class ClinicalInsightsService {
         },
       });
 
-      return {
-        ...planContent,
-        id: plan.id, // Return the plan ID
-      };
+      return { ...planContent, id: plan.id };
     } catch (error) {
       this.logger.error('Error creating structured plan:', error);
       throw new Error('Failed to generate plan');
@@ -326,15 +593,110 @@ export class ClinicalInsightsService {
 
   async getPlan(id: string) {
     // @ts-ignore
-    return this.prisma.clinicalPlan.findUnique({
-      where: { id },
-    });
+    return this.prisma.clinicalPlan.findUnique({ where: { id } });
   }
 
-  private async saveConversation(userId: string, query: string, insights: ClinicalInsight) {
-    const title = insights.caseAnalysis.diagnosis[0]
-      ? `Case: ${insights.caseAnalysis.diagnosis.join(', ')}`
-      : `Clinical Analysis ${new Date().toLocaleDateString()}`;
+  async findRelevantPosts(conversationId: string, userId: string): Promise<RelevantPost[]> {
+    try {
+      const conversation = await this.prisma.clinicalConversation.findUnique({
+        where: { id: conversationId },
+        include: {
+          messages: {
+            where: { role: 'assistant' },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      });
+
+      if (!conversation || conversation.userId !== userId) {
+        throw new Error('Conversation not found or access denied');
+      }
+
+      const lastAssistantMsg = conversation.messages[0];
+      const metadata = lastAssistantMsg?.metadata as any;
+      const caseAnalysis = metadata?.caseAnalysis as CaseParameters | undefined;
+
+      if (!caseAnalysis) {
+        return [];
+      }
+
+      const keywords = [
+        ...(caseAnalysis.diagnosis || []),
+        ...(caseAnalysis.challenges || []),
+      ].filter(Boolean);
+
+      if (keywords.length === 0) return [];
+
+      const searchText = keywords.join(' ');
+      const embedding = await this.aiService.generateEmbedding(searchText).catch(() => [] as number[]);
+
+      if (!embedding || embedding.length === 0) return [];
+
+      const posts = await this.prisma.$queryRaw<any[]>`
+        SELECT
+          p.id,
+          p.title,
+          p.content,
+          p.tags,
+          p.upvotes,
+          p."viewCount",
+          p."createdAt",
+          u.name as "authorName",
+          u.role as "authorRole",
+          u.image as "authorAvatar",
+          c.name as "communityName",
+          c.slug as "communitySlug",
+          (SELECT COUNT(*)::int FROM "Comment" cm WHERE cm."postId" = p.id) as "commentCount",
+          1 - (p.embedding::vector <=> ${embedding}::vector) as similarity
+        FROM "Post" p
+        JOIN "User" u ON p."authorId" = u.id
+        LEFT JOIN "Community" c ON p."communityId" = c.id
+        WHERE
+          p."moderationStatus" = 'APPROVED'
+          AND p.embedding IS NOT NULL
+          AND p."isPublished" = true
+        ORDER BY p.embedding::vector <=> ${embedding}::vector
+        LIMIT 10
+      `.catch(error => {
+        this.logger.error('Vector search for relevant posts failed:', error);
+        return [];
+      });
+
+      if (!posts || posts.length === 0) return [];
+
+      return posts.map(post => ({
+        id: post.id,
+        title: post.title || 'Untitled Post',
+        content: (post.content || '').substring(0, 300),
+        authorName: post.authorName || 'Community Member',
+        authorRole: this.formatRole(post.authorRole),
+        authorAvatar: post.authorAvatar || undefined,
+        tags: post.tags || [],
+        upvotes: post.upvotes || 0,
+        viewCount: post.viewCount || 0,
+        commentCount: post.commentCount || 0,
+        createdAt: post.createdAt?.toISOString?.() || new Date().toISOString(),
+        communityName: post.communityName || undefined,
+        communitySlug: post.communitySlug || undefined,
+      }));
+    } catch (error) {
+      this.logger.error('Error finding relevant posts:', error);
+      return [];
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private: conversation persistence
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private async saveConversation(userId: string, query: string, insights: ClinicalInsight | EnrichedClinicalInsight) {
+    const enriched = insights as EnrichedClinicalInsight;
+    const title = enriched.child?.name
+      ? `${enriched.child.name} — Developmental Analysis`
+      : insights.caseAnalysis.diagnosis[0]
+        ? `Case: ${insights.caseAnalysis.diagnosis.join(', ')}`
+        : `Clinical Analysis ${new Date().toLocaleDateString()}`;
 
     return this.prisma.clinicalConversation.create({
       data: {
@@ -342,27 +704,21 @@ export class ClinicalInsightsService {
         title,
         messages: {
           create: [
-            {
-              role: 'user',
-              content: query
-            },
-            {
-              role: 'assistant',
-              content: 'Here is the clinical analysis based on your case.',
-              metadata: insights as any
-            }
-          ]
-        }
-      }
+            { role: 'user', content: query },
+            { role: 'assistant', content: 'Here is the clinical analysis based on your case.', metadata: insights as any },
+          ],
+        },
+      },
     });
   }
 
-  /**
-   * Extract case parameters using OpenAI directly
-   */
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private: AI extraction
+  // ─────────────────────────────────────────────────────────────────────────
+
   private async extractCaseParameters(query: string): Promise<CaseParameters> {
     const prompt = `Extract clinical case parameters from this query. Return as JSON.
-    
+
 Query: "${query}"
 
 Extract:
@@ -376,7 +732,6 @@ Return ONLY valid JSON, no markdown. Example:
 {"age": "8", "diagnosis": ["ASD", "ADHD"], "interventions": ["ABA"], "challenges": ["aggression"], "goals": ["communication"]}`;
 
     try {
-      // Use OpenAI directly
       const response = await this.openai.chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [{ role: 'user', content: prompt }],
@@ -389,18 +744,14 @@ Return ONLY valid JSON, no markdown. Example:
       return JSON.parse(jsonStr);
     } catch (error) {
       this.logger.error('Failed to extract case parameters:', error);
-      return {
-        diagnosis: [],
-        interventions: [],
-        challenges: [],
-        goals: [],
-      };
+      return { diagnosis: [], interventions: [], challenges: [], goals: [] };
     }
   }
 
-  /**
-   * Find similar cases using vector search
-   */
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private: similar cases (pgvector)
+  // ─────────────────────────────────────────────────────────────────────────
+
   private async findSimilarCases(
     query: string,
     caseParams: CaseParameters,
@@ -413,13 +764,11 @@ Return ONLY valid JSON, no markdown. Example:
         : await this.aiService.generateEmbedding(query);
 
       if (!embedding || embedding.length === 0) {
-        this.logger.warn('No embedding generated, using mock data');
-        return this.getMockSimilarCases(caseParams);
+        return [];
       }
 
-      // Search using pgvector
       const similarPosts = await this.prisma.$queryRaw<any[]>`
-        SELECT 
+        SELECT
           p.id,
           p.title,
           p.content,
@@ -430,24 +779,19 @@ Return ONLY valid JSON, no markdown. Example:
           1 - (p.embedding::vector <=> ${embedding}::vector) as similarity
         FROM "Post" p
         JOIN "User" u ON p."authorId" = u.id
-        WHERE 
+        WHERE
           p."authorId" != ${excludeUserId}
           AND p."moderationStatus" = 'APPROVED'
           AND p.embedding IS NOT NULL
         ORDER BY p.embedding::vector <=> ${embedding}::vector
         LIMIT 5
       `.catch(error => {
-        this.logger.error('Vector search failed, using fallback:', error);
+        this.logger.error('Vector search failed:', error);
         return [];
       });
 
-      if (!similarPosts || similarPosts.length === 0) {
-        // Only return mock data if we absolutely have to, but log it clearly
-        this.logger.warn('No similar cases found in DB. Returning empty list to avoid fake data.');
-        return [];
-      }
+      if (!similarPosts || similarPosts.length === 0) return [];
 
-      // Transform and anonymize results with LLM-backed redaction
       return Promise.all(
         similarPosts.map(async (post) => ({
           id: post.id,
@@ -458,67 +802,46 @@ Return ONLY valid JSON, no markdown. Example:
           similarity: post.similarity,
           relevanceExplanation: this.explainRelevance(post, caseParams),
           yearsOfExperience: post.yearsOfExperience,
-        }))
+        })),
       );
-
     } catch (error) {
       this.logger.error('Error finding similar cases:', error);
       return [];
     }
   }
 
-  /**
-   * Search PubMed for relevant research
-   */
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private: PubMed search
+  // ─────────────────────────────────────────────────────────────────────────
+
   private async searchPubMed(caseParams: CaseParameters): Promise<PubMedArticle[]> {
     try {
-      // Build search query using LLM for better relevance
       const searchTerms = await this.generatePubMedQuery(caseParams);
       this.logger.debug(`PubMed search query: ${searchTerms}`);
 
-      // Step 1: Search for article IDs
       const searchUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi';
       const searchResponse = await axios.get(searchUrl, {
-        params: {
-          db: 'pubmed',
-          term: searchTerms,
-          retmax: 10,
-          retmode: 'json',
-          sort: 'relevance',
-        },
+        params: { db: 'pubmed', term: searchTerms, retmax: 10, retmode: 'json', sort: 'relevance' },
         timeout: 5000,
       });
 
       const pmids = searchResponse.data?.esearchresult?.idlist || [];
 
       if (pmids.length === 0) {
-        this.logger.warn('No PubMed articles found with complex query, trying simple fallback');
-        // Fallback to simple query
         const simpleQuery = caseParams.diagnosis.join(' OR ');
         const simpleResponse = await axios.get(searchUrl, {
-          params: {
-            db: 'pubmed',
-            term: simpleQuery,
-            retmax: 5,
-            retmode: 'json',
-            sort: 'relevance',
-          },
+          params: { db: 'pubmed', term: simpleQuery, retmax: 5, retmode: 'json', sort: 'relevance' },
           timeout: 5000,
         });
         const simplePmids = simpleResponse.data?.esearchresult?.idlist || [];
-        if (simplePmids.length === 0) return []; // Return empty instead of fake
-
-        // Use simple results
+        if (simplePmids.length === 0) return [];
         return this.fetchPubMedDetails(simplePmids, caseParams);
       }
 
       return this.fetchPubMedDetails(pmids, caseParams);
-
-
-
     } catch (error) {
       this.logger.error('PubMed search failed:', error);
-      return []; // Return empty instead of fake
+      return [];
     }
   }
 
@@ -527,12 +850,10 @@ Return ONLY valid JSON, no markdown. Example:
       Diagnosis: ${caseParams.diagnosis.join(', ')}
       Interventions: ${caseParams.interventions.join(', ')}
       Challenges: ${caseParams.challenges.join(', ')}
-      
-      Return ONLY the search string. Use MeSH terms where possible. Use AND/OR operators. 
+
+      Return ONLY the search string. Use MeSH terms where possible. Use AND/OR operators.
       Focus on PRACTICAL CLINICAL INTERVENTIONS, MANAGEMENT STRATEGIES, and THERAPIES.
-      Avoid purely genetic or molecular research unless directly relevant to treatment.
-      Example: ("Autism Spectrum Disorder/therapy"[MeSH] OR "Autism/rehabilitation"[MeSH]) AND ("Sensory Integration"[MeSH] OR "Sensory Processing")
-      `;
+      Avoid purely genetic or molecular research unless directly relevant to treatment.`;
 
     try {
       const response = await this.openai.chat.completions.create({
@@ -542,48 +863,33 @@ Return ONLY valid JSON, no markdown. Example:
         max_tokens: 100,
       });
       return response.choices[0]?.message?.content?.trim() || caseParams.diagnosis.join(' AND ');
-    } catch (e) {
+    } catch {
       return caseParams.diagnosis.join(' AND ');
     }
   }
 
   private async fetchPubMedDetails(pmids: string[], caseParams: CaseParameters): Promise<PubMedArticle[]> {
-    // Step 2: Fetch article details
     const fetchUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi';
     const fetchResponse = await axios.get(fetchUrl, {
-      params: {
-        db: 'pubmed',
-        id: pmids.join(','),
-        rettype: 'abstract',
-        retmode: 'xml',
-      },
+      params: { db: 'pubmed', id: pmids.join(','), rettype: 'abstract', retmode: 'xml' },
       timeout: 5000,
     });
 
-    // Parse XML response
     const parser = new xml2js.Parser();
     const result = await parser.parseStringPromise(fetchResponse.data);
-
     const articles = this.parsePubMedResults(result);
     return this.rankArticles(articles, caseParams);
   }
 
-  /**
-   * Parse PubMed XML results
-   */
   private parsePubMedResults(xmlData: any): PubMedArticle[] {
     const articles: PubMedArticle[] = [];
-
     try {
       const pubmedArticles = xmlData?.PubmedArticleSet?.PubmedArticle || [];
-
       for (const article of pubmedArticles) {
         const medline = article.MedlineCitation?.[0];
         if (!medline) continue;
-
         const pmid = medline.PMID?.[0]?._ || medline.PMID?.[0];
         const articleData = medline.Article?.[0];
-
         if (pmid && articleData) {
           articles.push({
             pmid: String(pmid),
@@ -599,31 +905,21 @@ Return ONLY valid JSON, no markdown. Example:
     } catch (error) {
       this.logger.error('Error parsing PubMed XML:', error);
     }
-
     return articles;
   }
 
-  /**
-   * Extract abstract text from PubMed XML
-   */
   private extractAbstract(abstractData: any): string {
     if (!abstractData?.[0]) return 'No abstract available';
-
     const abstractTexts = abstractData[0].AbstractText;
     if (!abstractTexts) return 'No abstract available';
-
     return abstractTexts.map((text: any) => {
       if (typeof text === 'string') return text;
       return text._ || '';
     }).join(' ').substring(0, 500) + '...';
   }
 
-  /**
-   * Extract authors from PubMed XML
-   */
   private extractAuthors(authorList: any): string[] {
     if (!authorList?.[0]?.Author) return [];
-
     return authorList[0].Author.slice(0, 3).map((author: any) => {
       const lastName = author.LastName?.[0] || '';
       const initials = author.Initials?.[0] || '';
@@ -631,9 +927,10 @@ Return ONLY valid JSON, no markdown. Example:
     });
   }
 
-  /**
-   * Generate detailed evidence-based recommendations using OpenAI
-   */
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private: recommendations
+  // ─────────────────────────────────────────────────────────────────────────
+
   private async generateRecommendations(query: string, caseParams: CaseParameters) {
     const prompt = `You are an expert clinical advisor specializing in Indian healthcare context.
 
@@ -651,12 +948,12 @@ Generate 3-5 detailed, actionable recommendations in this EXACT JSON format:
       "title": "Brief recommendation title (60 chars max)",
       "description": "Detailed 150-250 word explanation covering what it is, how it works, why relevant, and expected outcomes",
       "actionSteps": [
-        "Detailed, elaborative step 1 (2-3 sentences explaining exactly what to do)",
-        "Detailed, elaborative step 2 (2-3 sentences explaining exactly what to do)",
-        "Detailed, elaborative step 3 (2-3 sentences explaining exactly what to do)"
+        "Detailed step 1 (2-3 sentences)",
+        "Detailed step 2 (2-3 sentences)",
+        "Detailed step 3 (2-3 sentences)"
       ],
       "priority": "high|medium|low",
-      "timeline": "Expected timeline for results (e.g., '4-6 weeks', '3 months')",
+      "timeline": "Expected timeline for results",
       "availability": {
         "india": true,
         "telehealth": true,
@@ -672,11 +969,7 @@ Generate 3-5 detailed, actionable recommendations in this EXACT JSON format:
       "actionSteps": ["Step 1", "Step 2"],
       "priority": "medium|low",
       "timeline": "Timeline estimate",
-      "availability": {
-        "india": true,
-        "telehealth": false,
-        "languages": ["English"]
-      },
+      "availability": { "india": true, "telehealth": false, "languages": ["English"] },
       "costEstimate": "Cost estimate"
     }
   ]
@@ -688,7 +981,6 @@ Requirements:
 - Mention availability in tier-2/tier-3 cities
 - Cost estimates in INR
 - Specify telehealth availability
-- List language availability
 - Consider accessibility for lower-income families
 - Include government schemes where applicable (NIMH, CDPO, etc.)
 
@@ -705,120 +997,61 @@ Return ONLY valid JSON, no markdown.`;
       const content = response.choices[0]?.message?.content || '{}';
       const jsonStr = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(jsonStr);
-
-      return {
-        recommendations: parsed.recommendations || [],
-        alternatives: parsed.alternatives || []
-      };
+      return { recommendations: parsed.recommendations || [], alternatives: parsed.alternatives || [] };
     } catch (error) {
-      this.logger.error('Failed to generate detailed recommendations:', error);
-      return this.getFallbackRecommendations(caseParams);
+      this.logger.error('Failed to generate recommendations:', error);
+      return this.getFallbackRecommendations();
     }
   }
 
-  private getFallbackRecommendations(caseParams: CaseParameters) {
+  private getFallbackRecommendations() {
     return {
       recommendations: [
         {
           title: 'Comprehensive Multidisciplinary Assessment',
-          description: 'Schedule a complete evaluation with a team including developmental pediatrician, speech therapist, and occupational therapist. This assessment will identify specific areas of need and create a baseline for measuring progress. The team will use standardized tools appropriate for the child\'s age and condition to evaluate cognitive, motor, social, and communication skills.',
+          description: 'Schedule a complete evaluation with a developmental pediatrician, speech therapist, and occupational therapist. This assessment identifies specific areas of need and creates a baseline for measuring progress.',
           actionSteps: [
-            'Contact a developmental pediatrician or child psychologist for initial consultation',
+            'Contact a developmental pediatrician for initial consultation',
             'Request referrals to speech-language pathologist and occupational therapist',
-            'Schedule assessments within 2-4 weeks if possible',
             'Gather all previous medical records and intervention reports',
-            'Prepare list of specific concerns and questions for the team'
           ],
           priority: 'high' as const,
-          timeline: '2-4 weeks for complete assessment',
-          availability: {
-            india: true,
-            telehealth: true,
-            languages: ['English', 'Hindi', 'Regional languages']
-          },
-          costEstimate: 'INR 5,000-15,000 depending on location and provider'
+          timeline: '2-4 weeks',
+          availability: { india: true, telehealth: true, languages: ['English', 'Hindi'] },
+          costEstimate: 'INR 5,000-15,000',
         },
         {
           title: 'Evidence-Based Behavioral Intervention Program',
-          description: 'Implement a structured behavioral intervention program tailored to the child\'s specific needs. This typically involves Applied Behavior Analysis (ABA) principles combined with naturalistic teaching strategies. Focus on functional communication, daily living skills, and reducing challenging behaviors through positive reinforcement.',
+          description: 'Implement a structured behavioral intervention program tailored to the child\'s needs using Applied Behavior Analysis principles combined with naturalistic teaching strategies.',
           actionSteps: [
             'Find a certified ABA therapist or behavioral consultant',
             'Start with 10-15 hours per week of therapy',
-            'Include parent training sessions to maintain consistency at home',
-            'Set specific, measurable goals for 3-month intervals',
-            'Monitor progress weekly and adjust strategies as needed'
+            'Include parent training sessions for consistency at home',
           ],
           priority: 'high' as const,
-          timeline: '8-12 weeks to see initial improvements',
-          availability: {
-            india: true,
-            telehealth: true,
-            languages: ['English', 'Hindi', 'Tamil', 'Marathi']
-          },
-          costEstimate: 'INR 800-2,000 per session; some NGOs offer subsidized rates'
+          timeline: '8-12 weeks for initial improvements',
+          availability: { india: true, telehealth: true, languages: ['English', 'Hindi', 'Tamil'] },
+          costEstimate: 'INR 800-2,000 per session',
         },
-        {
-          title: 'Augmentative and Alternative Communication (AAC)',
-          description: 'Introduce communication tools and strategies to support language development and reduce frustration. This can range from low-tech picture cards (PECS) to high-tech speech-generating devices or apps. AAC doesn\'t replace speech development but provides immediate ways to communicate needs and wants.',
-          actionSteps: [
-            'Consult with speech-language pathologist specializing in AAC',
-            'Start with simple picture exchange or basic AAC app on tablet',
-            'Train all family members and caregivers on consistent use',
-            'Practice in natural daily routines (meals, play, bath time)',
-            'Gradually increase vocabulary and complexity'
-          ],
-          priority: 'medium' as const,
-          timeline: '4-8 weeks to establish basic communication',
-          availability: {
-            india: true,
-            telehealth: true,
-            languages: ['Visual system - language independent']
-          },
-          costEstimate: 'Low-tech: INR 500-2,000; Apps: Free-5,000; Devices: INR 20,000-80,000'
-        }
       ],
       alternatives: [
         {
-          title: 'Sensory Integration Therapy',
-          description: 'Occupational therapy approach focusing on how the child processes sensory information. Helps with sensory sensitivities and improves ability to regulate responses to sensory input.',
-          actionSteps: [
-            'Find OT trained in sensory integration',
-            'Create sensory diet for home',
-            'Set up sensory-friendly space at home'
-          ],
-          priority: 'medium' as const,
-          timeline: '6-12 weeks',
-          availability: {
-            india: true,
-            telehealth: false,
-            languages: ['English', 'Hindi']
-          },
-          costEstimate: 'INR 800-1,500 per session'
-        },
-        {
           title: 'Parent-Mediated Early Intervention',
-          description: 'Training parents to deliver therapeutic interventions during daily routines. Research shows this can be highly effective and more affordable than intensive clinic-based therapy.',
-          actionSteps: [
-            'Enroll in parent training workshop',
-            'Practice strategies during daily activities',
-            'Join parent support group'
-          ],
+          description: 'Training parents to deliver therapeutic interventions during daily routines. Research shows this can be highly effective and more affordable.',
+          actionSteps: ['Enroll in parent training workshop', 'Practice strategies during daily activities'],
           priority: 'medium' as const,
           timeline: '3-6 months',
-          availability: {
-            india: true,
-            telehealth: true,
-            languages: ['English', 'Hindi', 'Regional languages']
-          },
-          costEstimate: 'INR 2,000-10,000 for workshop series; some free government programs'
-        }
-      ]
+          availability: { india: true, telehealth: true, languages: ['English', 'Hindi'] },
+          costEstimate: 'INR 2,000-10,000 for workshop series',
+        },
+      ],
     };
   }
 
-  /**
-   * Find relevant experts on the platform
-   */
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private: experts, communities, organizations
+  // ─────────────────────────────────────────────────────────────────────────
+
   private async findRelevantExperts(
     caseParams: CaseParameters,
     queryEmbedding?: number[],
@@ -832,7 +1065,6 @@ Return ONLY valid JSON, no markdown.`;
 
       if (keywords.length === 0) return [];
 
-      // Fetch a broader set of verified professionals to rank
       const experts = await this.prisma.user.findMany({
         where: {
           role: { in: ['THERAPIST', 'EDUCATOR'] },
@@ -840,30 +1072,20 @@ Return ONLY valid JSON, no markdown.`;
           specialization: { isEmpty: false },
         },
         select: {
-          id: true,
-          name: true,
-          role: true,
-          specialization: true,
-          yearsOfExperience: true,
-          reputation: true,
-          trustScore: true,
-          organization: true,
+          id: true, name: true, role: true, specialization: true,
+          yearsOfExperience: true, reputation: true, trustScore: true, organization: true,
           _count: { select: { posts: true, comments: true } },
         },
         take: 20,
       });
 
-      // Score each expert by specialization overlap with case keywords
       let scored = experts.map(expert => {
         const specs = (expert.specialization || []).map(s => s.toLowerCase());
-        const overlapCount = keywords.filter(k =>
-          specs.some(s => s.includes(k) || k.includes(s))
-        ).length;
+        const overlapCount = keywords.filter(k => specs.some(s => s.includes(k) || k.includes(s))).length;
         const relevanceScore = overlapCount / Math.max(keywords.length, 1);
         return { ...expert, relevanceScore };
       });
 
-      // If embedding available, boost with vector similarity
       if (queryEmbedding && queryEmbedding.length > 0) {
         try {
           const vectorResults = await this.prisma.$queryRaw<{ id: string; similarity: number }[]>`
@@ -881,11 +1103,10 @@ Return ONLY valid JSON, no markdown.`;
             relevanceScore: expert.relevanceScore + (similarityMap.get(expert.id) || 0) * 0.5,
           }));
         } catch (err) {
-          this.logger.warn('Vector expert matching failed, using keyword matching only:', err);
+          this.logger.warn('Vector expert matching failed:', err);
         }
       }
 
-      // Sort by relevance, then trust score
       scored.sort((a, b) => (b.relevanceScore - a.relevanceScore) || (b.trustScore - a.trustScore));
 
       return scored.slice(0, 5).map(expert => ({
@@ -904,94 +1125,50 @@ Return ONLY valid JSON, no markdown.`;
     }
   }
 
-  /**
-   * Find relevant communities on the platform
-   */
   private async findRelevantCommunities(caseParams: CaseParameters): Promise<RelevantCommunity[]> {
     try {
-      // Extract keywords for search
-      const keywords = [
-        ...(caseParams.diagnosis || []),
-        ...(caseParams.challenges || [])
-      ].map(k => k.toLowerCase());
+      const keywords = [...(caseParams.diagnosis || []), ...(caseParams.challenges || [])].map(k => k.toLowerCase());
 
       if (keywords.length === 0) {
-        // Fallback to general support communities if no keywords
-        const generalCommunities = await this.prisma.community.findMany({
-          where: {
-            tags: { hasSome: ['support', 'general', 'parenting'] }
-          },
+        const general = await this.prisma.community.findMany({
+          where: { tags: { hasSome: ['support', 'general', 'parenting'] } },
           take: 3,
           orderBy: { memberCount: 'desc' },
         });
-
-        return generalCommunities.map(c => ({
-          id: c.id,
-          name: c.name,
-          slug: c.slug,
-          description: c.description || '',
-          memberCount: c.memberCount,
-          matchReason: 'General Support Community',
-          tags: c.tags,
+        return general.map(c => ({
+          id: c.id, name: c.name, slug: c.slug,
+          description: c.description || '', memberCount: c.memberCount,
+          matchReason: 'General Support Community', tags: c.tags,
         }));
       }
 
-      // Find communities matching diagnosis or challenges tags
       const communities = await this.prisma.community.findMany({
         where: {
           OR: [
-            // Match keywords in tags (case insensitive handled by having lowercase tags usually)
             { tags: { hasSome: keywords } },
-            // Or description contains keyword (basic search)
-            {
-              OR: keywords.map(k => ({
-                description: { contains: k, mode: 'insensitive' }
-              }))
-            },
-            // Or name contains keyword
-            {
-              OR: keywords.map(k => ({
-                name: { contains: k, mode: 'insensitive' }
-              }))
-            }
-          ]
+            { OR: keywords.map(k => ({ description: { contains: k, mode: 'insensitive' } })) },
+            { OR: keywords.map(k => ({ name: { contains: k, mode: 'insensitive' } })) },
+          ],
         },
         take: 5,
         orderBy: { memberCount: 'desc' },
       });
 
       if (communities.length === 0) {
-        // Fallback if no specific matches
-        const popularCommunities = await this.prisma.community.findMany({
-          take: 3,
-          orderBy: { memberCount: 'desc' },
-        });
-
-        return popularCommunities.map(c => ({
-          id: c.id,
-          name: c.name,
-          slug: c.slug,
-          description: c.description || '',
-          memberCount: c.memberCount,
-          matchReason: 'Popular Community',
-          tags: c.tags,
+        const popular = await this.prisma.community.findMany({ take: 3, orderBy: { memberCount: 'desc' } });
+        return popular.map(c => ({
+          id: c.id, name: c.name, slug: c.slug,
+          description: c.description || '', memberCount: c.memberCount,
+          matchReason: 'Popular Community', tags: c.tags,
         }));
       }
 
       return communities.map(c => {
-        // Determine match reason
         const matchedTags = c.tags.filter(t => keywords.some(k => k.includes(t.toLowerCase()) || t.toLowerCase().includes(k)));
-        const reason = matchedTags.length > 0
-          ? `Matches ${matchedTags[0]} interest`
-          : 'Relevant topic';
-
         return {
-          id: c.id,
-          name: c.name,
-          slug: c.slug,
-          description: c.description || '',
-          memberCount: c.memberCount,
-          matchReason: reason,
+          id: c.id, name: c.name, slug: c.slug,
+          description: c.description || '', memberCount: c.memberCount,
+          matchReason: matchedTags.length > 0 ? `Matches ${matchedTags[0]} interest` : 'Relevant topic',
           tags: c.tags,
         };
       });
@@ -1009,142 +1186,65 @@ Return ONLY valid JSON, no markdown.`;
         ...(caseParams.goals || []),
       ].map(k => k.toLowerCase());
 
-      // Search organizations whose communities match the case keywords
       const orgs = await this.prisma.organization.findMany({
         where: {
           communities: {
             some: {
               OR: [
                 ...(keywords.length > 0 ? [{ tags: { hasSome: keywords } }] : []),
-                ...keywords.map(k => ({
-                  name: { contains: k, mode: 'insensitive' as const },
-                })),
-                ...keywords.map(k => ({
-                  description: { contains: k, mode: 'insensitive' as const },
-                })),
+                ...keywords.map(k => ({ name: { contains: k, mode: 'insensitive' as const } })),
+                ...keywords.map(k => ({ description: { contains: k, mode: 'insensitive' as const } })),
               ],
             },
           },
         },
         select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          logo: true,
-          website: true,
+          id: true, name: true, slug: true, description: true, logo: true, website: true,
           _count: { select: { communities: true, members: true } },
         },
         take: 5,
       });
 
       if (orgs.length === 0) {
-        // Fallback: return orgs with the most communities
-        const popularOrgs = await this.prisma.organization.findMany({
+        return this.prisma.organization.findMany({
           orderBy: { communities: { _count: 'desc' } },
           select: {
-            id: true,
-            name: true,
-            slug: true,
-            description: true,
-            logo: true,
-            website: true,
+            id: true, name: true, slug: true, description: true, logo: true, website: true,
             _count: { select: { communities: true, members: true } },
           },
           take: 3,
         });
-        return popularOrgs;
       }
 
       return orgs;
     } catch (error) {
-      this.logger.error('Error finding relevant organizations:', error);
+      this.logger.error('Error finding organizations:', error);
       return [];
     }
   }
 
-  /**
-   * Mock similar cases fallback for demo
-   */
-  private getMockSimilarCases(caseParams: CaseParameters): SimilarCase[] {
-    const diagnosis = caseParams.diagnosis[0] || 'ASD';
-    return [
-      {
-        title: `Success with PECS for non-verbal ${diagnosis} child`,
-        content: 'We saw breakthrough after introducing PECS system alongside modified approach...',
-        authorName: 'Dr. Sarah Chen',
-        authorRole: 'Speech Therapist',
-        similarity: 0.89,
-        relevanceExplanation: 'Similar diagnosis and successful intervention',
-      },
-      {
-        title: `Alternative approaches for ${diagnosis}`,
-        content: 'Found that incorporating play-based approach helped with engagement...',
-        authorName: 'Mark Thompson',
-        authorRole: 'Behavioral Therapist',
-        similarity: 0.85,
-        relevanceExplanation: 'Alternative intervention strategy',
-      },
-    ];
-  }
-
-  // HELPER METHODS
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private: helpers
+  // ─────────────────────────────────────────────────────────────────────────
 
   private formatRole(role: string): string {
     const roleMap: Record<string, string> = {
-      'THERAPIST': 'Licensed Therapist',
-      'EDUCATOR': 'Special Educator',
-      'USER': 'Community Member',
-      'ORGANIZATION': 'Healthcare Organization',
+      THERAPIST: 'Licensed Therapist',
+      EDUCATOR: 'Special Educator',
+      USER: 'Community Member',
+      ORGANIZATION: 'Healthcare Organization',
     };
     return roleMap[role] || role;
   }
 
   private explainRelevance(post: any, caseParams: CaseParameters): string {
-    const diagnosisMatch = caseParams.diagnosis.some(d =>
-      post.content.toLowerCase().includes(d.toLowerCase())
-    );
-
-    if (diagnosisMatch) {
-      return `Similar diagnosis and treatment context`;
+    if (caseParams.diagnosis.some(d => post.content.toLowerCase().includes(d.toLowerCase()))) {
+      return 'Similar diagnosis and treatment context';
     }
-
-    const challengeMatch = caseParams.challenges.some(c =>
-      post.content.toLowerCase().includes(c.toLowerCase())
-    );
-
-    if (challengeMatch) {
-      return `Addresses similar challenges`;
+    if (caseParams.challenges.some(c => post.content.toLowerCase().includes(c.toLowerCase()))) {
+      return 'Addresses similar challenges';
     }
-
-    return `Related therapeutic approach`;
-  }
-
-  private mapDiagnosisToSpecializations(diagnoses: string[]): string[] {
-    const mappings: Record<string, string[]> = {
-      'ASD': ['Autism Specialist', 'ABA Therapy', 'Behavioral Therapy'],
-      'autism': ['Autism Specialist', 'Developmental Therapy', 'Speech Therapy'],
-      'ADHD': ['ADHD Specialist', 'Behavioral Therapy', 'Child Psychology'],
-      'anxiety': ['Mental Health', 'CBT', 'Child Psychology'],
-      'dyslexia': ['Learning Disabilities', 'Special Education'],
-      'down syndrome': ['Developmental Disabilities', 'Early Intervention'],
-      'cerebral palsy': ['Physical Therapy', 'Occupational Therapy'],
-      'sensory': ['Occupational Therapy', 'Sensory Integration'],
-      'spd': ['Occupational Therapy', 'Sensory Integration'],
-      'neurodivergent': ['Autism Specialist', 'Child Psychology', 'Developmental Therapy'],
-      'speech': ['Speech Therapy', 'SLP'],
-      'language': ['Speech Therapy', 'SLP'],
-      'behavior': ['Behavioral Therapy', 'ABA Therapy', 'Child Psychology'],
-    };
-
-    const specs = new Set<string>();
-    for (const diagnosis of diagnoses) {
-      const key = diagnosis.toLowerCase();
-      const matched = mappings[key] || [];
-      matched.forEach(s => specs.add(s));
-    }
-
-    return Array.from(specs);
+    return 'Related therapeutic approach';
   }
 
   private calculateConfidence(similarCases: any[], articles: any[]): number {
@@ -1155,7 +1255,7 @@ Return ONLY valid JSON, no markdown.`;
 
   private compileCitations(articles: PubMedArticle[]): string[] {
     return articles.map(article =>
-      `${article.authors.join(', ')} (${article.year}). ${article.title}. ${article.journal}.`
+      `${article.authors.join(', ')} (${article.year}). ${article.title}. ${article.journal}.`,
     );
   }
 
@@ -1163,36 +1263,13 @@ Return ONLY valid JSON, no markdown.`;
     return articles.map(article => {
       let score = 0;
       const text = `${article.title} ${article.abstract}`.toLowerCase();
-
-      caseParams.diagnosis.forEach(d => {
-        if (text.includes(d.toLowerCase())) score += 0.3;
-      });
-
-      caseParams.interventions.forEach(i => {
-        if (text.includes(i.toLowerCase())) score += 0.2;
-      });
-
+      caseParams.diagnosis.forEach(d => { if (text.includes(d.toLowerCase())) score += 0.3; });
+      caseParams.interventions.forEach(i => { if (text.includes(i.toLowerCase())) score += 0.2; });
       const year = parseInt(article.year);
       if (year >= 2023) score += 0.2;
       else if (year >= 2020) score += 0.1;
-
       return { ...article, relevanceScore: Math.min(score, 1) };
     }).sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
-  }
-
-  private getFallbackArticles(caseParams: CaseParameters): PubMedArticle[] {
-    const diagnosis = caseParams.diagnosis[0] || 'autism';
-    return [
-      {
-        pmid: '00000001',
-        title: `Evidence-Based Interventions for ${diagnosis}: Clinical Guidelines`,
-        abstract: 'This article reviews current evidence-based practices...',
-        authors: ['Smith J', 'Johnson K'],
-        journal: 'Journal of Clinical Practice',
-        year: '2024',
-        relevanceScore: 0.85,
-      },
-    ];
   }
 
   private async logAgentUsage(userId: string, query: string, insights: ClinicalInsight) {
@@ -1215,22 +1292,16 @@ Return ONLY valid JSON, no markdown.`;
     }
   }
 
-  // Add a simplification method
   async simplifyContent(content: string): Promise<string> {
-    // Use GPT to simplify medical language
     const response = await this.openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
-      messages: [{
-        role: 'system',
-        content: 'Simplify this medical text for parents. Use simple words, short sentences, and avoid jargon.'
-      }, {
-        role: 'user',
-        content: content
-      }],
+      messages: [
+        { role: 'system', content: 'Simplify this medical text for parents. Use simple words, short sentences, and avoid jargon.' },
+        { role: 'user', content },
+      ],
       temperature: 0.7,
       max_tokens: 200,
     });
-
     return response.choices[0]?.message?.content || content;
   }
 }

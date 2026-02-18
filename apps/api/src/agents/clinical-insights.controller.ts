@@ -9,29 +9,51 @@ import {
   BadRequestException,
   NotFoundException,
   Param,
-  Sse,
   Res,
 } from '@nestjs/common';
 import { ClinicalInsightsService } from './clinical-insights.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ClinicalInsightsResponse } from './clinical-insights.types';
+import type { AnalyzeAssessmentDto } from './clinical-insights.types';
 
 @Controller('agents/clinical-insights')
 export class ClinicalInsightsController {
-  constructor(private readonly clinicalInsightsService: ClinicalInsightsService) { }
+  constructor(private readonly clinicalInsightsService: ClinicalInsightsService) {}
 
   @Post('analyze')
   @UseGuards(JwtAuthGuard)
   async analyzeClinicalCase(
     @Request() req: any,
     @Body('query') query: string,
-  ): Promise<ClinicalInsightsResponse> {
+  ) {
     if (!query || query.trim().length < 10) {
       throw new BadRequestException('Please provide a detailed case description');
     }
 
     const insights = await this.clinicalInsightsService.generateInsights(
       query,
+      req.user.id,
+    );
+
+    return {
+      success: true,
+      data: insights,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Post('analyze-assessment')
+  @UseGuards(JwtAuthGuard)
+  async analyzeAssessment(
+    @Request() req: any,
+    @Body() dto: Record<string, any>,
+  ) {
+    const { childId, assessmentId, context, focusAreas } = dto as AnalyzeAssessmentDto;
+    if (!childId || !assessmentId) {
+      throw new BadRequestException('childId and assessmentId are required');
+    }
+
+    const insights = await this.clinicalInsightsService.analyzeAssessment(
+      { childId, assessmentId, context, focusAreas },
       req.user.id,
     );
 
@@ -74,10 +96,7 @@ export class ClinicalInsightsController {
   @UseGuards(JwtAuthGuard)
   async getHistory(@Request() req: any) {
     const history = await this.clinicalInsightsService.getHistory(req.user.id);
-    return {
-      success: true,
-      data: history,
-    };
+    return { success: true, data: history };
   }
 
   @Get('history/:id')
@@ -87,10 +106,7 @@ export class ClinicalInsightsController {
     @Param('id') id: string,
   ) {
     const conversation = await this.clinicalInsightsService.getConversation(id, req.user.id);
-    return {
-      success: true,
-      data: conversation,
-    };
+    return { success: true, data: conversation };
   }
 
   @Post('action/create-plan')
@@ -98,10 +114,7 @@ export class ClinicalInsightsController {
   async createStructuredPlan(@Request() req: any, @Body() recommendation: any) {
     try {
       const plan = await this.clinicalInsightsService.createStructuredPlan(recommendation, req.user.id);
-      return {
-        success: true,
-        data: plan,
-      };
+      return { success: true, data: plan };
     } catch (error) {
       throw new BadRequestException('Failed to create plan. Please try again.');
     }
@@ -111,10 +124,15 @@ export class ClinicalInsightsController {
   @UseGuards(JwtAuthGuard)
   async getPlan(@Param('id') id: string) {
     const plan = await this.clinicalInsightsService.getPlan(id);
-    if (!plan) {
-      throw new NotFoundException('Plan not found');
-    }
+    if (!plan) throw new NotFoundException('Plan not found');
     return plan;
+  }
+
+  @Get('conversation/:id/posts')
+  @UseGuards(JwtAuthGuard)
+  async getRelevantPosts(@Request() req: any, @Param('id') id: string) {
+    const posts = await this.clinicalInsightsService.findRelevantPosts(id, req.user.id);
+    return { success: true, data: posts };
   }
 
   @Post('conversation/:id/follow-up')

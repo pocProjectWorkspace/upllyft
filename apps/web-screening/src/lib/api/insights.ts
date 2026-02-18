@@ -39,6 +39,10 @@ export interface ExpertConnection {
   yearsOfExperience: number;
   trustScore: number;
   organization?: string;
+  _count?: {
+    posts: number;
+    comments: number;
+  };
 }
 
 export interface DetailedRecommendation {
@@ -55,6 +59,86 @@ export interface DetailedRecommendation {
   costEstimate: string;
 }
 
+export interface OverallAssessment {
+  riskLevel: 'low' | 'moderate' | 'high';
+  developmentalAge?: string;
+  headline: string;
+  summary: string;
+}
+
+export interface DomainAnalysisItem {
+  domain: string;
+  score: number;
+  status: 'on-track' | 'monitor' | 'concern';
+  clinicalAnalysis: string;
+  impact: string;
+}
+
+export interface ClinicalCorrelation {
+  title: string;
+  relatedHistory: string;
+  insight: string;
+}
+
+export interface RoadmapItem {
+  area: string;
+  action: string;
+  reason: string;
+}
+
+export interface StrategicRoadmap {
+  shortTerm: RoadmapItem[];
+  mediumTerm: RoadmapItem[];
+  longTerm: RoadmapItem[];
+}
+
+export interface InsightChild {
+  id: string;
+  name: string;
+  avatar?: string;
+  age?: string;
+  dateOfBirth?: string;
+}
+
+export interface RelevantCommunity {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  memberCount: number;
+  matchReason: string;
+  tags: string[];
+}
+
+export interface RelevantOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  logo: string | null;
+  website: string | null;
+  _count: {
+    communities: number;
+    members: number;
+  };
+}
+
+export interface RelevantPost {
+  id: string;
+  title: string;
+  content: string;
+  authorName: string;
+  authorRole: string;
+  authorAvatar?: string;
+  tags: string[];
+  upvotes: number;
+  viewCount: number;
+  commentCount: number;
+  createdAt: string;
+  communityName?: string;
+  communitySlug?: string;
+}
+
 export interface ClinicalInsight {
   caseAnalysis: CaseParameters;
   similarCases: SimilarCase[];
@@ -62,17 +146,25 @@ export interface ClinicalInsight {
   evidenceBasedRecommendations: DetailedRecommendation[];
   alternativeApproaches: DetailedRecommendation[];
   expertConnections: ExpertConnection[];
+  communities?: RelevantCommunity[];
+  organizations?: RelevantOrganization[];
   confidence: number;
   citations?: string[];
+  // Enriched fields (from assessment-based analysis)
+  overallAssessment?: OverallAssessment;
+  domainAnalysis?: DomainAnalysisItem[];
+  clinicalCorrelations?: ClinicalCorrelation[];
+  strategicRoadmap?: StrategicRoadmap;
+  child?: InsightChild;
+  assessmentId?: string;
+  assessmentDate?: string;
 }
 
 export interface ConversationMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  metadata?: {
-    insights?: ClinicalInsight;
-  };
+  metadata?: any;
   createdAt: string;
 }
 
@@ -91,6 +183,14 @@ export interface ConversationSummary {
   query?: string;
   confidence?: number;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface AnalyzeAssessmentDto {
+  childId: string;
+  assessmentId: string;
+  context?: string;
+  focusAreas?: string[];
 }
 
 // ── API Functions ──
@@ -99,6 +199,14 @@ export async function analyzeCase(
   query: string,
 ): Promise<ClinicalInsight & { conversationId: string }> {
   const res = await apiClient.post('/agents/clinical-insights/analyze', { query });
+  const body = res.data;
+  return body?.data ?? body;
+}
+
+export async function analyzeAssessment(
+  dto: AnalyzeAssessmentDto,
+): Promise<ClinicalInsight & { conversationId: string }> {
+  const res = await apiClient.post('/agents/clinical-insights/analyze-assessment', dto);
   const body = res.data;
   return body?.data ?? body;
 }
@@ -135,4 +243,20 @@ export async function submitFeedback(
     conversationId,
     value,
   });
+}
+
+export async function getRelevantPosts(
+  conversationId: string,
+): Promise<RelevantPost[]> {
+  const res = await apiClient.get(`/agents/clinical-insights/conversation/${conversationId}/posts`);
+  const body = res.data;
+  return body?.data ?? [];
+}
+
+export async function createStructuredPlan(
+  recommendation: any,
+): Promise<any> {
+  const res = await apiClient.post('/agents/clinical-insights/action/create-plan', recommendation);
+  const body = res.data;
+  return body?.data ?? body;
 }

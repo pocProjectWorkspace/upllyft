@@ -25,10 +25,14 @@ import {
 } from '@/lib/api/assessments';
 import {
   analyzeCase,
+  analyzeAssessment,
   getInsightsHistory,
   getInsightConversation,
   followUp,
   submitFeedback,
+  getRelevantPosts,
+  createStructuredPlan,
+  type AnalyzeAssessmentDto,
 } from '@/lib/api/insights';
 
 const assessmentKeys = {
@@ -239,6 +243,7 @@ const insightKeys = {
   all: ['insights'] as const,
   history: () => [...insightKeys.all, 'history'] as const,
   conversation: (id: string) => [...insightKeys.all, 'conversation', id] as const,
+  relevantPosts: (id: string) => [...insightKeys.all, 'relevant-posts', id] as const,
 };
 
 export function useInsightsHistory() {
@@ -270,6 +275,19 @@ export function useAnalyzeCase() {
   });
 }
 
+export function useAnalyzeAssessment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: AnalyzeAssessmentDto) => analyzeAssessment(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: insightKeys.history() });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to analyze assessment.', variant: 'destructive' });
+    },
+  });
+}
+
 export function useFollowUp() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -290,6 +308,27 @@ export function useSubmitFeedback() {
       submitFeedback(conversationId, value),
     onSuccess: () => {
       toast({ title: 'Feedback submitted', description: 'Thank you for your feedback.' });
+    },
+  });
+}
+
+export function useRelevantPosts(conversationId: string, enabled = true) {
+  return useQuery({
+    queryKey: insightKeys.relevantPosts(conversationId),
+    queryFn: () => getRelevantPosts(conversationId),
+    enabled: !!conversationId && enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateStructuredPlan() {
+  return useMutation({
+    mutationFn: (recommendation: any) => createStructuredPlan(recommendation),
+    onSuccess: () => {
+      toast({ title: 'Plan created', description: 'Your structured plan has been generated.' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to create plan.', variant: 'destructive' });
     },
   });
 }
