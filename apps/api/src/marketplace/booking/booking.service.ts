@@ -92,6 +92,9 @@ export class BookingService {
         const platformFee = pricing.price * (platformFeePercent / 100);
         const therapistAmount = pricing.price - platformFee;
 
+        // Check if therapist has Stripe payment setup
+        const hasPaymentSetup = therapist.stripeAccountId && therapist.stripeOnboardingComplete;
+
         // Create booking
         const booking = await this.prisma.booking.create({
             data: {
@@ -103,7 +106,7 @@ export class BookingService {
                 endDateTime,
                 timezone,
                 duration: sessionType.duration,
-                status: 'PENDING_PAYMENT',
+                status: hasPaymentSetup ? 'PENDING_PAYMENT' : 'PENDING_ACCEPTANCE',
                 subtotal: pricing.price,
                 platformFee,
                 platformFeePercentage: platformFeePercent,
@@ -112,20 +115,31 @@ export class BookingService {
                 currency: pricing.currency,
                 patientNotes,
                 patientFiles: patientFiles || [],
-                acceptanceDeadline: addHours(new Date(), 4), // 4 hours to accept after payment
+                acceptanceDeadline: addHours(new Date(), 4),
             },
         });
 
-        // Create payment intent
-        const paymentIntent = await this.paymentService.createBookingPaymentIntent(
-            booking.id,
-            pricing.price,
-            pricing.currency,
-        );
+        // Create payment intent if therapist has Stripe setup
+        if (hasPaymentSetup) {
+            const paymentIntent = await this.paymentService.createBookingPaymentIntent(
+                booking.id,
+                pricing.price,
+                pricing.currency,
+            );
+
+            return {
+                booking,
+                clientSecret: paymentIntent.clientSecret,
+                acceptanceDeadline: booking.acceptanceDeadline,
+            };
+        }
+
+        // No payment setup — booking goes directly to pending acceptance
+        this.logger.warn(`Therapist ${therapistId} has no Stripe setup — skipping payment for booking ${booking.id}`);
 
         return {
             booking,
-            clientSecret: paymentIntent.clientSecret,
+            clientSecret: null,
             acceptanceDeadline: booking.acceptanceDeadline,
         };
     }
