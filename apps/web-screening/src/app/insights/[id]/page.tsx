@@ -133,6 +133,7 @@ export default function InsightDetailPage() {
 
         {/* ── Case Info Header ── */}
         <CaseInfoHeader
+          conversationId={id}
           child={insights?.child}
           assessmentDate={insights?.assessmentDate}
           createdAt={conversation.createdAt}

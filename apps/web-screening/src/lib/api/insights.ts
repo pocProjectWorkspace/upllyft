@@ -260,3 +260,78 @@ export async function createStructuredPlan(
   const body = res.data;
   return body?.data ?? body;
 }
+
+export async function getPlan(planId: string): Promise<any> {
+  const res = await apiClient.get(`/agents/clinical-insights/plan/${planId}`);
+  const body = res.data;
+  return body?.content ?? body;
+}
+
+export async function deleteInsight(conversationId: string): Promise<void> {
+  await apiClient.delete(`/agents/clinical-insights/history/${conversationId}`);
+}
+
+export interface InsightShareData {
+  id: string;
+  conversationId: string;
+  sharedBy: string;
+  sharedWith: string;
+  message?: string;
+  isActive: boolean;
+  sharedAt: string;
+  therapist: {
+    id: string;
+    name: string;
+    email: string;
+    image?: string;
+  };
+}
+
+export async function shareInsight(
+  conversationId: string,
+  therapistId: string,
+  message?: string,
+): Promise<InsightShareData> {
+  const res = await apiClient.post(
+    `/agents/clinical-insights/history/${conversationId}/share`,
+    { therapistId, message },
+  );
+  const body = res.data;
+  return body?.data ?? body;
+}
+
+export async function getInsightShares(
+  conversationId: string,
+): Promise<InsightShareData[]> {
+  const res = await apiClient.get(
+    `/agents/clinical-insights/history/${conversationId}/shares`,
+  );
+  const body = res.data;
+  return body?.data ?? [];
+}
+
+export async function revokeInsightShare(
+  conversationId: string,
+  therapistId: string,
+): Promise<void> {
+  await apiClient.delete(
+    `/agents/clinical-insights/history/${conversationId}/share/${therapistId}`,
+  );
+}
+
+export interface FollowUpQA {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+}
+
+export async function getFollowUps(
+  conversationId: string,
+): Promise<FollowUpQA[]> {
+  const res = await apiClient.get(
+    `/agents/clinical-insights/conversation/${conversationId}/follow-ups`,
+  );
+  const body = res.data;
+  return body?.data ?? [];
+}

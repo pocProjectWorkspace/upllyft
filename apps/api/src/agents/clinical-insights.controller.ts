@@ -6,10 +6,14 @@ import {
   UseGuards,
   Request,
   Get,
+  Delete,
   BadRequestException,
   NotFoundException,
   Param,
   Res,
+  HttpCode,
+  HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ClinicalInsightsService } from './clinical-insights.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -152,6 +156,67 @@ export class ClinicalInsightsController {
       data: insights,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Delete('history/:id')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteConversation(
+    @Request() req: any,
+    @Param('id') id: string,
+  ) {
+    await this.clinicalInsightsService.deleteConversation(id, req.user.id);
+  }
+
+  @Post('history/:id/share')
+  @UseGuards(JwtAuthGuard)
+  async shareInsight(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() body: { therapistId: string; message?: string },
+  ) {
+    if (!body.therapistId) {
+      throw new BadRequestException('therapistId is required');
+    }
+
+    const share = await this.clinicalInsightsService.shareInsight(
+      id,
+      req.user.id,
+      body.therapistId,
+      body.message,
+    );
+    return { success: true, data: share };
+  }
+
+  @Get('history/:id/shares')
+  @UseGuards(JwtAuthGuard)
+  async getInsightShares(
+    @Request() req: any,
+    @Param('id') id: string,
+  ) {
+    const shares = await this.clinicalInsightsService.getInsightShares(id, req.user.id);
+    return { success: true, data: shares };
+  }
+
+  @Delete('history/:id/share/:therapistId')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeInsightShare(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Param('therapistId') therapistId: string,
+  ) {
+    await this.clinicalInsightsService.revokeInsightShare(id, req.user.id, therapistId);
+  }
+
+  @Get('conversation/:id/follow-ups')
+  @UseGuards(JwtAuthGuard)
+  async getFollowUps(
+    @Request() req: any,
+    @Param('id') id: string,
+  ) {
+    const followUps = await this.clinicalInsightsService.getFollowUps(id, req.user.id);
+    return { success: true, data: followUps };
   }
 
   @Post('feedback')

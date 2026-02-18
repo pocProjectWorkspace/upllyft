@@ -65,6 +65,8 @@ model User {
   clinicalConversations   ClinicalConversation[]
   clinicalPlans           ClinicalPlan[]
   clinicalFeedback        ClinicalFeedback[]
+  sharedInsights          InsightShare[]           @relation("SharedInsights")
+  receivedInsights        InsightShare[]           @relation("ReceivedInsights")
   comments                Comment[]
   createdCommunities      Community[]              @relation("CreatedCommunities")
   communityMemberships    CommunityMember[]
@@ -1463,6 +1465,7 @@ model ClinicalConversation {
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  ClinicalMessage[]
   feedbacks ClinicalFeedback[]
+  shares    InsightShare[]
 
   @@index([userId])
   @@index([updatedAt])
@@ -1504,6 +1507,24 @@ model ClinicalFeedback {
 
   @@unique([userId, conversationId])
   @@index([conversationId])
+}
+
+model InsightShare {
+  id             String               @id @default(cuid())
+  conversationId String
+  sharedBy       String
+  sharedWith     String
+  message        String?
+  isActive       Boolean              @default(true)
+  sharedAt       DateTime             @default(now())
+  conversation   ClinicalConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  parent         User                 @relation("SharedInsights", fields: [sharedBy], references: [id])
+  therapist      User                 @relation("ReceivedInsights", fields: [sharedWith], references: [id])
+
+  @@unique([conversationId, sharedWith])
+  @@index([sharedBy])
+  @@index([sharedWith])
+  @@map("insight_shares")
 }
 
 model Assessment {

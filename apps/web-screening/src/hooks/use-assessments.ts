@@ -32,6 +32,11 @@ import {
   submitFeedback,
   getRelevantPosts,
   createStructuredPlan,
+  deleteInsight,
+  shareInsight,
+  getInsightShares,
+  revokeInsightShare,
+  getFollowUps,
   type AnalyzeAssessmentDto,
 } from '@/lib/api/insights';
 
@@ -244,6 +249,8 @@ const insightKeys = {
   history: () => [...insightKeys.all, 'history'] as const,
   conversation: (id: string) => [...insightKeys.all, 'conversation', id] as const,
   relevantPosts: (id: string) => [...insightKeys.all, 'relevant-posts', id] as const,
+  shares: (id: string) => [...insightKeys.all, 'shares', id] as const,
+  followUps: (id: string) => [...insightKeys.all, 'follow-ups', id] as const,
 };
 
 export function useInsightsHistory() {
@@ -330,5 +337,71 @@ export function useCreateStructuredPlan() {
     onError: () => {
       toast({ title: 'Error', description: 'Failed to create plan.', variant: 'destructive' });
     },
+  });
+}
+
+export function useDeleteInsight() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => deleteInsight(conversationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: insightKeys.history() });
+      toast({ title: 'Analysis deleted', description: 'The analysis has been permanently deleted.' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to delete analysis.', variant: 'destructive' });
+    },
+  });
+}
+
+export function useShareInsight() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ conversationId, therapistId, message }: {
+      conversationId: string;
+      therapistId: string;
+      message?: string;
+    }) => shareInsight(conversationId, therapistId, message),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: insightKeys.shares(variables.conversationId) });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to share analysis.', variant: 'destructive' });
+    },
+  });
+}
+
+export function useInsightShares(conversationId: string) {
+  return useQuery({
+    queryKey: insightKeys.shares(conversationId),
+    queryFn: () => getInsightShares(conversationId),
+    enabled: !!conversationId,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useRevokeInsightShare() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ conversationId, therapistId }: {
+      conversationId: string;
+      therapistId: string;
+    }) => revokeInsightShare(conversationId, therapistId),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: insightKeys.shares(variables.conversationId) });
+      toast({ title: 'Share revoked' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to revoke share.', variant: 'destructive' });
+    },
+  });
+}
+
+export function useFollowUps(conversationId: string) {
+  return useQuery({
+    queryKey: insightKeys.followUps(conversationId),
+    queryFn: () => getFollowUps(conversationId),
+    enabled: !!conversationId,
+    staleTime: 30 * 1000,
   });
 }

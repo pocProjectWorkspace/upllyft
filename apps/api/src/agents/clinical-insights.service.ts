@@ -550,6 +550,164 @@ RULES:
     return { ...insights, conversationId };
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Delete conversation
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async deleteConversation(conversationId: string, userId: string): Promise<void> {
+    const conversation = await this.prisma.clinicalConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) {
+      throw new Error('Conversation not found');
+    }
+    if (conversation.userId !== userId) {
+      throw new Error('Not authorized to delete this conversation');
+    }
+
+    await this.prisma.clinicalConversation.delete({
+      where: { id: conversationId },
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Share insight with therapist
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async shareInsight(
+    conversationId: string,
+    userId: string,
+    therapistId: string,
+    message?: string,
+  ) {
+    const conversation = await this.prisma.clinicalConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) throw new Error('Conversation not found');
+    if (conversation.userId !== userId) throw new Error('Not authorized to share this conversation');
+
+    // Find therapist user by therapist profile ID or user ID
+    const therapist = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: therapistId },
+          { therapistProfile: { id: therapistId } },
+        ],
+        role: { in: ['THERAPIST', 'EDUCATOR'] },
+      },
+      select: { id: true, name: true, email: true, image: true },
+    });
+
+    if (!therapist) throw new Error('Therapist not found');
+
+    // Upsert: reactivate if previously revoked, or create new
+    const share = await this.prisma.insightShare.upsert({
+      where: {
+        conversationId_sharedWith: {
+          conversationId,
+          sharedWith: therapist.id,
+        },
+      },
+      update: { isActive: true, message, sharedAt: new Date() },
+      create: {
+        conversationId,
+        sharedBy: userId,
+        sharedWith: therapist.id,
+        message,
+      },
+    });
+
+    return {
+      ...share,
+      therapist: {
+        id: therapist.id,
+        name: therapist.name,
+        email: therapist.email,
+        image: therapist.image,
+      },
+    };
+  }
+
+  async getInsightShares(conversationId: string, userId: string) {
+    const conversation = await this.prisma.clinicalConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation || conversation.userId !== userId) {
+      throw new Error('Conversation not found or access denied');
+    }
+
+    return this.prisma.insightShare.findMany({
+      where: { conversationId, isActive: true },
+      include: {
+        therapist: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+      },
+      orderBy: { sharedAt: 'desc' },
+    });
+  }
+
+  async revokeInsightShare(
+    conversationId: string,
+    userId: string,
+    therapistId: string,
+  ): Promise<void> {
+    const conversation = await this.prisma.clinicalConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation || conversation.userId !== userId) {
+      throw new Error('Conversation not found or access denied');
+    }
+
+    await this.prisma.insightShare.updateMany({
+      where: { conversationId, sharedWith: therapistId, isActive: true },
+      data: { isActive: false },
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Get follow-up Q&A pairs
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async getFollowUps(conversationId: string, userId: string) {
+    const conversation = await this.prisma.clinicalConversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!conversation || conversation.userId !== userId) {
+      throw new Error('Conversation not found or access denied');
+    }
+
+    // Skip the first 2 messages (initial user query + assistant response)
+    // and pair up subsequent user/assistant messages as follow-ups
+    const messages = conversation.messages.slice(2);
+    const followUps: { id: string; question: string; answer: string; createdAt: string }[] = [];
+
+    for (let i = 0; i < messages.length; i += 2) {
+      const userMsg = messages[i];
+      const assistantMsg = messages[i + 1];
+      if (userMsg?.role === 'user') {
+        followUps.push({
+          id: userMsg.id,
+          question: userMsg.content,
+          answer: assistantMsg?.content || 'Processing...',
+          createdAt: userMsg.createdAt.toISOString(),
+        });
+      }
+    }
+
+    return followUps;
+  }
+
   async createStructuredPlan(recommendation: any, userId: string): Promise<any> {
     const prompt = `Create a detailed, week-by-week implementation plan for this recommendation:
     ${JSON.stringify(recommendation)}
@@ -575,7 +733,6 @@ RULES:
       const jsonStr = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const planContent = JSON.parse(jsonStr);
 
-      // @ts-ignore
       const plan = await this.prisma.clinicalPlan.create({
         data: {
           userId,
@@ -592,7 +749,6 @@ RULES:
   }
 
   async getPlan(id: string) {
-    // @ts-ignore
     return this.prisma.clinicalPlan.findUnique({ where: { id } });
   }
 
@@ -621,69 +777,133 @@ RULES:
         return [];
       }
 
-      const keywords = [
+      const terms = [
         ...(caseAnalysis.diagnosis || []),
         ...(caseAnalysis.challenges || []),
+        ...(caseAnalysis.goals || []),
       ].filter(Boolean);
 
-      if (keywords.length === 0) return [];
+      if (terms.length === 0) return [];
 
-      const searchText = keywords.join(' ');
-      const embedding = await this.aiService.generateEmbedding(searchText).catch(() => [] as number[]);
+      // Strategy 1: Combined keyword text search (like SafeHaven)
+      const combined = terms.slice(0, 2).join(' ');
+      let posts = await this.searchPostsByText(combined, 5);
 
-      if (!embedding || embedding.length === 0) return [];
+      // Strategy 2: Individual term search if combined returns nothing
+      if (posts.length === 0) {
+        const seenIds = new Set<string>();
+        for (const term of terms.slice(0, 3)) {
+          const termPosts = await this.searchPostsByText(term, 3);
+          for (const post of termPosts) {
+            if (!seenIds.has(post.id)) {
+              seenIds.add(post.id);
+              posts.push(post);
+            }
+          }
+          if (posts.length >= 5) break;
+        }
+        posts = posts.slice(0, 5);
+      }
 
-      const posts = await this.prisma.$queryRaw<any[]>`
-        SELECT
-          p.id,
-          p.title,
-          p.content,
-          p.tags,
-          p.upvotes,
-          p."viewCount",
-          p."createdAt",
-          u.name as "authorName",
-          u.role as "authorRole",
-          u.image as "authorAvatar",
-          c.name as "communityName",
-          c.slug as "communitySlug",
-          (SELECT COUNT(*)::int FROM "Comment" cm WHERE cm."postId" = p.id) as "commentCount",
-          1 - (p.embedding::vector <=> ${embedding}::vector) as similarity
-        FROM "Post" p
-        JOIN "User" u ON p."authorId" = u.id
-        LEFT JOIN "Community" c ON p."communityId" = c.id
-        WHERE
-          p."moderationStatus" = 'APPROVED'
-          AND p.embedding IS NOT NULL
-          AND p."isPublished" = true
-        ORDER BY p.embedding::vector <=> ${embedding}::vector
-        LIMIT 10
-      `.catch(error => {
-        this.logger.error('Vector search for relevant posts failed:', error);
-        return [];
+      // Strategy 3: Vector search as enhancement (if text search found nothing)
+      if (posts.length === 0) {
+        try {
+          const searchText = terms.join(' ');
+          const embedding = await this.aiService.generateEmbedding(searchText).catch(() => [] as number[]);
+          if (embedding && embedding.length > 0) {
+            const vectorPosts = await this.prisma.$queryRaw<any[]>`
+              SELECT
+                p.id, p.title, p.content, p.tags, p.upvotes, p."viewCount", p."createdAt",
+                u.name as "authorName", u.role as "authorRole", u.image as "authorAvatar",
+                c.name as "communityName", c.slug as "communitySlug",
+                (SELECT COUNT(*)::int FROM "Comment" cm WHERE cm."postId" = p.id) as "commentCount"
+              FROM "Post" p
+              JOIN "User" u ON p."authorId" = u.id
+              LEFT JOIN "Community" c ON p."communityId" = c.id
+              WHERE p."moderationStatus" = 'APPROVED'
+                AND p.embedding IS NOT NULL
+                AND p."isPublished" = true
+              ORDER BY p.embedding::vector <=> ${embedding}::vector
+              LIMIT 5
+            `;
+            posts = this.mapRawPostsToRelevantPosts(vectorPosts);
+          }
+        } catch (err) {
+          this.logger.warn('Vector search fallback failed:', err);
+        }
+      }
+
+      return posts;
+    } catch (error) {
+      this.logger.error('Error finding relevant posts:', error);
+      return [];
+    }
+  }
+
+  private async searchPostsByText(search: string, limit: number): Promise<RelevantPost[]> {
+    try {
+      const posts = await this.prisma.post.findMany({
+        where: {
+          isPublished: true,
+          moderationStatus: 'APPROVED',
+          OR: [
+            { title: { contains: search, mode: 'insensitive' } },
+            { content: { contains: search, mode: 'insensitive' } },
+            { tags: { hasSome: search.toLowerCase().split(' ').filter(Boolean) } },
+          ],
+        },
+        include: {
+          author: {
+            select: { name: true, role: true, image: true },
+          },
+          community: {
+            select: { name: true, slug: true },
+          },
+          _count: {
+            select: { comments: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
       });
-
-      if (!posts || posts.length === 0) return [];
 
       return posts.map(post => ({
         id: post.id,
         title: post.title || 'Untitled Post',
         content: (post.content || '').substring(0, 300),
-        authorName: post.authorName || 'Community Member',
-        authorRole: this.formatRole(post.authorRole),
-        authorAvatar: post.authorAvatar || undefined,
+        authorName: post.author?.name || 'Community Member',
+        authorRole: this.formatRole(post.author?.role || 'USER'),
+        authorAvatar: post.author?.image || undefined,
         tags: post.tags || [],
         upvotes: post.upvotes || 0,
         viewCount: post.viewCount || 0,
-        commentCount: post.commentCount || 0,
-        createdAt: post.createdAt?.toISOString?.() || new Date().toISOString(),
-        communityName: post.communityName || undefined,
-        communitySlug: post.communitySlug || undefined,
+        commentCount: post._count?.comments || 0,
+        createdAt: post.createdAt?.toISOString() || new Date().toISOString(),
+        communityName: post.community?.name || undefined,
+        communitySlug: post.community?.slug || undefined,
       }));
     } catch (error) {
-      this.logger.error('Error finding relevant posts:', error);
+      this.logger.error('Text search for posts failed:', error);
       return [];
     }
+  }
+
+  private mapRawPostsToRelevantPosts(rawPosts: any[]): RelevantPost[] {
+    return (rawPosts || []).map(post => ({
+      id: post.id,
+      title: post.title || 'Untitled Post',
+      content: (post.content || '').substring(0, 300),
+      authorName: post.authorName || 'Community Member',
+      authorRole: this.formatRole(post.authorRole || 'USER'),
+      authorAvatar: post.authorAvatar || undefined,
+      tags: post.tags || [],
+      upvotes: post.upvotes || 0,
+      viewCount: post.viewCount || 0,
+      commentCount: post.commentCount || 0,
+      createdAt: post.createdAt?.toISOString?.() || new Date().toISOString(),
+      communityName: post.communityName || undefined,
+      communitySlug: post.communitySlug || undefined,
+    }));
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -822,19 +1042,37 @@ Return ONLY valid JSON, no markdown. Example:
       const searchUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi';
       const searchResponse = await axios.get(searchUrl, {
         params: { db: 'pubmed', term: searchTerms, retmax: 10, retmode: 'json', sort: 'relevance' },
-        timeout: 5000,
+        timeout: 10000,
       });
 
       const pmids = searchResponse.data?.esearchresult?.idlist || [];
 
       if (pmids.length === 0) {
+        this.logger.debug('No PubMed results for complex query, trying simple diagnosis query');
         const simpleQuery = caseParams.diagnosis.join(' OR ');
+        if (!simpleQuery.trim()) return [];
         const simpleResponse = await axios.get(searchUrl, {
           params: { db: 'pubmed', term: simpleQuery, retmax: 5, retmode: 'json', sort: 'relevance' },
-          timeout: 5000,
+          timeout: 10000,
         });
         const simplePmids = simpleResponse.data?.esearchresult?.idlist || [];
-        if (simplePmids.length === 0) return [];
+        if (simplePmids.length === 0) {
+          // Final fallback: try each diagnosis term individually
+          for (const term of caseParams.diagnosis.slice(0, 3)) {
+            try {
+              const fallbackRes = await axios.get(searchUrl, {
+                params: { db: 'pubmed', term: `${term} therapy intervention`, retmax: 3, retmode: 'json', sort: 'relevance' },
+                timeout: 10000,
+              });
+              const fallbackPmids = fallbackRes.data?.esearchresult?.idlist || [];
+              if (fallbackPmids.length > 0) {
+                this.logger.debug(`Fallback PubMed search found ${fallbackPmids.length} results for "${term}"`);
+                return this.fetchPubMedDetails(fallbackPmids, caseParams);
+              }
+            } catch { /* continue to next term */ }
+          }
+          return [];
+        }
         return this.fetchPubMedDetails(simplePmids, caseParams);
       }
 
@@ -872,7 +1110,7 @@ Return ONLY valid JSON, no markdown. Example:
     const fetchUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi';
     const fetchResponse = await axios.get(fetchUrl, {
       params: { db: 'pubmed', id: pmids.join(','), rettype: 'abstract', retmode: 'xml' },
-      timeout: 5000,
+      timeout: 10000,
     });
 
     const parser = new xml2js.Parser();
