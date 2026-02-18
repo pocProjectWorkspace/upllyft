@@ -104,12 +104,14 @@ export async function analyzeCase(
 
 export async function getInsightsHistory(): Promise<ConversationSummary[]> {
   const res = await apiClient.get('/agents/clinical-insights/history');
-  return res.data;
+  const body = res.data;
+  return Array.isArray(body) ? body : body?.data ?? [];
 }
 
 export async function getInsightConversation(id: string): Promise<Conversation> {
   const res = await apiClient.get(`/agents/clinical-insights/history/${id}`);
-  return res.data;
+  const body = res.data;
+  return body?.data ?? body;
 }
 
 export async function followUp(
