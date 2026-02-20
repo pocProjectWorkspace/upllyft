@@ -67,9 +67,7 @@ export function MiraNudge({
 
       <div className="flex items-start gap-3 sm:gap-4 pr-6">
         {/* Mini Mira avatar */}
-        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-amber-300 to-teal-300 flex items-center justify-center shadow-lg">
-          <span className="text-white font-bold text-sm">M</span>
-        </div>
+        <img src="/Mira.png" alt="Mira" className="flex-shrink-0 w-10 h-10 rounded-full object-cover shadow-lg" />
 
         <div className="flex-1 min-w-0">
           <p className="text-sm sm:text-base text-white/95 leading-relaxed mb-3">

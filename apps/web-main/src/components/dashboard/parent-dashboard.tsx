@@ -106,9 +106,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
           {/* Left: Avatar + Greeting */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-300 to-teal-300 flex items-center justify-center shadow-lg flex-shrink-0 ring-2 ring-white/30">
-                <span className="text-white font-bold text-xl">M</span>
-              </div>
+              <img src="/Mira.png" alt="Mira" className="w-14 h-14 rounded-full object-cover shadow-lg flex-shrink-0 ring-2 ring-white/30" />
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold">
                   Hi {displayName}! I'm Mira.

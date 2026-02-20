@@ -957,13 +957,13 @@ export default function OnboardingPage() {
                       className="flex justify-center mb-6"
                     >
                       <div className="relative">
-                        <motion.div
+                        <motion.img
+                          src="/Mira.png"
+                          alt="Mira"
                           animate={{ scale: [1, 1.08, 1] }}
                           transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                          className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-300 to-teal-400 flex items-center justify-center shadow-xl ring-4 ring-teal-200/60"
-                        >
-                          <span className="text-white font-bold text-3xl">M</span>
-                        </motion.div>
+                          className="w-24 h-24 rounded-full object-cover shadow-xl ring-4 ring-teal-200/60"
+                        />
                         {/* Glow ring */}
                         <motion.div
                           animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.15, 1] }}
