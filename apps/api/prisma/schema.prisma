@@ -132,6 +132,9 @@ model User {
   worksheetFlags          WorksheetFlag[]           @relation("UserWorksheetFlags")
   resolvedWorksheetFlags  WorksheetFlag[]           @relation("ResolvedWorksheetFlags")
 
+  // Mira conversations
+  miraConversations       MiraConversation[]
+
   // Verified contributor
   isVerifiedContributor   Boolean                   @default(false)
   verifiedContributorAt   DateTime?
@@ -1322,6 +1325,7 @@ model Child {
   assessments                           Assessment[]
   conditions                            ChildCondition[]
   cases                                 Case[]
+  miraConversations                     MiraConversation[]
   worksheets                            Worksheet[]      @relation("ChildWorksheets")
   worksheetAssignments                  WorksheetAssignment[] @relation("ChildWorksheetAssignments")
   worksheetCompletions                  WorksheetCompletion[]
@@ -3106,4 +3110,40 @@ enum WorksheetAssignmentStatus {
   IN_PROGRESS
   COMPLETED
   OVERDUE
+}
+
+// ── Mira Conversational AI ──────────────────────────────────────────────
+
+model MiraConversation {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id])
+  childId   String?
+  child     Child?        @relation(fields: [childId], references: [id])
+  title     String?
+  messages  MiraMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([childId])
+  @@index([updatedAt])
+  @@map("mira_conversations")
+}
+
+model MiraMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   MiraConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String           // 'user' | 'assistant'
+  content        String
+  cards          Json?            // MiraCard[] as JSON
+  choices        Json?            // string[] as JSON
+  actions        Json?            // MiraAction[] as JSON
+  sentiment      String?
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("mira_messages")
 }

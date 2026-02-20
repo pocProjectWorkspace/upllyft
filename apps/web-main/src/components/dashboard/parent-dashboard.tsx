@@ -6,6 +6,7 @@ import { Card, Avatar, Badge, Skeleton, Popover, PopoverTrigger, PopoverContent 
 import { useMyProfile, useUpcomingBookings, useRecentFeedPosts } from '@/hooks/use-dashboard';
 import { calculateAge, type OnboardingData } from '@/lib/api/profiles';
 import { useState, useEffect } from 'react';
+import { useMira } from '@/components/mira/mira-context';
 
 const SELECTED_CHILD_KEY = 'upllyft_selected_child';
 
@@ -17,6 +18,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
   const { data: profile, isLoading: profileLoading } = useMyProfile();
   const { data: upcomingSessions, isLoading: sessionsLoading } = useUpcomingBookings();
   const { data: recentPosts, isLoading: feedLoading } = useRecentFeedPosts();
+  const mira = useMira();
   const [selectedChildId, setSelectedChildId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(SELECTED_CHILD_KEY);
@@ -269,7 +271,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
       </div>
 
       {/* Bottom Row */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Upcoming Sessions */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -333,18 +335,39 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
               AI Powered
             </span>
           </div>
-          <h3 className="font-semibold text-lg mb-2">Personalized Insights</h3>
+          <h3 className="font-semibold text-lg mb-2">AI Insights</h3>
           <p className="text-gray-400 text-sm mb-4">
-            Get personalized insights and tips based on
-            {selectedChild ? ` ${selectedChild.firstName}'s` : " your child's"} screening results and progress
+            Get comprehensive developmental insights powered by AI — based on
+            {selectedChild ? ` ${selectedChild.firstName}'s` : " your child's"} screening results and profile
           </p>
           <a
-            href={APP_URLS.resources}
+            href={`${APP_URLS.screening}/insights`}
             className="block w-full py-3 bg-teal-500 hover:bg-teal-400 rounded-xl font-medium transition-colors text-center"
           >
             Get Personalized Insights
           </a>
         </div>
+
+        {/* Talk to Mira */}
+        <button
+          onClick={() => mira.open({ childId: selectedChild?.id })}
+          className="bg-gradient-to-br from-white to-teal-50 rounded-2xl border-2 border-teal-200 p-6 hover:border-teal-400 hover:shadow-lg transition-all group text-left"
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-amber-300 to-teal-400 rounded-xl flex items-center justify-center">
+              <span className="text-white font-bold text-lg">M</span>
+            </div>
+            <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs font-medium rounded-full">
+              AI Guide
+            </span>
+          </div>
+          <h3 className="font-semibold text-lg text-gray-900 mb-2 group-hover:text-teal-700 transition-colors">
+            Talk to Mira
+          </h3>
+          <p className="text-sm text-gray-500">
+            Not sure where to start? Describe what you&apos;re noticing and Mira will guide you with personalized recommendations
+          </p>
+        </button>
       </div>
 
       {/* Recent Feed */}

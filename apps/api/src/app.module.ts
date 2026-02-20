@@ -76,6 +76,7 @@ import { CaseAuditModule } from './case-audit/case-audit.module';
 import { CaseConsentsModule } from './case-consents/case-consents.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { WorksheetsModule } from './worksheets/worksheets.module';
+import { MiraModule } from './mira/mira.module';
 
 
 @Module({
@@ -160,6 +161,9 @@ import { WorksheetsModule } from './worksheets/worksheets.module';
 
     // Learning Resources
     WorksheetsModule,
+
+    // Mira conversational AI
+    MiraModule,
   ],
   controllers: [
     AppController,

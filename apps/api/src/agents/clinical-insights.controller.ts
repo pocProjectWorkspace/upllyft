@@ -73,13 +73,13 @@ export class ClinicalInsightsController {
   async analyzeStreamed(
     @Request() req: any,
     @Body('query') query: string,
-    @Res() reply: any,
+    @Res() res: any,
   ) {
     if (!query || query.trim().length < 10) {
       throw new BadRequestException('Please provide a detailed case description');
     }
 
-    reply.raw.writeHead(200, {
+    res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
@@ -87,12 +87,12 @@ export class ClinicalInsightsController {
 
     try {
       for await (const event of this.clinicalInsightsService.generateInsightsStreamed(query, req.user.id)) {
-        reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
       }
     } catch (error) {
-      reply.raw.write(`data: ${JSON.stringify({ step: 'error', progress: 0, message: 'Analysis failed' })}\n\n`);
+      res.write(`data: ${JSON.stringify({ step: 'error', progress: 0, message: 'Analysis failed' })}\n\n`);
     } finally {
-      reply.raw.end();
+      res.end();
     }
   }
 
