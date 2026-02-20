@@ -360,9 +360,9 @@ function CommunitiesGrid() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
-          <h3 className="font-semibold text-gray-900">No communities found</h3>
+          <h3 className="font-semibold text-gray-900">No groups match your search</h3>
           <p className="text-sm text-gray-500 mt-1">
-            {search ? 'Try adjusting your search' : 'Be the first to create one!'}
+            {search ? 'Try different keywords or browse all groups' : 'Start a new group!'}
           </p>
           <Link href="/communities/create" className="inline-block mt-4">
             <button className="px-4 py-2 rounded-full text-sm font-semibold bg-pink-600 text-white hover:bg-pink-700 transition-colors">
@@ -591,7 +591,7 @@ export default function BrowseCommunitiesPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Communities</h1>
           <p className="text-gray-500 mt-1">
-            Discover and join communities of parents, therapists, and educators
+            Find your people — groups of parents, therapists, and educators who get it
           </p>
         </div>
         <Link href="/communities/create">

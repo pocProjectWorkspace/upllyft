@@ -199,9 +199,9 @@ export default function MarketplacePage() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center mx-auto mb-4">
             <HeartIcon className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Book a Session</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Find the Right Support</h1>
           <p className="text-gray-500 mt-2 text-lg max-w-xl mx-auto">
-            Find and book sessions with verified therapists
+            Browse verified therapists and book a session that works for you
           </p>
         </div>
 
@@ -245,9 +245,9 @@ export default function MarketplacePage() {
         ) : therapists.length === 0 ? (
           <div className="text-center py-16">
             <SearchIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700">No therapists found</h3>
+            <h3 className="text-lg font-semibold text-gray-700">We couldn&rsquo;t find a match</h3>
             <p className="text-gray-500 mt-1">
-              Try adjusting your search or filters to find more results.
+              Try adjusting your search or filters, or browse all therapists.
             </p>
           </div>
         ) : (

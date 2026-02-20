@@ -162,7 +162,7 @@ export default function CrisisPage() {
 
         {/* Filter section */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">Crisis Resources</h2>
+          <h2 className="text-xl font-bold text-gray-900">Need Help Right Now?</h2>
           <Card className="p-4">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="w-full sm:w-56">

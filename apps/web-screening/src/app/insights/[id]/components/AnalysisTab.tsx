@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge, Button } from '@upllyft/ui';
-import { APP_URLS } from '@upllyft/api-client';
+import { Badge, Button, toast } from '@upllyft/ui';
+import { createStructuredPlan } from '@/lib/api/insights';
 import type {
   ClinicalInsight,
   DetailedRecommendation,
@@ -56,6 +56,7 @@ interface AnalysisTabProps {
 
 export function AnalysisTab({ insights }: AnalysisTabProps) {
   const [expandedRecs, setExpandedRecs] = useState<Set<number>>(new Set());
+  const [creatingPlanIdx, setCreatingPlanIdx] = useState<number | null>(null);
 
   function toggleRec(idx: number) {
     setExpandedRecs(prev => {
@@ -72,7 +73,7 @@ export function AnalysisTab({ insights }: AnalysisTabProps) {
       {insights.overallAssessment && (
         <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
-            <h2 className="text-lg font-bold text-gray-900">Overall Assessment</h2>
+            <h2 className="text-lg font-bold text-gray-900">Overall Picture</h2>
             {insights.overallAssessment.riskLevel && (() => {
               const risk = getRiskColor(insights.overallAssessment!.riskLevel);
               return (
@@ -95,7 +96,7 @@ export function AnalysisTab({ insights }: AnalysisTabProps) {
       {/* ── Domain Analysis ── */}
       {insights.domainAnalysis && insights.domainAnalysis.length > 0 && (
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Domain Analysis</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">How Each Area Looks</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {insights.domainAnalysis.map((domain: DomainAnalysisItem, idx: number) => {
               const statusInfo = getDomainStatusBadge(domain.status);
@@ -125,7 +126,7 @@ export function AnalysisTab({ insights }: AnalysisTabProps) {
                   </div>
                   <p className="text-sm text-gray-700 leading-relaxed mb-3">{domain.clinicalAnalysis}</p>
                   <div className="border-t border-gray-100 pt-3">
-                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">Impact & Trajectory</p>
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">What This Means Day-to-Day</p>
                     <p className="text-sm text-gray-600 leading-relaxed">{domain.impact}</p>
                   </div>
                 </div>
@@ -138,7 +139,7 @@ export function AnalysisTab({ insights }: AnalysisTabProps) {
       {/* ── Clinical Correlations ── */}
       {insights.clinicalCorrelations && insights.clinicalCorrelations.length > 0 && (
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Clinical Correlations</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Key Observations</h2>
           <div className="relative">
             <div className="absolute left-[9px] top-2 bottom-2 w-1 bg-teal-200 rounded-full" />
             <div className="space-y-6">
@@ -162,7 +163,7 @@ export function AnalysisTab({ insights }: AnalysisTabProps) {
       {/* ── Recommendations ── */}
       {insights.evidenceBasedRecommendations.length > 0 && (
         <div className="gradient-dark px-6 sm:px-10 py-10 rounded-2xl">
-          <h2 className="text-xl font-bold text-white mb-6">Recommendations</h2>
+          <h2 className="text-xl font-bold text-white mb-6">Recommended Next Steps</h2>
           <div className="space-y-4">
             {insights.evidenceBasedRecommendations.map((rec: DetailedRecommendation, idx: number) => {
               const urgency = getUrgencyBadge(rec.priority);
@@ -211,17 +212,44 @@ export function AnalysisTab({ insights }: AnalysisTabProps) {
                             <span className="text-teal-300">Telehealth available</span>
                           )}
                         </div>
-                        <a
-                          href={`${APP_URLS.resources}/create?title=${encodeURIComponent(rec.title)}&description=${encodeURIComponent(rec.description)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 rounded-lg text-sm font-medium transition-colors"
+                        <button
+                          type="button"
+                          disabled={creatingPlanIdx === idx}
+                          onClick={async () => {
+                            try {
+                              setCreatingPlanIdx(idx);
+                              const plan = await createStructuredPlan(rec);
+                              if (plan?.id) {
+                                toast({ title: 'Structured Plan Created', description: 'Opening plan in new tab...' });
+                                window.open(`/insights/plan/${plan.id}`, '_blank');
+                              } else {
+                                throw new Error('Invalid response');
+                              }
+                            } catch {
+                              toast({ title: 'Error', description: 'Failed to create plan. Please try again.', variant: 'destructive' });
+                            } finally {
+                              setCreatingPlanIdx(null);
+                            }
+                          }}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                          </svg>
-                          Create Structured Plan
-                        </a>
+                          {creatingPlanIdx === idx ? (
+                            <>
+                              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                              </svg>
+                              Creating Plan...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                              </svg>
+                              Create Structured Plan
+                            </>
+                          )}
+                        </button>
                       </div>
                     )}
                   </div>
@@ -229,13 +257,33 @@ export function AnalysisTab({ insights }: AnalysisTabProps) {
               );
             })}
           </div>
+
+          {/* Creating plan overlay */}
+          {creatingPlanIdx !== null && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl p-8 max-w-md mx-4 text-center shadow-xl">
+                <svg className="w-12 h-12 text-teal-600 animate-spin mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Creating Structured Plan</h3>
+                <p className="text-sm text-gray-500">
+                  We are creating a detailed structured plan for you.
+                  <br />
+                  Please hold on, this might take up to a minute.
+                  <br />
+                  Once generated, it will open in a new tab.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* ── Strategic Roadmap ── */}
       {insights.strategicRoadmap && (
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Strategic Roadmap</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Your Roadmap</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Short-term */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">

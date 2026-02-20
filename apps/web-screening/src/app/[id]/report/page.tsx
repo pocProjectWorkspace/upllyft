@@ -339,22 +339,22 @@ export default function ReportPage() {
             {/* Overall Results Card */}
             <Card className="p-6 rounded-2xl border-0 shadow-sm bg-gradient-to-br from-purple-50 to-white">
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
-                Overall Results
+                How They're Doing Overall
               </h2>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <div className="text-3xl font-bold text-gray-900">
                     {`${overallPercentage}%`}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">Overall Score</div>
+                  <div className="text-xs text-gray-500 mt-1">Development Score</div>
                 </div>
                 <div>
                   <div className="text-lg font-semibold text-gray-900">{developmentalAgeEquivalent || '--'}</div>
-                  <div className="text-xs text-gray-500 mt-1">Dev. Age Equivalent</div>
+                  <div className="text-xs text-gray-500 mt-1">Developmental Age</div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-gray-900">{flaggedCount}</div>
-                  <div className="text-xs text-gray-500 mt-1">Flagged Domains</div>
+                  <div className="text-xs text-gray-500 mt-1">Areas to Focus On</div>
                 </div>
               </div>
             </Card>
@@ -469,7 +469,7 @@ export default function ReportPage() {
           <div className="space-y-8">
             {/* Domain Score Cards */}
             <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Domain Scores</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">How Each Area Looks</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {domainScores.map((domain) => {
                   const zone = domain.zone || statusToZone(domain.status);
@@ -491,7 +491,7 @@ export default function ReportPage() {
                       {/* Risk Index */}
                       <div className="mb-2">
                         <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="text-gray-600">Risk Index</span>
+                          <span className="text-gray-600">Needs Attention</span>
                           <span className={`font-bold ${colors.text}`}>{percentage}%</span>
                         </div>
                         <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -507,7 +507,7 @@ export default function ReportPage() {
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}
                         >
-                          {zone.toUpperCase()}
+                          {zone === 'green' ? 'On Track' : zone === 'yellow' ? 'Monitor' : zone === 'red' ? 'Needs Support' : String(zone).toUpperCase()}
                         </span>
                         {domain.tier2Required && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
@@ -528,7 +528,7 @@ export default function ReportPage() {
 
             {/* Bar Chart */}
             <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Risk Index by Domain</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Development by Area</h2>
               <Card className="p-6 rounded-2xl border-0 shadow-sm">
                 <div className="h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -551,15 +551,15 @@ export default function ReportPage() {
                 <div className="flex items-center justify-center gap-6 mt-4 text-sm">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-[#22c55e]" />
-                    <span className="text-gray-600">Green (0-29%)</span>
+                    <span className="text-gray-600">On Track (0-29%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-[#eab308]" />
-                    <span className="text-gray-600">Yellow (30-45%)</span>
+                    <span className="text-gray-600">Monitor (30-45%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-[#ef4444]" />
-                    <span className="text-gray-600">Red (46%+)</span>
+                    <span className="text-gray-600">Needs Support (46%+)</span>
                   </div>
                 </div>
               </Card>
@@ -567,7 +567,7 @@ export default function ReportPage() {
 
             {/* Overall Interpretation */}
             <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Overall Interpretation</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">What This Means</h2>
               <Card className="p-6 rounded-2xl border-0 shadow-sm">
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">{overallInterpretation}</p>
               </Card>
@@ -671,11 +671,10 @@ export default function ReportPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Deep Insight Report</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Your Child's Developmental Insight</h3>
                 <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
-                  A comprehensive developmental insight based on your child&apos;s screening responses and profile
-                  information. Includes developmental narrative, clinical correlations, domain analysis, and a
-                  strategic roadmap.
+                  A personalized developmental insight based on your child&apos;s screening results. Includes helpful
+                  observations, practical recommendations, and a roadmap for next steps.
                 </p>
                 <Button
                   onClick={() => generateV2.mutate(id)}
@@ -698,9 +697,9 @@ export default function ReportPage() {
             {(v2Loading || reportV2Data?.status === 'PROCESSING') && (
               <Card className="p-12 rounded-2xl border-0 shadow-sm text-center">
                 <div className="w-12 h-12 border-3 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Analyzing Clinical Patterns...</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Creating your child's insight...</h3>
                 <p className="text-sm text-gray-500 max-w-md mx-auto">
-                  Generating a comprehensive developmental insight based on the screening data.
+                  We're putting together a personalized insight based on the screening results.
                   This usually takes about 60 seconds.
                 </p>
               </Card>
@@ -749,7 +748,7 @@ export default function ReportPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                       </div>
-                      Executive Summary
+                      Summary
                     </h2>
                     <Card className="p-6 rounded-2xl border-0 shadow-sm">
                       <p className="text-gray-700 leading-relaxed whitespace-pre-line">
@@ -816,7 +815,7 @@ export default function ReportPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                       </div>
-                      Clinical Correlations
+                      Key Observations
                     </h2>
                     <div className="relative space-y-6">
                       {/* Vertical timeline line */}
@@ -863,7 +862,7 @@ export default function ReportPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                       </div>
-                      Domain Deep Dives
+                      Detailed Look at Each Area
                     </h2>
                     <div className="space-y-4">
                       {reportV2Data.domainDeepDives.map((domain) => {
@@ -900,7 +899,7 @@ export default function ReportPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
                                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                                  Clinical Analysis
+                                  What We See
                                 </h4>
                                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
                                   {domain.clinicalAnalysis}
@@ -931,7 +930,7 @@ export default function ReportPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                         </svg>
                       </div>
-                      Strategic Roadmap
+                      Your Roadmap
                     </h2>
 
                     {/* Immediate Priorities */}
@@ -1005,7 +1004,7 @@ export default function ReportPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      Questions to Ask Your Professional
+                      Questions to Discuss with Your Specialist
                     </h2>
                     <Card className="p-5 rounded-xl border-0 shadow-sm">
                       <ol className="space-y-3">

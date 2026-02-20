@@ -61,12 +61,12 @@ export default function MyLibraryPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Library</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Your Resources</h1>
             <p className="text-gray-500 mt-1">
               {total} worksheet{total !== 1 ? 's' : ''} in your collection
             </p>
           </div>
-          <Button onClick={() => router.push('/create')}>Create Worksheet</Button>
+          <Button onClick={() => router.push('/create')}>Create Something New</Button>
         </div>
 
         {/* Search */}
@@ -140,9 +140,9 @@ export default function MyLibraryPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">No worksheets yet</h3>
-            <p className="text-gray-500 mt-1 mb-4">Create your first worksheet to get started.</p>
-            <Button onClick={() => router.push('/create')}>Create Worksheet</Button>
+            <h3 className="text-lg font-semibold text-gray-900">Your library is empty</h3>
+            <p className="text-gray-500 mt-1 mb-4">Browse community resources or create your own to get started.</p>
+            <Button onClick={() => router.push('/create')}>Create Something New</Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -221,8 +221,8 @@ export default function MyLibraryPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </div>
-              <h3 className="font-semibold text-gray-700 group-hover:text-purple-700 transition-colors">Create Custom Worksheet</h3>
-              <p className="text-sm text-gray-400 mt-1">AI-powered generation</p>
+              <h3 className="font-semibold text-gray-700 group-hover:text-purple-700 transition-colors">Create Something New</h3>
+              <p className="text-sm text-gray-400 mt-1">Tailored activities for your child</p>
             </div>
           </div>
         )}

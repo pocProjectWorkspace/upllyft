@@ -345,7 +345,7 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
                       })
                   ) : (
                     <p className="text-center text-gray-500 py-8">
-                      No session types available for this therapist.
+                      This therapist hasn&rsquo;t set up session types yet. Check back soon!
                     </p>
                   )}
                 </div>
@@ -425,8 +425,8 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
                   ) : (
                     <div className="text-center py-8">
                       <CalendarIcon className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500">No available slots for this date.</p>
-                      <p className="text-sm text-gray-400 mt-1">Try selecting a different date.</p>
+                      <p className="text-gray-500">No openings on this day.</p>
+                      <p className="text-sm text-gray-400 mt-1">Try picking a different date &mdash; more times might be available.</p>
                     </div>
                   )}
                 </div>
@@ -526,7 +526,7 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
             <div className="sticky top-24">
               <Card className="rounded-2xl">
                 <div className="p-6 pb-0">
-                  <h3 className="text-lg font-semibold">Booking Summary</h3>
+                  <h3 className="text-lg font-semibold">Your Booking</h3>
                 </div>
                 <div className="p-6 space-y-4">
                   {/* Therapist info */}

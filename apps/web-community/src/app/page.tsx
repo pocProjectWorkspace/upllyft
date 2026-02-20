@@ -19,9 +19,9 @@ const POST_TYPE_FILTERS = [
   { label: 'All', value: undefined },
   { label: 'Discussion', value: 'DISCUSSION' as const },
   { label: 'Question', value: 'QUESTION' as const },
-  { label: 'Case Study', value: 'CASE_STUDY' as const },
-  { label: 'Resource', value: 'RESOURCE' as const },
-  { label: 'Milestone', value: 'MILESTONE' as const },
+  { label: 'Real Story', value: 'CASE_STUDY' as const },
+  { label: 'Helpful Resource', value: 'RESOURCE' as const },
+  { label: 'Celebration', value: 'MILESTONE' as const },
 ] as const;
 
 const SORT_OPTIONS = [
@@ -681,9 +681,9 @@ function QuestionFeedSection({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h3 className="font-semibold text-gray-900">No questions found</h3>
+        <h3 className="font-semibold text-gray-900">No questions yet</h3>
         <p className="text-sm text-gray-500 mt-1">
-          {search ? 'Try a different search term' : 'Be the first to ask a question!'}
+          {search ? 'Try different keywords' : 'Be the first to ask \u2014 someone here might have the answer!'}
         </p>
         <Link href="/posts/create?type=QUESTION" className="inline-block mt-4">
           <Button size="sm">Ask a Question</Button>
@@ -847,7 +847,7 @@ function CreatePostCard() {
         <Avatar name={user?.name || 'User'} src={user?.avatar || undefined} size="md" />
         <Link href="/posts/create" className="flex-1">
           <div className="bg-gray-100 rounded-full px-4 py-2.5 text-sm text-gray-400 hover:bg-gray-200 transition-colors cursor-pointer">
-            Share something with the community...
+            What's on your mind? Share a win, ask a question, or just say hi...
           </div>
         </Link>
       </div>
@@ -1102,13 +1102,13 @@ export default function CommunityFeedPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                 </svg>
               </div>
-              <h3 className="font-semibold text-gray-900">No posts found</h3>
+              <h3 className="font-semibold text-gray-900">Nothing here yet</h3>
               <p className="text-sm text-gray-500 mt-1">
                 {search
                   ? 'Try a different search term'
                   : view === 'saved'
-                    ? 'No saved posts yet. Bookmark posts to see them here.'
-                    : 'Be the first to start a discussion!'}
+                    ? 'No saved posts yet. Bookmark posts you like and they\u2019ll show up here.'
+                    : 'Be the first to share something!'}
               </p>
               {view === 'feed' && (
                 <Link href="/posts/create" className="inline-block mt-4">

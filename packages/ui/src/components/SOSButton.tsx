@@ -86,7 +86,7 @@ export function SOSButton({ onActivate, compact = false, className }: SOSButtonP
           isPulsing && isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}
       >
-        <p className="text-xs font-semibold text-gray-700 mb-1">Emergency Numbers:</p>
+        <p className="text-xs font-semibold text-gray-700 mb-1">Get immediate support</p>
         <p className="text-xs text-gray-500">Emergency: 911</p>
         <p className="text-xs text-gray-500">Crisis Line: 988</p>
       </div>

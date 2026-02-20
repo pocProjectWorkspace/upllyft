@@ -452,9 +452,9 @@ function ChildSection({
           <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
             <ClipboardIcon className="w-6 h-6 text-gray-400" />
           </div>
-          <p className="text-sm text-gray-500">No screenings yet for {child.firstName}.</p>
+          <p className="text-sm text-gray-500">No screenings yet for {child.firstName} — and that&apos;s okay!</p>
           <p className="text-xs text-gray-400 mt-1">
-            Start a new screening to track developmental milestones.
+            Start a screening to see how they&apos;re doing. It only takes about 15 minutes.
           </p>
         </Card>
       ) : (
@@ -499,7 +499,7 @@ function ProgressOverview({ childrenList }: { childrenList: Child[] | undefined 
     <Card className="p-6 rounded-2xl border border-gray-200 mb-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Progress Overview</h2>
+          <h2 className="text-lg font-semibold text-gray-900">How They&apos;re Doing</h2>
           <p className="text-sm text-gray-600">{latest.child.firstName}&apos;s latest screening results</p>
         </div>
       </div>
@@ -641,12 +641,12 @@ export default function ScreeningLibraryPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Milestone Map</h1>
           </div>
           <p className="text-gray-500 mt-1 ml-[52px]">
-            Track your child&apos;s developmental milestones with evidence-based screenings.
+            See how your child is growing with simple, guided screenings.
           </p>
         </div>
         <Button onClick={handleOpenCreate} className="shrink-0">
           <PlusIcon className="w-4 h-4 mr-2" />
-          Start New Screening
+          Screen Your Child
         </Button>
       </div>
 
@@ -667,11 +667,10 @@ export default function ScreeningLibraryPage() {
                   AI Insights
                 </h3>
                 <p className="text-white font-semibold mb-2">
-                  Developmental Analysis Available
+                  Insights About Your Child
                 </p>
                 <p className="text-gray-300 text-sm leading-relaxed mb-4">
-                  Get AI-powered clinical insights, evidence-based recommendations, and research-backed
-                  developmental observations based on your screening data.
+                  Get personalized insights, helpful recommendations, and developmental observations based on your child&apos;s screening results.
                 </p>
                 <a href="/insights">
                   <Button
@@ -691,10 +690,10 @@ export default function ScreeningLibraryPage() {
             <h3 className="font-semibold text-gray-900 mb-4">Next Steps</h3>
             <div className="space-y-4">
               {[
-                { num: 1, color: 'bg-yellow-400', title: 'Review Screening Results', detail: 'Check domain scores and flagged areas for each child' },
-                { num: 2, color: 'bg-teal-500', title: 'Share with Professional', detail: 'Send results to your therapist or pediatrician for review' },
-                { num: 3, color: 'bg-teal-500', title: 'Explore AI Insights', detail: 'Get personalized recommendations and research-backed guidance' },
-                { num: 4, color: 'bg-teal-500', title: 'Schedule Follow-up', detail: 'Plan a follow-up screening in 3-6 months to track progress' },
+                { num: 1, color: 'bg-yellow-400', title: 'Review Your Results', detail: 'See how your child is doing across different areas' },
+                { num: 2, color: 'bg-teal-500', title: 'Share with a Professional', detail: 'We\u2019ll help you find the right specialist to review the results' },
+                { num: 3, color: 'bg-teal-500', title: 'Explore AI Insights', detail: 'Get personalized tips and guidance for your child' },
+                { num: 4, color: 'bg-teal-500', title: 'Plan a Check-in', detail: 'Schedule another screening in a few months to track progress' },
               ].map((step) => (
                 <div key={step.num} className="flex items-start gap-3">
                   <span className={`w-7 h-7 rounded-full ${step.color} text-white text-sm font-bold flex items-center justify-center shrink-0`}>
@@ -746,9 +745,9 @@ export default function ScreeningLibraryPage() {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-100 to-teal-200 flex items-center justify-center mx-auto mb-4">
             <ClipboardIcon className="w-8 h-8 text-teal-600" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No children added yet</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Add your child to get started</h2>
           <p className="text-gray-500 max-w-sm mx-auto">
-            Add a child profile from your main dashboard to start developmental screenings.
+            Add a child profile from your main dashboard to start with personalized screenings.
           </p>
         </Card>
       ) : (
@@ -768,9 +767,9 @@ export default function ScreeningLibraryPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Start New Screening</DialogTitle>
+            <DialogTitle>Screen Your Child</DialogTitle>
             <DialogDescription>
-              Select a child to begin a developmental milestone screening.
+              Choose a child to begin — it&apos;s quick and easy.
             </DialogDescription>
           </DialogHeader>
 
