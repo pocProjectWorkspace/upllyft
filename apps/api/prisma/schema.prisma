@@ -1258,6 +1258,7 @@ model UserProfile {
   communicationPreference String?
   onboardingCompleted     Boolean   @default(false)
   onboardingStep          Int       @default(0)
+  onboardingData          Json?
   completenessScore       Int       @default(0)
   lastCompletedAt         DateTime?
   createdAt               DateTime  @default(now())

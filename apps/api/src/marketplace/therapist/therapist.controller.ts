@@ -84,6 +84,7 @@ export class TherapistProfileController {
             total,
             page: pageNum,
             limit: limitNum,
+            totalPages: Math.ceil(total / limitNum),
         };
     }
 

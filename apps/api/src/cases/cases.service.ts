@@ -173,7 +173,10 @@ export class CasesService {
       throw new BadRequestException('Therapist profile not found');
     }
 
-    const limit = parseInt(query.limit || '20', 10);
+    const limit = query.limit || 20;
+    const page = query.page || 1;
+    const skip = (page - 1) * limit;
+
     const conditions: Prisma.CaseWhereInput[] = [
       {
         OR: [
@@ -203,40 +206,62 @@ export class CasesService {
 
     const where: Prisma.CaseWhereInput = { AND: conditions };
 
-    const cases = await this.prisma.case.findMany({
-      where,
-      take: limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-      orderBy: { createdAt: 'desc' },
-      include: {
-        child: {
-          select: {
-            id: true,
-            firstName: true,
-            dateOfBirth: true,
-            gender: true,
+    const [cases, total] = await Promise.all([
+      this.prisma.case.findMany({
+        where,
+        take: limit,
+        skip,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          child: {
+            select: {
+              id: true,
+              firstName: true,
+              nickname: true,
+              dateOfBirth: true,
+              gender: true,
+            },
+          },
+          primaryTherapist: {
+            include: {
+              user: { select: { id: true, name: true } },
+            },
+          },
+          sessions: {
+            select: { scheduledAt: true },
+            orderBy: { scheduledAt: 'desc' },
+            take: 1,
+          },
+          _count: {
+            select: {
+              sessions: true,
+              ieps: true,
+              documents: true,
+            },
           },
         },
-        primaryTherapist: {
-          include: {
-            user: { select: { id: true, name: true } },
-          },
-        },
-        _count: {
-          select: {
-            sessions: true,
-            ieps: true,
-            documents: true,
-          },
-        },
-      },
+      }),
+      this.prisma.case.count({ where }),
+    ]);
+
+    const data = cases.map((c) => {
+      const { sessions, child, ...rest } = c;
+      return {
+        ...rest,
+        child: child
+          ? { id: child.id, name: child.firstName, nickname: child.nickname, dateOfBirth: child.dateOfBirth, gender: child.gender }
+          : null,
+        lastSessionDate: sessions[0]?.scheduledAt ?? null,
+      };
     });
 
-    const hasMore = cases.length > limit;
-    const items = hasMore ? cases.slice(0, limit) : cases;
-    const nextCursor = hasMore ? items[items.length - 1].id : null;
-
-    return { items, nextCursor, hasMore };
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   /**

@@ -84,6 +84,7 @@ export interface UserProfile {
   occupation?: string;
   educationLevel?: string;
   onboardingCompleted: boolean;
+  onboardingData?: OnboardingData | null;
   completenessScore: number;
   children: Child[];
   createdAt: string;
@@ -189,18 +190,51 @@ export async function recalculateCompleteness(): Promise<CompletenessBreakdown> 
 // --- Onboarding ---
 
 export interface OnboardingStatus {
-  completed: boolean;
-  currentStep?: string;
-  stepsCompleted?: string[];
+  onboardingEnabled: boolean;
+  onboardingCompleted: boolean;
+  onboardingData: OnboardingData | null;
 }
 
-export async function completeOnboarding(): Promise<{ success: boolean }> {
-  const { data } = await apiClient.post<{ success: boolean }>('/profile/onboarding/complete');
-  return data;
+export interface OnboardingData {
+  primaryReason: string;
+  concerns: string[];
+  childSnapshot: {
+    firstName: string;
+    dateOfBirth: string;
+    gender?: string;
+    hasConditions?: boolean;
+    conditions?: string[];
+  } | null;
+  recommendedNextStep: string;
+  recommendedModule: string;
+  recommendedReason: string;
+  completedAt: string;
+}
+
+export interface CompleteOnboardingPayload {
+  primaryReason: string;
+  child?: {
+    firstName: string;
+    dateOfBirth: string;
+    gender?: string;
+    hasConditions?: boolean;
+    conditions?: string[];
+  };
+  concerns: string[];
 }
 
 export async function getOnboardingStatus(): Promise<OnboardingStatus> {
-  const { data } = await apiClient.get<OnboardingStatus>('/profile/onboarding/status');
+  const { data } = await apiClient.get<OnboardingStatus>('/onboarding/status');
+  return data;
+}
+
+export async function completeOnboarding(
+  payload: CompleteOnboardingPayload,
+): Promise<{ success: boolean; onboardingData: OnboardingData }> {
+  const { data } = await apiClient.post<{
+    success: boolean;
+    onboardingData: OnboardingData;
+  }>('/onboarding/complete', payload);
   return data;
 }
 

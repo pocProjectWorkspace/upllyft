@@ -101,12 +101,14 @@ export class ListCasesQueryDto {
   childId?: string;
 
   @IsOptional()
-  @IsString()
-  cursor?: string;
+  @IsNumber()
+  @Min(1)
+  page?: number;
 
   @IsOptional()
-  @IsString()
-  limit?: string;
+  @IsNumber()
+  @Min(1)
+  limit?: number;
 }
 
 // ─── SESSION DTOs ─────────────────────────────────────────
