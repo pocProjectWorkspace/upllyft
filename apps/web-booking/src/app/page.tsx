@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { BookingShell } from '@/components/booking-shell';
 import { useSearchTherapists } from '@/hooks/use-marketplace';
 import { formatCurrency } from '@/lib/utils';
@@ -13,6 +14,7 @@ import {
   Skeleton,
   Input,
   Button,
+  MiraNudge,
 } from '@upllyft/ui';
 
 // ── Inline SVG Icons ──
@@ -164,6 +166,12 @@ function TherapistCardSkeleton() {
 
 // ── Main page ──
 
+function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId: string; message: string; chipText: string; childName?: string }) {
+  const { user } = useAuth();
+  if (user?.role !== 'USER') return null;
+  return <MiraNudge nudgeId={nudgeId} message={message} chipText={chipText} childName={childName} mainAppUrl={APP_URLS.main} />;
+}
+
 export default function MarketplacePage() {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState('');
@@ -234,6 +242,13 @@ export default function MarketplacePage() {
             </button>
           ))}
         </div>
+
+        {/* Mira Nudge */}
+        <MiraNudgeForParent
+          nudgeId="booking-marketplace"
+          message="Not sure what type of therapist your child needs?"
+          chipText="Help me find the right therapist for my child"
+        />
 
         {/* Results */}
         {isLoading ? (

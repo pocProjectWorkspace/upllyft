@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getMyProfile } from '@/lib/api/profiles';
 import { getTherapistAnalytics, getMyBookings } from '@/lib/api/marketplace';
 import { getPosts, getTrendingPosts } from '@/lib/api/posts';
+import { getMiraConversations } from '@/lib/api/mira';
 
 export function useMyProfile() {
   return useQuery({
@@ -56,5 +57,14 @@ export function useRecentFeedPosts() {
     queryFn: () => getPosts({ sort: 'recent', limit: 4, page: 1 }),
     retry: 1,
     select: (data) => data.posts,
+  });
+}
+
+export function useLastMiraConversation() {
+  return useQuery({
+    queryKey: ['mira', 'conversations', 'last'],
+    queryFn: getMiraConversations,
+    retry: 1,
+    select: (data) => (data.length > 0 ? data[0] : null),
   });
 }

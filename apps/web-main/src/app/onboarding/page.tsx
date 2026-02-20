@@ -929,7 +929,7 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ── Step 5: Recommendation ───────────────────────── */}
+            {/* ── Step 5: Meet Mira ────────────────────────────── */}
             {step === 5 && (
               <div>
                 {!recommendation ? (
@@ -949,141 +949,125 @@ export default function OnboardingPage() {
                   </div>
                 ) : (
                   <>
+                    {/* Mira Avatar */}
                     <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
+                      initial={{ scale: 0.6, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.05, duration: 0.4 }}
-                      className="flex justify-center mb-4"
+                      transition={{ delay: 0.1, type: 'spring', stiffness: 200, damping: 15 }}
+                      className="flex justify-center mb-6"
                     >
-                      <SparklesIllustration />
+                      <div className="relative">
+                        <motion.div
+                          animate={{ scale: [1, 1.08, 1] }}
+                          transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+                          className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-300 to-teal-400 flex items-center justify-center shadow-xl ring-4 ring-teal-200/60"
+                        >
+                          <span className="text-white font-bold text-3xl">M</span>
+                        </motion.div>
+                        {/* Glow ring */}
+                        <motion.div
+                          animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.15, 1] }}
+                          transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+                          className="absolute inset-0 rounded-full bg-teal-400/20 blur-xl -z-10"
+                        />
+                      </div>
                     </motion.div>
 
                     <motion.h2
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.15 }}
-                      className="text-2xl font-bold text-gray-900 text-center mb-8"
+                      transition={{ delay: 0.25 }}
+                      className="text-2xl font-bold text-gray-900 text-center mb-2"
                     >
-                      You&apos;re all set! Here&apos;s where we suggest you
-                      start{' '}
-                      <span role="img" aria-label="star">
-                        {'\uD83C\uDF1F'}
-                      </span>
+                      Meet Mira &mdash; your developmental guide
                     </motion.h2>
 
-                    {/* Hero card with staggered children */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 30 }}
+                    <motion.p
+                      initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3, duration: 0.5 }}
-                      className="bg-gradient-to-br from-teal-500 to-teal-700 rounded-2xl p-8 text-white mb-8 shadow-lg overflow-hidden relative"
+                      transition={{ delay: 0.35 }}
+                      className="text-gray-500 text-center mb-8 max-w-sm mx-auto leading-relaxed"
                     >
-                      <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.4 }}
-                        className="text-teal-100 text-sm font-medium mb-2 uppercase tracking-wider"
-                      >
-                        Recommended for you
-                      </motion.p>
-                      <motion.h3
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 }}
-                        className="text-2xl font-bold mb-3"
-                      >
-                        {recommendation.recommendedModule}
-                      </motion.h3>
-                      <motion.p
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.6 }}
-                        className="text-teal-100 leading-relaxed mb-6"
-                      >
-                        {RECOMMENDATION_COPY[
-                          recommendation.recommendedNextStep
-                        ] || recommendation.recommendedReason}
-                      </motion.p>
+                      {childName
+                        ? `Mira already knows about ${childName} and will help you figure out the best next steps.`
+                        : "Mira will help you figure out the best next steps for your child."}
+                    </motion.p>
+
+                    {/* Talk to Mira CTA */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5, duration: 0.4 }}
+                      className="text-center mb-6"
+                    >
                       <motion.button
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7 }}
-                        whileHover={{ scale: 1.03 }}
+                        whileHover={{ scale: 1.03, boxShadow: '0 12px 36px rgba(13,148,136,0.35)' }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => {
-                          const moduleUrl =
-                            MODULE_INFO[
-                              recommendation.recommendedNextStep
-                            ]?.url;
-                          if (moduleUrl) {
-                            window.location.href = moduleUrl;
-                          } else {
-                            router.push('/');
-                          }
+                          // Store handoff data for Mira
+                          const handoff = {
+                            childName: childName || undefined,
+                            childAge: childDob ? calculateChildAge(childDob) : undefined,
+                            concerns: selectedConcerns,
+                            primaryGoal: primaryReason,
+                          };
+                          localStorage.setItem('mira_onboarding_handoff', JSON.stringify(handoff));
+                          router.push('/');
                         }}
                         disabled={saving}
-                        className="bg-white text-teal-700 font-semibold rounded-xl px-8 py-3 hover:bg-teal-50 transition-colors shadow-md"
+                        className="bg-gradient-to-r from-teal-400 to-teal-600 text-white rounded-xl px-10 py-4 text-lg font-semibold shadow-lg"
                       >
-                        Take Me There &rarr;
+                        Talk to Mira
                       </motion.button>
                     </motion.div>
 
-                    {/* Other modules */}
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.8 }}
-                      className="text-sm text-gray-500 mb-4 text-center"
-                    >
-                      You also have full access to:
-                    </motion.p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-                      {Object.entries(MODULE_INFO)
-                        .filter(
-                          ([key]) =>
-                            key !== recommendation.recommendedNextStep,
-                        )
-                        .slice(0, 3)
-                        .map(([key, info], i) => (
-                          <motion.a
-                            key={key}
-                            href={info.url}
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.85 + i * 0.1 }}
-                            whileHover={{
-                              scale: 1.05,
-                              borderColor: 'rgb(94 234 212)',
-                            }}
-                            className="bg-white rounded-xl border border-gray-200 p-4 text-center transition-shadow hover:shadow-md"
-                          >
-                            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center mx-auto mb-2">
-                              <ModuleIcon name={info.icon} />
-                            </div>
-                            <p className="text-sm font-medium text-gray-900 capitalize">
-                              {key === 'booking' ? 'Therapists' : key}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {info.description}
-                            </p>
-                          </motion.a>
-                        ))}
-                    </div>
-
-                    {/* Dashboard link */}
+                    {/* Secondary: explore on your own */}
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ delay: 1.2 }}
-                      className="text-center"
+                      transition={{ delay: 0.65 }}
+                      className="text-center mb-10"
                     >
                       <button
                         onClick={() => router.push('/')}
-                        className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+                        className="text-sm text-gray-400 hover:text-gray-600 font-medium transition-colors"
                       >
-                        Or explore the dashboard on your own &rarr;
+                        Or explore on your own &rarr;
                       </button>
                     </motion.div>
+
+                    {/* Module cards — secondary access */}
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.75 }}
+                      className="text-sm text-gray-400 mb-4 text-center"
+                    >
+                      You also have access to:
+                    </motion.p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {Object.entries(MODULE_INFO).map(([key, info], i) => (
+                        <motion.a
+                          key={key}
+                          href={info.url}
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.8 + i * 0.08 }}
+                          whileHover={{
+                            scale: 1.05,
+                            borderColor: 'rgb(94 234 212)',
+                          }}
+                          className="bg-white rounded-xl border border-gray-200 p-3 text-center transition-shadow hover:shadow-md"
+                        >
+                          <div className="w-9 h-9 bg-teal-50 rounded-lg flex items-center justify-center mx-auto mb-1.5">
+                            <ModuleIcon name={info.icon} />
+                          </div>
+                          <p className="text-xs font-medium text-gray-900 capitalize">
+                            {key === 'booking' ? 'Therapists' : key}
+                          </p>
+                        </motion.a>
+                      ))}
+                    </div>
                   </>
                 )}
               </div>
@@ -1152,6 +1136,19 @@ export default function OnboardingPage() {
       </div>
     </div>
   );
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+function calculateChildAge(dob: string): string {
+  const birth = new Date(dob);
+  const now = new Date();
+  let years = now.getFullYear() - birth.getFullYear();
+  const monthDiff = now.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
+    years--;
+  }
+  return `${years}`;
 }
 
 // ── Animated SVG Illustrations ─────────────────────────────────────

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Card, Badge, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@upllyft/ui';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { Button, Card, Badge, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, MiraNudge } from '@upllyft/ui';
 import { ResourcesShell } from '@/components/resources-shell';
 import { useMyLibrary } from '@/hooks/use-worksheets';
 import type { WorksheetType, WorksheetStatus, WorksheetDifficulty, WorksheetFilters } from '@/lib/api/worksheets';
@@ -29,6 +30,12 @@ const typeIcons: Record<WorksheetType, string> = {
   STRUCTURED_PLAN: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
   PROGRESS_TRACKER: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
 };
+
+function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId: string; message: string; chipText: string; childName?: string }) {
+  const { user } = useAuth();
+  if (user?.role !== 'USER') return null;
+  return <MiraNudge nudgeId={nudgeId} message={message} chipText={chipText} childName={childName} mainAppUrl={APP_URLS.main} />;
+}
 
 export default function MyLibraryPage() {
   const router = useRouter();
@@ -68,6 +75,13 @@ export default function MyLibraryPage() {
           </div>
           <Button onClick={() => router.push('/create')}>Create Something New</Button>
         </div>
+
+        {/* Mira Nudge */}
+        <MiraNudgeForParent
+          nudgeId="resources-home"
+          message="I can suggest activities and worksheets based on your child's developmental needs."
+          chipText="Suggest activities for my child"
+        />
 
         {/* Search */}
         <Input

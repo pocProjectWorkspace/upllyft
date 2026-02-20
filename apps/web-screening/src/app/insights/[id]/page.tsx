@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Button, Skeleton } from '@upllyft/ui';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { Button, Skeleton, MiraNudge } from '@upllyft/ui';
 import { ScreeningShell } from '@/components/screening-shell';
 import {
   useInsightConversation,
@@ -19,6 +20,12 @@ import { ExpertsTab } from './components/ExpertsTab';
 import { OrganisationsTab } from './components/OrganisationsTab';
 import { ConversationsTab } from './components/ConversationsTab';
 import { FollowUpInput } from './components/FollowUpInput';
+
+function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId: string; message: string; chipText: string; childName?: string }) {
+  const { user } = useAuth();
+  if (user?.role !== 'USER') return null;
+  return <MiraNudge nudgeId={nudgeId} message={message} chipText={chipText} childName={childName} mainAppUrl={APP_URLS.main} />;
+}
 
 export default function InsightDetailPage() {
   const params = useParams();
@@ -139,6 +146,14 @@ export default function InsightDetailPage() {
           createdAt={conversation.createdAt}
           riskLevel={insights?.overallAssessment?.riskLevel}
           diagnosis={insights?.caseAnalysis?.diagnosis}
+        />
+
+        {/* Mira Nudge */}
+        <MiraNudgeForParent
+          childName={insights?.child?.name}
+          nudgeId="insight-detail"
+          message="Have questions about this insight? I can explain any section in simpler terms."
+          chipText="Help me understand this developmental insight"
         />
 
         {/* ── Mobile Tabs ── */}

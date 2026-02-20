@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
 import type { MiraMessage, MiraConversationSummary } from '@/lib/api/mira';
 import {
   streamMiraChat,
@@ -217,6 +217,66 @@ export function MiraProvider({ children }: { children: ReactNode }) {
       // ignore
     }
   }, [conversationId, startNewConversation]);
+
+  // ── Onboarding handoff: auto-open Mira with context ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = localStorage.getItem('mira_onboarding_handoff');
+    if (!raw) return;
+
+    try {
+      const handoff = JSON.parse(raw) as {
+        childName?: string;
+        childAge?: string;
+        concerns?: string[];
+        primaryGoal?: string;
+      };
+      localStorage.removeItem('mira_onboarding_handoff');
+
+      const parts: string[] = ['I just signed up.'];
+      if (handoff.childName) {
+        parts.push(`My child ${handoff.childName} is ${handoff.childAge || ''} years old.`.replace('  ', ' '));
+      }
+      if (handoff.concerns && handoff.concerns.length > 0) {
+        parts.push(`I'm concerned about ${handoff.concerns.join(', ').toLowerCase()}.`);
+      }
+      if (handoff.primaryGoal) {
+        const goalLabels: Record<string, string> = {
+          'recent-diagnosis': 'my child recently received a diagnosis',
+          'screen-development': "I want to screen my child's development",
+          'find-therapist': "I'm looking for the right therapist",
+          'connect-parents': 'I want to connect with other parents',
+          'just-exploring': "I'm just exploring",
+        };
+        const label = goalLabels[handoff.primaryGoal] || handoff.primaryGoal;
+        parts.push(`I'm here because ${label}.`);
+      }
+
+      const message = parts.join(' ');
+      setPrefilledMessage(message);
+      setIsOpen(true);
+    } catch {
+      localStorage.removeItem('mira_onboarding_handoff');
+    }
+  }, []);
+
+  // ── URL param handler: ?openMira=true&message=... ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('openMira') !== 'true') return;
+
+    const message = params.get('message') || undefined;
+    if (message) setPrefilledMessage(message);
+    setIsOpen(true);
+
+    // Clean URL without navigation
+    const url = new URL(window.location.href);
+    url.searchParams.delete('openMira');
+    url.searchParams.delete('message');
+    url.searchParams.delete('context');
+    window.history.replaceState({}, '', url.pathname + url.hash);
+  }, []);
 
   return (
     <MiraContext.Provider

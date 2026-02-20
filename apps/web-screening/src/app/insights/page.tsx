@@ -1,10 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { Button, Card, Badge, Skeleton } from '@upllyft/ui';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { Button, Card, Badge, Skeleton, MiraNudge } from '@upllyft/ui';
 import { ScreeningShell } from '@/components/screening-shell';
 import { useInsightsHistory } from '@/hooks/use-assessments';
 import { formatDate } from '@/lib/utils';
+
+function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId: string; message: string; chipText: string; childName?: string }) {
+  const { user } = useAuth();
+  if (user?.role !== 'USER') return null;
+  return <MiraNudge nudgeId={nudgeId} message={message} chipText={chipText} childName={childName} mainAppUrl={APP_URLS.main} />;
+}
 
 export default function InsightsPage() {
   const { data: history, isLoading } = useInsightsHistory();
@@ -131,14 +138,21 @@ export default function InsightsPage() {
               </svg>
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No insights yet</h3>
-            <p className="text-gray-500 mb-8 max-w-md mx-auto">
+            <p className="text-gray-500 mb-6 max-w-md mx-auto">
               Create your first personalized insight based on your child&rsquo;s screening results. It only takes a minute!
             </p>
-            <Link href="/insights/new">
-              <Button className="gradient-teal text-white border-0 px-8 py-3 rounded-xl font-semibold">
-                Create Your First Insight
-              </Button>
-            </Link>
+            <MiraNudgeForParent
+              nudgeId="insights-empty"
+              message="Not sure if your child needs a screening? Tell me what you're noticing and I'll help you decide."
+              chipText="Should I screen my child?"
+            />
+            <div className="mt-6">
+              <Link href="/insights/new">
+                <Button className="gradient-teal text-white border-0 px-8 py-3 rounded-xl font-semibold">
+                  Create Your First Insight
+                </Button>
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

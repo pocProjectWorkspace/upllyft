@@ -176,6 +176,9 @@ export {
   type CommandPaletteProviderProps,
 } from './components/CommandPalette';
 
+// Mira
+export { MiraNudge, type MiraNudgeProps } from './mira-nudge';
+
 // Layouts
 export { AppHeader, type AppHeaderProps, type NavItem } from './layouts/AppHeader';
 export { Sidebar, type SidebarProps, type SidebarItem } from './layouts/Sidebar';

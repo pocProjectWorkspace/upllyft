@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import {
+  MiraNudge,
   Button,
   Card,
   Badge,
@@ -142,6 +144,12 @@ function getDomainStatusBadge(status: string) {
 }
 
 // ── Main Component ──
+
+function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId: string; message: string; chipText: string; childName?: string }) {
+  const { user } = useAuth();
+  if (user?.role !== 'USER') return null;
+  return <MiraNudge nudgeId={nudgeId} message={message} chipText={chipText} childName={childName} mainAppUrl={APP_URLS.main} />;
+}
 
 export default function ReportPage() {
   const params = useParams();
@@ -359,6 +367,14 @@ export default function ReportPage() {
               </div>
             </Card>
           </div>
+
+          {/* Mira Nudge */}
+          <MiraNudgeForParent
+            childName={child?.nickname || child?.firstName}
+            nudgeId="screening-report"
+            message="Not sure what these scores mean for [child name]?"
+            chipText={`Explain ${child?.nickname || child?.firstName || "my child"}'s screening results to me`}
+          />
 
           {/* View Toggle + Action Buttons */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

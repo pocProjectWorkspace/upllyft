@@ -3,6 +3,7 @@
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { BookingShell } from '@/components/booking-shell';
 import { InlineCalendar } from '@/components/inline-calendar';
 import {
@@ -28,6 +29,7 @@ import {
   Separator,
   Textarea,
   Button,
+  MiraNudge,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -216,6 +218,12 @@ function DetailSkeleton() {
 
 // ── Main page ──
 
+function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId: string; message: string; chipText: string; childName?: string }) {
+  const { user } = useAuth();
+  if (user?.role !== 'USER') return null;
+  return <MiraNudge nudgeId={nudgeId} message={message} chipText={chipText} childName={childName} mainAppUrl={APP_URLS.main} />;
+}
+
 export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -343,6 +351,13 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
           <ArrowLeftIcon className="w-4 h-4" />
           <span className="text-sm font-medium">Back to Bookings</span>
         </button>
+
+        {/* Mira Nudge */}
+        <MiraNudgeForParent
+          nudgeId="booking-detail"
+          message="Great choice! Want tips on what to discuss in your first session?"
+          chipText="How do I prepare for a therapy session?"
+        />
 
         {/* Header card */}
         <Card className="rounded-2xl overflow-hidden">

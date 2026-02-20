@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { CommunityShell } from '@/components/community-shell';
 import {
   useBrowseCommunities,
@@ -18,6 +19,7 @@ import {
   Badge,
   Input,
   Skeleton,
+  MiraNudge,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -582,6 +584,12 @@ function TopContributorsTab() {
   );
 }
 
+function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId: string; message: string; chipText: string; childName?: string }) {
+  const { user } = useAuth();
+  if (user?.role !== 'USER') return null;
+  return <MiraNudge nudgeId={nudgeId} message={message} chipText={chipText} childName={childName} mainAppUrl={APP_URLS.main} />;
+}
+
 export default function BrowseCommunitiesPage() {
   const { data: stats, isLoading: statsLoading } = useCommunityStats();
 
@@ -602,6 +610,15 @@ export default function BrowseCommunitiesPage() {
             Create Community
           </button>
         </Link>
+      </div>
+
+      {/* Mira Nudge */}
+      <div className="mb-8">
+        <MiraNudgeForParent
+          nudgeId="community-browse"
+          message="Not sure which community to join? I can recommend one based on your child's needs."
+          chipText="Which community should I join?"
+        />
       </div>
 
       {/* Stats Cards */}

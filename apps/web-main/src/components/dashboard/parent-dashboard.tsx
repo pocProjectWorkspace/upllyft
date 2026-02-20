@@ -3,9 +3,9 @@
 import type { User } from '@upllyft/types';
 import { APP_URLS } from '@upllyft/api-client';
 import { Card, Avatar, Badge, Skeleton, Popover, PopoverTrigger, PopoverContent } from '@upllyft/ui';
-import { useMyProfile, useUpcomingBookings, useRecentFeedPosts } from '@/hooks/use-dashboard';
+import { useMyProfile, useUpcomingBookings, useRecentFeedPosts, useLastMiraConversation } from '@/hooks/use-dashboard';
 import { calculateAge, type OnboardingData } from '@/lib/api/profiles';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMira } from '@/components/mira/mira-context';
 
 const SELECTED_CHILD_KEY = 'upllyft_selected_child';
@@ -18,6 +18,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
   const { data: profile, isLoading: profileLoading } = useMyProfile();
   const { data: upcomingSessions, isLoading: sessionsLoading } = useUpcomingBookings();
   const { data: recentPosts, isLoading: feedLoading } = useRecentFeedPosts();
+  const { data: lastConversation } = useLastMiraConversation();
   const mira = useMira();
   const [selectedChildId, setSelectedChildId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
@@ -26,6 +27,8 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
     return null;
   });
   const [childDropdownOpen, setChildDropdownOpen] = useState(false);
+  const [heroInput, setHeroInput] = useState('');
+  const heroInputRef = useRef<HTMLInputElement>(null);
 
   const children = profile?.children || [];
   const selectedChild = selectedChildId
@@ -40,106 +43,196 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
   }, [selectedChild]);
 
   const displayName = user.name || user.email?.split('@')[0] || 'Parent';
+  const onboardingData = profile?.onboardingData as OnboardingData | null | undefined;
+  const recommendedStep = onboardingData?.recommendedNextStep;
+
+  // Build contextual greeting and starter chips
+  const hasScreening = Boolean(profile?.onboardingData);
+  const hasUpcoming = Boolean(upcomingSessions && upcomingSessions.length > 0);
+
+  function getGreeting(): string {
+    if (!hasScreening && !hasUpcoming) {
+      return selectedChild
+        ? `Tell me what's on your mind about ${selectedChild.firstName}, and I'll help you figure out the next step.`
+        : "Tell me what's on your mind, and I'll help you figure out the next step.";
+    }
+    if (hasUpcoming) {
+      return selectedChild
+        ? `I'm here whenever you need guidance about ${selectedChild.firstName}. What can I help with?`
+        : "I'm here whenever you need guidance. What can I help with?";
+    }
+    return selectedChild
+      ? `How can I help with ${selectedChild.firstName} today?`
+      : 'How can I help today?';
+  }
+
+  function getStarterChips(): { label: string; message: string }[] {
+    const chips: { label: string; message: string }[] = [];
+    if (lastConversation) {
+      chips.push({ label: 'Continue our last chat', message: 'Let\'s continue where we left off.' });
+    }
+    if (selectedChild) {
+      chips.push({ label: `What should I focus on?`, message: `What should I focus on for ${selectedChild.firstName}'s development right now?` });
+    }
+    if (!hasUpcoming) {
+      chips.push({ label: 'Find a therapist', message: 'Help me find the right therapist for my child.' });
+    }
+    chips.push({ label: 'Explain a screening', message: 'Can you explain what a developmental screening involves?' });
+    return chips.slice(0, 4);
+  }
+
+  function handleHeroSubmit() {
+    const text = heroInput.trim();
+    if (!text) return;
+    mira.open({ childId: selectedChild?.id, prefilledMessage: text });
+    setHeroInput('');
+  }
+
+  function handleChipClick(message: string) {
+    mira.open({ childId: selectedChild?.id, prefilledMessage: message });
+  }
 
   return (
     <div className="space-y-8">
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 rounded-2xl p-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, {displayName}! 👋
-            </h1>
-            <p className="text-gray-600">
-              {selectedChild
-                ? `Here's how ${selectedChild.firstName} is doing 💛`
-                : "Here's how things are going 💛"}
-            </p>
-          </div>
-          {children.length > 0 && selectedChild ? (
-            <Popover open={childDropdownOpen} onOpenChange={setChildDropdownOpen}>
-              <PopoverTrigger asChild>
-                <button className="bg-white/80 backdrop-blur rounded-xl px-4 py-3 flex items-center gap-3 border border-teal-200 hover:border-teal-300 transition-colors">
-                  <Avatar name={selectedChild.firstName} size="md" />
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-900">{selectedChild.firstName}</p>
-                    <p className="text-xs text-gray-500">
-                      Age {calculateAge(selectedChild.dateOfBirth)} years
-                      {selectedChild.grade ? ` \u00b7 Grade ${selectedChild.grade}` : ''}
-                    </p>
-                  </div>
-                  {children.length > 1 && (
-                    <svg
-                      className={`w-5 h-5 text-gray-400 transition-transform ${childDropdownOpen ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  )}
-                </button>
-              </PopoverTrigger>
-              {children.length > 1 && (
-                <PopoverContent align="end" className="w-64 p-2">
-                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider px-3 py-1.5">
-                    Switch Child
-                  </p>
-                  {children.map((child) => {
-                    const isSelected = selectedChild.id === child.id;
-                    return (
-                      <button
-                        key={child.id}
-                        onClick={() => {
-                          setSelectedChildId(child.id);
-                          setChildDropdownOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                          isSelected ? 'bg-teal-50' : 'hover:bg-gray-50'
-                        }`}
-                      >
-                        <Avatar name={child.firstName} size="sm" />
-                        <div className="flex-1 text-left min-w-0">
-                          <p className={`text-sm font-medium ${isSelected ? 'text-teal-700' : 'text-gray-900'}`}>
-                            {child.firstName}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Age {calculateAge(child.dateOfBirth)}
-                            {child.grade ? ` \u00b7 Grade ${child.grade}` : ''}
-                          </p>
-                        </div>
-                        {isSelected && (
-                          <svg className="w-4 h-4 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </button>
-                    );
-                  })}
-                </PopoverContent>
-              )}
-            </Popover>
-          ) : !profileLoading && children.length === 0 ? (
-            <a
-              href="/profile"
-              className="bg-white/80 backdrop-blur rounded-xl px-4 py-3 flex items-center gap-3 border border-teal-200 hover:border-teal-300 transition-colors"
-            >
-              <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+      {/* ── Mira Hero Card ──────────────────────────────────────── */}
+      <div className="rounded-2xl bg-gradient-to-br from-teal-500 via-teal-600 to-teal-700 p-6 sm:p-8 text-white relative overflow-hidden">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-4 right-8 w-32 h-32 rounded-full bg-white/20 blur-2xl" />
+          <div className="absolute bottom-4 left-12 w-24 h-24 rounded-full bg-white/15 blur-xl" />
+        </div>
+
+        <div className="relative flex flex-col lg:flex-row lg:items-start gap-6">
+          {/* Left: Avatar + Greeting */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-300 to-teal-300 flex items-center justify-center shadow-lg flex-shrink-0 ring-2 ring-white/30">
+                <span className="text-white font-bold text-xl">M</span>
               </div>
               <div>
-                <p className="font-semibold text-gray-900">Add a Child</p>
-                <p className="text-xs text-gray-500">Add your child to get started with personalized support</p>
+                <h1 className="text-xl sm:text-2xl font-bold">
+                  Hi {displayName}! I'm Mira.
+                </h1>
+                <p className="text-teal-100 text-sm">Your developmental guide</p>
               </div>
-            </a>
-          ) : null}
+            </div>
+
+            <p className="text-teal-50 leading-relaxed mb-5 max-w-xl">
+              {getGreeting()}
+            </p>
+
+            {/* Embedded text input */}
+            <div className="flex items-center gap-2 mb-4 max-w-xl">
+              <input
+                ref={heroInputRef}
+                type="text"
+                value={heroInput}
+                onChange={(e) => setHeroInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleHeroSubmit();
+                }}
+                onFocus={() => {
+                  if (!heroInput) {
+                    // Just focus, don't open panel yet
+                  }
+                }}
+                placeholder="Ask Mira anything..."
+                className="flex-1 bg-white/15 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/20 transition-all"
+              />
+              <button
+                onClick={handleHeroSubmit}
+                disabled={!heroInput.trim()}
+                className="flex-shrink-0 w-11 h-11 bg-white/20 hover:bg-white/30 disabled:opacity-40 rounded-xl flex items-center justify-center transition-colors"
+              >
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Starter chips */}
+            <div className="flex flex-wrap gap-2">
+              {getStarterChips().map((chip) => (
+                <button
+                  key={chip.label}
+                  onClick={() => handleChipClick(chip.message)}
+                  className="px-3.5 py-1.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm rounded-full text-sm text-white/90 font-medium transition-colors whitespace-nowrap"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: Child selector (if children exist) */}
+          {children.length > 0 && selectedChild && (
+            <div className="flex-shrink-0">
+              <Popover open={childDropdownOpen} onOpenChange={setChildDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <button className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-3 flex items-center gap-3 border border-white/20 hover:bg-white/25 transition-colors">
+                    <Avatar name={selectedChild.firstName} size="md" />
+                    <div className="text-left">
+                      <p className="font-semibold text-white">{selectedChild.firstName}</p>
+                      <p className="text-xs text-teal-100">
+                        Age {calculateAge(selectedChild.dateOfBirth)} years
+                        {selectedChild.grade ? ` \u00b7 Grade ${selectedChild.grade}` : ''}
+                      </p>
+                    </div>
+                    {children.length > 1 && (
+                      <svg
+                        className={`w-5 h-5 text-teal-200 transition-transform ${childDropdownOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    )}
+                  </button>
+                </PopoverTrigger>
+                {children.length > 1 && (
+                  <PopoverContent align="end" className="w-64 p-2">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider px-3 py-1.5">
+                      Switch Child
+                    </p>
+                    {children.map((child) => {
+                      const isSelected = selectedChild.id === child.id;
+                      return (
+                        <button
+                          key={child.id}
+                          onClick={() => {
+                            setSelectedChildId(child.id);
+                            setChildDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                            isSelected ? 'bg-teal-50' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <Avatar name={child.firstName} size="sm" />
+                          <div className="flex-1 text-left min-w-0">
+                            <p className={`text-sm font-medium ${isSelected ? 'text-teal-700' : 'text-gray-900'}`}>
+                              {child.firstName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Age {calculateAge(child.dateOfBirth)}
+                              {child.grade ? ` \u00b7 Grade ${child.grade}` : ''}
+                            </p>
+                          </div>
+                          {isSelected && (
+                            <svg className="w-4 h-4 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </PopoverContent>
+                )}
+              </Popover>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Recommended For You — from onboarding */}
-      <OnboardingRecommendation profile={profile} />
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -215,63 +308,86 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
         )}
       </div>
 
-      {/* Module Cards */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <a
-          href={APP_URLS.screening}
-          className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-teal-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(13,148,136,0.2)]"
-        >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-teal-500 to-teal-700">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-          </div>
-          <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-teal-700">Screening</h3>
-          <p className="text-sm text-gray-500">See how your child is growing</p>
-        </a>
+      {/* Explore Upllyft — Module Cards */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Explore Upllyft</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <a
+            href={APP_URLS.screening}
+            className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-teal-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(13,148,136,0.2)] relative"
+          >
+            {recommendedStep === 'screening' && (
+              <span className="absolute top-3 right-3 px-2 py-0.5 bg-teal-100 text-teal-700 text-xs font-medium rounded-full">
+                Recommended
+              </span>
+            )}
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-teal-500 to-teal-700">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-teal-700">Screening</h3>
+            <p className="text-sm text-gray-500">See how your child is growing</p>
+          </a>
 
-        <a
-          href={APP_URLS.booking}
-          className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(59,130,246,0.2)]"
-        >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-blue-500 to-blue-700">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-blue-700">Book Session</h3>
-          <p className="text-sm text-gray-500">Find the right support for your child</p>
-        </a>
+          <a
+            href={APP_URLS.booking}
+            className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(59,130,246,0.2)] relative"
+          >
+            {recommendedStep === 'booking' && (
+              <span className="absolute top-3 right-3 px-2 py-0.5 bg-teal-100 text-teal-700 text-xs font-medium rounded-full">
+                Recommended
+              </span>
+            )}
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-blue-500 to-blue-700">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-blue-700">Book Session</h3>
+            <p className="text-sm text-gray-500">Find the right support for your child</p>
+          </a>
 
-        <a
-          href={APP_URLS.resources}
-          className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-purple-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(139,92,246,0.2)]"
-        >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-purple-500 to-purple-700">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          </div>
-          <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-purple-700">Learning</h3>
-          <p className="text-sm text-gray-500">Activities and resources for your child</p>
-        </a>
+          <a
+            href={APP_URLS.resources}
+            className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-purple-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(139,92,246,0.2)] relative"
+          >
+            {recommendedStep === 'resources' && (
+              <span className="absolute top-3 right-3 px-2 py-0.5 bg-teal-100 text-teal-700 text-xs font-medium rounded-full">
+                Recommended
+              </span>
+            )}
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-purple-500 to-purple-700">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-purple-700">Learning</h3>
+            <p className="text-sm text-gray-500">Activities and resources for your child</p>
+          </a>
 
-        <a
-          href={APP_URLS.community}
-          className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-pink-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(236,72,153,0.2)]"
-        >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-pink-500 to-pink-700">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-          <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-pink-700">Community</h3>
-          <p className="text-sm text-gray-500">You're not alone — talk to other parents</p>
-        </a>
+          <a
+            href={APP_URLS.community}
+            className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-pink-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(236,72,153,0.2)] relative"
+          >
+            {recommendedStep === 'community' && (
+              <span className="absolute top-3 right-3 px-2 py-0.5 bg-teal-100 text-teal-700 text-xs font-medium rounded-full">
+                Recommended
+              </span>
+            )}
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br from-pink-500 to-pink-700">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-pink-700">Community</h3>
+            <p className="text-sm text-gray-500">You're not alone — talk to other parents</p>
+          </a>
+        </div>
       </div>
 
-      {/* Bottom Row */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Bottom Row — 2 columns (removed Talk to Mira card) */}
+      <div className="grid md:grid-cols-2 gap-6">
         {/* Upcoming Sessions */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -318,7 +434,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
               <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <p className="text-sm text-gray-400">When you book a session, it\u2019ll show up here</p>
+              <p className="text-sm text-gray-400">When you book a session, it{'\u2019'}ll show up here</p>
             </div>
           )}
         </div>
@@ -347,27 +463,6 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
             Get Personalized Insights
           </a>
         </div>
-
-        {/* Talk to Mira */}
-        <button
-          onClick={() => mira.open({ childId: selectedChild?.id })}
-          className="bg-gradient-to-br from-white to-teal-50 rounded-2xl border-2 border-teal-200 p-6 hover:border-teal-400 hover:shadow-lg transition-all group text-left"
-        >
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-amber-300 to-teal-400 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">M</span>
-            </div>
-            <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs font-medium rounded-full">
-              AI Guide
-            </span>
-          </div>
-          <h3 className="font-semibold text-lg text-gray-900 mb-2 group-hover:text-teal-700 transition-colors">
-            Talk to Mira
-          </h3>
-          <p className="text-sm text-gray-500">
-            Not sure where to start? Describe what you&apos;re noticing and Mira will guide you with personalized recommendations
-          </p>
-        </button>
       </div>
 
       {/* Recent Feed */}
@@ -416,94 +511,5 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
         )}
       </div>
     </div>
-  );
-}
-
-// ── Onboarding Recommendation Section ────────────────────────────
-
-const RECOMMENDATION_URLS: Record<string, string> = {
-  screening: APP_URLS.screening,
-  booking: APP_URLS.booking,
-  community: APP_URLS.community,
-  resources: APP_URLS.resources,
-};
-
-function OnboardingRecommendation({
-  profile,
-}: {
-  profile: { onboardingCompleted?: boolean; onboardingData?: OnboardingData | null } | undefined;
-}) {
-  const data = profile?.onboardingData as OnboardingData | null | undefined;
-
-  if (
-    !profile?.onboardingCompleted ||
-    !data?.recommendedNextStep ||
-    !data?.recommendedModule
-  ) {
-    return null;
-  }
-
-  const url = RECOMMENDATION_URLS[data.recommendedNextStep] ?? '/';
-
-  return (
-    <a
-      href={url}
-      className="block rounded-2xl border-2 border-teal-200 bg-gradient-to-r from-teal-50 via-white to-teal-50 p-6 hover:border-teal-400 hover:shadow-lg transition-all group"
-    >
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div className="flex-shrink-0">
-          <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center">
-            <svg
-              className="w-6 h-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-          </div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-semibold text-teal-600 uppercase tracking-wider">
-              Recommended for you
-            </span>
-            <span className="px-2 py-0.5 bg-teal-100 text-teal-700 text-xs font-medium rounded-full">
-              Recommended
-            </span>
-          </div>
-          <p className="font-semibold text-gray-900 group-hover:text-teal-700 transition-colors">
-            Based on your goals, we suggest starting with{' '}
-            {data.recommendedModule}
-          </p>
-          <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">
-            {data.recommendedReason}
-          </p>
-        </div>
-        <div className="flex-shrink-0">
-          <span className="inline-flex items-center gap-1 text-sm font-medium text-teal-600 group-hover:text-teal-700">
-            Get started
-            <svg
-              className="w-4 h-4 group-hover:translate-x-0.5 transition-transform"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </span>
-        </div>
-      </div>
-    </a>
   );
 }
