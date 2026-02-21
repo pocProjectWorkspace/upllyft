@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Upllyft is a multi-app monorepo for a neurodivergent community platform, built with Turborepo + pnpm workspaces.
+Upllyft is a multi-app monorepo for a neurodivergent community platform, built with Turborepo + pnpm workspaces. **Mira** (Mindful Intelligent Response Assistant) is the platform's primary touchpoint — an empathetic AI guide that helps parents navigate their child's developmental journey.
 
 ## Monorepo Structure
 
@@ -18,7 +18,7 @@ upllyft/
 │   ├── web-cases/              # Cases: therapist case management, IEPs, milestones (port 3006)
 │   └── mobile/                 # Expo 54 React Native app (iOS + Android)
 ├── packages/
-│   ├── ui/                     # @upllyft/ui — 31 shared React components (web only)
+│   ├── ui/                     # @upllyft/ui — 32 shared React components (web only, includes MiraNudge)
 │   ├── api-client/             # @upllyft/api-client — axios client, token refresh, AuthProvider
 │   ├── types/                  # @upllyft/types — shared TypeScript types
 │   └── config/                 # @upllyft/config — shared tsconfig, eslint, tailwind
@@ -192,6 +192,45 @@ api.upllyft.com       → API
 - Biometric authentication (Face ID / fingerprint)
 - Role-based tab navigation (parent vs therapist)
 
+### Mira — AI Conversational Guide
+
+Mira is the primary touchpoint for parents across the entire platform. She lives in web-main but reaches into every app via contextual nudges.
+
+#### Architecture
+- **Backend**: `apps/api/src/mira/` — NestJS module with streaming SSE chat endpoint (`POST /mira/chat-stream`), conversation CRUD, OpenAI-powered responses
+- **Frontend context**: `apps/web-main/src/components/mira/mira-context.tsx` — `MiraProvider` + `useMira()` hook manages panel state, messages, streaming, conversation history
+- **Panel**: `apps/web-main/src/components/mira/mira-panel.tsx` — slide-over chat panel with prefilled message auto-send
+- **FAB**: `apps/web-main/src/components/mira/mira-fab.tsx` — floating action button (bottom-right) to toggle Mira panel
+- **Avatar**: `apps/web-main/src/components/mira/mira-avatar.tsx` — uses `/Mira.png` image (copied to each app's `public/` folder)
+- **API client**: `apps/web-main/src/lib/api/mira.ts` — streaming fetch + REST helpers
+
+#### Mira-First User Flow
+1. **Onboarding handoff** (Step 5 of `apps/web-main/src/app/onboarding/page.tsx`): After completing onboarding, user sees Mira introduction with "Talk to Mira" CTA. Clicking stores handoff data (`mira_onboarding_handoff`) in localStorage with child name, age, concerns, and primary goal, then navigates to dashboard.
+2. **Auto-open on dashboard**: `MiraProvider` checks for `mira_onboarding_handoff` in localStorage on mount, auto-opens Mira panel with a contextual first message built from the handoff data.
+3. **Dashboard hero**: The parent dashboard (`parent-dashboard.tsx`) features a full-width Mira hero card with embedded text input and contextual starter chips as the first element.
+4. **Cross-app nudges**: `<MiraNudge>` components appear across all apps at moments of uncertainty, redirecting to web-main with `?openMira=true&message=...` URL params.
+
+#### URL Param Handler
+`MiraProvider` detects `?openMira=true&message=...` in the URL on mount, auto-opens Mira with the message as prefilled text, and cleans the URL via `history.replaceState`. This powers both onboarding handoff and cross-app nudge redirects.
+
+#### Cross-App Nudges
+The `<MiraNudge>` component (`packages/ui/src/mira-nudge.tsx`) renders a teal gradient card with Mira's avatar, contextual message, and "Ask Mira" button. Used across:
+
+| App | Page | Nudge Context |
+|-----|------|--------------|
+| web-screening | Report page | "Not sure what these scores mean?" |
+| web-screening | Insights empty state | "Not sure if your child needs a screening?" |
+| web-screening | Insight detail | "Have questions about this insight?" |
+| web-booking | Therapist marketplace | "Not sure what type of therapist your child needs?" |
+| web-booking | Booking detail | "Want tips for your first session?" |
+| web-community | Communities browse | "Not sure which community to join?" |
+| web-resources | Library home | "I can suggest activities for your child" |
+
+Each nudge is wrapped in a `MiraNudgeForParent` helper that role-guards to `user.role === 'USER'` only (parents). Dismiss state is persisted per `nudgeId` in localStorage.
+
+#### Mira Image Asset
+`Mira.png` (illustrated avatar) is stored in `public/Mira.png` at the repo root and copied to each app's `public/` folder: `apps/web-main/public/Mira.png`, `apps/web-screening/public/Mira.png`, `apps/web-booking/public/Mira.png`, `apps/web-community/public/Mira.png`, `apps/web-resources/public/Mira.png`.
+
 ### Key Patterns
 - **Package manager**: pnpm with workspace protocol
 - **Build system**: Turborepo with caching
@@ -205,6 +244,7 @@ api.upllyft.com       → API
 - **Card**: Simple div wrapper (no CardHeader/CardTitle/CardContent)
 - **Badge**: `color` prop (green, blue, yellow, red, gray, purple) — not `variant`
 - **Button**: variants: primary, secondary, outline, ghost (no "destructive")
+- **MiraNudge**: `<MiraNudge nudgeId="..." message="..." chipText="..." mainAppUrl={APP_URLS.main} />` — cross-app Mira nudge with dismiss tracking. Use `onAskMira` callback for in-app (web-main) usage instead of `mainAppUrl`. Supports `childName` for personalized `[child name]` replacement in message.
 
 ## Troubleshooting
 
