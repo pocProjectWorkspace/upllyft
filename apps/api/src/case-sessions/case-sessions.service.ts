@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -43,6 +44,12 @@ export class CaseSessionsService {
         bookingId: dto.bookingId,
         sessionType: dto.sessionType,
         location: dto.location,
+        actualDuration: dto.actualDuration,
+        attendanceStatus: dto.attendanceStatus,
+        rawNotes: dto.rawNotes,
+        noteFormat: dto.noteFormat,
+        structuredNotes: dto.structuredNotes as any,
+        noteStatus: 'DRAFT',
       },
       include: {
         therapist: { select: { id: true, name: true, image: true } },
@@ -132,12 +139,17 @@ export class CaseSessionsService {
 
   /**
    * Update session (notes, attendance, duration).
+   * Throws ForbiddenException if session is already signed.
    */
   async updateSession(caseId: string, sessionId: string, userId: string, dto: UpdateCaseSessionDto) {
     const session = await this.prisma.caseSession.findFirst({
       where: { id: sessionId, caseId },
     });
     if (!session) throw new NotFoundException('Session not found');
+
+    if (session.noteStatus === 'SIGNED') {
+      throw new ForbiddenException('Cannot edit a signed session note');
+    }
 
     const updated = await this.prisma.caseSession.update({
       where: { id: sessionId },
@@ -170,6 +182,46 @@ export class CaseSessionsService {
     });
 
     return updated;
+  }
+
+  /**
+   * Sign a session note, locking it from further edits.
+   */
+  async signSession(caseId: string, sessionId: string, userId: string) {
+    const session = await this.prisma.caseSession.findFirst({
+      where: { id: sessionId, caseId },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    if (session.noteStatus === 'SIGNED') {
+      throw new BadRequestException('Session note is already signed');
+    }
+
+    const signed = await this.prisma.caseSession.update({
+      where: { id: sessionId },
+      data: {
+        noteStatus: 'SIGNED',
+        signedAt: new Date(),
+      },
+      include: {
+        therapist: { select: { id: true, name: true, image: true } },
+        goalProgress: {
+          include: { goal: { select: { id: true, goalText: true, domain: true } } },
+        },
+      },
+    });
+
+    await this.prisma.caseAuditLog.create({
+      data: {
+        caseId,
+        userId,
+        action: 'SESSION_SIGNED',
+        entityType: 'CaseSession',
+        entityId: sessionId,
+      },
+    });
+
+    return signed;
   }
 
   /**

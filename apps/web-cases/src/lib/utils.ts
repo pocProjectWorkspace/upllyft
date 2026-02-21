@@ -100,3 +100,27 @@ export function formatCurrency(amount: number): string {
     currency: 'USD',
   }).format(amount);
 }
+
+export const sessionNoteStatusColors: Record<string, string> = {
+  DRAFT: 'bg-yellow-100 text-yellow-800',
+  SIGNED: 'bg-green-100 text-green-800',
+};
+
+export const sessionNoteStatusLabels: Record<string, string> = {
+  DRAFT: 'Draft',
+  SIGNED: 'Signed',
+};
+
+export const goalProgressRatingLabels: Record<string, string> = {
+  REGRESSION: 'Regression',
+  MAINTAINING: 'Maintaining',
+  PROGRESSING: 'Progressing',
+  ACHIEVED: 'Achieved',
+};
+
+export const RATING_TO_VALUE: Record<string, number> = {
+  REGRESSION: 0,
+  MAINTAINING: 25,
+  PROGRESSING: 50,
+  ACHIEVED: 100,
+};

@@ -28,6 +28,27 @@ export class CreateCaseSessionDto {
   @IsOptional()
   @IsString()
   location?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  actualDuration?: number;
+
+  @IsOptional()
+  @IsEnum(AttendanceStatus)
+  attendanceStatus?: AttendanceStatus;
+
+  @IsOptional()
+  @IsString()
+  rawNotes?: string;
+
+  @IsOptional()
+  @IsEnum(SessionNoteFormat)
+  noteFormat?: SessionNoteFormat;
+
+  @IsOptional()
+  @IsObject()
+  structuredNotes?: Record<string, unknown>;
 }
 
 export class UpdateCaseSessionDto {
@@ -50,13 +71,7 @@ export class UpdateCaseSessionDto {
 
   @IsOptional()
   @IsObject()
-  structuredNotes?: {
-    activities?: string[];
-    observations?: string;
-    parentFeedback?: string;
-    homeworkAssigned?: string;
-    nextSessionPlan?: string;
-  };
+  structuredNotes?: Record<string, unknown>;
 
   @IsOptional()
   @IsString()

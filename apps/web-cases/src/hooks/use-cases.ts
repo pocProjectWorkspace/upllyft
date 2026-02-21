@@ -264,6 +264,43 @@ export function useLogGoalProgress() {
   });
 }
 
+export function useSignSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ caseId, sessionId }: { caseId: string; sessionId: string }) =>
+      casesApi.signSession(caseId, sessionId),
+    onSuccess: (_, { caseId, sessionId }) => {
+      qc.invalidateQueries({ queryKey: keys.session(caseId, sessionId) });
+      qc.invalidateQueries({ queryKey: keys.sessions(caseId) });
+      qc.invalidateQueries({ queryKey: keys.timeline(caseId) });
+      toast({ title: 'Session note signed and locked' });
+    },
+    onError: () => toast({ title: 'Failed to sign session note', variant: 'destructive' }),
+  });
+}
+
+export function useBulkLogGoalProgress() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      caseId,
+      sessionId,
+      data,
+    }: {
+      caseId: string;
+      sessionId: string;
+      data: { entries: Array<{ goalId: string; progressNote?: string; progressValue?: number }> };
+    }) => casesApi.bulkLogGoalProgress(caseId, sessionId, { progress: data.entries }),
+    onSuccess: (_, { caseId, sessionId }) => {
+      qc.invalidateQueries({ queryKey: keys.session(caseId, sessionId) });
+      qc.invalidateQueries({ queryKey: keys.sessions(caseId) });
+      qc.invalidateQueries({ queryKey: keys.ieps(caseId) });
+      toast({ title: 'Goal progress saved' });
+    },
+    onError: () => toast({ title: 'Failed to save goal progress', variant: 'destructive' }),
+  });
+}
+
 // ── IEPs ──
 
 export function useIEPs(caseId: string) {

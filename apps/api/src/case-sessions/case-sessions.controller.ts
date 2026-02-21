@@ -73,6 +73,18 @@ export class CaseSessionsController {
     return this.sessionsService.updateSession(caseId, sessionId, req.user.id, dto);
   }
 
+  // ─── SIGN SESSION ─────────────────────────────────────────
+
+  @Post(':sessionId/sign')
+  @CaseAccess('edit')
+  async signSession(
+    @Param('caseId') caseId: string,
+    @Param('sessionId') sessionId: string,
+    @Req() req: any,
+  ) {
+    return this.sessionsService.signSession(caseId, sessionId, req.user.id);
+  }
+
   // ─── GOAL PROGRESS ────────────────────────────────────────
 
   @Post(':sessionId/goal-progress')

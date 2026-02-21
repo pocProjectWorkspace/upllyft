@@ -8,6 +8,7 @@ export type IEPStatus = 'DRAFT' | 'ACTIVE' | 'IN_REVIEW' | 'APPROVED' | 'ARCHIVE
 export type GoalStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'ACHIEVED' | 'DISCONTINUED';
 export type MilestoneStatus = 'ON_TRACK' | 'EMERGING' | 'DELAYED' | 'ACHIEVED' | 'REGRESSED';
 export type SessionNoteFormat = 'SOAP' | 'DAP' | 'NARRATIVE' | 'CUSTOM';
+export type SessionNoteStatus = 'DRAFT' | 'SIGNED';
 export type AttendanceStatus = 'PRESENT' | 'CANCELLED' | 'NO_SHOW' | 'LATE';
 export type CaseDocumentType = 'IEP' | 'REPORT' | 'ASSESSMENT' | 'SUMMARY' | 'PROGRESS_REPORT' | 'DISCHARGE_SUMMARY' | 'CONSENT' | 'OTHER';
 export type BillingStatus = 'PENDING' | 'BILLED' | 'PAID' | 'OVERDUE' | 'CANCELLED';
@@ -110,6 +111,8 @@ export interface CaseSession {
   aiSummary?: string;
   noteFormat?: SessionNoteFormat;
   structuredNotes?: Record<string, unknown>;
+  noteStatus?: SessionNoteStatus;
+  signedAt?: string;
   goalProgress?: SessionGoalProgress[];
   createdAt: string;
   updatedAt: string;
@@ -704,6 +707,11 @@ export async function enhanceClinicalNotes(
   data: EnhanceNotesInput,
 ): Promise<{ enhancedText: string }> {
   const res = await apiClient.post(`/cases/${caseId}/sessions/${sessionId}/enhance-notes`, data);
+  return res.data;
+}
+
+export async function signSession(caseId: string, sessionId: string): Promise<CaseSession> {
+  const res = await apiClient.post(`/cases/${caseId}/sessions/${sessionId}/sign`);
   return res.data;
 }
 

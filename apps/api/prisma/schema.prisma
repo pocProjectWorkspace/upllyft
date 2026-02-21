@@ -1322,6 +1322,7 @@ model Child {
   takingMedications                     Boolean?
   teacherConcerns                       String?
   visionHearingIssues                   String?
+  clinicStatus                          ClinicStatus     @default(INTAKE)
   assessments                           Assessment[]
   conditions                            ChildCondition[]
   cases                                 Case[]
@@ -1638,6 +1639,9 @@ model TherapistProfile {
   isActive                 Boolean                     @default(true)
   acceptingBookings        Boolean                     @default(true)
   commissionPercentage     Float?
+  licenceNumber            String?
+  licenceExpiry            DateTime?
+  credentialStatus         CredentialStatus            @default(PENDING)
   createdAt                DateTime                    @default(now())
   updatedAt                DateTime                    @updatedAt
   availabilityExceptions   AvailabilityException[]
@@ -1805,6 +1809,14 @@ model Booking {
   therapistRejectedAt          DateTime?
   rejectionReason              String?
   acceptanceDeadline           DateTime?
+
+  // Clinic tracking fields
+  trackingStatus               TrackingStatus?
+  checkedInAt                  DateTime?
+  sessionStartedAt             DateTime?
+  sessionEndedAt               DateTime?
+  receptionistNotes            String?
+
   createdAt                    DateTime                       @default(now())
   updatedAt                    DateTime                       @updatedAt
   questionnaireResponses       BookingQuestionnaireResponse[]
@@ -1823,6 +1835,7 @@ model Booking {
   @@index([status])
   @@index([startDateTime])
   @@index([paymentStatus])
+  @@index([trackingStatus])
   @@map("bookings")
 }
 
@@ -2494,6 +2507,15 @@ enum BookingStatus {
   DISPUTED
 }
 
+enum TrackingStatus {
+  SCHEDULED
+  WAITING
+  IN_SESSION
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 enum PaymentStatus {
   PENDING
   COMPLETED
@@ -2537,6 +2559,12 @@ enum AvailabilityExceptionType {
 enum RaterType {
   PATIENT
   THERAPIST
+}
+
+enum CredentialStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
 }
 
 enum AdPlacement {
@@ -2816,6 +2844,8 @@ model CaseSession {
   aiSummary        String?
   noteFormat       SessionNoteFormat?
   structuredNotes  Json?
+  noteStatus       SessionNoteStatus @default(DRAFT)
+  signedAt         DateTime?
 
   goalProgress     SessionGoalProgress[]
   billing          CaseBilling?
@@ -2974,6 +3004,13 @@ model CaseConsent {
 
 // ─── CASE MANAGEMENT ENUMS ───────────────────────────────
 
+enum ClinicStatus {
+  INTAKE
+  ACTIVE
+  ON_HOLD
+  DISCHARGED
+}
+
 enum CaseStatus {
   ACTIVE
   ON_HOLD
@@ -3016,6 +3053,11 @@ enum SessionNoteFormat {
   DAP
   NARRATIVE
   CUSTOM
+}
+
+enum SessionNoteStatus {
+  DRAFT
+  SIGNED
 }
 
 enum AttendanceStatus {

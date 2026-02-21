@@ -1,8 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCreateSession } from '@/hooks/use-cases';
+import {
+  useCreateSession,
+  useUpdateSession,
+  useSignSession,
+  useBulkLogGoalProgress,
+} from '@/hooks/use-cases';
 import {
   Button,
   Card,
@@ -15,14 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
   useToast,
+  Badge,
 } from '@upllyft/ui';
-import { ArrowLeft, Loader2, FileText, Stethoscope } from 'lucide-react';
-
-const NOTE_FORMAT_OPTIONS = [
-  { value: 'SOAP', label: 'SOAP' },
-  { value: 'DAP', label: 'DAP' },
-  { value: 'NARRATIVE', label: 'Narrative' },
-];
+import { ArrowLeft, Loader2, FileText, Save, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { SOAPSection } from './soap-section';
+import { GoalProgressLinker, type GoalProgressEntry } from './goal-progress-linker';
+import type { CaseSession } from '@/lib/api/cases';
 
 const ATTENDANCE_OPTIONS = [
   { value: 'PRESENT', label: 'Present' },
@@ -31,96 +34,298 @@ const ATTENDANCE_OPTIONS = [
   { value: 'LATE', label: 'Late' },
 ];
 
-interface CreateSessionFormProps {
+const SESSION_TYPE_OPTIONS = [
+  { value: 'In-person', label: 'In-person' },
+  { value: 'Teletherapy', label: 'Teletherapy' },
+  { value: 'Home Visit', label: 'Home Visit' },
+];
+
+type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'unsaved';
+
+interface SessionNoteFormProps {
   caseId: string;
+  sessionId?: string;
+  initialData?: CaseSession;
 }
 
-export function CreateSessionForm({ caseId }: CreateSessionFormProps) {
+export function CreateSessionForm({ caseId }: { caseId: string }) {
+  return <SessionNoteForm caseId={caseId} />;
+}
+
+export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const createSession = useCreateSession();
+  const updateSession = useUpdateSession();
+  const signSession = useSignSession();
+  const bulkLogGoalProgress = useBulkLogGoalProgress();
 
+  const isEditMode = !!sessionId;
+
+  // Session header fields
   const [scheduledAt, setScheduledAt] = useState(
-    new Date().toISOString().split('T')[0],
+    initialData?.scheduledAt
+      ? new Date(initialData.scheduledAt).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0],
   );
-  const [duration, setDuration] = useState(60);
-  const [noteFormat, setNoteFormat] = useState('SOAP');
-  const [attendance, setAttendance] = useState('PRESENT');
-  const [sessionType, setSessionType] = useState('');
-  const [location, setLocation] = useState('');
-  const [rawNotes, setRawNotes] = useState('');
-  const [objectives, setObjectives] = useState('');
-  const [interventions, setInterventions] = useState('');
-  const [response, setResponse] = useState('');
-  const [plan, setPlan] = useState('');
+  const [duration, setDuration] = useState(initialData?.actualDuration ?? 60);
+  const [attendance, setAttendance] = useState(initialData?.attendanceStatus ?? 'PRESENT');
+  const [sessionType, setSessionType] = useState(initialData?.sessionType ?? '');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // SOAP fields
+  const sn = (initialData?.structuredNotes ?? {}) as Record<string, string>;
+  const [subjective, setSubjective] = useState(sn.subjective ?? sn.objectives ?? '');
+  const [objective, setObjective] = useState(sn.objective ?? sn.interventions ?? '');
+  const [assessment, setAssessment] = useState(sn.assessment ?? sn.response ?? '');
+  const [plan, setPlan] = useState(sn.plan ?? '');
+  const [rawNotes, setRawNotes] = useState(initialData?.rawNotes ?? '');
 
-    const structuredNotes: Record<string, string> = {};
-    if (objectives) structuredNotes.objectives = objectives;
-    if (interventions) structuredNotes.interventions = interventions;
-    if (response) structuredNotes.response = response;
-    if (plan) structuredNotes.plan = plan;
+  // Goal progress
+  const [goalEntries, setGoalEntries] = useState<GoalProgressEntry[]>(() => {
+    if (initialData?.goalProgress) {
+      return initialData.goalProgress.map((gp) => ({
+        goalId: gp.goalId,
+        progressNote: gp.progressNote ?? 'MAINTAINING',
+        progressValue: gp.progressValue ?? 25,
+      }));
+    }
+    return [];
+  });
 
-    createSession.mutate(
+  // Auto-save state
+  const [createdSessionId, setCreatedSessionId] = useState<string | undefined>(sessionId);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
+  const [showSignConfirm, setShowSignConfirm] = useState(false);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasUnsavedChanges = useRef(false);
+
+  const buildStructuredNotes = useCallback(() => {
+    const notes: Record<string, string> = {};
+    if (subjective) notes.subjective = subjective;
+    if (objective) notes.objective = objective;
+    if (assessment) notes.assessment = assessment;
+    if (plan) notes.plan = plan;
+    return Object.keys(notes).length > 0 ? notes : undefined;
+  }, [subjective, objective, assessment, plan]);
+
+  const buildPayload = useCallback(() => ({
+    actualDuration: Number(duration),
+    attendanceStatus: attendance,
+    noteFormat: 'SOAP' as const,
+    sessionType: sessionType || undefined,
+    rawNotes: rawNotes || undefined,
+    structuredNotes: buildStructuredNotes(),
+  }), [duration, attendance, sessionType, rawNotes, buildStructuredNotes]);
+
+  // Mark unsaved on any field change
+  useEffect(() => {
+    if (createdSessionId) {
+      hasUnsavedChanges.current = true;
+      setAutoSaveStatus('unsaved');
+    }
+  }, [subjective, objective, assessment, plan, rawNotes, duration, attendance, sessionType, createdSessionId]);
+
+  // Auto-save interval (30s) - only after first save
+  useEffect(() => {
+    if (!createdSessionId) return;
+
+    autoSaveTimerRef.current = setInterval(() => {
+      if (hasUnsavedChanges.current) {
+        performAutoSave();
+      }
+    }, 30000);
+
+    return () => {
+      if (autoSaveTimerRef.current) clearInterval(autoSaveTimerRef.current);
+    };
+  }, [createdSessionId]);
+
+  const performAutoSave = useCallback(() => {
+    if (!createdSessionId) return;
+    setAutoSaveStatus('saving');
+    hasUnsavedChanges.current = false;
+
+    updateSession.mutate(
+      { caseId, sessionId: createdSessionId, data: buildPayload() },
       {
-        caseId,
-        data: {
-          scheduledAt: new Date(scheduledAt).toISOString(),
-          sessionType: sessionType || undefined,
-          location: location || undefined,
-          actualDuration: Number(duration),
-          attendanceStatus: attendance,
-          noteFormat,
-          rawNotes: rawNotes || undefined,
-          structuredNotes:
-            Object.keys(structuredNotes).length > 0
-              ? structuredNotes
-              : undefined,
-        },
-      },
-      {
-        onSuccess: () => {
-          toast({ title: 'Session note created successfully' });
-          router.push(`/${caseId}/sessions`);
-        },
+        onSuccess: () => setAutoSaveStatus('saved'),
         onError: () => {
-          toast({ title: 'Failed to create session note', variant: 'destructive' });
+          setAutoSaveStatus('unsaved');
+          hasUnsavedChanges.current = true;
         },
       },
     );
+  }, [createdSessionId, caseId, buildPayload, updateSession]);
+
+  const handleSaveDraft = async () => {
+    if (createdSessionId) {
+      // Update existing
+      setAutoSaveStatus('saving');
+      hasUnsavedChanges.current = false;
+      updateSession.mutate(
+        { caseId, sessionId: createdSessionId, data: buildPayload() },
+        {
+          onSuccess: () => {
+            setAutoSaveStatus('saved');
+            // Also save goal progress
+            if (goalEntries.length > 0) {
+              bulkLogGoalProgress.mutate({
+                caseId,
+                sessionId: createdSessionId,
+                data: { entries: goalEntries },
+              });
+            }
+          },
+          onError: () => {
+            setAutoSaveStatus('unsaved');
+            hasUnsavedChanges.current = true;
+          },
+        },
+      );
+    } else {
+      // Create new session
+      createSession.mutate(
+        {
+          caseId,
+          data: {
+            scheduledAt: new Date(scheduledAt).toISOString(),
+            ...buildPayload(),
+          },
+        },
+        {
+          onSuccess: (result: any) => {
+            const newId = result?.id;
+            if (newId) {
+              setCreatedSessionId(newId);
+              setAutoSaveStatus('saved');
+              hasUnsavedChanges.current = false;
+              // Save goal progress
+              if (goalEntries.length > 0) {
+                bulkLogGoalProgress.mutate({
+                  caseId,
+                  sessionId: newId,
+                  data: { entries: goalEntries },
+                });
+              }
+              // Update URL to edit mode without full navigation
+              window.history.replaceState(null, '', `/${caseId}/sessions/${newId}/edit`);
+            }
+          },
+        },
+      );
+    }
   };
+
+  const handleSign = () => {
+    if (!createdSessionId) {
+      toast({ title: 'Save the session first before signing', variant: 'destructive' });
+      return;
+    }
+    setShowSignConfirm(true);
+  };
+
+  const confirmSign = () => {
+    if (!createdSessionId) return;
+    setShowSignConfirm(false);
+
+    // Save any pending changes first, then sign
+    const doSign = () => {
+      signSession.mutate(
+        { caseId, sessionId: createdSessionId },
+        {
+          onSuccess: () => {
+            router.push(`/${caseId}/sessions/${createdSessionId}`);
+          },
+        },
+      );
+    };
+
+    if (hasUnsavedChanges.current) {
+      updateSession.mutate(
+        { caseId, sessionId: createdSessionId, data: buildPayload() },
+        {
+          onSuccess: () => {
+            if (goalEntries.length > 0) {
+              bulkLogGoalProgress.mutate(
+                { caseId, sessionId: createdSessionId, data: { entries: goalEntries } },
+                { onSuccess: doSign },
+              );
+            } else {
+              doSign();
+            }
+          },
+        },
+      );
+    } else {
+      if (goalEntries.length > 0) {
+        bulkLogGoalProgress.mutate(
+          { caseId, sessionId: createdSessionId, data: { entries: goalEntries } },
+          { onSuccess: doSign },
+        );
+      } else {
+        doSign();
+      }
+    }
+  };
+
+  const isSaving = createSession.isPending || updateSession.isPending;
 
   return (
     <div>
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Sessions
-      </button>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <button
+            onClick={() => router.push(`/${caseId}/sessions`)}
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Sessions
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isEditMode ? 'Edit Session Note' : 'New Session Note'}
+          </h1>
+          <p className="text-gray-500 text-sm mt-0.5">
+            Document a clinical session with SOAP-formatted notes
+          </p>
+        </div>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">New Session Note</h1>
-      <p className="text-gray-500 mb-6">
-        Document a clinical session with structured notes
-      </p>
+        {/* Auto-save indicator */}
+        {createdSessionId && (
+          <div className="flex items-center gap-1.5 text-sm">
+            {autoSaveStatus === 'saving' && (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+                <span className="text-gray-400">Saving...</span>
+              </>
+            )}
+            {autoSaveStatus === 'saved' && (
+              <>
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                <span className="text-green-600">Saved</span>
+              </>
+            )}
+            {autoSaveStatus === 'unsaved' && (
+              <>
+                <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-amber-600">Unsaved changes</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section: Session Details */}
+      <div className="space-y-6">
+        {/* Session Header */}
         <Card className="p-6 border border-gray-100">
           <div className="flex items-center gap-2 mb-5">
             <div className="h-8 w-8 rounded-lg bg-teal-50 flex items-center justify-center">
               <FileText className="h-4 w-4 text-teal-600" />
             </div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Session Details
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-900">Session Details</h2>
           </div>
 
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="scheduledAt">Date *</Label>
                 <Input
@@ -129,29 +334,28 @@ export function CreateSessionForm({ caseId }: CreateSessionFormProps) {
                   value={scheduledAt}
                   onChange={(e) => setScheduledAt(e.target.value)}
                   className="mt-1.5"
+                  disabled={isEditMode}
                 />
               </div>
               <div>
-                <Label htmlFor="duration">Duration (minutes)</Label>
+                <Label htmlFor="duration">Duration (min)</Label>
                 <Input
                   id="duration"
                   type="number"
                   value={duration}
                   onChange={(e) => setDuration(Number(e.target.value))}
                   className="mt-1.5"
+                  min={1}
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label>Note Format</Label>
-                <Select value={noteFormat} onValueChange={setNoteFormat}>
+                <Label>Session Type</Label>
+                <Select value={sessionType} onValueChange={setSessionType}>
                   <SelectTrigger className="mt-1.5">
-                    <SelectValue />
+                    <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {NOTE_FORMAT_OPTIONS.map((opt) => (
+                    {SESSION_TYPE_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -175,141 +379,141 @@ export function CreateSessionForm({ caseId }: CreateSessionFormProps) {
                 </Select>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="sessionType">Session Type</Label>
-                <Input
-                  id="sessionType"
-                  value={sessionType}
-                  onChange={(e) => setSessionType(e.target.value)}
-                  placeholder="e.g., Individual, Group"
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g., Office, Telehealth"
-                  className="mt-1.5"
-                />
-              </div>
-            </div>
           </div>
         </Card>
 
-        {/* Section: Clinical Notes */}
-        <Card className="p-6 border border-gray-100">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="h-8 w-8 rounded-lg bg-teal-50 flex items-center justify-center">
-              <Stethoscope className="h-4 w-4 text-teal-600" />
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Clinical Notes
-            </h2>
-            <span className="text-sm text-gray-400 ml-1">(SOAP Format)</span>
-          </div>
+        {/* SOAP Sections */}
+        <div className="space-y-3">
+          <SOAPSection letter="S" title="Subjective">
+            <Textarea
+              value={subjective}
+              onChange={(e) => setSubjective(e.target.value)}
+              placeholder="Client/caregiver report: presenting concerns, symptoms reported by patient or family, relevant history updates, pain levels, mood descriptions..."
+              rows={4}
+            />
+          </SOAPSection>
 
-          <div className="space-y-5">
-            <div>
-              <Label htmlFor="rawNotes">Raw Session Notes</Label>
+          <SOAPSection letter="O" title="Objective">
+            <Textarea
+              value={objective}
+              onChange={(e) => setObjective(e.target.value)}
+              placeholder="Clinician observations: measurable data, test results, behavioral observations, vital signs, standardized assessment scores, activities performed..."
+              rows={4}
+            />
+          </SOAPSection>
+
+          <SOAPSection letter="A" title="Assessment">
+            <div className="space-y-4">
               <Textarea
-                id="rawNotes"
-                value={rawNotes}
-                onChange={(e) => setRawNotes(e.target.value)}
-                placeholder="Quick notes from the session — you can enhance these with AI later"
-                rows={3}
-                className="mt-1.5"
+                value={assessment}
+                onChange={(e) => setAssessment(e.target.value)}
+                placeholder="Clinical interpretation: progress analysis, comparison to baseline, clinical reasoning, diagnosis updates, barriers to progress..."
+                rows={4}
+              />
+              <GoalProgressLinker
+                caseId={caseId}
+                value={goalEntries}
+                onChange={setGoalEntries}
               />
             </div>
+          </SOAPSection>
 
-            <div className="border-t border-gray-100 pt-5">
-              <p className="text-sm font-medium text-gray-700 mb-4">
-                Structured Notes
-              </p>
+          <SOAPSection letter="P" title="Plan">
+            <Textarea
+              value={plan}
+              onChange={(e) => setPlan(e.target.value)}
+              placeholder="Next steps: treatment modifications, homework/home program, referrals, next session objectives, caregiver recommendations..."
+              rows={4}
+            />
+          </SOAPSection>
+        </div>
 
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="objectives">
-                    <span className="text-teal-600 font-semibold">S</span> — Subjective / Objectives
-                  </Label>
-                  <Textarea
-                    id="objectives"
-                    value={objectives}
-                    onChange={(e) => setObjectives(e.target.value)}
-                    placeholder="Session objectives, client-reported symptoms, subjective observations"
-                    rows={3}
-                    className="mt-1.5"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="interventions">
-                    <span className="text-teal-600 font-semibold">O</span> — Objective / Interventions
-                  </Label>
-                  <Textarea
-                    id="interventions"
-                    value={interventions}
-                    onChange={(e) => setInterventions(e.target.value)}
-                    placeholder="Interventions used, measurable observations, clinical techniques applied"
-                    rows={3}
-                    className="mt-1.5"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="response">
-                    <span className="text-teal-600 font-semibold">A</span> — Assessment / Response
-                  </Label>
-                  <Textarea
-                    id="response"
-                    value={response}
-                    onChange={(e) => setResponse(e.target.value)}
-                    placeholder="How the client responded, clinical assessment, progress evaluation"
-                    rows={3}
-                    className="mt-1.5"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="plan">
-                    <span className="text-teal-600 font-semibold">P</span> — Plan
-                  </Label>
-                  <Textarea
-                    id="plan"
-                    value={plan}
-                    onChange={(e) => setPlan(e.target.value)}
-                    placeholder="Plan for next session, homework, follow-up actions"
-                    rows={3}
-                    className="mt-1.5"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Raw Notes (optional) */}
+        <Card className="p-6 border border-gray-100">
+          <Label htmlFor="rawNotes" className="text-sm font-medium text-gray-700">
+            Additional Raw Notes (optional)
+          </Label>
+          <Textarea
+            id="rawNotes"
+            value={rawNotes}
+            onChange={(e) => setRawNotes(e.target.value)}
+            placeholder="Quick unstructured notes — you can enhance these with AI later"
+            rows={3}
+            className="mt-1.5"
+          />
         </Card>
 
         {/* Actions */}
-        <div className="flex items-center gap-3">
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={createSession.isPending}
-            className="bg-teal-600 hover:bg-teal-700"
-          >
-            {createSession.isPending && (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            )}
-            Create Session Note
-          </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+        <div className="flex items-center justify-between">
+          <Button type="button" variant="outline" onClick={() => router.push(`/${caseId}/sessions`)}>
             Cancel
           </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSaveDraft}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save Draft
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              className="bg-teal-600 hover:bg-teal-700"
+              onClick={handleSign}
+              disabled={isSaving || signSession.isPending}
+            >
+              {signSession.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Lock className="h-4 w-4 mr-2" />
+              )}
+              Sign &amp; Lock
+            </Button>
+          </div>
         </div>
-      </form>
+      </div>
+
+      {/* Sign Confirmation Dialog */}
+      {showSignConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <Lock className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Sign Session Note?</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Signing this session note will lock it from further edits. This is equivalent to a
+              clinical signature and creates a permanent record. Are you sure you want to proceed?
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowSignConfirm(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                className="bg-teal-600 hover:bg-teal-700"
+                onClick={confirmSign}
+                disabled={signSession.isPending}
+              >
+                {signSession.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Yes, Sign &amp; Lock
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
