@@ -1,12 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, Role } from '@prisma/client';
 import { UpdateOnboardingSettingsDto } from './dto/update-onboarding-settings.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
+import { NotificationService, NotificationType } from '../notification/notification.service';
 
 @Injectable()
 export class OnboardingService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(OnboardingService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   async getOnboardingSettings() {
     const settings = await this.getOrCreateSettings();
@@ -127,7 +133,7 @@ export class OnboardingService {
       });
 
       if (existingChildren === 0) {
-        await this.prisma.child.create({
+        const newChild = await this.prisma.child.create({
           data: {
             profileId: profile.id,
             firstName: dto.child.firstName,
@@ -143,18 +149,43 @@ export class OnboardingService {
           dto.child.conditions &&
           dto.child.conditions.length > 0
         ) {
-          const child = await this.prisma.child.findFirst({
-            where: { profileId: profile.id },
-            orderBy: { createdAt: 'desc' },
+          await this.prisma.childCondition.createMany({
+            data: dto.child.conditions.map((conditionType) => ({
+              childId: newChild.id,
+              conditionType,
+            })),
           });
-          if (child) {
-            await this.prisma.childCondition.createMany({
-              data: dto.child.conditions.map((conditionType) => ({
-                childId: child.id,
-                conditionType,
-              })),
-            });
-          }
+        }
+
+        // Notify all admins about the new patient intake
+        try {
+          const parentUser = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true },
+          });
+          const admins = await this.prisma.user.findMany({
+            where: { role: Role.ADMIN },
+            select: { id: true },
+          });
+          const parentName = parentUser?.name || 'A parent';
+          const childName = dto.child.firstName;
+
+          await Promise.all(
+            admins.map((admin) =>
+              this.notificationService.createNotification({
+                userId: admin.id,
+                type: NotificationType.INTAKE_NEW,
+                title: 'New Patient Intake',
+                message: `New patient intake: ${childName}, registered by ${parentName}`,
+                actionUrl: '/patients?status=INTAKE',
+                relatedEntityId: newChild.id,
+                relatedEntityType: 'child',
+                priority: 'high',
+              }),
+            ),
+          );
+        } catch (error) {
+          this.logger.error('Failed to send intake notifications:', error);
         }
       }
     }

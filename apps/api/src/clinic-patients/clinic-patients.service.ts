@@ -1,15 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import {
   ListPatientsQueryDto,
   UpdatePatientStatusDto,
   AssignTherapistDto,
 } from './dto/clinic-patients.dto';
+import { NotificationService, NotificationType } from '../notification/notification.service';
 
 @Injectable()
 export class ClinicPatientsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ClinicPatientsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   async listPatients(query: ListPatientsQueryDto) {
     const {
@@ -373,7 +379,7 @@ export class ClinicPatientsService {
     // Look up the TherapistProfile for this user
     const therapistProfile = await this.prisma.therapistProfile.findUnique({
       where: { userId: dto.therapistId },
-      include: { user: { select: { role: true } } },
+      include: { user: { select: { id: true, name: true, role: true } } },
     });
     if (!therapistProfile) {
       throw new NotFoundException('Therapist profile not found');
@@ -381,6 +387,15 @@ export class ClinicPatientsService {
     if (therapistProfile.user.role !== 'THERAPIST' && therapistProfile.user.role !== 'EDUCATOR') {
       throw new NotFoundException('User is not a therapist');
     }
+
+    // Fetch parent userId for notifications
+    const childWithProfile = await this.prisma.child.findUnique({
+      where: { id: childId },
+      include: { profile: { select: { userId: true } } },
+    });
+    const parentUserId = childWithProfile?.profile?.userId;
+    const therapistName = therapistProfile.user.name || 'A therapist';
+    const childName = child.firstName;
 
     // Check if an active case already exists for this child
     const existingCase = await this.prisma.case.findFirst({
@@ -396,17 +411,28 @@ export class ClinicPatientsService {
         },
       });
 
-      if (!existingAssignment) {
-        await this.prisma.caseTherapist.create({
-          data: {
-            caseId: existingCase.id,
-            therapistId: therapistProfile.id,
-            role: 'PRIMARY',
-          },
-        });
+      if (existingAssignment) {
+        return { caseId: existingCase.id, action: 'therapist_added', warning: 'therapist_already_assigned' };
       }
 
-      return { caseId: existingCase.id, action: 'therapist_added' };
+      await this.prisma.caseTherapist.create({
+        data: {
+          caseId: existingCase.id,
+          therapistId: therapistProfile.id,
+          role: 'PRIMARY',
+        },
+      });
+
+      // Notify therapist about the existing case assignment
+      this.sendAssignmentNotifications({
+        caseId: existingCase.id,
+        therapistUserId: dto.therapistId,
+        therapistName,
+        childName,
+        parentUserId,
+      });
+
+      return { caseId: existingCase.id, action: 'therapist_added', warning: 'added_to_existing_case' };
     }
 
     // Create a new case
@@ -439,7 +465,107 @@ export class ClinicPatientsService {
       data: { clinicStatus: 'ACTIVE' },
     });
 
+    // Screening carry-forward: link latest completed assessment to case notes
+    try {
+      const latestAssessment = await this.prisma.assessment.findFirst({
+        where: { childId, status: 'COMPLETED' },
+        orderBy: { completedAt: 'desc' },
+        select: { id: true, flaggedDomains: true, completedAt: true },
+      });
+
+      if (latestAssessment) {
+        const flaggedStr = latestAssessment.flaggedDomains.length > 0
+          ? latestAssessment.flaggedDomains.join(', ')
+          : 'none';
+        const screeningNote = `Linked to screening ${latestAssessment.id}. Flagged domains: ${flaggedStr}`;
+        const existingNotes = newCase.notes || dto.notes || '';
+        await this.prisma.case.update({
+          where: { id: newCase.id },
+          data: {
+            referralSource: 'Screening Assessment',
+            notes: existingNotes ? `${existingNotes}\n${screeningNote}` : screeningNote,
+          },
+        });
+      }
+    } catch (error) {
+      this.logger.error('Failed to link screening data to case:', error);
+    }
+
+    // Send notifications for new case creation
+    this.sendAssignmentNotifications({
+      caseId: newCase.id,
+      therapistUserId: dto.therapistId,
+      therapistName,
+      childName,
+      parentUserId,
+      isNewCase: true,
+    });
+
     return { caseId: newCase.id, caseNumber: newCase.caseNumber, action: 'case_created' };
+  }
+
+  /**
+   * Send notifications when a therapist is assigned to a case.
+   * Fire-and-forget to avoid blocking the response.
+   */
+  private async sendAssignmentNotifications(params: {
+    caseId: string;
+    therapistUserId: string;
+    therapistName: string;
+    childName: string;
+    parentUserId?: string | null;
+    isNewCase?: boolean;
+  }) {
+    const { caseId, therapistUserId, therapistName, childName, parentUserId, isNewCase } = params;
+
+    try {
+      // Notify therapist
+      await this.notificationService.createNotification({
+        userId: therapistUserId,
+        type: NotificationType.CASE_ASSIGNED,
+        title: 'New Case Assigned',
+        message: `New case assigned: ${childName}. View case →`,
+        actionUrl: `/cases/${caseId}`,
+        relatedEntityId: caseId,
+        relatedEntityType: 'case',
+        priority: 'high',
+      });
+
+      // Notify parent
+      if (parentUserId) {
+        await this.notificationService.createNotification({
+          userId: parentUserId,
+          type: NotificationType.THERAPIST_ASSIGNED,
+          title: 'Therapist Assigned',
+          message: `Great news! ${therapistName} has been assigned to ${childName}'s care.`,
+          relatedEntityId: caseId,
+          relatedEntityType: 'case',
+        });
+      }
+
+      // Notify admins (case created/updated confirmation)
+      if (isNewCase) {
+        const admins = await this.prisma.user.findMany({
+          where: { role: Role.ADMIN },
+          select: { id: true },
+        });
+        await Promise.all(
+          admins.map((admin) =>
+            this.notificationService.createNotification({
+              userId: admin.id,
+              type: NotificationType.CASE_ASSIGNED,
+              title: 'Case Created',
+              message: `Case created for ${childName} with ${therapistName}`,
+              actionUrl: `/patients`,
+              relatedEntityId: caseId,
+              relatedEntityType: 'case',
+            }),
+          ),
+        );
+      }
+    } catch (error) {
+      this.logger.error('Failed to send assignment notifications:', error);
+    }
   }
 
   async getTherapistsList() {

@@ -35,6 +35,9 @@ export enum NotificationType {
   COMMUNITY_INVITE = 'COMMUNITY_INVITE',
   WORKSHEET_ASSIGNED = 'WORKSHEET_ASSIGNED',
   WORKSHEET_COMPLETED = 'WORKSHEET_COMPLETED',
+  INTAKE_NEW = 'INTAKE_NEW',
+  CASE_ASSIGNED = 'CASE_ASSIGNED',
+  THERAPIST_ASSIGNED = 'THERAPIST_ASSIGNED',
 }
 
 export interface NotificationData {
@@ -44,7 +47,7 @@ export interface NotificationData {
   message: string;
   actionUrl?: string;
   relatedEntityId?: string;
-  relatedEntityType?: 'post' | 'comment' | 'user' | 'event' | 'community' | 'worksheet';
+  relatedEntityType?: 'post' | 'comment' | 'user' | 'event' | 'community' | 'worksheet' | 'child' | 'case';
   metadata?: Record<string, any>;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
 }
@@ -96,9 +99,11 @@ export class NotificationService {
           type: data.type,
           title: data.title,
           message: data.message,
-          // NOTE: Fields actionUrl, priority, metadata, relatedEntityId, relatedEntityType 
-          // are missing from the current Prisma schema and have been omitted to fix build errors.
-          // TODO: Update schema to include these fields or add a metadata JSON column.
+          actionUrl: data.actionUrl,
+          metadata: data.metadata as any,
+          priority: data.priority || 'medium',
+          relatedEntityId: data.relatedEntityId,
+          relatedEntityType: data.relatedEntityType,
           read: false,
         },
         include: {
