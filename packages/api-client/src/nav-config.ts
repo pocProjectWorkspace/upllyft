@@ -5,6 +5,7 @@ export const APP_URLS = {
   booking: process.env.NODE_ENV === 'production' ? 'https://booking.upllyft.com' : 'http://localhost:3004',
   resources: process.env.NODE_ENV === 'production' ? 'https://resources.upllyft.com' : 'http://localhost:3005',
   cases: process.env.NODE_ENV === 'production' ? 'https://cases.upllyft.com' : 'http://localhost:3006',
+  admin: process.env.NODE_ENV === 'production' ? 'https://admin.upllyft.com' : 'http://localhost:3007',
 } as const;
 
 export type AppName = keyof typeof APP_URLS;
@@ -34,8 +35,8 @@ export function getNavItems(role: string): GlobalNavItem[] {
     { label: 'Resources', app: 'resources', href: APP_URLS.resources },
   );
 
-  if (isAdmin) {
-    items.push({ label: 'Admin', app: 'main', href: `${APP_URLS.main}/admin` });
+  if (isProfessional || isAdmin) {
+    items.push({ label: 'Clinic', app: 'admin', href: APP_URLS.admin });
   }
 
   return items;

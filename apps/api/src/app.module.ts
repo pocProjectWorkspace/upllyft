@@ -77,6 +77,9 @@ import { CaseConsentsModule } from './case-consents/case-consents.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { WorksheetsModule } from './worksheets/worksheets.module';
 import { MiraModule } from './mira/mira.module';
+import { ClinicPatientsModule } from './clinic-patients/clinic-patients.module';
+import { ClinicTherapistsModule } from './clinic-therapists/clinic-therapists.module';
+import { ClinicTrackingModule } from './clinic-tracking/clinic-tracking.module';
 
 
 @Module({
@@ -164,6 +167,11 @@ import { MiraModule } from './mira/mira.module';
 
     // Mira conversational AI
     MiraModule,
+
+    // Clinic admin
+    ClinicPatientsModule,
+    ClinicTherapistsModule,
+    ClinicTrackingModule,
   ],
   controllers: [
     AppController,
