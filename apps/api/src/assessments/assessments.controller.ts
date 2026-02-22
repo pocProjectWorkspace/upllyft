@@ -64,6 +64,19 @@ export class AssessmentsController {
         return this.assessmentsService.getChildAssessments(childId, req.user.id);
     }
 
+    @Get('history/:childId')
+    @ApiOperation({ summary: 'Get screening history for longitudinal trend chart' })
+    @ApiResponse({ status: 200, description: 'Screening history retrieved' })
+    @ApiResponse({ status: 403, description: 'Forbidden' })
+    @ApiResponse({ status: 404, description: 'Child not found' })
+    async getScreeningHistory(@Param('childId') childId: string, @Request() req) {
+        return this.assessmentsService.getScreeningHistory(
+            childId,
+            req.user.id,
+            req.user.role,
+        );
+    }
+
     @Get(':id/questionnaire/tier1')
     @ApiOperation({ summary: 'Get Tier 1 questionnaire for assessment' })
     @ApiResponse({ status: 200, description: 'Questionnaire retrieved' })

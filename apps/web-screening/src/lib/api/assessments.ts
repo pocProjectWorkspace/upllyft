@@ -206,6 +206,28 @@ export interface TherapistOption {
   specialization?: string[];
 }
 
+// ── Screening History (Longitudinal) ──
+
+export interface ScreeningHistoryDomain {
+  name: string;
+  domainId: string;
+  score: number;
+  maxScore: number;
+}
+
+export interface ScreeningHistoryResult {
+  id: string;
+  completedAt: string;
+  totalScore: number;
+  domains: ScreeningHistoryDomain[];
+}
+
+export interface ScreeningHistoryResponse {
+  childId: string;
+  childName: string;
+  results: ScreeningHistoryResult[];
+}
+
 // ── API Functions ──
 
 export async function createAssessment(data: CreateAssessmentDto): Promise<Assessment> {
@@ -318,5 +340,10 @@ export async function downloadReportV2(id: string): Promise<Blob> {
   const res = await apiClient.get(`/assessments/${id}/report-v2/download`, {
     responseType: 'blob',
   });
+  return res.data;
+}
+
+export async function getScreeningHistory(childId: string): Promise<ScreeningHistoryResponse> {
+  const res = await apiClient.get(`/assessments/history/${childId}`);
   return res.data;
 }

@@ -21,9 +21,13 @@ export interface AppHeaderProps {
   logo?: React.ReactNode;
   /** Callback when the SOS button is clicked */
   onSOSClick?: () => void;
+  /** Link for the messages icon (e.g. "/messages"). If set, shows a chat icon in the header. */
+  messagesHref?: string;
+  /** Number of unread messages to show as a badge on the chat icon */
+  unreadMessages?: number;
 }
 
-export function AppHeader({ currentApp, localNavItems, logo, onSOSClick }: AppHeaderProps) {
+export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, messagesHref, unreadMessages = 0 }: AppHeaderProps) {
   const { user, isAuthenticated, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -111,6 +115,24 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick }: AppHe
           <div className="flex items-center gap-3 flex-shrink-0 relative z-10">
             {/* SOS Button */}
             <SOSButton compact onActivate={onSOSClick} />
+
+            {/* Messages Icon */}
+            {messagesHref && (
+              <a
+                href={messagesHref}
+                className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label={`Messages${unreadMessages > 0 ? ` (${unreadMessages} unread)` : ''}`}
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                {unreadMessages > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-teal-500 px-1 text-[10px] font-bold text-white leading-none">
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </span>
+                )}
+              </a>
+            )}
 
             {/* Notification Bell */}
             <NotificationBell />

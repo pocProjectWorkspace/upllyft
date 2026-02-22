@@ -5,6 +5,8 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AuditService } from '../audit/audit.service';
 import { Prisma } from '@prisma/client';
 import {
   CreateCaseSessionDto,
@@ -16,15 +18,39 @@ import {
 
 @Injectable()
 export class CaseSessionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private eventEmitter: EventEmitter2,
+    private auditService: AuditService,
+  ) {}
 
   /**
    * Create a new session record for a case.
    */
   async createSession(caseId: string, therapistUserId: string, dto: CreateCaseSessionDto) {
-    // Verify case exists
-    const caseRecord = await this.prisma.case.findUnique({ where: { id: caseId } });
+    // Verify case exists and get child -> parent link for consent check
+    const caseRecord = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      include: {
+        child: {
+          select: { profileId: true, profile: { select: { userId: true } } },
+        },
+      },
+    });
     if (!caseRecord) throw new NotFoundException('Case not found');
+
+    // PDPL: Verify signed consent exists for the parent before creating session notes
+    const parentUserId = caseRecord.child?.profile?.userId;
+    if (parentUserId) {
+      const signedConsent = await this.prisma.consentForm.findFirst({
+        where: { patientId: parentUserId, status: 'SIGNED' },
+      });
+      if (!signedConsent) {
+        throw new ForbiddenException(
+          'A signed consent form is required before creating session notes. Please ensure the parent has signed the consent form.',
+        );
+      }
+    }
 
     // If linking to a booking, verify it exists and isn't already linked
     if (dto.bookingId) {
@@ -108,7 +134,7 @@ export class CaseSessionsService {
   /**
    * Get a single session with full details.
    */
-  async getSession(caseId: string, sessionId: string) {
+  async getSession(caseId: string, sessionId: string, accessorUserId?: string) {
     const session = await this.prisma.caseSession.findFirst({
       where: { id: sessionId, caseId },
       include: {
@@ -134,6 +160,17 @@ export class CaseSessionsService {
     });
 
     if (!session) throw new NotFoundException('Session not found');
+
+    // PDPL: Audit log session access
+    if (accessorUserId) {
+      this.auditService.log({
+        userId: accessorUserId,
+        resourceType: 'CaseSession',
+        resourceId: sessionId,
+        action: 'READ',
+      });
+    }
+
     return session;
   }
 
@@ -219,6 +256,12 @@ export class CaseSessionsService {
         entityType: 'CaseSession',
         entityId: sessionId,
       },
+    });
+
+    this.eventEmitter.emit('session.signed', {
+      sessionId,
+      caseId,
+      therapistId: userId,
     });
 
     return signed;

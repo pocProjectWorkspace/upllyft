@@ -38,6 +38,15 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@upllyft/ui';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  Legend,
+} from 'recharts';
 import { ScreeningShell } from '@/components/screening-shell';
 import {
   useUserChildren,
@@ -46,6 +55,7 @@ import {
   useDeleteAssessment,
   useShareAssessment,
   useSearchTherapists,
+  useScreeningHistory,
 } from '@/hooks/use-assessments';
 import {
   formatAge,
@@ -55,7 +65,7 @@ import {
   calculateZone,
   zoneColors,
 } from '@/lib/utils';
-import type { Assessment, Child, AccessLevel, DomainScore } from '@/lib/api/assessments';
+import type { Assessment, Child, AccessLevel, DomainScore, ScreeningHistoryResponse } from '@/lib/api/assessments';
 
 // ── Status badge config ──
 
@@ -525,6 +535,259 @@ function ProgressOverview({ childrenList }: { childrenList: Child[] | undefined 
   );
 }
 
+// ── Domain chart colors (matching OVERVIEW_DOMAINS) ──
+
+const DOMAIN_CHART_COLORS: Record<string, string> = {
+  grossMotor: '#0d9488',
+  fineMotor: '#06b6d4',
+  speechLanguage: '#7c3aed',
+  socialEmotional: '#2563eb',
+  cognitiveLearning: '#d97706',
+  adaptiveSelfCare: '#059669',
+  sensoryProcessing: '#ec4899',
+  visionHearing: '#6366f1',
+};
+
+// ── Custom Tooltip for chart ──
+
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-3 text-sm">
+      <p className="font-semibold text-gray-900 mb-2">{label}</p>
+      {payload.map((entry: any) => (
+        <div key={entry.dataKey} className="flex items-center gap-2">
+          <span
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: entry.color }}
+          />
+          <span className="text-gray-600">{entry.name}:</span>
+          <span className="font-medium text-gray-900">{entry.value}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Progress History (Longitudinal Chart) ──
+
+function ProgressHistory({ childId }: { childId: string }) {
+  const { data: history, isLoading } = useScreeningHistory(childId);
+
+  if (isLoading || !history) return null;
+
+  const { results, childName } = history;
+
+  // Need at least 1 completed screening to show anything
+  if (results.length === 0) return null;
+
+  // If only 1 screening, show a prompt
+  if (results.length === 1) {
+    return (
+      <Card className="p-6 mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
+            <ChartIcon className="w-5 h-5 text-teal-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Progress Over Time</h2>
+            <p className="text-sm text-gray-500">{childName}&apos;s developmental trend</p>
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+            <ChartIcon className="w-7 h-7 text-gray-400" />
+          </div>
+          <p className="text-sm font-medium text-gray-900">
+            Complete another screening to see progress over time
+          </p>
+          <p className="text-xs text-gray-500 mt-1 max-w-sm">
+            We&apos;ll show {childName}&apos;s developmental trend once there are at least two completed screenings.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  // Build chart data: each data point = one screening date
+  const allDomainIds = new Set<string>();
+  results.forEach((r) => r.domains.forEach((d) => allDomainIds.add(d.domainId)));
+
+  const chartData = results.map((r) => {
+    const date = new Date(r.completedAt);
+    const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+    const point: Record<string, any> = { date: label, totalScore: Math.round(r.totalScore) };
+    r.domains.forEach((d) => {
+      point[d.domainId] = d.score;
+    });
+    return point;
+  });
+
+  // Build domain name map
+  const domainNameMap: Record<string, string> = {};
+  results[0]?.domains.forEach((d) => {
+    domainNameMap[d.domainId] = d.name;
+  });
+
+  // Score delta
+  const firstTotal = Math.round(results[0].totalScore);
+  const latestTotal = Math.round(results[results.length - 1].totalScore);
+  const delta = latestTotal - firstTotal;
+  const firstDate = new Date(results[0].completedAt).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  let deltaText: string;
+  if (delta > 0) {
+    deltaText = `improved by ${delta} points`;
+  } else if (delta < 0) {
+    deltaText = `declined by ${Math.abs(delta)} points`;
+  } else {
+    deltaText = 'stayed the same';
+  }
+
+  // Domain breakdown table
+  const domainChanges = Array.from(allDomainIds).map((domainId) => {
+    const firstResult = results[0].domains.find((d) => d.domainId === domainId);
+    const latestResult = results[results.length - 1].domains.find((d) => d.domainId === domainId);
+    const firstScore = firstResult?.score ?? 0;
+    const latestScore = latestResult?.score ?? 0;
+    const change = latestScore - firstScore;
+    return {
+      domainId,
+      name: domainNameMap[domainId] || domainId,
+      firstScore,
+      latestScore,
+      change,
+    };
+  });
+
+  return (
+    <Card className="p-6 mb-8">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
+          <ChartIcon className="w-5 h-5 text-teal-600" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Progress Over Time</h2>
+          <p className="text-sm text-gray-500">{childName}&apos;s developmental trend across {results.length} screenings</p>
+        </div>
+      </div>
+
+      {/* Line Chart */}
+      <div className="h-72 mb-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 12, fill: '#6b7280' }}
+              tickLine={false}
+              axisLine={{ stroke: '#e5e7eb' }}
+            />
+            <YAxis
+              domain={[0, 100]}
+              tick={{ fontSize: 12, fill: '#6b7280' }}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(v) => `${v}%`}
+            />
+            <RechartsTooltip content={<ChartTooltip />} />
+            <Legend
+              wrapperStyle={{ fontSize: '12px' }}
+              iconType="circle"
+              iconSize={8}
+            />
+            {/* Total Score line — bolder and dashed */}
+            <Line
+              type="monotone"
+              dataKey="totalScore"
+              name="Total Score"
+              stroke="#111827"
+              strokeWidth={3}
+              strokeDasharray="6 3"
+              dot={{ r: 4, fill: '#111827' }}
+              activeDot={{ r: 6 }}
+            />
+            {/* Domain lines */}
+            {Array.from(allDomainIds).map((domainId) => (
+              <Line
+                key={domainId}
+                type="monotone"
+                dataKey={domainId}
+                name={domainNameMap[domainId] || domainId}
+                stroke={DOMAIN_CHART_COLORS[domainId] || '#9ca3af'}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Score Delta Callout */}
+      <div className={`rounded-xl p-3 mb-6 ${
+        delta > 0 ? 'bg-green-50 border border-green-200' :
+        delta < 0 ? 'bg-red-50 border border-red-200' :
+        'bg-gray-50 border border-gray-200'
+      }`}>
+        <p className={`text-sm font-medium ${
+          delta > 0 ? 'text-green-700' :
+          delta < 0 ? 'text-red-700' :
+          'text-gray-700'
+        }`}>
+          Since {firstDate}, {childName}&apos;s total score has {deltaText}.
+        </p>
+      </div>
+
+      {/* Domain Breakdown Table */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Domain Breakdown</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-2 pr-4 font-medium text-gray-500">Domain</th>
+                <th className="text-right py-2 px-4 font-medium text-gray-500">First</th>
+                <th className="text-right py-2 px-4 font-medium text-gray-500">Latest</th>
+                <th className="text-right py-2 pl-4 font-medium text-gray-500">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {domainChanges.map((d) => (
+                <tr key={d.domainId} className="border-b border-gray-50">
+                  <td className="py-2.5 pr-4">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: DOMAIN_CHART_COLORS[d.domainId] || '#9ca3af' }}
+                      />
+                      <span className="font-medium text-gray-900">{d.name}</span>
+                    </div>
+                  </td>
+                  <td className="text-right py-2.5 px-4 text-gray-600">{d.firstScore}%</td>
+                  <td className="text-right py-2.5 px-4 text-gray-600">{d.latestScore}%</td>
+                  <td className="text-right py-2.5 pl-4">
+                    <span className={`font-medium ${
+                      d.change > 0 ? 'text-green-600' :
+                      d.change < 0 ? 'text-red-600' :
+                      'text-gray-500'
+                    }`}>
+                      {d.change > 0 ? '↑' : d.change < 0 ? '↓' : '–'} {Math.abs(d.change)}%
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 // ── Main Page ──
 
 export default function ScreeningLibraryPage() {
@@ -652,6 +915,11 @@ export default function ScreeningLibraryPage() {
 
       {/* ── Progress Overview ── */}
       <ProgressOverview childrenList={children} />
+
+      {/* ── Longitudinal Progress Chart ── */}
+      {children && children.length > 0 && (
+        <ProgressHistory childId={children[0].id} />
+      )}
 
       {/* ── AI Insights Card + Next Steps ── */}
       {children && children.length > 0 && (

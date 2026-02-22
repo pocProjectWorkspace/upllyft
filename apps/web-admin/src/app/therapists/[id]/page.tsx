@@ -27,7 +27,20 @@ import {
   Globe,
   Briefcase,
   Users,
+  Upload,
+  Download,
+  Trash2,
+  X,
+  AlertCircle,
+  FileText,
 } from 'lucide-react';
+import {
+  getTherapistCredentials,
+  uploadCredential,
+  getCredentialDownloadUrl,
+  deleteCredential,
+  type Credential,
+} from '@/lib/api/credentials';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SHORT_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -538,18 +551,304 @@ export default function TherapistDetailPage() {
               )}
             </div>
 
-            {/* Placeholder for document upload (Phase 2) */}
+            {/* Uploaded Documents */}
             <div className="pt-5 border-t border-gray-100">
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Documents</h3>
-              <div className="bg-gray-50 rounded-xl p-6 text-center border border-dashed border-gray-200">
-                <p className="text-sm text-gray-500">
-                  Document upload and verification will be available in Phase 2
-                </p>
-              </div>
+              <CredentialDocuments therapistId={therapist.id} />
             </div>
           </div>
         )}
       </div>
     </AdminShell>
+  );
+}
+
+/* ── Credential Documents Section ────────────────────────────── */
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png';
+
+function CredentialDocuments({ therapistId }: { therapistId: string }) {
+  const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  // Upload form state
+  const [file, setFile] = useState<File | null>(null);
+  const [label, setLabel] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
+
+  const fetchCredentials = async () => {
+    try {
+      const data = await getTherapistCredentials(therapistId);
+      setCredentials(data);
+    } catch {
+      setCredentials([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCredentials();
+  }, [therapistId]);
+
+  const resetForm = () => {
+    setFile(null);
+    setLabel('');
+    setExpiresAt('');
+    setError(null);
+  };
+
+  const handleUpload = async () => {
+    if (!file || !label.trim()) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      setError('File size must be under 10MB.');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('label', label.trim());
+      if (expiresAt) formData.append('expiresAt', new Date(expiresAt).toISOString());
+
+      await uploadCredential(therapistId, formData);
+      setModalOpen(false);
+      resetForm();
+      await fetchCredentials();
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message || 'Upload failed. Please try again.',
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDownload = async (credId: string) => {
+    try {
+      const { url } = await getCredentialDownloadUrl(therapistId, credId);
+      window.open(url, '_blank');
+    } catch {
+      // silently fail
+    }
+  };
+
+  const handleDelete = async (credId: string) => {
+    setDeleting(credId);
+    try {
+      await deleteCredential(therapistId, credId);
+      setCredentials((prev) => prev.filter((c) => c.id !== credId));
+    } catch {
+      // silently fail
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const isExpired = (expiresAt: string | null) => {
+    if (!expiresAt) return false;
+    return new Date(expiresAt) < new Date();
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold text-gray-900">Documents</h3>
+        <button
+          onClick={() => {
+            resetForm();
+            setModalOpen(true);
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          Upload Credential
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : credentials.length === 0 ? (
+        <div className="bg-gray-50 rounded-xl p-6 text-center border border-dashed border-gray-200">
+          <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No documents uploaded yet</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 uppercase">Label</th>
+                <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 uppercase">Uploaded</th>
+                <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 uppercase">Expiry</th>
+                <th className="text-right py-2 text-xs font-medium text-gray-500 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {credentials.map((cred) => (
+                <tr key={cred.id}>
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-sm font-medium text-gray-900">{cred.label || cred.fileName}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 text-sm text-gray-500">{formatDate(cred.createdAt)}</td>
+                  <td className="py-3 pr-4">
+                    {cred.expiresAt ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-sm text-gray-500">{formatDate(cred.expiresAt)}</span>
+                        {isExpired(cred.expiresAt) && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-red-50 text-red-600 rounded">
+                            Expired
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => handleDownload(cred.id)}
+                        className="p-1.5 text-gray-400 hover:text-teal-600 rounded-lg hover:bg-teal-50"
+                        title="Download"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(cred.id)}
+                        disabled={deleting === cred.id}
+                        className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                        title="Delete"
+                      >
+                        {deleting === cred.id ? (
+                          <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !uploading && setModalOpen(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Upload Credential</h3>
+              <button
+                onClick={() => !uploading && setModalOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* File picker */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  File <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="file"
+                  accept={ACCEPTED_TYPES}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setFile(f);
+                    if (f && f.size > MAX_FILE_SIZE) {
+                      setError('File size must be under 10MB.');
+                    } else {
+                      setError(null);
+                    }
+                  }}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                />
+                <p className="text-xs text-gray-400 mt-1">PDF, JPG, or PNG. Max 10MB.</p>
+              </div>
+
+              {/* Label */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Label <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="e.g. HAAD Licence, DHA Registration"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Expiry date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Expiry Date <span className="text-gray-400">(optional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2 p-3 mt-4 bg-red-50 border border-red-100 rounded-xl">
+                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setModalOpen(false)}
+                disabled={uploading}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpload}
+                disabled={uploading || !file || !label.trim()}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+              >
+                {uploading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    Upload
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

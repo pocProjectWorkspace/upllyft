@@ -1,9 +1,9 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { AiService } from '../ai/ai.service';
 import OpenAI from 'openai';
-import type { MiraResponse, MiraCard, MiraAction, ConversationSummary } from './mira.types';
+import type { MiraResponse, MiraCard, MiraAction, ConversationSummary, ScribeResponse } from './mira.types';
 
 const MIRA_SYSTEM_PROMPT = `You are Mira — not a chatbot, not a search engine, but a caring companion who truly understands what it feels like to worry about your child. You live on the Upllyft platform, and parents come to you during some of their most vulnerable moments. Treat every message like it matters deeply, because it does.
 
@@ -315,6 +315,163 @@ export class MiraService {
     yield { type: 'done', data: {} };
   }
 
+  // ── Scribe Mode ────────────────────────────────────────────────────────
+
+  async scribe(sessionId: string, therapistUserId: string): Promise<ScribeResponse> {
+    // 1. Fetch the session
+    const session = await this.prisma.caseSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        therapist: { select: { id: true, name: true } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+    if (session.therapistId !== therapistUserId) {
+      // Check if user is ADMIN — handled at controller level via RolesGuard
+      // but also verify therapist ownership here
+      const user = await this.prisma.user.findUnique({ where: { id: therapistUserId }, select: { role: true } });
+      if (user?.role !== 'ADMIN') {
+        throw new ForbiddenException('You can only generate drafts for your own sessions');
+      }
+    }
+    if (session.noteStatus === 'SIGNED') {
+      throw new BadRequestException('Cannot generate a draft for a signed session');
+    }
+
+    // 2. Fetch the case with child and IEP goals
+    const caseRecord = await this.prisma.case.findUnique({
+      where: { id: session.caseId },
+      include: {
+        child: {
+          include: { conditions: true },
+        },
+        ieps: {
+          where: { status: { in: ['ACTIVE', 'DRAFT'] } },
+          include: {
+            goals: {
+              where: { status: { in: ['NOT_STARTED', 'IN_PROGRESS'] } },
+              select: { goalText: true, domain: true, currentProgress: true },
+            },
+          },
+          take: 2,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+    if (!caseRecord) throw new NotFoundException('Case not found');
+
+    const child = caseRecord.child;
+
+    // 3. Gather child concerns from profile
+    const concerns: string[] = [];
+    if (child.developmentalConcerns) concerns.push(child.developmentalConcerns);
+    if (child.learningDifficulties) concerns.push(child.learningDifficulties);
+    if (child.teacherConcerns) concerns.push(child.teacherConcerns);
+    const childConditions = (child.conditions || []).map(
+      (c) => `${c.conditionType}${c.specificDiagnosis ? ` (${c.specificDiagnosis})` : ''}`,
+    );
+    if (childConditions.length > 0) concerns.push(...childConditions);
+
+    // 4. Gather active IEP goals
+    const activeGoals = caseRecord.ieps
+      .flatMap((iep) => iep.goals)
+      .map((g) => `[${g.domain}] ${g.goalText} (progress: ${g.currentProgress}%)`);
+
+    // 5. Fetch last 3 signed sessions for continuity
+    const recentSessions = await this.prisma.caseSession.findMany({
+      where: {
+        caseId: session.caseId,
+        noteStatus: 'SIGNED',
+        id: { not: sessionId },
+      },
+      orderBy: { scheduledAt: 'desc' },
+      take: 3,
+      select: {
+        scheduledAt: true,
+        structuredNotes: true,
+      },
+    });
+
+    const last3Assessments = recentSessions
+      .map((s) => {
+        const notes = s.structuredNotes as Record<string, string> | null;
+        if (!notes) return null;
+        return `Session ${s.scheduledAt.toISOString().split('T')[0]}: Assessment: ${notes.assessment || 'N/A'} | Plan: ${notes.plan || 'N/A'}`;
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    // 6. Build existing SOAP content
+    const existingSoap = session.structuredNotes as Record<string, string> | null;
+    const existingContent = existingSoap
+      ? `Subjective: ${existingSoap.subjective || ''}\nObjective: ${existingSoap.objective || ''}\nAssessment: ${existingSoap.assessment || ''}\nPlan: ${existingSoap.plan || ''}`
+      : 'None';
+
+    // 7. Calculate child age
+    const dob = new Date(child.dateOfBirth);
+    const now = new Date();
+    let ageYears = now.getFullYear() - dob.getFullYear();
+    let ageMonths = now.getMonth() - dob.getMonth();
+    if (ageMonths < 0) { ageYears--; ageMonths += 12; }
+    const ageStr = ageMonths > 0 ? `${ageYears} years, ${ageMonths} months` : `${ageYears} years`;
+
+    // 8. Build system prompt
+    const systemPrompt = `You are a clinical assistant helping a therapist at a neurodivergent support clinic write a session note.
+Generate a SOAP note draft based on the context below. Be professional, concise, and clinically appropriate.
+Use first-person for the therapist's observations. Do not fabricate clinical observations — write in a style
+that invites the therapist to fill in specific details.
+
+Child: the child, ${ageStr}
+Concerns: ${concerns.join('; ') || 'None documented'}
+Active Goals: ${activeGoals.join('; ') || 'None documented'}
+Recent session assessments: ${last3Assessments || 'No prior sessions'}
+Today's session: ${session.scheduledAt.toISOString().split('T')[0]}, ${session.actualDuration ?? 60} minutes
+Existing note content (if any): ${existingContent}
+
+Return ONLY valid JSON with these four keys:
+{
+  "soapSubjective": "...",
+  "soapObjective": "...",
+  "soapAssessment": "...",
+  "soapPlan": "..."
+}`;
+
+    // 9. Call OpenAI
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: 'Generate the SOAP note draft now.' },
+        ],
+        temperature: 0.4,
+        max_tokens: 2000,
+        response_format: { type: 'json_object' },
+      });
+
+      const content = response.choices[0]?.message?.content || '{}';
+      const parsed = JSON.parse(content);
+
+      const draft: ScribeResponse = {
+        soapSubjective: parsed.soapSubjective || '',
+        soapObjective: parsed.soapObjective || '',
+        soapAssessment: parsed.soapAssessment || '',
+        soapPlan: parsed.soapPlan || '',
+      };
+
+      // 10. Store the draft in Session.aiDraft
+      await this.prisma.caseSession.update({
+        where: { id: sessionId },
+        data: { aiDraft: draft as any },
+      });
+
+      return draft;
+    } catch (error) {
+      this.logger.error('Mira scribe failed:', error);
+      throw new BadRequestException('Failed to generate SOAP draft');
+    }
+  }
+
   private async extractStructuredData(
     miraText: string,
     ctx: MiraContext,
@@ -449,7 +606,7 @@ export class MiraService {
 
         ctx.child = {
           id: child.id,
-          name: child.firstName,
+          name: 'the child', // PDPL: anonymize child name before sending to OpenAI
           age: ageMonths > 0 ? `${ageYears} years, ${ageMonths} months` : `${ageYears} years`,
           gender: child.gender,
           conditions: (child.conditions || []).map((c) =>

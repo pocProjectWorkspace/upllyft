@@ -17,6 +17,7 @@ import {
   addAnnotation,
   searchTherapists,
   getUserProfile,
+  getScreeningHistory,
   type CreateAssessmentDto,
   type QuestionResponse,
   type ShareAssessmentDto,
@@ -47,6 +48,7 @@ const assessmentKeys = {
   questionnaire: (id: string, tier: number) => [...assessmentKeys.all, 'questionnaire', id, tier] as const,
   report: (id: string) => [...assessmentKeys.all, 'report', id] as const,
   reportV2: (id: string) => [...assessmentKeys.all, 'report-v2', id] as const,
+  history: (childId: string) => [...assessmentKeys.all, 'history', childId] as const,
   shared: () => [...assessmentKeys.all, 'shared'] as const,
   myShare: (id: string) => [...assessmentKeys.all, 'my-share', id] as const,
   therapists: (search?: string) => [...assessmentKeys.all, 'therapists', search] as const,
@@ -69,6 +71,15 @@ export function useChildAssessments(childId: string) {
     queryKey: assessmentKeys.child(childId),
     queryFn: () => getChildAssessments(childId),
     enabled: !!childId,
+  });
+}
+
+export function useScreeningHistory(childId: string) {
+  return useQuery({
+    queryKey: assessmentKeys.history(childId),
+    queryFn: () => getScreeningHistory(childId),
+    enabled: !!childId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

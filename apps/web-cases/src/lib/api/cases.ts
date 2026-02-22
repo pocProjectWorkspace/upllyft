@@ -710,6 +710,18 @@ export async function enhanceClinicalNotes(
   return res.data;
 }
 
+export interface ScribeResponse {
+  soapSubjective: string;
+  soapObjective: string;
+  soapAssessment: string;
+  soapPlan: string;
+}
+
+export async function miraScribe(sessionId: string): Promise<ScribeResponse> {
+  const res = await apiClient.post('/mira/scribe', { sessionId });
+  return res.data.data;
+}
+
 export async function signSession(caseId: string, sessionId: string): Promise<CaseSession> {
   const res = await apiClient.post(`/cases/${caseId}/sessions/${sessionId}/sign`);
   return res.data;

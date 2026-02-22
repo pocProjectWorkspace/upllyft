@@ -13,8 +13,11 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorators';
+import { Role } from '@prisma/client';
 import { MiraService } from './mira.service';
-import type { ChatDto } from './mira.types';
+import type { ChatDto, ScribeDto } from './mira.types';
 
 @Controller('mira')
 @UseGuards(JwtAuthGuard)
@@ -71,6 +74,20 @@ export class MiraController {
     } finally {
       res.end();
     }
+  }
+
+  @Post('scribe')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.THERAPIST, Role.ADMIN)
+  async scribe(
+    @Request() req: any,
+    @Body() body: ScribeDto,
+  ) {
+    if (!body.sessionId) {
+      throw new BadRequestException('sessionId is required');
+    }
+    const draft = await this.miraService.scribe(body.sessionId, req.user.id);
+    return { success: true, data: draft };
   }
 
   @Get('conversations')

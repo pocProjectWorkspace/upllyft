@@ -5,6 +5,7 @@ import {
     ForbiddenException,
     Logger,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ScoringService, DomainScore } from './scoring.service';
 import { ReportGeneratorService } from './report-generator.service';
@@ -737,6 +738,63 @@ export class AssessmentsService {
         );
 
         return result;
+    }
+
+    /**
+     * Get screening history for a child (longitudinal trend data).
+     * Access: child's parent, or THERAPIST/ADMIN role.
+     */
+    async getScreeningHistory(childId: string, userId: string, userRole: string) {
+        const child = await this.prisma.child.findUnique({
+            where: { id: childId },
+            include: { profile: true },
+        });
+
+        if (!child) {
+            throw new NotFoundException('Child not found');
+        }
+
+        const isParent = child.profile.userId === userId;
+        const isProfessionalOrAdmin =
+            userRole === 'THERAPIST' || userRole === 'EDUCATOR' || userRole === 'ADMIN';
+
+        if (!isParent && !isProfessionalOrAdmin) {
+            throw new ForbiddenException('You do not have access to this child');
+        }
+
+        const assessments = await this.prisma.assessment.findMany({
+            where: {
+                childId,
+                status: 'COMPLETED',
+                NOT: { domainScores: { equals: Prisma.DbNull } },
+            },
+            select: {
+                id: true,
+                completedAt: true,
+                overallScore: true,
+                domainScores: true,
+            },
+            orderBy: { completedAt: 'asc' },
+        });
+
+        return {
+            childId,
+            childName: child.firstName,
+            results: assessments.map((a) => {
+                const scores = a.domainScores as Record<string, any>;
+                return {
+                    id: a.id,
+                    completedAt: a.completedAt?.toISOString() ?? a.completedAt,
+                    totalScore: a.overallScore ?? 0,
+                    domains: Object.entries(scores).map(([domainId, data]) => ({
+                        name: this.formatDomainName(domainId),
+                        domainId,
+                        score: Math.round((1 - (data.riskIndex ?? 0)) * 100),
+                        maxScore: 100,
+                    })),
+                };
+            }),
+        };
     }
 
     /**

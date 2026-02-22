@@ -462,9 +462,8 @@ export class PostsController {
     @Body() createPostDto: CreatePostDto
   ) {
     try {
-      // Log for debugging
-      console.log('Creating post with data:', createPostDto);
-      console.log('User:', req.user);
+      // Log for debugging (no PII)
+      console.log('Creating post for user:', req.user?.id);
 
       // Call the posts service to create the post
       const post = await this.postsService.create(req.user.id, createPostDto);

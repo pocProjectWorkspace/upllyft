@@ -7,6 +7,7 @@ import {
   useUpdateSession,
   useSignSession,
   useBulkLogGoalProgress,
+  useMiraScribe,
 } from '@/hooks/use-cases';
 import {
   Button,
@@ -22,7 +23,7 @@ import {
   useToast,
   Badge,
 } from '@upllyft/ui';
-import { ArrowLeft, Loader2, FileText, Save, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Save, Lock, CheckCircle2, AlertCircle, Sparkles, X, Info } from 'lucide-react';
 import { SOAPSection } from './soap-section';
 import { GoalProgressLinker, type GoalProgressEntry } from './goal-progress-linker';
 import type { CaseSession } from '@/lib/api/cases';
@@ -59,6 +60,7 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
   const updateSession = useUpdateSession();
   const signSession = useSignSession();
   const bulkLogGoalProgress = useBulkLogGoalProgress();
+  const miraScribe = useMiraScribe();
 
   const isEditMode = !!sessionId;
 
@@ -98,6 +100,46 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
   const [showSignConfirm, setShowSignConfirm] = useState(false);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasUnsavedChanges = useRef(false);
+
+  // Mira Scribe state
+  const [showScribeConfirm, setShowScribeConfirm] = useState(false);
+  const [showAiDraftBanner, setShowAiDraftBanner] = useState(false);
+  const isScribing = miraScribe.isPending;
+
+  const hasExistingSoapContent = !!(subjective || objective || assessment || plan);
+
+  const handleScribeClick = () => {
+    if (!createdSessionId) {
+      toast({ title: 'Save the session first before using Mira', variant: 'destructive' });
+      return;
+    }
+    if (hasExistingSoapContent) {
+      setShowScribeConfirm(true);
+    } else {
+      runScribe();
+    }
+  };
+
+  const runScribe = () => {
+    if (!createdSessionId) return;
+    setShowScribeConfirm(false);
+    miraScribe.mutate(
+      { sessionId: createdSessionId },
+      {
+        onSuccess: (data) => {
+          setSubjective(data.soapSubjective);
+          setObjective(data.soapObjective);
+          setAssessment(data.soapAssessment);
+          setPlan(data.soapPlan);
+          setShowAiDraftBanner(true);
+          hasUnsavedChanges.current = true;
+          setAutoSaveStatus('unsaved');
+          // Scroll to the top of the SOAP sections
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+      },
+    );
+  };
 
   const buildStructuredNotes = useCallback(() => {
     const notes: Record<string, string> = {};
@@ -382,6 +424,24 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
           </div>
         </Card>
 
+        {/* AI Draft Banner */}
+        {showAiDraftBanner && (
+          <div className="flex items-start gap-3 rounded-lg border border-teal-200 bg-teal-50 p-4">
+            <Info className="h-5 w-5 text-teal-600 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm text-teal-800 font-medium">
+                Mira has drafted this note. Review carefully and edit before signing.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowAiDraftBanner(false)}
+              className="text-teal-500 hover:text-teal-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {/* SOAP Sections */}
         <div className="space-y-3">
           <SOAPSection letter="S" title="Subjective">
@@ -390,6 +450,7 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
               onChange={(e) => setSubjective(e.target.value)}
               placeholder="Client/caregiver report: presenting concerns, symptoms reported by patient or family, relevant history updates, pain levels, mood descriptions..."
               rows={4}
+              disabled={isScribing}
             />
           </SOAPSection>
 
@@ -399,6 +460,7 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
               onChange={(e) => setObjective(e.target.value)}
               placeholder="Clinician observations: measurable data, test results, behavioral observations, vital signs, standardized assessment scores, activities performed..."
               rows={4}
+              disabled={isScribing}
             />
           </SOAPSection>
 
@@ -409,11 +471,13 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
                 onChange={(e) => setAssessment(e.target.value)}
                 placeholder="Clinical interpretation: progress analysis, comparison to baseline, clinical reasoning, diagnosis updates, barriers to progress..."
                 rows={4}
+                disabled={isScribing}
               />
               <GoalProgressLinker
                 caseId={caseId}
                 value={goalEntries}
                 onChange={setGoalEntries}
+                disabled={isScribing}
               />
             </div>
           </SOAPSection>
@@ -424,6 +488,7 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
               onChange={(e) => setPlan(e.target.value)}
               placeholder="Next steps: treatment modifications, homework/home program, referrals, next session objectives, caregiver recommendations..."
               rows={4}
+              disabled={isScribing}
             />
           </SOAPSection>
         </div>
@@ -449,11 +514,26 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
             Cancel
           </Button>
           <div className="flex items-center gap-3">
+            {(!initialData?.noteStatus || initialData.noteStatus === 'DRAFT') && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleScribeClick}
+                disabled={isSaving || isScribing || signSession.isPending}
+              >
+                {isScribing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                {isScribing ? 'Mira is drafting...' : 'Draft with Mira'}
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
               onClick={handleSaveDraft}
-              disabled={isSaving}
+              disabled={isSaving || isScribing}
             >
               {isSaving ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -467,7 +547,7 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
               variant="primary"
               className="bg-teal-600 hover:bg-teal-700"
               onClick={handleSign}
-              disabled={isSaving || signSession.isPending}
+              disabled={isSaving || signSession.isPending || isScribing}
             >
               {signSession.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -509,6 +589,38 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
               >
                 {signSession.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Yes, Sign &amp; Lock
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Scribe Overwrite Confirmation Dialog */}
+      {showScribeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Replace existing draft?</h3>
+                <p className="text-sm text-gray-500">Mira will overwrite your current notes</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Mira will replace your existing draft. Continue?
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowScribeConfirm(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                className="bg-teal-600 hover:bg-teal-700"
+                onClick={runScribe}
+              >
+                Yes, Continue
               </Button>
             </div>
           </Card>

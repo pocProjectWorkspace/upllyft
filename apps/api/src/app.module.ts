@@ -80,6 +80,12 @@ import { MiraModule } from './mira/mira.module';
 import { ClinicPatientsModule } from './clinic-patients/clinic-patients.module';
 import { ClinicTherapistsModule } from './clinic-therapists/clinic-therapists.module';
 import { ClinicTrackingModule } from './clinic-tracking/clinic-tracking.module';
+import { ClinicOutcomesModule } from './clinic-outcomes/clinic-outcomes.module';
+import { ConsentModule } from './consent/consent.module';
+import { InvoiceModule } from './invoice/invoice.module';
+import { MessagingModule } from './messaging/messaging.module';
+import { AuditModule } from './audit/audit.module';
+import { RetentionModule } from './retention/retention.module';
 
 
 @Module({
@@ -172,6 +178,20 @@ import { ClinicTrackingModule } from './clinic-tracking/clinic-tracking.module';
     ClinicPatientsModule,
     ClinicTherapistsModule,
     ClinicTrackingModule,
+    ClinicOutcomesModule,
+
+    // Consent forms
+    ConsentModule,
+
+    // Invoices
+    InvoiceModule,
+
+    // Messaging
+    MessagingModule,
+
+    // PDPL compliance
+    AuditModule,
+    RetentionModule,
   ],
   controllers: [
     AppController,

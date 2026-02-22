@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@upllyft/ui';
-import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface SOAPSectionProps {
   letter: 'S' | 'O' | 'A' | 'P';
@@ -36,27 +35,11 @@ export function SOAPSection({ letter, title, defaultOpen = true, children }: SOA
           </span>
           <span className="font-medium text-gray-900">{title}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-gray-400 hover:text-teal-600"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Placeholder for future Mira integration
-            }}
-            disabled
-          >
-            <Sparkles className="h-3 w-3 mr-1" />
-            Generate with Mira
-          </Button>
-          {isOpen ? (
-            <ChevronUp className="h-4 w-4 text-gray-400" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-gray-400" />
-          )}
-        </div>
+        {isOpen ? (
+          <ChevronUp className="h-4 w-4 text-gray-400" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-gray-400" />
+        )}
       </button>
       {isOpen && <div className="p-4">{children}</div>}
     </div>

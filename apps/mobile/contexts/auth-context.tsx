@@ -5,6 +5,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 
 import api from '../lib/api';
 import { getTokens, setTokens, clearTokens, getBiometricEnabled, setBiometricEnabled as storeBiometricEnabled } from '../lib/auth-store';
+import { registerForPushNotifications, unregisterPushToken } from '../hooks/use-push-notifications';
 
 export type UserRole = 'USER' | 'THERAPIST' | 'EDUCATOR' | 'ORGANIZATION' | 'ADMIN' | 'MODERATOR';
 export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
@@ -107,6 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       await fetchProfile();
+      // Re-register push token on app resume
+      registerForPushNotifications().catch(() => {});
     } catch {
       setUser(null);
       await clearTokens();
@@ -142,6 +145,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await setTokens(data.accessToken, data.refreshToken);
       const profile = await fetchProfile();
 
+      // Register push notification token
+      registerForPushNotifications().catch(() => {});
+
       router.replace('/(main)/(home)');
 
       // Prompt biometric enable after navigation
@@ -157,6 +163,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.post('/auth/register', data);
       await setTokens(res.data.accessToken, res.data.refreshToken);
       const profile = await fetchProfile();
+
+      // Register push notification token
+      registerForPushNotifications().catch(() => {});
 
       if (PROFESSIONAL_ROLES.includes(profile.role)) {
         router.replace('/(main)/(home)');
@@ -180,6 +189,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchProfile]);
 
   const logout = useCallback(async () => {
+    // Remove push token before clearing auth (needs auth header)
+    await unregisterPushToken().catch(() => {});
     await clearTokens();
     setUser(null);
     router.replace('/(auth)/login');

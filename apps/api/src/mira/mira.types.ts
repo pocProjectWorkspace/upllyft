@@ -30,3 +30,14 @@ export interface ConversationSummary {
   updatedAt: Date;
   childId: string | null;
 }
+
+export interface ScribeDto {
+  sessionId: string;
+}
+
+export interface ScribeResponse {
+  soapSubjective: string;
+  soapObjective: string;
+  soapAssessment: string;
+  soapPlan: string;
+}

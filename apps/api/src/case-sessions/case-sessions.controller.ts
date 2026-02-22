@@ -58,8 +58,9 @@ export class CaseSessionsController {
   async getSession(
     @Param('caseId') caseId: string,
     @Param('sessionId') sessionId: string,
+    @Req() req: any,
   ) {
-    return this.sessionsService.getSession(caseId, sessionId);
+    return this.sessionsService.getSession(caseId, sessionId, req.user?.id);
   }
 
   @Patch(':sessionId')

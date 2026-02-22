@@ -29,12 +29,7 @@ export class CommentsController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   async create(@Request() req: any, @Body() createCommentDto: CreateCommentDto) {
-  console.log('=== Comment Creation Debug ===');
-  console.log('Raw body:', req.body);
-  console.log('Parsed DTO:', createCommentDto);
-  console.log('PostId:', createCommentDto.postId);
-  console.log('PostId type:', typeof createCommentDto.postId);
-  console.log('User:', req.user);
+  console.log('Creating comment for postId:', createCommentDto.postId, 'user:', req.user?.id);
 
     // Validate the DTO manually for debugging
     if (!createCommentDto.postId) {

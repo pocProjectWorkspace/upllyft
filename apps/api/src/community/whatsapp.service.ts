@@ -489,15 +489,13 @@ export class WhatsAppService {
   // Placeholder for SMS sending
   private async sendInvitationSMS(invitation: any) {
     // TODO: Integrate with SMS provider (Twilio, MSG91, Fast2SMS)
-    console.log('SMS would be sent to:', invitation.user.phone);
-    console.log('Message:', `Join our WhatsApp group: ${invitation.whatsappGroup.groupLink}`);
+    console.log('SMS invitation would be sent for group:', invitation.whatsappGroup?.id);
   }
 
   // Placeholder for Email sending
   private async sendInvitationEmail(invitation: any) {
     // TODO: Integrate with email service
-    console.log('Email would be sent to:', invitation.user.email);
-    console.log('Subject: You\'re invited to join our WhatsApp community');
+    console.log('Email invitation would be sent for group:', invitation.whatsappGroup?.id);
   }
 
   // 🆕 NEW: Get WhatsApp group members

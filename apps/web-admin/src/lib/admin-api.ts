@@ -411,3 +411,193 @@ export async function updateTrackingStatus(
   });
   return data;
 }
+
+// --- Outcomes Types ---
+
+export interface ClinicOutcomeSummary {
+  activePatients: number;
+  sessionsThisMonth: number;
+  sessionsLastMonth: number;
+  goalProgress: {
+    achieved: number;
+    progressing: number;
+    maintaining: number;
+    regression: number;
+    total: number;
+  };
+  averageScreeningImprovement: number;
+}
+
+export interface GoalProgressData {
+  breakdown: {
+    achieved: number;
+    progressing: number;
+    maintaining: number;
+    regression: number;
+    total: number;
+  };
+  byDomain: Record<string, {
+    achieved: number;
+    progressing: number;
+    maintaining: number;
+    regression: number;
+    total: number;
+  }>;
+}
+
+export interface ScreeningTrendsData {
+  trends: {
+    domain: string;
+    firstAvg: number;
+    latestAvg: number;
+    change: number;
+  }[];
+  patientsWithScreenings: number;
+}
+
+export interface PatientOutcomeRow {
+  id: string;
+  firstName: string;
+  age: number;
+  therapist: { id: string; name: string } | null;
+  sessionCount: number;
+  goalBreakdown: { progressing: number; maintaining: number; regression: number; achieved: number };
+  screeningDelta: number | null;
+  lastSessionDate: string | null;
+}
+
+export interface GoalTimelineEntry {
+  goalId: string;
+  goalTitle: string;
+  domain: string;
+  status: string;
+  currentProgress: number;
+  ratings: {
+    sessionId: string;
+    sessionDate: string;
+    rating: string;
+    value: number | null;
+  }[];
+}
+
+export interface PatientOutcomeDetail {
+  child: { id: string; name: string; age: number };
+  therapist: { id: string; name: string } | null;
+  sessionCount: number;
+  lastSessionDate: string | null;
+  lastTherapistName: string | null;
+  lastSessionNoteExcerpt: string | null;
+  goalBreakdown: { progressing: number; maintaining: number; regression: number; achieved: number };
+  goalTimeline: GoalTimelineEntry[];
+  sessionDates: { id: string; date: string }[];
+  screeningScores: {
+    date: string;
+    overallScore: number | null;
+    domains: Record<string, number> | null;
+  }[];
+  screeningDelta: number | null;
+  milestones: {
+    id: string;
+    domain: string;
+    description: string;
+    achievedAt: string | null;
+  }[];
+}
+
+// --- Outcomes API Functions ---
+
+export async function getClinicOutcomeSummary(): Promise<ClinicOutcomeSummary> {
+  const { data } = await apiClient.get('/api/admin/outcomes/summary');
+  return data;
+}
+
+export async function getGoalProgress(): Promise<GoalProgressData> {
+  const { data } = await apiClient.get('/api/admin/outcomes/goals');
+  return data;
+}
+
+export async function getScreeningTrends(): Promise<ScreeningTrendsData> {
+  const { data } = await apiClient.get('/api/admin/outcomes/screening-trends');
+  return data;
+}
+
+export async function getPatientOutcomes(params?: {
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  therapistId?: string;
+}): Promise<PatientOutcomeRow[]> {
+  const { data } = await apiClient.get('/api/admin/outcomes/patients', { params });
+  return data;
+}
+
+export async function getPatientOutcomeDetail(childId: string): Promise<PatientOutcomeDetail> {
+  const { data } = await apiClient.get(`/api/admin/outcomes/patient/${childId}`);
+  return data;
+}
+
+// --- Revenue Types ---
+
+export type RevenuePeriod = 'this_month' | 'last_month' | 'this_year';
+
+export interface RevenueTherapistRow {
+  therapist: { id: string; name: string | null; avatarUrl: string | null };
+  invoiced: number;
+  sessions: number;
+}
+
+export interface RevenueWeekBucket {
+  week: string;
+  amount: number;
+}
+
+export interface ClinicRevenueResponse {
+  period: string;
+  totalInvoiced: number;
+  totalSessions: number;
+  avgRevenuePerSession: number;
+  outstanding: { count: number; amount: number };
+  byTherapist: RevenueTherapistRow[];
+  byWeek: RevenueWeekBucket[];
+}
+
+export interface TherapistRevenueInvoice {
+  id: string;
+  sessionId: string;
+  amount: string;
+  currency: string;
+  status: string;
+  createdAt: string;
+  session: {
+    scheduledAt: string;
+    sessionType?: string | null;
+    actualDuration?: number | null;
+  };
+  patient: { id: string; name: string | null };
+}
+
+export interface TherapistRevenueResponse {
+  therapist: { id: string; name: string | null; avatarUrl: string | null };
+  period: string;
+  totalInvoiced: number;
+  totalSessions: number;
+  invoices: TherapistRevenueInvoice[];
+}
+
+// --- Revenue API Functions ---
+
+export async function getClinicRevenue(
+  period: RevenuePeriod = 'this_month',
+): Promise<ClinicRevenueResponse> {
+  const { data } = await apiClient.get('/api/billing/revenue', { params: { period } });
+  return data;
+}
+
+export async function getTherapistRevenue(
+  therapistId: string,
+  period: RevenuePeriod = 'this_month',
+): Promise<TherapistRevenueResponse> {
+  const { data } = await apiClient.get(`/api/billing/revenue/therapist/${therapistId}`, {
+    params: { period },
+  });
+  return data;
+}

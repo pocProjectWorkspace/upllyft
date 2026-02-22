@@ -1,4 +1,5 @@
 import type { BookingStatus } from './api/marketplace';
+import type { InvoiceStatus } from './api/invoices';
 
 export const bookingStatusLabels: Record<BookingStatus, string> = {
   PENDING_PAYMENT: 'Pending Payment',
@@ -18,6 +19,20 @@ export const bookingStatusColors: Record<BookingStatus, string> = {
   CANCELLED: 'gray',
   COMPLETED: 'green',
   NO_SHOW: 'red',
+};
+
+export const invoiceStatusLabels: Record<InvoiceStatus, string> = {
+  DRAFT: 'Draft',
+  ISSUED: 'Issued',
+  PAID: 'Paid',
+  VOID: 'Void',
+};
+
+export const invoiceStatusColors: Record<InvoiceStatus, string> = {
+  DRAFT: 'yellow',
+  ISSUED: 'blue',
+  PAID: 'green',
+  VOID: 'gray',
 };
 
 export const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

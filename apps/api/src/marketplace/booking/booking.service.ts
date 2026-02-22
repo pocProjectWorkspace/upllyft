@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, Logger, NotFoundException } from '@nes
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaymentService } from '../payment/payment.service';
 import { GoogleMeetService } from '../common/google-meet.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { addHours, addMinutes, differenceInHours, isPast } from 'date-fns';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class BookingService {
         private prisma: PrismaService,
         private paymentService: PaymentService,
         private googleMeetService: GoogleMeetService,
+        private eventEmitter: EventEmitter2,
     ) { }
 
     /**
@@ -259,6 +261,17 @@ export class BookingService {
         });
 
         this.logger.log(`Therapist ${therapistId} accepted booking ${bookingId}`);
+
+        // Emit event for push notifications
+        this.eventEmitter.emit('booking.confirmed', {
+            bookingId: booking.id,
+            patientId: booking.patientId,
+            therapistUserId: booking.therapist.user.id,
+            therapistName: booking.therapist.user.name || 'Therapist',
+            patientName: booking.patient.name || 'Patient',
+            startDateTime: booking.startDateTime.toISOString(),
+            endDateTime: booking.endDateTime.toISOString(),
+        });
 
         return updatedBooking;
     }

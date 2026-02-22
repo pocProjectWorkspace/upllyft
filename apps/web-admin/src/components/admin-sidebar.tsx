@@ -55,11 +55,10 @@ const allNavItems: NavItem[] = [
     disabled: true,
   },
   {
-    label: 'Billing',
-    href: '/billing',
+    label: 'Revenue',
+    href: '/reports',
     icon: <CreditCard className="w-5 h-5" />,
     adminOnly: true,
-    disabled: true,
   },
   {
     label: 'Settings',

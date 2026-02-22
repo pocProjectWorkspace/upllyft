@@ -5,22 +5,39 @@ import { useParams } from 'next/navigation';
 import { AdminShell } from '@/components/admin-shell';
 import { PatientStatusBadge } from '@/components/patient-status-badge';
 import { AssignTherapistModal } from '@/components/assign-therapist-modal';
+import { ConsentPanel } from '@/components/patients/consent-panel';
 import { Avatar } from '@upllyft/ui';
-import { getPatientDetail, updatePatientStatus, type PatientDetail } from '@/lib/admin-api';
+import {
+  getPatientDetail,
+  updatePatientStatus,
+  getPatientOutcomeDetail,
+  type PatientDetail,
+  type PatientOutcomeDetail,
+} from '@/lib/admin-api';
 import {
   ArrowLeft,
   Calendar,
   Phone,
   Mail,
-  MapPin,
   User,
   Briefcase,
-  FileText,
   Activity,
   Target,
   Brain,
   ChevronDown,
+  Printer,
+  Award,
 } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 
 function calculateAge(dob: string): string {
   const birth = new Date(dob);
@@ -40,9 +57,18 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
+function formatShortDate(dateStr: string | null): string {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 const STATUS_OPTIONS = ['INTAKE', 'ACTIVE', 'ON_HOLD', 'DISCHARGED'] as const;
 const TABS = [
   { key: 'demographics', label: 'Demographics', icon: User },
+  { key: 'outcomes', label: 'Outcomes', icon: Activity },
   { key: 'screening', label: 'Screening', icon: Brain },
   { key: 'cases', label: 'Cases', icon: Briefcase },
   { key: 'sessions', label: 'Sessions', icon: Calendar },
@@ -51,10 +77,41 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]['key'];
 
+const DOMAIN_LABELS: Record<string, string> = {
+  motor: 'Motor',
+  language: 'Language',
+  social: 'Social',
+  cognitive: 'Cognitive',
+  adaptive: 'Adaptive',
+  sensory: 'Sensory',
+  MOTOR: 'Motor',
+  LANGUAGE: 'Language',
+  SOCIAL: 'Social',
+  COGNITIVE: 'Cognitive',
+  ADAPTIVE: 'Adaptive',
+  SENSORY: 'Sensory',
+};
+
+const DOMAIN_COLORS: Record<string, string> = {
+  MOTOR: '#0d9488',
+  LANGUAGE: '#7c3aed',
+  SOCIAL: '#2563eb',
+  COGNITIVE: '#d97706',
+  ADAPTIVE: '#059669',
+  SENSORY: '#dc2626',
+  motor: '#0d9488',
+  language: '#7c3aed',
+  social: '#2563eb',
+  cognitive: '#d97706',
+  adaptive: '#059669',
+  sensory: '#dc2626',
+};
+
 export default function PatientDetailPage() {
   const params = useParams();
   const childId = params.id as string;
   const [patient, setPatient] = useState<PatientDetail | null>(null);
+  const [outcomeData, setOutcomeData] = useState<PatientOutcomeDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('demographics');
   const [statusDropdown, setStatusDropdown] = useState(false);
@@ -75,6 +132,15 @@ export default function PatientDetailPage() {
   useEffect(() => {
     if (childId) fetchPatient();
   }, [childId]);
+
+  // Lazy-load outcome data when tab is first selected
+  useEffect(() => {
+    if (activeTab === 'outcomes' && !outcomeData && childId) {
+      getPatientOutcomeDetail(childId)
+        .then(setOutcomeData)
+        .catch(() => setOutcomeData(null));
+    }
+  }, [activeTab, childId]);
 
   const handleStatusChange = async (newStatus: string) => {
     if (!patient) return;
@@ -213,6 +279,17 @@ export default function PatientDetailPage() {
           </div>
         </div>
 
+        {/* Consent Panel */}
+        {patient.parent && (
+          <ConsentPanel
+            patientId={patient.parent.id}
+            childName={patient.firstName}
+            parentName={patient.parent.name}
+            parentEmail={patient.parent.email}
+            intakeId={patient.id}
+          />
+        )}
+
         {/* Tabs */}
         <div className="border-b border-gray-200">
           <nav className="flex gap-1 overflow-x-auto">
@@ -241,6 +318,9 @@ export default function PatientDetailPage() {
           {activeTab === 'demographics' && (
             <DemographicsTab patient={patient} />
           )}
+          {activeTab === 'outcomes' && (
+            <OutcomesTab data={outcomeData} />
+          )}
           {activeTab === 'screening' && (
             <ScreeningTab assessments={patient.assessments} />
           )}
@@ -268,6 +348,290 @@ export default function PatientDetailPage() {
 }
 
 /* --- Tab Components --- */
+
+function OutcomesTab({ data }: { data: PatientOutcomeDetail | null }) {
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const gb = data.goalBreakdown;
+  const totalGoals = gb.progressing + gb.maintaining + gb.regression + gb.achieved;
+
+  return (
+    <div className="space-y-8">
+      {/* Session Summary */}
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 mb-3">Session Summary</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <MiniStat label="Total Sessions" value={data.sessionCount} />
+          <MiniStat label="Last Session" value={formatShortDate(data.lastSessionDate)} />
+          <MiniStat label="Therapist" value={data.lastTherapistName || '-'} />
+          <MiniStat
+            label="Screening Change"
+            value={data.screeningDelta !== null ? `${data.screeningDelta > 0 ? '+' : ''}${data.screeningDelta}%` : '-'}
+            highlight={data.screeningDelta !== null && data.screeningDelta > 0}
+          />
+        </div>
+        {data.lastSessionNoteExcerpt && (
+          <div className="mt-3 p-3 bg-gray-50 rounded-xl">
+            <p className="text-xs font-medium text-gray-500 uppercase mb-1">Latest Note</p>
+            <p className="text-sm text-gray-700">{data.lastSessionNoteExcerpt}...</p>
+          </div>
+        )}
+      </div>
+
+      {/* Goal Progress Heatmap */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold text-gray-900">Goal Progress Timeline</h3>
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 print:hidden"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Print
+          </button>
+        </div>
+        {data.goalTimeline.length > 0 && data.sessionDates.length > 0 ? (
+          <GoalProgressHeatmap
+            goals={data.goalTimeline}
+            sessions={data.sessionDates}
+          />
+        ) : (
+          <EmptyState
+            icon={Target}
+            title="No goal progress data yet"
+            description="Goal progress will populate as therapists log session notes with goal ratings."
+          />
+        )}
+      </div>
+
+      {/* Screening Score Chart */}
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 mb-3">Screening Scores Over Time</h3>
+        {data.screeningScores.length > 0 ? (
+          <ScreeningLineChart scores={data.screeningScores} />
+        ) : (
+          <EmptyState
+            icon={Brain}
+            title="No screening data"
+            description="Screening score trends will appear after the parent completes assessments."
+          />
+        )}
+      </div>
+
+      {/* Milestone Timeline */}
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 mb-3">Milestones Achieved</h3>
+        {data.milestones.length > 0 ? (
+          <MilestoneTimeline milestones={data.milestones} />
+        ) : (
+          <EmptyState
+            icon={Award}
+            title="No milestones achieved yet"
+            description="Milestones will appear here as they are marked achieved in the case plan."
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
+  return (
+    <div className="p-3 bg-gray-50 rounded-xl">
+      <p className="text-xs font-medium text-gray-500 uppercase">{label}</p>
+      <p className={`text-lg font-bold mt-0.5 ${highlight ? 'text-emerald-600' : 'text-gray-900'}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function GoalProgressHeatmap({
+  goals,
+  sessions,
+}: {
+  goals: PatientOutcomeDetail['goalTimeline'];
+  sessions: PatientOutcomeDetail['sessionDates'];
+}) {
+  const ratingColors: Record<string, string> = {
+    achieved: 'bg-emerald-500',
+    progressing: 'bg-teal-400',
+    maintaining: 'bg-amber-400',
+    regression: 'bg-red-400',
+    not_rated: 'bg-gray-200',
+  };
+
+  const ratingLabels: Record<string, string> = {
+    achieved: 'Achieved',
+    progressing: 'Progressing',
+    maintaining: 'Maintaining',
+    regression: 'Regression',
+    not_rated: 'Not rated',
+  };
+
+  return (
+    <div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr>
+              <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500 w-56 min-w-[14rem]">Goal</th>
+              {sessions.map((s) => (
+                <th key={s.id} className="py-2 px-1 text-xs text-gray-400 text-center w-12 min-w-[3rem]">
+                  {formatShortDate(s.date)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {goals.map((goal) => {
+              const ratingMap = new Map(goal.ratings.map((r) => [r.sessionId, r.rating]));
+              return (
+                <tr key={goal.goalId} className="border-t border-gray-50">
+                  <td className="py-2 pr-4">
+                    <p className="text-sm text-gray-900 truncate max-w-[14rem]" title={goal.goalTitle}>
+                      {goal.goalTitle}
+                    </p>
+                    <span
+                      className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                      style={{ backgroundColor: `${DOMAIN_COLORS[goal.domain] || '#94a3b8'}20`, color: DOMAIN_COLORS[goal.domain] || '#64748b' }}
+                    >
+                      {DOMAIN_LABELS[goal.domain] || goal.domain}
+                    </span>
+                  </td>
+                  {sessions.map((s) => {
+                    const rating = ratingMap.get(s.id) || 'not_rated';
+                    return (
+                      <td key={s.id} className="py-2 px-1 text-center">
+                        <div
+                          className={`w-7 h-7 rounded-lg mx-auto ${ratingColors[rating]}`}
+                          title={ratingLabels[rating]}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-gray-100">
+        {Object.entries(ratingLabels).map(([key, label]) => (
+          <div key={key} className="flex items-center gap-1.5">
+            <div className={`w-3.5 h-3.5 rounded ${ratingColors[key]}`} />
+            <span className="text-xs text-gray-500">{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ScreeningLineChart({ scores }: { scores: PatientOutcomeDetail['screeningScores'] }) {
+  // Build chart data
+  const allDomains = new Set<string>();
+  scores.forEach((s) => {
+    if (s.domains) Object.keys(s.domains).forEach((d) => allDomains.add(d));
+  });
+
+  const chartData = scores.map((s) => {
+    const point: Record<string, any> = { date: formatShortDate(s.date) };
+    if (s.domains) {
+      for (const d of allDomains) {
+        point[DOMAIN_LABELS[d] || d] = s.domains[d] ?? null;
+      }
+    }
+    if (s.overallScore !== null) point['Overall'] = s.overallScore;
+    return point;
+  });
+
+  const domains = Array.from(allDomains);
+  const lineColors = domains.map((d) => DOMAIN_COLORS[d] || '#94a3b8');
+
+  if (scores.length === 1) {
+    // Single data point — show as a summary instead of a chart
+    const s = scores[0];
+    return (
+      <div>
+        <p className="text-xs text-gray-500 mb-3">Single screening completed {formatShortDate(s.date)}</p>
+        {s.domains && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {Object.entries(s.domains).map(([domain, score]) => (
+              <div key={domain} className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs font-medium text-gray-500 uppercase">{DOMAIN_LABELS[domain] || domain}</p>
+                <p className="text-lg font-bold text-gray-900">{score}%</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+        <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+        <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} />
+        <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 13 }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        {domains.map((d, i) => (
+          <Line
+            key={d}
+            type="monotone"
+            dataKey={DOMAIN_LABELS[d] || d}
+            stroke={lineColors[i]}
+            strokeWidth={2}
+            dot={{ r: 4 }}
+            connectNulls
+          />
+        ))}
+        <Line type="monotone" dataKey="Overall" stroke="#111827" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 4 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+function MilestoneTimeline({ milestones }: { milestones: PatientOutcomeDetail['milestones'] }) {
+  return (
+    <div className="relative">
+      <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-200" />
+      <div className="space-y-4">
+        {milestones.map((m) => (
+          <div key={m.id} className="flex items-start gap-4 relative">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10"
+              style={{ backgroundColor: `${DOMAIN_COLORS[m.domain] || '#94a3b8'}20` }}
+            >
+              <Award className="w-4 h-4" style={{ color: DOMAIN_COLORS[m.domain] || '#94a3b8' }} />
+            </div>
+            <div className="flex-1 min-w-0 pb-1">
+              <p className="text-sm font-medium text-gray-900">{m.description}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span
+                  className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: `${DOMAIN_COLORS[m.domain] || '#94a3b8'}20`, color: DOMAIN_COLORS[m.domain] || '#64748b' }}
+                >
+                  {DOMAIN_LABELS[m.domain] || m.domain}
+                </span>
+                <span className="text-xs text-gray-400">{formatDate(m.achievedAt)}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function DemographicsTab({ patient }: { patient: PatientDetail }) {
   const d = patient.demographics;
@@ -371,15 +735,6 @@ function ScreeningTab({ assessments }: { assessments: PatientDetail['assessments
     );
   }
 
-  const domainLabels: Record<string, string> = {
-    motor: 'Motor',
-    language: 'Language',
-    social: 'Social',
-    cognitive: 'Cognitive',
-    adaptive: 'Adaptive',
-    sensory: 'Sensory',
-  };
-
   return (
     <div className="space-y-4">
       {assessments.map((a) => (
@@ -413,7 +768,7 @@ function ScreeningTab({ assessments }: { assessments: PatientDetail['assessments
                     className={`p-3 rounded-lg ${isFlagged ? 'bg-red-50 border border-red-100' : 'bg-gray-50'}`}
                   >
                     <p className="text-xs font-medium text-gray-500 uppercase">
-                      {domainLabels[domain.toLowerCase()] || domain}
+                      {DOMAIN_LABELS[domain.toLowerCase()] || domain}
                     </p>
                     <p className={`text-lg font-bold ${isFlagged ? 'text-red-600' : 'text-gray-900'}`}>
                       {score}%

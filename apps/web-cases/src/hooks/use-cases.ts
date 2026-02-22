@@ -242,6 +242,14 @@ export function useEnhanceClinicalNotes() {
   });
 }
 
+export function useMiraScribe() {
+  return useMutation({
+    mutationFn: ({ sessionId }: { sessionId: string }) => casesApi.miraScribe(sessionId),
+    onError: () =>
+      toast({ title: "Mira couldn't generate a draft right now. Please try again.", variant: 'destructive' }),
+  });
+}
+
 export function useLogGoalProgress() {
   const qc = useQueryClient();
   return useMutation({

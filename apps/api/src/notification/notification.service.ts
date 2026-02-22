@@ -6,6 +6,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Server } from 'socket.io';
 import { Role, Prisma } from '@prisma/client';
 import axios from 'axios';
+import * as admin from 'firebase-admin';
 
 export enum NotificationType {
   COMMENT = 'COMMENT',
@@ -38,6 +39,11 @@ export enum NotificationType {
   INTAKE_NEW = 'INTAKE_NEW',
   CASE_ASSIGNED = 'CASE_ASSIGNED',
   THERAPIST_ASSIGNED = 'THERAPIST_ASSIGNED',
+  CONSENT_FORM_SENT = 'CONSENT_FORM_SENT',
+  INVOICE_CREATED = 'INVOICE_CREATED',
+  NEW_MESSAGE = 'NEW_MESSAGE',
+  SESSION_BOOKED = 'SESSION_BOOKED',
+  SESSION_REMINDER = 'SESSION_REMINDER',
 }
 
 export interface NotificationData {
@@ -47,7 +53,7 @@ export interface NotificationData {
   message: string;
   actionUrl?: string;
   relatedEntityId?: string;
-  relatedEntityType?: 'post' | 'comment' | 'user' | 'event' | 'community' | 'worksheet' | 'child' | 'case';
+  relatedEntityType?: 'post' | 'comment' | 'user' | 'event' | 'community' | 'worksheet' | 'child' | 'case' | 'invoice';
   metadata?: Record<string, any>;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
 }
@@ -71,6 +77,18 @@ export class NotificationService {
       'https://sendpushnotification-lftzqicm6q-uc.a.run.app'
     );
     this.notificationApiKey = this.configService.get<string>('NOTIFICATION_API_KEY', '');
+
+    // Initialize Firebase Admin SDK (if not already initialized)
+    if (admin.apps.length === 0) {
+      try {
+        admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+        });
+        this.logger.log('Firebase Admin SDK initialized');
+      } catch (error) {
+        this.logger.warn('Firebase Admin SDK initialization failed — push via FCM disabled', error);
+      }
+    }
   }
 
   setSocketServer(io: Server) {
@@ -576,6 +594,82 @@ export class NotificationService {
       metadata: { questionId, answerId, answerAuthorId },
       priority: 'high',
     });
+  }
+
+  // ── Device Token Management (DeviceToken table) ──
+
+  async registerDeviceToken(userId: string, token: string, platform: string) {
+    return this.prisma.deviceToken.upsert({
+      where: { token },
+      create: { userId, token, platform: platform.toUpperCase() as any },
+      update: { userId, updatedAt: new Date() },
+    });
+  }
+
+  async removeDeviceToken(userId: string, token: string) {
+    return this.prisma.deviceToken.deleteMany({
+      where: { userId, token },
+    });
+  }
+
+  // ── Push via Firebase Admin SDK (uses DeviceToken table) ──
+
+  async sendToUser(
+    userId: string,
+    notification: { title: string; body: string; data?: Record<string, string> },
+  ) {
+    try {
+      const tokens = await this.prisma.deviceToken.findMany({
+        where: { userId },
+        select: { id: true, token: true },
+      });
+
+      if (tokens.length === 0) {
+        this.logger.log(`No device tokens for user ${userId}, skipping push`);
+        return;
+      }
+
+      const message: admin.messaging.MulticastMessage = {
+        notification: { title: notification.title, body: notification.body },
+        data: notification.data || {},
+        tokens: tokens.map((t) => t.token),
+      };
+
+      const response = await admin.messaging().sendEachForMulticast(message);
+
+      this.logger.log(
+        `Push to user ${userId}: ${response.successCount}/${tokens.length} delivered`,
+      );
+
+      // Remove invalid tokens
+      if (response.failureCount > 0) {
+        const invalidTokenIds: string[] = [];
+        response.responses.forEach((res, i) => {
+          if (
+            !res.success &&
+            (res.error?.code === 'messaging/invalid-registration-token' ||
+              res.error?.code === 'messaging/registration-token-not-registered')
+          ) {
+            invalidTokenIds.push(tokens[i].id);
+          }
+        });
+        if (invalidTokenIds.length > 0) {
+          await this.prisma.deviceToken.deleteMany({
+            where: { id: { in: invalidTokenIds } },
+          });
+          this.logger.log(`Removed ${invalidTokenIds.length} invalid device tokens`);
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Failed to send push to user ${userId}:`, error);
+    }
+  }
+
+  async sendToUsers(
+    userIds: string[],
+    notification: { title: string; body: string; data?: Record<string, string> },
+  ) {
+    await Promise.all(userIds.map((id) => this.sendToUser(id, notification)));
   }
 
   // Post creation notification

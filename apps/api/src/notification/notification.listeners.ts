@@ -605,6 +605,145 @@ export class NotificationListeners {
     }
   }
 
+  @OnEvent('invoice.created')
+  async handleInvoiceCreated(payload: {
+    invoiceId: string;
+    sessionId: string;
+    patientId: string;
+    therapistId: string;
+    therapistName: string;
+    amount: number;
+    currency: string;
+  }) {
+    try {
+      const formatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: payload.currency,
+      }).format(payload.amount);
+
+      await this.notificationService.createNotification({
+        userId: payload.patientId,
+        type: NotificationType.INVOICE_CREATED,
+        title: 'New Invoice',
+        message: `${payload.therapistName} generated an invoice for ${formatted}`,
+        actionUrl: `/invoices`,
+        relatedEntityId: payload.invoiceId,
+        relatedEntityType: 'invoice',
+        priority: 'medium',
+        metadata: {
+          invoiceId: payload.invoiceId,
+          sessionId: payload.sessionId,
+          therapistId: payload.therapistId,
+          amount: payload.amount,
+          currency: payload.currency,
+        },
+      });
+
+      this.logger.log(`Invoice notification sent to patient ${payload.patientId}`);
+    } catch (error) {
+      this.logger.error('Failed to process invoice created notification', error);
+    }
+  }
+
+  // ── F15 Push Notification Triggers ──
+
+  @OnEvent('message.created')
+  async handleMessageCreated(payload: {
+    conversationId: string;
+    senderId: string;
+    senderName: string;
+    recipientId: string;
+    bodyPreview: string;
+  }) {
+    try {
+      await this.notificationService.createNotification({
+        userId: payload.recipientId,
+        type: NotificationType.NEW_MESSAGE,
+        title: 'New message',
+        message: `${payload.senderName}: ${payload.bodyPreview}`,
+        actionUrl: `/messages/${payload.conversationId}`,
+        relatedEntityId: payload.conversationId,
+        priority: 'high',
+      });
+
+      // Also send direct push via FCM (DeviceToken table)
+      await this.notificationService.sendToUser(payload.recipientId, {
+        title: 'New message',
+        body: `${payload.senderName}: ${payload.bodyPreview}`,
+        data: {
+          type: 'message',
+          conversationId: payload.conversationId,
+        },
+      });
+
+      this.logger.log(`Message notification sent to user ${payload.recipientId}`);
+    } catch (error) {
+      this.logger.error('Failed to process message notification', error);
+    }
+  }
+
+  @OnEvent('booking.confirmed')
+  async handleBookingConfirmed(payload: {
+    bookingId: string;
+    patientId: string;
+    therapistUserId: string;
+    therapistName: string;
+    patientName: string;
+    startDateTime: string;
+    endDateTime: string;
+  }) {
+    try {
+      const start = new Date(payload.startDateTime);
+      const formattedDate = start.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+      const formattedTime = start.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+      const body = `Your session on ${formattedDate} at ${formattedTime} is confirmed.`;
+
+      // DB + WebSocket notification for patient
+      await this.notificationService.createNotification({
+        userId: payload.patientId,
+        type: NotificationType.SESSION_BOOKED,
+        title: 'Session confirmed',
+        message: body,
+        actionUrl: `/bookings/${payload.bookingId}`,
+        relatedEntityId: payload.bookingId,
+        priority: 'high',
+      });
+
+      // DB + WebSocket notification for therapist
+      await this.notificationService.createNotification({
+        userId: payload.therapistUserId,
+        type: NotificationType.SESSION_BOOKED,
+        title: 'Session confirmed',
+        message: body,
+        actionUrl: `/bookings/${payload.bookingId}`,
+        relatedEntityId: payload.bookingId,
+        priority: 'high',
+      });
+
+      // Push notifications via FCM
+      await this.notificationService.sendToUsers(
+        [payload.patientId, payload.therapistUserId],
+        {
+          title: 'Session confirmed',
+          body,
+          data: { type: 'booking', bookingId: payload.bookingId },
+        },
+      );
+
+      this.logger.log(`Booking confirmed notifications sent for ${payload.bookingId}`);
+    } catch (error) {
+      this.logger.error('Failed to process booking confirmed notification', error);
+    }
+  }
+
   @OnEvent('community.invite')
   async handleCommunityInvite(payload: {
     communityId: string;

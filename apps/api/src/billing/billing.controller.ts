@@ -1,11 +1,37 @@
-import { Controller, Post, Get, UseGuards, Request, Body, Headers, Res } from '@nestjs/common';
-import { BillingService } from './billing.service';
+import { Controller, Post, Get, UseGuards, Request, Body, Headers, Res, Param, Query } from '@nestjs/common';
+import { BillingService, type RevenuePeriod } from './billing.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorators';
+import { Role } from '@prisma/client';
 import type { Response } from 'express';
 
 @Controller('billing')
 export class BillingController {
     constructor(private readonly billingService: BillingService) { }
+
+    // ── Revenue reporting (ADMIN only) ──
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.ADMIN)
+    @Get('revenue')
+    async getClinicRevenue(
+        @Query('period') period?: RevenuePeriod,
+    ) {
+        return this.billingService.getClinicRevenue(period || 'this_month');
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.ADMIN)
+    @Get('revenue/therapist/:id')
+    async getTherapistRevenue(
+        @Param('id') therapistId: string,
+        @Query('period') period?: RevenuePeriod,
+    ) {
+        return this.billingService.getTherapistRevenue(therapistId, period || 'this_month');
+    }
+
+    // ── Stripe billing ──
 
     @UseGuards(JwtAuthGuard)
     @Post('subscribe')

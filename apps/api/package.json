@@ -68,6 +68,7 @@
     "cookie-parser": "^1.4.7",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
+    "docusign-esign": "^8.6.0",
     "express-session": "^1.18.2",
     "firebase-admin": "^13.6.0",
     "google-auth-library": "^10.5.0",

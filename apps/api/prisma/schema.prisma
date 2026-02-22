@@ -132,8 +132,23 @@ model User {
   worksheetFlags          WorksheetFlag[]           @relation("UserWorksheetFlags")
   resolvedWorksheetFlags  WorksheetFlag[]           @relation("ResolvedWorksheetFlags")
 
+  // Phase 2: Consent, Billing, Messaging, Notifications
+  consentFormsAsPatient   ConsentForm[]        @relation("ConsentFormPatient")
+  consentFormsSent        ConsentForm[]        @relation("ConsentFormSentBy")
+  credentials             Credential[]         @relation("TherapistCredentials")
+  uploadedCredentials     Credential[]         @relation("UploadedCredentials")
+  invoicesAsPatient       Invoice[]            @relation("InvoicePatient")
+  invoicesAsTherapist     Invoice[]            @relation("InvoiceTherapist")
+  sentMessages            Message[]            @relation("MessageSender")
+  parentConversations     Conversation[]       @relation("ParentConversations")
+  therapistConversations  Conversation[]       @relation("TherapistConversations")
+  deviceTokens            DeviceToken[]        @relation("UserDeviceTokens")
+
   // Mira conversations
   miraConversations       MiraConversation[]
+
+  // PDPL audit logs
+  auditLogs               AuditLog[]           @relation("AuditLogs")
 
   // Verified contributor
   isVerifiedContributor   Boolean                   @default(false)
@@ -1810,6 +1825,8 @@ model Booking {
   rejectionReason              String?
   acceptanceDeadline           DateTime?
 
+  reminderSent                 Boolean                        @default(false)
+
   // Clinic tracking fields
   trackingStatus               TrackingStatus?
   checkedInAt                  DateTime?
@@ -1827,6 +1844,7 @@ model Booking {
   disputes                     SessionDispute[]
   ratings                      SessionRating[]
   caseSession                  CaseSession?
+  invoice                      Invoice?
 
   @@index([patientId])
   @@index([therapistId])
@@ -2646,6 +2664,7 @@ model Case {
   internalNotes      CaseInternalNote[]
   worksheets         Worksheet[]       @relation("CaseWorksheets")
   worksheetAssignments WorksheetAssignment[] @relation("CaseWorksheetAssignments")
+  conversations      Conversation[]
 
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
@@ -2842,6 +2861,7 @@ model CaseSession {
 
   rawNotes         String?
   aiSummary        String?
+  aiDraft          Json?
   noteFormat       SessionNoteFormat?
   structuredNotes  Json?
   noteStatus       SessionNoteStatus @default(DRAFT)
@@ -2849,6 +2869,7 @@ model CaseSession {
 
   goalProgress     SessionGoalProgress[]
   billing          CaseBilling?
+  invoice          Invoice?
 
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
@@ -3188,4 +3209,165 @@ model MiraMessage {
   @@index([conversationId])
   @@index([createdAt])
   @@map("mira_messages")
+}
+
+// ── Phase 2: Consent, Billing, Messaging, Notifications ─────────────────
+
+enum ConsentStatus {
+  PENDING
+  SENT
+  SIGNED
+  DECLINED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+model ConsentForm {
+  id          String        @id @default(cuid())
+  patientId   String
+  patient     User          @relation("ConsentFormPatient", fields: [patientId], references: [id])
+  intakeId    String
+  envelopeId  String?       @unique
+  status      ConsentStatus @default(PENDING)
+  sentAt      DateTime?
+  signedAt    DateTime?
+  documentUrl String?
+  sentBy      String
+  sentByUser  User          @relation("ConsentFormSentBy", fields: [sentBy], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([patientId])
+  @@index([intakeId])
+  @@index([status])
+  @@map("consent_forms")
+}
+
+model Credential {
+  id             String    @id @default(cuid())
+  therapistId    String
+  therapist      User      @relation("TherapistCredentials", fields: [therapistId], references: [id])
+  label          String    @default("")
+  docType        String    @default("")
+  fileName       String    @default("")
+  fileUrl        String
+  mimeType       String    @default("application/octet-stream")
+  expiresAt      DateTime?
+  verified       Boolean   @default(false)
+  verifiedBy     String?
+  verifiedAt     DateTime?
+  uploadedBy     String
+  uploadedByUser User      @relation("UploadedCredentials", fields: [uploadedBy], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([therapistId])
+  @@map("credentials")
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  sessionId       String        @unique
+  session         CaseSession   @relation(fields: [sessionId], references: [id])
+  bookingId       String?       @unique
+  booking         Booking?      @relation(fields: [bookingId], references: [id])
+  patientId       String
+  patient         User          @relation("InvoicePatient", fields: [patientId], references: [id])
+  therapistId     String
+  therapist       User          @relation("InvoiceTherapist", fields: [therapistId], references: [id])
+  amount          Decimal
+  currency        String        @default("AED")
+  status          InvoiceStatus @default(DRAFT)
+  stripePaymentId String?
+  clinicName      String?
+  issuedAt        DateTime?
+  paidAt          DateTime?
+  dueDate         DateTime?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([patientId])
+  @@index([therapistId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model Conversation {
+  id             String    @id @default(cuid())
+  parentId       String
+  parent         User      @relation("ParentConversations", fields: [parentId], references: [id])
+  therapistId    String
+  therapist      User      @relation("TherapistConversations", fields: [therapistId], references: [id])
+  caseId         String?
+  case           Case?     @relation(fields: [caseId], references: [id])
+  participantIds String[]
+  lastMessageAt  DateTime?
+  messages       Message[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([parentId, therapistId])
+  @@index([parentId])
+  @@index([therapistId])
+  @@index([caseId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
+  body           String       @db.Text
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model DeviceToken {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation("UserDeviceTokens", fields: [userId], references: [id])
+  token     String         @unique
+  platform  DevicePlatform
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+// ─── PDPL AUDIT LOG ─────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("AuditLogs", fields: [userId], references: [id])
+  resourceType String   // e.g. 'CaseSession', 'ConsentForm'
+  resourceId   String
+  action       String   // e.g. 'READ', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'
+  metadata     Json?
+  timestamp    DateTime @default(now())
+
+  @@index([userId])
+  @@index([resourceType])
+  @@index([timestamp])
+  @@map("audit_logs")
 }

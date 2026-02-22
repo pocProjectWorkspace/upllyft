@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Delete,
   Param,
@@ -77,6 +78,30 @@ export class NotificationController {
     } catch (error) {
       throw new HttpException('Notification not found', HttpStatus.NOT_FOUND);
     }
+  }
+
+  @Put('token')
+  @ApiOperation({ summary: 'Register or update device push token' })
+  async registerToken(
+    @Request() req,
+    @Body() body: { token: string; platform: 'ios' | 'android' },
+  ) {
+    await this.notificationService.registerDeviceToken(
+      req.user.id,
+      body.token,
+      body.platform,
+    );
+    return { success: true };
+  }
+
+  @Delete('token')
+  @ApiOperation({ summary: 'Remove device push token (on logout)' })
+  async removeToken(
+    @Request() req,
+    @Body() body: { token: string },
+  ) {
+    await this.notificationService.removeDeviceToken(req.user.id, body.token);
+    return { success: true };
   }
 
   @Post('test')

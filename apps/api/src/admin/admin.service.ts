@@ -1,11 +1,52 @@
 // apps/api/src/admin/admin.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { Role, ModerationStatus, Prisma } from '@prisma/client';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+const ALLOWED_MIMES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/jpg',
+];
+const CREDENTIALS_BUCKET = 'credentials';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) { }
+  private _supabase: SupabaseClient | null = null;
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+    private auditService: AuditService,
+  ) {}
+
+  private get supabase(): SupabaseClient {
+    if (!this._supabase) {
+      const url = this.configService.get<string>(
+        'NEXT_PUBLIC_SUPABASE_URL',
+        '',
+      );
+      const key = this.configService.get<string>(
+        'SUPABASE_SERVICE_ROLE_KEY',
+        '',
+      );
+      if (!url || !key) {
+        throw new BadRequestException(
+          'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.',
+        );
+      }
+      this._supabase = createClient(url, key);
+    }
+    return this._supabase;
+  }
 
   async getDashboardStats() {
     const [
@@ -656,5 +697,323 @@ export class AdminService {
     }
 
     return { success: true, action, notes };
+  }
+
+  // ── Therapist Credentials ───────────────────────────────────
+
+  async uploadCredential(
+    therapistId: string,
+    adminId: string,
+    file: Express.Multer.File,
+    label: string,
+    expiresAt?: string,
+  ) {
+    if (!ALLOWED_MIMES.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Invalid file type. Only PDF, JPEG, and PNG are allowed.',
+      );
+    }
+
+    const storagePath = `${therapistId}/${Date.now()}-${file.originalname}`;
+
+    const { error: uploadError } = await this.supabase.storage
+      .from(CREDENTIALS_BUCKET)
+      .upload(storagePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new BadRequestException(
+        `File upload failed: ${uploadError.message}`,
+      );
+    }
+
+    return this.prisma.credential.create({
+      data: {
+        therapistId,
+        label,
+        fileUrl: storagePath,
+        mimeType: file.mimetype,
+        fileName: file.originalname,
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+        uploadedBy: adminId,
+      },
+    });
+  }
+
+  async getTherapistCredentials(therapistId: string) {
+    return this.prisma.credential.findMany({
+      where: { therapistId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getCredentialDownloadUrl(therapistId: string, credId: string) {
+    const credential = await this.prisma.credential.findUnique({
+      where: { id: credId },
+    });
+
+    if (!credential || credential.therapistId !== therapistId) {
+      throw new NotFoundException('Credential not found');
+    }
+
+    const { data, error } = await this.supabase.storage
+      .from(CREDENTIALS_BUCKET)
+      .createSignedUrl(credential.fileUrl, 900); // 15 minutes
+
+    if (error || !data?.signedUrl) {
+      throw new BadRequestException(
+        `Failed to generate download URL: ${error?.message || 'Unknown error'}`,
+      );
+    }
+
+    return { url: data.signedUrl, expiresIn: 900 };
+  }
+
+  async deleteCredential(therapistId: string, credId: string) {
+    const credential = await this.prisma.credential.findUnique({
+      where: { id: credId },
+    });
+
+    if (!credential || credential.therapistId !== therapistId) {
+      throw new NotFoundException('Credential not found');
+    }
+
+    await this.supabase.storage
+      .from(CREDENTIALS_BUCKET)
+      .remove([credential.fileUrl]);
+
+    await this.prisma.credential.delete({
+      where: { id: credId },
+    });
+
+    return { success: true };
+  }
+
+  // ── PDPL: Right to Access — Data Export ───────────────────────────
+
+  async exportUserData(userId: string, adminId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        phone: true,
+        location: true,
+        bio: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const [
+      profile,
+      children,
+      assessments,
+      sessions,
+      messages,
+      invoices,
+      consentForms,
+      miraConversations,
+    ] = await Promise.all([
+      this.prisma.userProfile.findUnique({
+        where: { userId },
+        select: {
+          fullName: true,
+          relationshipToChild: true,
+          phoneNumber: true,
+          city: true,
+          state: true,
+          occupation: true,
+          educationLevel: true,
+          preferredLanguage: true,
+        },
+      }),
+      this.prisma.child.findMany({
+        where: { profile: { userId } },
+        include: { conditions: true },
+      }),
+      this.prisma.assessment.findMany({
+        where: { child: { profile: { userId } } },
+        select: {
+          id: true,
+          ageGroup: true,
+          status: true,
+          overallScore: true,
+          flaggedDomains: true,
+          completedAt: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.caseSession.findMany({
+        where: { case: { child: { profile: { userId } } } },
+        select: {
+          id: true,
+          scheduledAt: true,
+          sessionType: true,
+          attendanceStatus: true,
+          noteStatus: true,
+          rawNotes: true,
+          structuredNotes: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.message.findMany({
+        where: { senderId: userId },
+        select: {
+          id: true,
+          body: true,
+          createdAt: true,
+          conversationId: true,
+        },
+      }),
+      this.prisma.invoice.findMany({
+        where: { patientId: userId },
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+          issuedAt: true,
+          paidAt: true,
+        },
+      }),
+      this.prisma.consentForm.findMany({
+        where: { patientId: userId },
+        select: {
+          id: true,
+          status: true,
+          sentAt: true,
+          signedAt: true,
+        },
+      }),
+      this.prisma.miraConversation.findMany({
+        where: { userId },
+        include: {
+          messages: {
+            select: { role: true, content: true, createdAt: true },
+          },
+        },
+      }),
+    ]);
+
+    // Audit the export
+    await this.auditService.log({
+      userId: adminId,
+      resourceType: 'User',
+      resourceId: userId,
+      action: 'EXPORT',
+      metadata: { reason: 'PDPL data access request' },
+    });
+
+    return {
+      exportedAt: new Date().toISOString(),
+      user,
+      profile,
+      children,
+      assessments,
+      sessions,
+      messages,
+      invoices,
+      consentForms,
+      miraConversations,
+    };
+  }
+
+  // ── PDPL: Right to Deletion — Anonymise + Soft Delete ─────────────
+
+  async deleteUserData(userId: string, adminId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const REDACTED = '[deleted]';
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Anonymise user PII
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: REDACTED,
+          email: `deleted-${userId}@deleted.upllyft.com`,
+          phone: null,
+          location: null,
+          bio: null,
+          image: null,
+          password: null,
+          emergencyContact: null,
+          emergencyPhone: null,
+          website: null,
+          education: null,
+          resetPasswordToken: null,
+        },
+      });
+
+      // 2. Anonymise user profile
+      await tx.userProfile.updateMany({
+        where: { userId },
+        data: {
+          fullName: REDACTED,
+          phoneNumber: null,
+          alternatePhone: null,
+          email: null,
+          occupation: null,
+        },
+      });
+
+      // 3. Anonymise children
+      const children = await tx.child.findMany({
+        where: { profile: { userId } },
+        select: { id: true },
+      });
+      for (const child of children) {
+        await tx.child.update({
+          where: { id: child.id },
+          data: {
+            firstName: REDACTED,
+            nickname: null,
+            address: null,
+            city: null,
+            state: null,
+            nationality: null,
+            placeOfBirth: null,
+          },
+        });
+      }
+
+      // 4. Anonymise message bodies
+      await tx.message.updateMany({
+        where: { senderId: userId },
+        data: { body: REDACTED },
+      });
+
+      // 5. Anonymise Mira conversation content
+      const miraConvos = await tx.miraConversation.findMany({
+        where: { userId },
+        select: { id: true },
+      });
+      for (const convo of miraConvos) {
+        await tx.miraMessage.updateMany({
+          where: { conversationId: convo.id },
+          data: { content: REDACTED },
+        });
+      }
+    });
+
+    // Audit the deletion
+    await this.auditService.log({
+      userId: adminId,
+      resourceType: 'User',
+      resourceId: userId,
+      action: 'DELETE',
+      metadata: { reason: 'PDPL data deletion request' },
+    });
+
+    return { success: true, anonymisedAt: new Date().toISOString() };
   }
 }
