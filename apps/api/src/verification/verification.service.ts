@@ -7,6 +7,7 @@ import { VerificationStatus, Role } from '@prisma/client';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
+import * as os from 'os';
 
 @Injectable()
 export class VerificationService {
@@ -17,8 +18,12 @@ export class VerificationService {
     private notificationService: NotificationService,
     private configService: ConfigService,
   ) {
-    this.uploadDir = this.configService.get<string>('UPLOAD_DIR', './uploads');
-    this.ensureUploadDir();
+    if (process.env.IS_LAMBDA === 'true') {
+      this.uploadDir = os.tmpdir();
+    } else {
+      this.uploadDir = this.configService.get<string>('UPLOAD_DIR', './uploads');
+      this.ensureUploadDir();
+    }
   }
 
   private async ensureUploadDir() {

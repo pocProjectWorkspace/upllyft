@@ -181,3 +181,8 @@ docker-compose.override.yml
 !LICENSE
 !CONTRIBUTING.md
 !.env.example
+.env
+.env.production
+*.txt
+.serverless/
+pnpm-lock.yaml

@@ -1,0 +1,60 @@
+service: upllyft-api
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'ap-south-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 1024
+  timeout: 29
+  environment:
+    NODE_ENV: production
+    IS_LAMBDA: 'true'
+
+functions:
+  api:
+    handler: dist/lambda.handler # Point to dist/ so esbuild preserves tsc decorators
+    events:
+      - httpApi: '*'
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-esbuild # Add esbuild plugin
+  - serverless-offline
+
+custom:
+  dotenv:
+    path: .env.production
+    logging: false
+  esbuild:
+    bundle: true
+    minify: true
+    sourcemap: false
+    exclude:
+      - '@nestjs/microservices'
+      - '@nestjs/microservices/microservices-module'
+      - 'fastify-swagger'
+      - 'mock-aws-s3'
+      - 'canvas'
+      - 'nock'
+      - 'class-transformer/storage'
+      - '@prisma/client'
+      - '.prisma/client'
+      - 'prisma'
+
+package:
+  individually: true
+  patterns:
+    # esbuild bundles everything into index.js so we exclude ALL raw files
+    - '!*/**'
+    # Except for the Prisma generated client and engine
+    - 'node_modules/.prisma/client/**'
+    - 'node_modules/@prisma/client/**'
+    # Exclude unnecessary Prisma files
+    - '!node_modules/.prisma/client/*.d.ts'
+    - '!node_modules/.prisma/client/*windows.dll.node'
+    - '!node_modules/.prisma/client/*darwin*.node'
+    - '!node_modules/.prisma/client/*linux-musl*.node'
+    - '!node_modules/.prisma/client/*.wasm*'
+    # Include fonts for PDF generation
+    - 'fonts/**'

@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
+// removed direct ChartJSNodeCanvas import
 import * as fs from 'fs';
 import * as path from 'path';
 import { ACTIVITY_PLAYBOOK } from './activity-playbook';
@@ -12,7 +12,7 @@ import { renderV2Report } from './pdf/pdf-report-v2.renderer';
 export class ReportGeneratorV2Service {
     private readonly logger = new Logger(ReportGeneratorV2Service.name);
     private openai: OpenAI;
-    private chartJSNodeCanvas: ChartJSNodeCanvas;
+    private chartJSNodeCanvas: any;
 
     constructor(
         private prisma: PrismaService,
@@ -24,12 +24,7 @@ export class ReportGeneratorV2Service {
             timeout: 180000 // 180 seconds timeout for long synthesis
         });
 
-        // Initialize chart canvas (800x400)
-        this.chartJSNodeCanvas = new ChartJSNodeCanvas({
-            width: 800,
-            height: 400,
-            backgroundColour: 'white',
-        });
+        // Initialize chart canvas lazily when needed
     }
 
     /**
@@ -398,7 +393,19 @@ ${JSON.stringify(screeningResults, null, 2)}
             }
         };
 
-        return this.chartJSNodeCanvas.renderToBuffer(configuration as any);
+        return this.getChartCanvas().renderToBuffer(configuration as any);
+    }
+
+    private getChartCanvas(): any {
+        if (!this.chartJSNodeCanvas) {
+            const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
+            this.chartJSNodeCanvas = new ChartJSNodeCanvas({
+                width: 800,
+                height: 400,
+                backgroundColour: 'white',
+            });
+        }
+        return this.chartJSNodeCanvas;
     }
 
     // generateV2ReportHTML removed — replaced by pdf/pdf-report-v2.renderer.ts

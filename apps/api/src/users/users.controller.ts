@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateUserProfileDto } from './dto/update-profile.dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import * as os from 'os';
 
 @Controller('users')
 export class UsersController {
@@ -67,7 +68,7 @@ export class UsersController {
   @UseInterceptors(
     FileInterceptor('image', {
       storage: diskStorage({
-        destination: './uploads/avatars',
+        destination: process.env.IS_LAMBDA === 'true' ? os.tmpdir() : './uploads/avatars',
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)

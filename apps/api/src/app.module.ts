@@ -194,7 +194,21 @@ import { ClinicModule } from './clinic/clinic.module';
     // PDPL compliance
     AuditModule,
     RetentionModule,
-  ],
+  ].filter(module => {
+    // If running in AWS Lambda, explicitly skip modules that bind 
+    // persistent connections like WebSockets or Cron Schedulers
+    if (process.env.IS_LAMBDA === 'true') {
+      if (
+        module === ScheduleModule ||
+        module === CrisisModule ||
+        module === NotificationModule ||
+        module === MarketplaceNotificationModule
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }),
   controllers: [
     AppController,
     ClinicalInsightsController,

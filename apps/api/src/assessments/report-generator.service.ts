@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
+// removed direct ChartJSNodeCanvas import
 import { PrismaService } from '../prisma/prisma.service';
 import { ScoringService } from './scoring.service';
 import { renderV1Report } from './pdf/pdf-report-v1.renderer';
@@ -18,18 +18,13 @@ export interface ReportData {
 
 @Injectable()
 export class ReportGeneratorService {
-  private chartJSNodeCanvas: ChartJSNodeCanvas;
+  private chartJSNodeCanvas: any;
 
   constructor(
     private prisma: PrismaService,
     private scoringService: ScoringService,
   ) {
-    // Initialize chart canvas (800x400)
-    this.chartJSNodeCanvas = new ChartJSNodeCanvas({
-      width: 800,
-      height: 400,
-      backgroundColour: 'white',
-    });
+    // Initialize chart canvas lazily when needed
   }
 
   /**
@@ -87,7 +82,19 @@ export class ReportGeneratorService {
       },
     };
 
-    return this.chartJSNodeCanvas.renderToBuffer(configuration as any);
+    return this.getChartCanvas().renderToBuffer(configuration as any);
+  }
+
+  private getChartCanvas(): any {
+    if (!this.chartJSNodeCanvas) {
+      const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
+      this.chartJSNodeCanvas = new ChartJSNodeCanvas({
+        width: 800,
+        height: 400,
+        backgroundColour: 'white',
+      });
+    }
+    return this.chartJSNodeCanvas;
   }
 
   /**
