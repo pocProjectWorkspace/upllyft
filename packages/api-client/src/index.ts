@@ -12,3 +12,4 @@ export {
   markAllAsRead,
   deleteNotification,
 } from './notifications';
+export * from './billing';

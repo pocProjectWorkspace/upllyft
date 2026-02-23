@@ -67,3 +67,39 @@ export class AssignTherapistDto {
   @IsString()
   notes?: string;
 }
+
+export class CreateWalkinPatientDto {
+  // Child info
+  @IsString()
+  firstName: string;
+
+  @IsString()
+  dateOfBirth: string; // ISO date string
+
+  @IsString()
+  gender: string;
+
+  // Guardian info
+  @IsString()
+  guardianName: string;
+
+  @IsString()
+  guardianPhone: string;
+
+  @IsOptional()
+  @IsString()
+  guardianEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  guardianRelationship?: string;
+
+  // Clinical
+  @IsOptional()
+  @IsString()
+  primaryConcern?: string;
+
+  @IsOptional()
+  @IsString()
+  referralSource?: string;
+}

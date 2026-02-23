@@ -5,7 +5,7 @@ import { UpdateTrackingStatusDto } from './dto/clinic-tracking.dto';
 
 @Injectable()
 export class ClinicTrackingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async getTodayAppointments(date?: string) {
     const targetDate = date ? new Date(date) : new Date();
@@ -40,6 +40,25 @@ export class ClinicTrackingService {
             email: true,
             phone: true,
             image: true,
+            userProfile: {
+              select: {
+                children: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    nickname: true,
+                    cases: {
+                      where: { status: 'ACTIVE' },
+                      select: {
+                        id: true,
+                        caseNumber: true,
+                        status: true,
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
         },
         therapist: {
@@ -86,6 +105,14 @@ export class ClinicTrackingService {
       const child = booking.caseSession?.case?.child;
       const trackingStatus = this.resolveTrackingStatus(booking);
 
+      // Flatten available cases from all children
+      const availableCases = booking.patient.userProfile?.children?.flatMap((child) =>
+        child.cases.map(c => ({
+          id: c.id,
+          label: `${child.nickname || child.firstName} - Case ${c.caseNumber}`
+        }))
+      ) || [];
+
       return {
         id: booking.id,
         scheduledTime: booking.startDateTime.toISOString(),
@@ -97,11 +124,11 @@ export class ClinicTrackingService {
         sessionEndedAt: booking.sessionEndedAt?.toISOString() || null,
         child: child
           ? {
-              id: child.id,
-              firstName: child.firstName,
-              nickname: child.nickname,
-              age: this.calculateAge(child.dateOfBirth),
-            }
+            id: child.id,
+            firstName: child.firstName,
+            nickname: child.nickname,
+            age: this.calculateAge(child.dateOfBirth),
+          }
           : null,
         parent: {
           id: booking.patient.id,
@@ -117,6 +144,7 @@ export class ClinicTrackingService {
         duration: booking.duration,
         notes: booking.receptionistNotes || null,
         caseId: booking.caseSession?.caseId || null,
+        availableCases,
       };
     });
   }
@@ -124,6 +152,7 @@ export class ClinicTrackingService {
   async updateTrackingStatus(bookingId: string, dto: UpdateTrackingStatusDto) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
+      include: { therapist: true }
     });
 
     if (!booking) {
@@ -168,7 +197,29 @@ export class ClinicTrackingService {
         updateData.checkedInAt = null;
         updateData.sessionStartedAt = null;
         updateData.sessionEndedAt = null;
+        updateData.sessionEndedAt = null;
         break;
+    }
+
+    if (dto.caseId !== undefined) {
+      if (dto.caseId === null) {
+        await this.prisma.caseSession.deleteMany({
+          where: { bookingId },
+        });
+      } else {
+        await this.prisma.caseSession.upsert({
+          where: { bookingId },
+          create: {
+            bookingId,
+            caseId: dto.caseId,
+            therapistId: booking.therapist.userId,
+            scheduledAt: booking.startDateTime,
+          },
+          update: {
+            caseId: dto.caseId,
+          },
+        });
+      }
     }
 
     const updated = await this.prisma.booking.update({
@@ -216,11 +267,11 @@ export class ClinicTrackingService {
       sessionEndedAt: updated.sessionEndedAt?.toISOString() || null,
       child: child
         ? {
-            id: child.id,
-            firstName: child.firstName,
-            nickname: child.nickname,
-            age: this.calculateAge(child.dateOfBirth),
-          }
+          id: child.id,
+          firstName: child.firstName,
+          nickname: child.nickname,
+          age: this.calculateAge(child.dateOfBirth),
+        }
         : null,
       parent: {
         id: updated.patient.id,
@@ -279,5 +330,93 @@ export class ClinicTrackingService {
       age--;
     }
     return age;
+  }
+
+  async createWalkinBooking(dto: import('./dto/clinic-tracking.dto').CreateWalkinBookingDto) {
+    const durationMins = dto.durationMins ?? 60;
+    const startDateTime = new Date(dto.scheduledAt);
+    const endDateTime = new Date(startDateTime.getTime() + durationMins * 60 * 1000);
+
+    // Resolve therapist profile
+    const therapistProfile = await this.prisma.therapistProfile.findUnique({
+      where: { userId: dto.therapistUserId },
+    });
+    if (!therapistProfile) {
+      throw new NotFoundException('Therapist profile not found');
+    }
+
+    // Resolve the child's guardian (patient) userId
+    const child = await this.prisma.child.findUnique({
+      where: { id: dto.childId },
+      include: { profile: { select: { userId: true } } },
+    });
+    if (!child) throw new NotFoundException('Patient not found');
+
+    const patientUserId = child.profile?.userId;
+    if (!patientUserId) throw new BadRequestException('Patient has no guardian user');
+
+    // Get or create a default SessionType for this therapist
+    let sessionType = await this.prisma.sessionType.findFirst({
+      where: { therapistId: therapistProfile.id, isActive: true },
+    });
+    if (!sessionType) {
+      sessionType = await this.prisma.sessionType.create({
+        data: {
+          therapistId: therapistProfile.id,
+          name: dto.sessionType ?? 'Standard Session',
+          duration: durationMins,
+          defaultPrice: 0,
+          currency: 'AED',
+          isActive: true,
+        },
+      });
+    }
+
+    // Create the Booking as CONFIRMED (no Stripe payment needed for walk-in)
+    const booking = await this.prisma.booking.create({
+      data: {
+        patientId: patientUserId,
+        therapistId: therapistProfile.id,
+        sessionTypeId: sessionType.id,
+        startDateTime,
+        endDateTime,
+        timezone: 'Asia/Dubai',
+        duration: durationMins,
+        status: 'CONFIRMED',
+        subtotal: 0,
+        platformFee: 0,
+        platformFeePercentage: 0,
+        therapistAmount: 0,
+        currency: 'AED',
+        paymentStatus: 'PENDING',
+        trackingStatus: 'SCHEDULED',
+      },
+    });
+
+    // Link to the case via CaseSession if caseId provided
+    if (dto.caseId) {
+      await this.prisma.caseSession.create({
+        data: {
+          caseId: dto.caseId,
+          therapistId: therapistProfile.userId,
+          bookingId: booking.id,
+          scheduledAt: startDateTime,
+          actualDuration: durationMins,
+          sessionType: dto.sessionType ?? 'Standard',
+          attendanceStatus: 'PRESENT',
+          noteFormat: 'SOAP',
+        },
+      });
+    }
+
+    return {
+      bookingId: booking.id,
+      scheduledAt: startDateTime.toISOString(),
+      endTime: endDateTime.toISOString(),
+      status: 'CONFIRMED',
+      trackingStatus: 'SCHEDULED',
+      patientId: patientUserId,
+      therapistId: dto.therapistUserId,
+    };
   }
 }

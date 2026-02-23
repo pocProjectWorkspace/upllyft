@@ -12,6 +12,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.21",
     "axios": "^1.7.0"
   },
   "peerDependencies": {

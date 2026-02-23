@@ -108,6 +108,19 @@ export interface PatientDetail {
       noteFormat: string | null;
       therapist: { id: string; name: string } | null;
     }[];
+    ieps?: {
+      id: string;
+      status: string;
+      reviewDate: string | null;
+      goals: {
+        id: string;
+        domain: string;
+        goalText: string;
+        status: string;
+        currentProgress: number | null;
+        targetDate: string | null;
+      }[];
+    }[];
   }[];
   assessments: {
     id: string;
@@ -151,17 +164,17 @@ export interface ListPatientsParams {
 // --- API Functions ---
 
 export async function getPatients(params: ListPatientsParams = {}): Promise<PaginatedResponse<PatientListItem>> {
-  const { data } = await apiClient.get('/api/admin/patients', { params });
+  const { data } = await apiClient.get('/admin/patients', { params });
   return data;
 }
 
 export async function getPatientDetail(childId: string): Promise<PatientDetail> {
-  const { data } = await apiClient.get(`/api/admin/patients/${childId}`);
+  const { data } = await apiClient.get(`/admin/patients/${childId}`);
   return data;
 }
 
 export async function updatePatientStatus(childId: string, status: string): Promise<any> {
-  const { data } = await apiClient.patch(`/api/admin/patients/${childId}`, { status });
+  const { data } = await apiClient.patch(`/admin/patients/${childId}`, { status });
   return data;
 }
 
@@ -170,7 +183,7 @@ export async function assignTherapist(
   therapistId: string,
   opts?: { diagnosis?: string; notes?: string },
 ): Promise<any> {
-  const { data } = await apiClient.post(`/api/admin/patients/${childId}/assign`, {
+  const { data } = await apiClient.post(`/admin/patients/${childId}/assign`, {
     therapistId,
     ...opts,
   });
@@ -178,7 +191,67 @@ export async function assignTherapist(
 }
 
 export async function getTherapists(): Promise<TherapistOption[]> {
-  const { data } = await apiClient.get('/api/admin/patients/therapists');
+  const { data } = await apiClient.get('/admin/patients/therapists');
+  return data;
+}
+
+export interface CreateTherapistInput {
+  name: string;
+  email: string;
+  title?: string;
+  phone?: string;
+  specializations?: string[];
+}
+
+export async function createTherapist(input: CreateTherapistInput): Promise<any> {
+  const { data } = await apiClient.post('/admin/clinic/therapists', input);
+  return data;
+}
+
+export interface UpdateScheduleInput {
+  availability: { dayOfWeek: number; startTime: string; endTime: string }[];
+}
+
+export async function updateTherapistSchedule(therapistId: string, input: UpdateScheduleInput): Promise<any> {
+  const { data } = await apiClient.patch(`/admin/clinic/therapists/${therapistId}/schedule`, input);
+  return data;
+}
+
+// --- Clinic Types ---
+
+export interface ClinicDetail {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  address: string | null;
+  licenseNo: string | null;
+  phone: string | null;
+  email: string | null;
+  adminId: string;
+  admin: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    image: string | null;
+  };
+  therapists: any[];
+}
+
+export interface UpdateClinicInput {
+  name?: string;
+  address?: string;
+  licenseNo?: string;
+  phone?: string;
+  email?: string;
+}
+
+export async function getClinic(): Promise<ClinicDetail> {
+  const { data } = await apiClient.get('/admin/clinic');
+  return data;
+}
+
+export async function updateClinic(input: UpdateClinicInput): Promise<ClinicDetail> {
+  const { data } = await apiClient.patch('/admin/clinic', input);
   return data;
 }
 
@@ -310,14 +383,14 @@ export interface ScheduleParams {
 export async function getTherapistDirectory(
   params: ListTherapistsParams = {},
 ): Promise<TherapistListItem[]> {
-  const { data } = await apiClient.get('/api/admin/therapists', { params });
+  const { data } = await apiClient.get('/admin/therapists', { params });
   return data;
 }
 
 export async function getTherapistDetail(
   therapistId: string,
 ): Promise<TherapistDetail> {
-  const { data } = await apiClient.get(`/api/admin/therapists/${therapistId}`);
+  const { data } = await apiClient.get(`/admin/therapists/${therapistId}`);
   return data;
 }
 
@@ -326,7 +399,7 @@ export async function getTherapistSchedule(
   params: ScheduleParams = {},
 ): Promise<ScheduleAppointment[]> {
   const { data } = await apiClient.get(
-    `/api/admin/therapists/${therapistId}/schedule`,
+    `/admin/therapists/${therapistId}/schedule`,
     { params },
   );
   return data;
@@ -335,7 +408,7 @@ export async function getTherapistSchedule(
 export async function getConsolidatedSchedule(
   params: ScheduleParams = {},
 ): Promise<ConsolidatedSchedule> {
-  const { data } = await apiClient.get('/api/admin/therapists/schedule', {
+  const { data } = await apiClient.get('/admin/therapists/schedule', {
     params,
   });
   return data;
@@ -350,7 +423,7 @@ export async function updateTherapistCredentials(
   },
 ): Promise<any> {
   const { data } = await apiClient.patch(
-    `/api/admin/therapists/${therapistId}/credentials`,
+    `/admin/therapists/${therapistId}/credentials`,
     credentials,
   );
   return data;
@@ -389,6 +462,7 @@ export interface TrackingAppointment {
   duration: number;
   notes: string | null;
   caseId: string | null;
+  availableCases?: { id: string; label: string }[];
 }
 
 // --- Tracking Board API ---
@@ -396,7 +470,7 @@ export interface TrackingAppointment {
 export async function getTrackingAppointments(date?: string): Promise<TrackingAppointment[]> {
   const params: Record<string, string> = {};
   if (date) params.date = date;
-  const { data } = await apiClient.get('/api/admin/tracking/today', { params });
+  const { data } = await apiClient.get('/admin/tracking/today', { params });
   return data;
 }
 
@@ -404,10 +478,12 @@ export async function updateTrackingStatus(
   bookingId: string,
   status: TrackingStatusType,
   notes?: string,
+  caseId?: string | null,
 ): Promise<TrackingAppointment> {
-  const { data } = await apiClient.patch(`/api/admin/tracking/${bookingId}`, {
+  const { data } = await apiClient.patch(`/admin/tracking/${bookingId}`, {
     status,
     notes,
+    caseId,
   });
   return data;
 }
@@ -507,17 +583,17 @@ export interface PatientOutcomeDetail {
 // --- Outcomes API Functions ---
 
 export async function getClinicOutcomeSummary(): Promise<ClinicOutcomeSummary> {
-  const { data } = await apiClient.get('/api/admin/outcomes/summary');
+  const { data } = await apiClient.get('/admin/outcomes/summary');
   return data;
 }
 
 export async function getGoalProgress(): Promise<GoalProgressData> {
-  const { data } = await apiClient.get('/api/admin/outcomes/goals');
+  const { data } = await apiClient.get('/admin/outcomes/goals');
   return data;
 }
 
 export async function getScreeningTrends(): Promise<ScreeningTrendsData> {
-  const { data } = await apiClient.get('/api/admin/outcomes/screening-trends');
+  const { data } = await apiClient.get('/admin/outcomes/screening-trends');
   return data;
 }
 
@@ -526,12 +602,12 @@ export async function getPatientOutcomes(params?: {
   sortOrder?: 'asc' | 'desc';
   therapistId?: string;
 }): Promise<PatientOutcomeRow[]> {
-  const { data } = await apiClient.get('/api/admin/outcomes/patients', { params });
+  const { data } = await apiClient.get('/admin/outcomes/patients', { params });
   return data;
 }
 
 export async function getPatientOutcomeDetail(childId: string): Promise<PatientOutcomeDetail> {
-  const { data } = await apiClient.get(`/api/admin/outcomes/patient/${childId}`);
+  const { data } = await apiClient.get(`/admin/outcomes/patient/${childId}`);
   return data;
 }
 
@@ -588,7 +664,7 @@ export interface TherapistRevenueResponse {
 export async function getClinicRevenue(
   period: RevenuePeriod = 'this_month',
 ): Promise<ClinicRevenueResponse> {
-  const { data } = await apiClient.get('/api/billing/revenue', { params: { period } });
+  const { data } = await apiClient.get('/billing/revenue', { params: { period } });
   return data;
 }
 
@@ -596,8 +672,110 @@ export async function getTherapistRevenue(
   therapistId: string,
   period: RevenuePeriod = 'this_month',
 ): Promise<TherapistRevenueResponse> {
-  const { data } = await apiClient.get(`/api/billing/revenue/therapist/${therapistId}`, {
+  const { data } = await apiClient.get(`/billing/revenue/therapist/${therapistId}`, {
     params: { period },
   });
+  return data;
+}
+
+// --- Dashboard API Functions ---
+
+export interface DashboardSummary {
+  totalPatients: number;
+  intakeCount: number;
+  activeCount: number;
+  sessionsToday: number;
+}
+
+export interface DashboardSession {
+  id: string;
+  scheduledTime: string;
+  child: { id: string; firstName: string; nickname?: string | null } | null;
+  therapistName: string | null;
+  sessionType: string | null;
+  status: string;
+}
+
+export async function getDashboardSummary(): Promise<DashboardSummary> {
+  const [patientsRes, trackingRes] = await Promise.all([
+    apiClient.get('/admin/patients', { params: { limit: 1, page: 1 } }),
+    apiClient.get('/admin/tracking/today'),
+  ]);
+  const allPatients = patientsRes.data?.meta?.total ?? 0;
+  const intakePatients = await apiClient.get('/admin/patients', {
+    params: { status: 'INTAKE', limit: 1, page: 1 },
+  });
+  const activePatients = await apiClient.get('/admin/patients', {
+    params: { status: 'ACTIVE', limit: 1, page: 1 },
+  });
+  return {
+    totalPatients: allPatients,
+    intakeCount: intakePatients.data?.meta?.total ?? 0,
+    activeCount: activePatients.data?.meta?.total ?? 0,
+    sessionsToday: Array.isArray(trackingRes.data) ? trackingRes.data.length : 0,
+  };
+}
+
+export async function getTodaySessions(): Promise<DashboardSession[]> {
+  const { data } = await apiClient.get('/admin/tracking/today');
+  return Array.isArray(data) ? data.slice(0, 6) : [];
+}
+
+// --- Walk-in Patient API Functions ---
+
+export interface CreateWalkinPatientInput {
+  firstName: string;
+  dateOfBirth: string;
+  gender: string;
+  guardianName: string;
+  guardianPhone: string;
+  guardianEmail?: string;
+  guardianRelationship?: string;
+  primaryConcern?: string;
+  referralSource?: string;
+}
+
+export async function createWalkinPatient(data: CreateWalkinPatientInput): Promise<PatientListItem> {
+  const res = await apiClient.post('/admin/patients', data);
+  return res.data;
+}
+
+export interface TherapistCredential {
+  id: string;
+  therapistId: string;
+  label: string;
+  docType: string;
+  fileName: string;
+  mimeType: string;
+  fileUrl: string;
+  expiresAt: string | null;
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt: string;
+  verified: boolean;
+  verifiedBy: string | null;
+}
+
+export async function getTherapistCredentials(therapistId: string): Promise<TherapistCredential[]> {
+  const { data } = await apiClient.get(`/admin/therapists/${therapistId}/credentials`);
+  return data;
+}
+
+export async function uploadTherapistCredential(therapistId: string, formData: FormData): Promise<TherapistCredential> {
+  const { data } = await apiClient.post(`/admin/therapists/${therapistId}/credentials`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return data;
+}
+
+export async function getCredentialDownloadUrl(therapistId: string, credId: string): Promise<{ url: string; expiresIn: number }> {
+  const { data } = await apiClient.get(`/admin/therapists/${therapistId}/credentials/${credId}/download`);
+  return data;
+}
+
+export async function deleteTherapistCredential(therapistId: string, credId: string): Promise<{ success: boolean }> {
+  const { data } = await apiClient.delete(`/admin/therapists/${therapistId}/credentials/${credId}`);
   return data;
 }

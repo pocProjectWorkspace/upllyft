@@ -1,10 +1,11 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, Role } from '@prisma/client';
 import {
   ListPatientsQueryDto,
   UpdatePatientStatusDto,
   AssignTherapistDto,
+  CreateWalkinPatientDto,
 } from './dto/clinic-patients.dto';
 import { NotificationService, NotificationType } from '../notification/notification.service';
 
@@ -15,7 +16,7 @@ export class ClinicPatientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationService: NotificationService,
-  ) {}
+  ) { }
 
   async listPatients(query: ListPatientsQueryDto) {
     const {
@@ -163,28 +164,28 @@ export class ClinicPatientsService {
         })),
         parent: parentUser
           ? {
-              id: parentUser.id,
-              name: parentUser.name,
-              email: parentUser.email,
-              phone: parentUser.phone,
-              avatar: parentUser.image,
-            }
+            id: parentUser.id,
+            name: parentUser.name,
+            email: parentUser.email,
+            phone: parentUser.phone,
+            avatar: parentUser.image,
+          }
           : null,
         assignedTherapist: therapistUser
           ? {
-              id: therapistUser.id,
-              name: therapistUser.name,
-              avatar: therapistUser.image,
-            }
+            id: therapistUser.id,
+            name: therapistUser.name,
+            avatar: therapistUser.image,
+          }
           : null,
         activeCaseCount: activeCases.length,
         lastActivity,
         latestScreening: lastAssessment
           ? {
-              status: lastAssessment.status,
-              completedAt: lastAssessment.completedAt,
-              overallScore: lastAssessment.overallScore,
-            }
+            status: lastAssessment.status,
+            completedAt: lastAssessment.completedAt,
+            overallScore: lastAssessment.overallScore,
+          }
           : null,
       };
     });
@@ -298,21 +299,21 @@ export class ClinicPatientsService {
       },
       parent: parentUser
         ? {
-            id: parentUser.id,
-            name: parentUser.name,
-            email: parentUser.email,
-            phone: parentUser.phone,
-            avatar: parentUser.image,
-          }
+          id: parentUser.id,
+          name: parentUser.name,
+          email: parentUser.email,
+          phone: parentUser.phone,
+          avatar: parentUser.image,
+        }
         : null,
       parentProfile: child.profile
         ? {
-            fullName: child.profile.fullName,
-            phoneNumber: child.profile.phoneNumber,
-            alternatePhone: child.profile.alternatePhone,
-            email: child.profile.email,
-            relationshipToChild: child.profile.relationshipToChild,
-          }
+          fullName: child.profile.fullName,
+          phoneNumber: child.profile.phoneNumber,
+          alternatePhone: child.profile.alternatePhone,
+          email: child.profile.email,
+          relationshipToChild: child.profile.relationshipToChild,
+        }
         : null,
       cases: child.cases.map((c) => ({
         id: c.id,
@@ -322,11 +323,11 @@ export class ClinicPatientsService {
         openedAt: c.openedAt,
         primaryTherapist: c.primaryTherapist?.user
           ? {
-              id: c.primaryTherapist.user.id,
-              name: c.primaryTherapist.user.name,
-              avatar: c.primaryTherapist.user.image,
-              specialization: c.primaryTherapist.user.specialization,
-            }
+            id: c.primaryTherapist.user.id,
+            name: c.primaryTherapist.user.name,
+            avatar: c.primaryTherapist.user.image,
+            specialization: c.primaryTherapist.user.specialization,
+          }
           : null,
         therapists: c.therapists.map((t) => ({
           id: t.therapist.user.id,
@@ -566,6 +567,82 @@ export class ClinicPatientsService {
     } catch (error) {
       this.logger.error('Failed to send assignment notifications:', error);
     }
+  }
+
+  async createWalkinPatient(dto: CreateWalkinPatientDto, adminId: string) {
+    // Check if a user with this email already exists
+    if (dto.guardianEmail) {
+      const existing = await this.prisma.user.findUnique({
+        where: { email: dto.guardianEmail },
+      });
+      if (existing) {
+        throw new BadRequestException('A user with this email already exists. Use the Patients page to find them.');
+      }
+    }
+
+    const email = dto.guardianEmail || `walkin.${Date.now()}@ancc.internal`;
+
+    // Create guardian User (no password — admin-created walk-in)
+    const guardianUser = await this.prisma.user.create({
+      data: {
+        email,
+        name: dto.guardianName,
+        phone: dto.guardianPhone,
+        role: Role.USER,
+        isEmailVerified: false,
+        // No password set — walk-in patients log in via magic link later
+      },
+    });
+
+    // Create UserProfile
+    const userProfile = await this.prisma.userProfile.create({
+      data: {
+        userId: guardianUser.id,
+        fullName: dto.guardianName,
+        phoneNumber: dto.guardianPhone,
+        email,
+        relationshipToChild: dto.guardianRelationship || 'Guardian',
+      },
+    });
+
+    // Create the Child record
+    const child = await this.prisma.child.create({
+      data: {
+        profileId: userProfile.id,
+        firstName: dto.firstName,
+        dateOfBirth: new Date(dto.dateOfBirth),
+        gender: dto.gender,
+        clinicStatus: 'INTAKE',
+        walkinCreatedByAdmin: true,
+        referralSource: dto.referralSource || 'Walk-in',
+        developmentalConcerns: dto.primaryConcern || null,
+      },
+    });
+
+    // Notify admin confirmation (fire-and-forget)
+    this.notificationService.createNotification({
+      userId: adminId,
+      type: NotificationType.CASE_ASSIGNED,
+      title: 'Walk-in Patient Added',
+      message: `${dto.firstName} has been added to the intake queue.`,
+      relatedEntityId: child.id,
+      relatedEntityType: 'child',
+    }).catch(() => { });
+
+    return {
+      id: child.id,
+      firstName: child.firstName,
+      dateOfBirth: child.dateOfBirth,
+      gender: child.gender,
+      clinicStatus: child.clinicStatus,
+      createdAt: child.createdAt,
+      parent: {
+        id: guardianUser.id,
+        name: guardianUser.name,
+        email: guardianUser.email,
+        phone: guardianUser.phone,
+      },
+    };
   }
 
   async getTherapistsList() {

@@ -2,10 +2,12 @@ import {
   Controller,
   Get,
   Patch,
+  Post,
   Param,
   Body,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -15,17 +17,24 @@ import { ClinicTrackingService } from './clinic-tracking.service';
 import {
   TrackingQueryDto,
   UpdateTrackingStatusDto,
+  CreateWalkinBookingDto,
 } from './dto/clinic-tracking.dto';
 
 @Controller('admin/tracking')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN, Role.THERAPIST)
 export class ClinicTrackingController {
-  constructor(private readonly clinicTrackingService: ClinicTrackingService) {}
+  constructor(private readonly clinicTrackingService: ClinicTrackingService) { }
 
   @Get('today')
   async getTodayAppointments(@Query() query: TrackingQueryDto) {
     return this.clinicTrackingService.getTodayAppointments(query.date);
+  }
+
+  @Post('book')
+  @Roles(Role.ADMIN)
+  async createWalkinBooking(@Body() dto: CreateWalkinBookingDto, @Req() req: any) {
+    return this.clinicTrackingService.createWalkinBooking(dto);
   }
 
   @Patch(':bookingId')

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { AdminShell } from '@/components/admin-shell';
 import { Avatar } from '@upllyft/ui';
+import { EditScheduleModal } from '@/components/edit-schedule-modal';
 import {
   getTherapistDetail,
   getTherapistSchedule,
@@ -36,11 +37,11 @@ import {
 } from 'lucide-react';
 import {
   getTherapistCredentials,
-  uploadCredential,
+  uploadTherapistCredential as uploadCredential,
   getCredentialDownloadUrl,
-  deleteCredential,
-  type Credential,
-} from '@/lib/api/credentials';
+  deleteTherapistCredential as deleteCredential,
+  type TherapistCredential as Credential,
+} from '@/lib/admin-api';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SHORT_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -118,6 +119,7 @@ export default function TherapistDetailPage() {
   const [therapist, setTherapist] = useState<TherapistDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('caseload');
+  const [editScheduleOpen, setEditScheduleOpen] = useState(false);
 
   // Schedule state
   const [weekRef, setWeekRef] = useState(new Date());
@@ -324,11 +326,10 @@ export default function TherapistDetailPage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 pb-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.key
-                      ? 'text-teal-600 border-teal-600'
-                      : 'text-gray-500 border-transparent hover:text-gray-700'
-                  }`}
+                  className={`flex items-center gap-2 pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key
+                    ? 'text-teal-600 border-teal-600'
+                    : 'text-gray-500 border-transparent hover:text-gray-700'
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
@@ -378,11 +379,10 @@ export default function TherapistDetailPage() {
                         <td className="px-5 py-3 text-sm text-gray-600 font-mono">{c.caseNumber}</td>
                         <td className="px-5 py-3 text-sm text-gray-600">{c.diagnosis || '-'}</td>
                         <td className="px-5 py-3">
-                          <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-md border ${
-                            c.patient.clinicStatus === 'ACTIVE'
-                              ? 'bg-green-50 text-green-700 border-green-200'
-                              : 'bg-gray-50 text-gray-600 border-gray-200'
-                          }`}>
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-md border ${c.patient.clinicStatus === 'ACTIVE'
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : 'bg-gray-50 text-gray-600 border-gray-200'
+                            }`}>
                             {c.patient.clinicStatus}
                           </span>
                         </td>
@@ -536,7 +536,15 @@ export default function TherapistDetailPage() {
 
             {/* Availability Schedule */}
             <div className="pt-5 border-t border-gray-100">
-              <h3 className="text-base font-semibold text-gray-900 mb-3">Weekly Availability</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-semibold text-gray-900">Weekly Availability</h3>
+                <button
+                  onClick={() => setEditScheduleOpen(true)}
+                  className="text-xs font-semibold text-teal-600 hover:text-teal-700 hover:underline"
+                >
+                  Edit Schedule
+                </button>
+              </div>
               {therapist.availability.length === 0 ? (
                 <p className="text-sm text-gray-500">No availability set</p>
               ) : (
@@ -558,6 +566,16 @@ export default function TherapistDetailPage() {
           </div>
         )}
       </div>
+
+      {therapist && (
+        <EditScheduleModal
+          open={editScheduleOpen}
+          therapistId={therapist.id}
+          initialAvailability={therapist.availability}
+          onClose={() => setEditScheduleOpen(false)}
+          onUpdated={fetchTherapist}
+        />
+      )}
     </AdminShell>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AdminShell } from '@/components/admin-shell';
+import { AddTherapistModal } from '@/components/add-therapist-modal';
 import { Avatar } from '@upllyft/ui';
 import {
   getTherapistDirectory,
@@ -81,6 +82,7 @@ function AvailabilityBadge({ status }: { status: AvailabilityStatus }) {
 export default function TherapistsPage() {
   const [therapists, setTherapists] = useState<TherapistListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addTherapistOpen, setAddTherapistOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [specialtyFilter, setSpecialtyFilter] = useState('');
@@ -141,13 +143,21 @@ export default function TherapistsPage() {
               {therapists.length} therapist{therapists.length !== 1 ? 's' : ''} registered
             </p>
           </div>
-          <a
-            href="/therapists/schedule"
-            className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition-colors"
-          >
-            <CalendarDays className="w-4 h-4" />
-            View Schedule
-          </a>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setAddTherapistOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              + Add Therapist
+            </button>
+            <a
+              href="/therapists/schedule"
+              className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition-colors shadow-sm"
+            >
+              <CalendarDays className="w-4 h-4" />
+              View Schedule
+            </a>
+          </div>
         </div>
 
         {/* Search + Filters */}
@@ -165,11 +175,10 @@ export default function TherapistsPage() {
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border transition-colors ${
-                showFilters || hasActiveFilters
-                  ? 'bg-teal-50 text-teal-700 border-teal-200'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border transition-colors ${showFilters || hasActiveFilters
+                ? 'bg-teal-50 text-teal-700 border-teal-200'
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
             >
               <Filter className="w-4 h-4" />
               Filters
@@ -366,6 +375,11 @@ export default function TherapistsPage() {
           </div>
         )}
       </div>
+      <AddTherapistModal
+        open={addTherapistOpen}
+        onClose={() => setAddTherapistOpen(false)}
+        onCreated={fetchTherapists}
+      />
     </AdminShell>
   );
 }

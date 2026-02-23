@@ -110,6 +110,7 @@ model User {
   sessionRatings          SessionRating[]          @relation("SessionRatings")
   therapistProfile        TherapistProfile?        @relation("TherapistProfile")
   userProfile             UserProfile?             @relation("UserProfile")
+  adminOfClinic           Clinic?                  @relation("ClinicAdmin")
   bannerAds               BannerAd[]
 
   // Case management relations
@@ -1338,6 +1339,7 @@ model Child {
   teacherConcerns                       String?
   visionHearingIssues                   String?
   clinicStatus                          ClinicStatus     @default(INTAKE)
+  walkinCreatedByAdmin                  Boolean          @default(false)
   assessments                           Assessment[]
   conditions                            ChildCondition[]
   cases                                 Case[]
@@ -1657,8 +1659,10 @@ model TherapistProfile {
   licenceNumber            String?
   licenceExpiry            DateTime?
   credentialStatus         CredentialStatus            @default(PENDING)
+  clinicId                 String?
   createdAt                DateTime                    @default(now())
   updatedAt                DateTime                    @updatedAt
+  clinic                   Clinic?                     @relation("ClinicTherapists", fields: [clinicId], references: [id])
   availabilityExceptions   AvailabilityException[]
   packages                 BookingPackage[]
   bookings                 Booking[]
@@ -1833,6 +1837,7 @@ model Booking {
   sessionStartedAt             DateTime?
   sessionEndedAt               DateTime?
   receptionistNotes            String?
+  clinicId                     String?
 
   createdAt                    DateTime                       @default(now())
   updatedAt                    DateTime                       @updatedAt
@@ -1841,6 +1846,7 @@ model Booking {
   patient                      User                           @relation("PatientBookings", fields: [patientId], references: [id])
   sessionType                  SessionType                    @relation(fields: [sessionTypeId], references: [id])
   therapist                    TherapistProfile               @relation(fields: [therapistId], references: [id])
+  clinic                       Clinic?                        @relation("ClinicBookings", fields: [clinicId], references: [id])
   disputes                     SessionDispute[]
   ratings                      SessionRating[]
   caseSession                  CaseSession?
@@ -2650,6 +2656,8 @@ model Case {
   dischargeReason    String?
   organizationId     String?
   organization       Organization?     @relation(fields: [organizationId], references: [id])
+  clinicId           String?
+  clinic             Clinic?           @relation("ClinicCases", fields: [clinicId], references: [id])
 
   therapists         CaseTherapist[]
   ieps               IEP[]
@@ -3370,4 +3378,26 @@ model AuditLog {
   @@index([resourceType])
   @@index([timestamp])
   @@map("audit_logs")
+}
+
+// ─── CLINIC (UAE Multi-tenant Foundation) ─────────────────────────────────
+
+model Clinic {
+  id          String             @id @default(cuid())
+  name        String
+  logoUrl     String?
+  address     String?
+  licenseNo   String?
+  phone       String?
+  email       String?
+  adminId     String             @unique
+  admin       User               @relation("ClinicAdmin", fields: [adminId], references: [id])
+  therapists  TherapistProfile[] @relation("ClinicTherapists")
+  bookings    Booking[]          @relation("ClinicBookings")
+  cases       Case[]             @relation("ClinicCases")
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([adminId])
+  @@map("clinics")
 }

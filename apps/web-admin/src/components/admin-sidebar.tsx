@@ -65,7 +65,6 @@ const allNavItems: NavItem[] = [
     href: '/settings',
     icon: <Settings className="w-5 h-5" />,
     adminOnly: true,
-    disabled: true,
   },
 ];
 
@@ -121,11 +120,10 @@ export function AdminSidebar() {
             <a
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isActive
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isActive
                   ? 'bg-teal-50 text-teal-700'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
+                }`}
             >
               <span className="flex-shrink-0">{item.icon}</span>
               <span>{item.label}</span>

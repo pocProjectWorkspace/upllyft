@@ -68,11 +68,9 @@ function formatShortDate(dateStr: string | null): string {
 const STATUS_OPTIONS = ['INTAKE', 'ACTIVE', 'ON_HOLD', 'DISCHARGED'] as const;
 const TABS = [
   { key: 'demographics', label: 'Demographics', icon: User },
+  { key: 'case_iep', label: 'Case & IEP', icon: Briefcase },
   { key: 'outcomes', label: 'Outcomes', icon: Activity },
   { key: 'screening', label: 'Screening', icon: Brain },
-  { key: 'cases', label: 'Cases', icon: Briefcase },
-  { key: 'sessions', label: 'Sessions', icon: Calendar },
-  { key: 'milestones', label: 'Milestones', icon: Target },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -176,18 +174,7 @@ export default function PatientDetailPage() {
     );
   }
 
-  const allSessions = patient.cases.flatMap((c) =>
-    c.sessions.map((s) => ({ ...s, caseNumber: c.caseNumber })),
-  );
-  allSessions.sort(
-    (a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime(),
-  );
 
-  const allGoals = patient.cases.flatMap((c) =>
-    (c as any).ieps?.flatMap((iep: any) =>
-      (iep.goals || []).map((g: any) => ({ ...g, caseNumber: c.caseNumber })),
-    ) || [],
-  );
 
   return (
     <AdminShell>
@@ -225,9 +212,8 @@ export default function PatientDetailPage() {
                         <button
                           key={s}
                           onClick={() => handleStatusChange(s)}
-                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
-                            patient.clinicStatus === s ? 'text-teal-700 font-medium' : 'text-gray-700'
-                          }`}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${patient.clinicStatus === s ? 'text-teal-700 font-medium' : 'text-gray-700'
+                            }`}
                         >
                           {s.replace(/_/g, ' ')}
                         </button>
@@ -299,11 +285,10 @@ export default function PatientDetailPage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === tab.key
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key
                       ? 'border-teal-600 text-teal-700'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
@@ -324,14 +309,8 @@ export default function PatientDetailPage() {
           {activeTab === 'screening' && (
             <ScreeningTab assessments={patient.assessments} />
           )}
-          {activeTab === 'cases' && (
-            <CasesTab cases={patient.cases} />
-          )}
-          {activeTab === 'sessions' && (
-            <SessionsTab sessions={allSessions} />
-          )}
-          {activeTab === 'milestones' && (
-            <MilestonesTab goals={allGoals} />
+          {activeTab === 'case_iep' && (
+            <CaseIepTab cases={patient.cases} />
           )}
         </div>
       </div>
@@ -745,11 +724,10 @@ function ScreeningTab({ assessments }: { assessments: PatientDetail['assessments
                 Assessment {formatDate(a.createdAt)}
               </span>
               <span
-                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  a.status === 'COMPLETED'
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.status === 'COMPLETED'
                     ? 'bg-green-50 text-green-700'
                     : 'bg-amber-50 text-amber-700'
-                }`}
+                  }`}
               >
                 {a.status.replace(/_/g, ' ')}
               </span>
@@ -784,7 +762,7 @@ function ScreeningTab({ assessments }: { assessments: PatientDetail['assessments
   );
 }
 
-function CasesTab({ cases }: { cases: PatientDetail['cases'] }) {
+function CaseIepTab({ cases }: { cases: PatientDetail['cases'] }) {
   if (cases.length === 0) {
     return (
       <EmptyState
@@ -795,124 +773,152 @@ function CasesTab({ cases }: { cases: PatientDetail['cases'] }) {
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {cases.map((c) => (
-        <div key={c.id} className="border border-gray-100 rounded-xl p-4">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">{c.caseNumber}</p>
-              <p className="text-xs text-gray-500">Opened {formatDate(c.openedAt)}</p>
-            </div>
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                c.status === 'ACTIVE'
-                  ? 'bg-green-50 text-green-700'
-                  : c.status === 'ON_HOLD'
-                    ? 'bg-gray-100 text-gray-600'
-                    : 'bg-red-50 text-red-600'
-              }`}
-            >
-              {c.status}
-            </span>
-          </div>
-          {c.diagnosis && (
-            <p className="text-sm text-gray-600 mb-2">
-              <span className="font-medium">Diagnosis:</span> {c.diagnosis}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-            {c.primaryTherapist && (
-              <span className="flex items-center gap-1.5">
-                <Avatar name={c.primaryTherapist.name} src={c.primaryTherapist.avatar || undefined} size="sm" />
-                {c.primaryTherapist.name}
-              </span>
-            )}
-            <span>{c.goalCount} goal{c.goalCount !== 1 ? 's' : ''}</span>
-            <span>{c.sessions.length} session{c.sessions.length !== 1 ? 's' : ''}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SessionsTab({ sessions }: { sessions: any[] }) {
-  if (sessions.length === 0) {
-    return (
-      <EmptyState
-        icon={Calendar}
-        title="No sessions"
-        description="Session history will appear here once sessions are logged."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {sessions.map((s: any) => (
-        <div key={s.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50">
-          <div className="w-20 text-sm text-gray-500">{formatDate(s.scheduledAt)}</div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900">
-              {s.sessionType || 'Session'}
-            </p>
-            <p className="text-xs text-gray-500">{s.caseNumber}</p>
-          </div>
-          <div className="text-sm text-gray-600">{s.therapist?.name || '-'}</div>
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              s.attendanceStatus === 'PRESENT'
-                ? 'bg-green-50 text-green-700'
-                : s.attendanceStatus === 'NO_SHOW'
-                  ? 'bg-red-50 text-red-600'
-                  : 'bg-gray-100 text-gray-600'
-            }`}
-          >
-            {s.attendanceStatus?.replace(/_/g, ' ') || 'N/A'}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function MilestonesTab({ goals }: { goals: any[] }) {
-  if (goals.length === 0) {
-    return (
-      <EmptyState
-        icon={Target}
-        title="No milestones"
-        description="Milestone and goal data will appear here once IEPs are created."
-      />
-    );
-  }
-
   const statusColors: Record<string, string> = {
-    ACHIEVED: 'bg-green-50 text-green-700',
-    IN_PROGRESS: 'bg-blue-50 text-blue-700',
+    ACHIEVED: 'bg-emerald-100 text-emerald-800',
+    IN_PROGRESS: 'bg-teal-100 text-teal-800',
     NOT_STARTED: 'bg-gray-100 text-gray-600',
-    DISCONTINUED: 'bg-red-50 text-red-600',
+    DISCONTINUED: 'bg-red-100 text-red-800',
   };
 
   return (
-    <div className="space-y-3">
-      {goals.map((g: any, i: number) => (
-        <div key={i} className="flex items-start gap-4 p-3 rounded-xl hover:bg-gray-50">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900">{g.goalText}</p>
-            <div className="flex gap-3 text-xs text-gray-500 mt-1">
-              <span>{g.domain}</span>
-              <span>{g.caseNumber}</span>
-              {g.targetDate && <span>Target: {formatDate(g.targetDate)}</span>}
+    <div className="space-y-8">
+      {cases.map((c) => (
+        <div key={c.id} className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+          {/* Case Header */}
+          <div className="bg-gray-50 justify-between p-5 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h3 className="text-lg font-bold text-gray-900">{c.caseNumber}</h3>
+                  <span
+                    className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase ${c.status === 'ACTIVE'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : c.status === 'ON_HOLD'
+                          ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                          : 'bg-red-100 text-red-800 border border-red-200'
+                      }`}
+                  >
+                    {c.status}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 font-medium">Opened {formatDate(c.openedAt)}</p>
+                {c.diagnosis && (
+                  <p className="text-sm text-gray-800 mt-2 bg-white px-3 py-1.5 rounded-lg border border-gray-100 inline-block font-medium">
+                    Diagnosis: <span className="font-normal text-gray-600 ml-1">{c.diagnosis}</span>
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col sm:items-end gap-1.5 p-3 bg-white rounded-xl border border-gray-200 shadow-sm min-w-[200px]">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-left sm:text-right w-full">Primary Therapist</span>
+                {c.primaryTherapist ? (
+                  <span className="flex items-center gap-2.5 font-bold text-gray-900">
+                    <Avatar name={c.primaryTherapist.name} src={c.primaryTherapist.avatar || undefined} size="sm" />
+                    {c.primaryTherapist.name}
+                  </span>
+                ) : (
+                  <span className="text-sm font-medium text-gray-500 italic">Unassigned</span>
+                )}
+              </div>
             </div>
           </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[g.status] || 'bg-gray-100 text-gray-600'}`}>
-            {g.status?.replace(/_/g, ' ')}
-          </span>
-          {g.currentProgress !== null && g.currentProgress !== undefined && (
-            <span className="text-sm font-medium text-gray-900">{g.currentProgress}%</span>
-          )}
+
+          <div className="p-6 space-y-8 bg-white">
+            {/* Action Plan & Goals Section */}
+            <div>
+              <h4 className="flex items-center gap-2 text-sm font-black text-gray-900 mb-4 border-b border-gray-100 pb-2 uppercase tracking-wide">
+                <Target className="w-4 h-4 text-teal-600" /> Action Plan & Goals
+              </h4>
+              {c.ieps && c.ieps.length > 0 ? (
+                <div className="space-y-4">
+                  {c.ieps.map((iep) => (
+                    <div key={iep.id} className="space-y-3">
+                      {iep.goals.map((g) => (
+                        <div key={g.id} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-white border border-gray-200 hover:border-teal-300 rounded-xl shadow-sm hover:shadow-md transition-all">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-gray-900 leading-snug">{g.goalText}</p>
+                            <div className="flex items-center gap-3 text-xs text-gray-500 mt-2">
+                              <span
+                                className="font-bold px-2 py-0.5 rounded-md uppercase"
+                                style={{ backgroundColor: `${DOMAIN_COLORS[g.domain] || '#94a3b8'}20`, color: DOMAIN_COLORS[g.domain] || '#64748b' }}
+                              >
+                                {DOMAIN_LABELS[g.domain] || g.domain}
+                              </span>
+                              {g.targetDate && <span className="flex items-center gap-1 font-medium bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100"><Calendar className="w-3.5 h-3.5 text-gray-400" /> Target: {formatDate(g.targetDate)}</span>}
+                            </div>
+                          </div>
+                          <div className="flex flex-row sm:flex-col items-center sm:items-end gap-3 sm:gap-2 border-t sm:border-t-0 border-gray-100 pt-3 sm:pt-0 shrink-0">
+                            <span className={`text-[10px] sm:text-xs px-2.5 py-1 rounded-full font-bold uppercase shadow-sm border ${statusColors[g.status]?.split(' ')[0]} border-opacity-50`}>
+                              {g.status?.replace(/_/g, ' ')}
+                            </span>
+                            {g.currentProgress !== null && g.currentProgress !== undefined && (
+                              <span className="text-sm font-black text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200 shadow-sm flex items-center gap-1">
+                                <Activity className="w-3.5 h-3.5 text-teal-500" />
+                                {g.currentProgress}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl py-6 px-4 text-center">
+                  <Target className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-500">No active goals found.</p>
+                  <p className="text-xs text-gray-400 mt-1">Goals will appear when a therapist creates a treatment plan.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Recent Sessions Activity */}
+            <div>
+              <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
+                <h4 className="flex items-center gap-2 text-sm font-black text-gray-900 uppercase tracking-wide">
+                  <Calendar className="w-4 h-4 text-teal-600" /> Recent Sessions
+                </h4>
+                <a href={`/tracking?case=${c.caseNumber}`} className="text-xs font-bold text-teal-600 hover:text-teal-700 hover:underline">
+                  View full history &rarr;
+                </a>
+              </div>
+              {c.sessions.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {c.sessions.map((s) => (
+                    <div key={s.id} className="group flex items-center gap-3 p-3 bg-gray-50 hover:bg-white rounded-xl border border-gray-200 hover:border-teal-300 hover:shadow-sm transition-all cursor-default">
+                      <div className="flex-shrink-0 bg-white p-2 rounded-xl border border-gray-200 text-center min-w-[3.5rem] shadow-sm group-hover:border-teal-200">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{new Date(s.scheduledAt).toLocaleDateString('en-US', { month: 'short' })}</p>
+                        <p className="text-sm font-black text-gray-900 leading-none mt-0.5">{new Date(s.scheduledAt).getDate()}</p>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">
+                          {s.sessionType || 'Therapy Session'}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate flex items-center gap-1.5 mt-1">
+                          <User className="w-3 h-3" />
+                          {s.therapist?.name || 'Unassigned Therapist'}
+                        </p>
+                      </div>
+                      <span
+                        className={`flex-shrink-0 text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider border ${s.attendanceStatus === 'PRESENT'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : s.attendanceStatus === 'NO_SHOW'
+                              ? 'bg-red-50 text-red-700 border-red-200'
+                              : 'bg-white text-gray-600 border-gray-200 shadow-sm'
+                          }`}
+                      >
+                        {s.attendanceStatus?.replace(/_/g, ' ') || 'SCHEDULED'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl py-6 px-4 text-center">
+                  <Calendar className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-500">No recent sessions.</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       ))}
     </div>

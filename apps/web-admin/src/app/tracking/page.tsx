@@ -242,11 +242,13 @@ function TrackingCardExpanded({
   appointment,
   onClose,
   onStatusChange,
+  onCaseChange,
   updating,
 }: {
   appointment: TrackingAppointment;
   onClose: () => void;
   onStatusChange: (id: string, status: TrackingStatusType, notes?: string) => void;
+  onCaseChange?: (id: string, caseId: string | null) => void;
   updating: string | null;
 }) {
   return (
@@ -320,6 +322,24 @@ function TrackingCardExpanded({
             <div className="flex items-center gap-3 text-sm">
               <CheckCircle2 className="w-4 h-4 text-gray-400" />
               <span className="text-gray-700">Completed at {formatTime(appointment.sessionEndedAt)}</span>
+            </div>
+          )}
+
+          {appointment.availableCases && appointment.availableCases.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Assigned Case</label>
+              <select
+                value={appointment.caseId || ''}
+                onChange={(e) => onCaseChange && onCaseChange(appointment.id, e.target.value || null)}
+                disabled={updating === appointment.id}
+                className="w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 disabled:opacity-50 transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="">No Case Assigned</option>
+                {appointment.availableCases.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
             </div>
           )}
 
@@ -618,12 +638,32 @@ export default function TrackingPage() {
         }
       } catch {
         // Revert — refetch
-        fetchAppointments(false);
       } finally {
         setUpdating(null);
       }
     },
     [expandedCard, fetchAppointments],
+  );
+
+  const handleCaseChange = useCallback(
+    async (bookingId: string, caseId: string | null) => {
+      setUpdating(bookingId);
+      const appt = appointments.find(a => a.id === bookingId);
+      if (!appt) return;
+
+      try {
+        const updated = await updateTrackingStatus(bookingId, appt.status, appt.notes || undefined, caseId);
+        setAppointments((prev) => prev.map((a) => (a.id === bookingId ? updated : a)));
+        if (expandedCard?.id === bookingId) {
+          setExpandedCard(updated);
+        }
+      } catch {
+        fetchAppointments(false);
+      } finally {
+        setUpdating(null);
+      }
+    },
+    [appointments, expandedCard, fetchAppointments]
   );
 
   return (
@@ -724,6 +764,7 @@ export default function TrackingPage() {
           appointment={expandedCard}
           onClose={() => setExpandedCard(null)}
           onStatusChange={handleStatusChange}
+          onCaseChange={handleCaseChange}
           updating={updating}
         />
       )}

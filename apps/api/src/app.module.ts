@@ -86,6 +86,7 @@ import { InvoiceModule } from './invoice/invoice.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { AuditModule } from './audit/audit.module';
 import { RetentionModule } from './retention/retention.module';
+import { ClinicModule } from './clinic/clinic.module';
 
 
 @Module({
@@ -175,6 +176,7 @@ import { RetentionModule } from './retention/retention.module';
     MiraModule,
 
     // Clinic admin
+    ClinicModule,
     ClinicPatientsModule,
     ClinicTherapistsModule,
     ClinicTrackingModule,

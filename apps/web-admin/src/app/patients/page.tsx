@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AdminShell } from '@/components/admin-shell';
 import { PatientStatusBadge } from '@/components/patient-status-badge';
 import { AssignTherapistModal } from '@/components/assign-therapist-modal';
+import { NewPatientModal } from '@/components/new-patient-modal';
 import { Avatar } from '@upllyft/ui';
 import {
   getPatients,
@@ -77,6 +78,9 @@ export default function PatientsPage() {
   // Assign modal state
   const [assignChild, setAssignChild] = useState<{ id: string; name: string } | null>(null);
 
+  // New patient modal state
+  const [showNewPatient, setShowNewPatient] = useState(false);
+
   // View mode: table or intake cards
   const isIntakeView = statusFilter.length === 1 && statusFilter[0] === 'INTAKE';
 
@@ -103,7 +107,7 @@ export default function PatientsPage() {
   }, [fetchPatients]);
 
   useEffect(() => {
-    getTherapists().then(setTherapists).catch(() => {});
+    getTherapists().then(setTherapists).catch(() => { });
   }, []);
 
   // Debounced search
@@ -153,14 +157,20 @@ export default function PatientsPage() {
                 setStatusFilter(['INTAKE']);
                 setPage(1);
               }}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-colors ${
-                isIntakeView
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-colors ${isIntakeView
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
             >
               <UserPlus className="w-4 h-4" />
               Intake Queue
+            </button>
+            <button
+              onClick={() => setShowNewPatient(true)}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl bg-teal-600 hover:bg-teal-700 text-white transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Patient
             </button>
           </div>
         </div>
@@ -180,11 +190,10 @@ export default function PatientsPage() {
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border transition-colors ${
-                showFilters || hasActiveFilters
-                  ? 'bg-teal-50 text-teal-700 border-teal-200'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border transition-colors ${showFilters || hasActiveFilters
+                ? 'bg-teal-50 text-teal-700 border-teal-200'
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
             >
               <Filter className="w-4 h-4" />
               Filters
@@ -212,11 +221,10 @@ export default function PatientsPage() {
                   <button
                     key={opt.value}
                     onClick={() => toggleStatus(opt.value)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                      statusFilter.includes(opt.value)
-                        ? 'bg-teal-50 text-teal-700 border-teal-300'
-                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${statusFilter.includes(opt.value)
+                      ? 'bg-teal-50 text-teal-700 border-teal-300'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}
                   >
                     {opt.label}
                   </button>
@@ -469,11 +477,10 @@ export default function PatientsPage() {
                       <button
                         key={pageNum}
                         onClick={() => setPage(pageNum)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                          meta.page === pageNum
-                            ? 'bg-teal-600 text-white'
-                            : 'text-gray-600 hover:bg-gray-50'
-                        }`}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${meta.page === pageNum
+                          ? 'bg-teal-600 text-white'
+                          : 'text-gray-600 hover:bg-gray-50'
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -503,6 +510,16 @@ export default function PatientsPage() {
           onAssigned={fetchPatients}
         />
       )}
+
+      {/* New Walk-in Patient Modal */}
+      <NewPatientModal
+        open={showNewPatient}
+        onClose={() => setShowNewPatient(false)}
+        onSuccess={() => {
+          setShowNewPatient(false);
+          fetchPatients();
+        }}
+      />
     </AdminShell>
   );
 }
