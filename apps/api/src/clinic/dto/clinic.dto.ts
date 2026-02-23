@@ -62,4 +62,24 @@ export class UpdateClinicDto {
     @IsOptional()
     @IsString()
     email?: string;
+
+    @IsOptional()
+    @IsString()
+    logoUrl?: string;
+
+    @IsOptional()
+    @IsString()
+    bannerUrl?: string;
+
+    @IsOptional()
+    @IsString()
+    primaryColor?: string;
+
+    @IsOptional()
+    @IsString()
+    secondaryColor?: string;
+
+    @IsOptional()
+    @IsString()
+    accentColor?: string;
 }

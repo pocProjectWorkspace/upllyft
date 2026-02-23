@@ -18,7 +18,7 @@ export class ClinicPatientsService {
     private readonly notificationService: NotificationService,
   ) { }
 
-  async listPatients(query: ListPatientsQueryDto) {
+  async listPatients(query: ListPatientsQueryDto, clinicId: string) {
     const {
       search,
       status,
@@ -32,6 +32,9 @@ export class ClinicPatientsService {
     } = query;
 
     const where: Prisma.ChildWhereInput = {};
+    if (clinicId) {
+      where.clinicId = clinicId;
+    }
 
     if (status && status.length > 0) {
       where.clinicStatus = { in: status };
@@ -196,9 +199,12 @@ export class ClinicPatientsService {
     };
   }
 
-  async getPatientDetail(childId: string) {
-    const child = await this.prisma.child.findUnique({
-      where: { id: childId },
+  async getPatientDetail(childId: string, clinicId?: string) {
+    const child = await this.prisma.child.findFirst({
+      where: {
+        id: childId,
+        ...(clinicId ? { clinicId } : {}),
+      },
       include: {
         profile: {
           include: {
@@ -358,21 +364,31 @@ export class ClinicPatientsService {
     };
   }
 
-  async updatePatientStatus(childId: string, dto: UpdatePatientStatusDto) {
-    const child = await this.prisma.child.findUnique({ where: { id: childId } });
+  async updatePatientStatus(childId: string, dto: UpdatePatientStatusDto, clinicId?: string) {
+    const child = await this.prisma.child.findFirst({
+      where: {
+        id: childId,
+        ...(clinicId ? { clinicId } : {}),
+      }
+    });
     if (!child) {
       throw new NotFoundException('Patient not found');
     }
 
     return this.prisma.child.update({
-      where: { id: childId },
+      where: { id: child.id },
       data: { clinicStatus: dto.status },
       select: { id: true, firstName: true, clinicStatus: true },
     });
   }
 
-  async assignTherapist(childId: string, dto: AssignTherapistDto) {
-    const child = await this.prisma.child.findUnique({ where: { id: childId } });
+  async assignTherapist(childId: string, dto: AssignTherapistDto, clinicId?: string) {
+    const child = await this.prisma.child.findFirst({
+      where: {
+        id: childId,
+        ...(clinicId ? { clinicId } : {}),
+      }
+    });
     if (!child) {
       throw new NotFoundException('Patient not found');
     }
@@ -569,7 +585,7 @@ export class ClinicPatientsService {
     }
   }
 
-  async createWalkinPatient(dto: CreateWalkinPatientDto, adminId: string) {
+  async createWalkinPatient(dto: CreateWalkinPatientDto, adminId: string, clinicId?: string) {
     // Check if a user with this email already exists
     if (dto.guardianEmail) {
       const existing = await this.prisma.user.findUnique({
@@ -645,9 +661,12 @@ export class ClinicPatientsService {
     };
   }
 
-  async getTherapistsList() {
+  async getTherapistsList(clinicId?: string) {
     const profiles = await this.prisma.therapistProfile.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(clinicId ? { clinicId } : {}),
+      },
       include: {
         user: {
           select: { id: true, name: true, email: true, image: true, specialization: true },

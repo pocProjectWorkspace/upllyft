@@ -6,7 +6,7 @@ import {
   IsInt,
   IsDateString,
 } from 'class-validator';
-import { AdPlacement } from '@prisma/client';
+import { AdPlacement, AdStatus } from '@prisma/client';
 
 export class CreateBannerAdDto {
   @IsString()
@@ -32,4 +32,8 @@ export class CreateBannerAdDto {
   @IsOptional()
   @IsInt()
   priority?: number;
+
+  @IsOptional()
+  @IsEnum(AdStatus)
+  status?: AdStatus;
 }

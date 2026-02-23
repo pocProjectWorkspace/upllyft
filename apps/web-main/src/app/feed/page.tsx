@@ -7,6 +7,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getPosts, type PostFilters } from '@/lib/api/posts';
 import { PostCard } from '@/components/feed/post-card';
+import { FeedAd } from '@/components/feed/feed-ad';
+import { getActiveBannerAds } from '@/lib/api/banner-ads';
 
 type FeedView = 'for-you' | 'following' | 'saved';
 type SortBy = 'recent' | 'popular' | 'trending';
@@ -111,6 +113,22 @@ export default function FeedPage() {
     enabled: isAuthenticated,
   });
 
+  const { data: topBannerAds } = useInfiniteQuery({
+    queryKey: ['bannerAds', 'BANNER_TOP'],
+    queryFn: () => getActiveBannerAds('BANNER_TOP'),
+    initialPageParam: 1,
+    getNextPageParam: () => undefined,
+    enabled: isAuthenticated,
+  });
+
+  const { data: feedBannerAds } = useInfiniteQuery({
+    queryKey: ['bannerAds', 'FEED'],
+    queryFn: () => getActiveBannerAds('FEED'),
+    initialPageParam: 1,
+    getNextPageParam: () => undefined,
+    enabled: isAuthenticated,
+  });
+
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -145,6 +163,8 @@ export default function FeedPage() {
 
   const displayName = user.name || user.email?.split('@')[0] || 'User';
   const posts = data?.pages.flatMap((page) => page.posts) || [];
+  const topBanners = topBannerAds?.pages?.[0] || [];
+  const feedBanners = feedBannerAds?.pages?.[0] || [];
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -156,7 +176,7 @@ export default function FeedPage() {
           <div className="p-4">
             <button
               className="w-full py-3 bg-gradient-to-br from-pink-500 to-pink-700 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 transition"
-              onClick={() => {/* TODO: create post modal */}}
+              onClick={() => {/* TODO: create post modal */ }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -170,11 +190,10 @@ export default function FeedPage() {
               <a
                 key={item.label}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-r-lg ${
-                  item.active
-                    ? 'font-medium text-gray-900 border-l-[3px] border-teal-600'
-                    : 'text-gray-600 hover:bg-gray-50 rounded-lg'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-r-lg ${item.active
+                  ? 'font-medium text-gray-900 border-l-[3px] border-teal-600'
+                  : 'text-gray-600 hover:bg-gray-50 rounded-lg'
+                  }`}
                 style={item.active ? {
                   background: 'linear-gradient(90deg, rgba(13, 148, 136, 0.1) 0%, transparent 100%)',
                 } : undefined}
@@ -202,6 +221,13 @@ export default function FeedPage() {
 
         {/* Center Content */}
         <div className="flex-1 max-w-2xl mx-auto px-4 py-6">
+          {/* Top Banner Ad */}
+          {topBanners.length > 0 && (
+            <div className="mb-6">
+              <FeedAd ad={topBanners[0]} />
+            </div>
+          )}
+
           {/* Create Post Card */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
             <div className="flex items-center gap-3">
@@ -210,7 +236,7 @@ export default function FeedPage() {
                 type="text"
                 placeholder="Share something with the community..."
                 className="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-                onFocus={() => {/* TODO: open create post modal */}}
+                onFocus={() => {/* TODO: open create post modal */ }}
                 readOnly
               />
             </div>
@@ -243,11 +269,10 @@ export default function FeedPage() {
                 <button
                   key={v}
                   onClick={() => setView(v)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    view === v
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${view === v
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
                 >
                   {v === 'for-you' ? 'For You' : v === 'following' ? 'Following' : 'Saved'}
                 </button>
@@ -283,9 +308,21 @@ export default function FeedPage() {
                 <Skeleton key={i} className="h-48 rounded-2xl" />
               ))
             ) : posts.length > 0 ? (
-              posts.map((post) => (
-                <PostCard key={post.id} post={post} onVoteChange={() => refetch()} />
-              ))
+              posts.map((post, index) => {
+                // Interject an ad every 7 posts if feed ads are available
+                const shouldShowAd = (index + 1) % 7 === 0;
+                const adIndex = Math.floor(index / 7) % Math.max(feedBanners.length, 1);
+                const feedAd = feedBanners[adIndex];
+
+                return (
+                  <div key={post.id} className="space-y-6">
+                    <PostCard post={post} onVoteChange={() => refetch()} />
+                    {shouldShowAd && feedAd && (
+                      <FeedAd ad={feedAd} />
+                    )}
+                  </div>
+                );
+              })
             ) : (
               <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
                 <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

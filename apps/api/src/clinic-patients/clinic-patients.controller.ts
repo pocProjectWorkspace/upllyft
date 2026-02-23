@@ -30,30 +30,31 @@ export class ClinicPatientsController {
   @Post()
   @Roles(Role.ADMIN)
   async createWalkinPatient(@Body() dto: CreateWalkinPatientDto, @Req() req: any) {
-    return this.clinicPatientsService.createWalkinPatient(dto, req.user.id);
+    return this.clinicPatientsService.createWalkinPatient(dto, req.user.id, req.user.clinicId);
   }
 
   @Get()
-  async listPatients(@Query() query: ListPatientsQueryDto) {
-    return this.clinicPatientsService.listPatients(query);
+  async listPatients(@Query() query: ListPatientsQueryDto, @Req() req: any) {
+    return this.clinicPatientsService.listPatients(query, req.user.clinicId);
   }
 
   @Get('therapists')
-  async getTherapistsList() {
-    return this.clinicPatientsService.getTherapistsList();
+  async getTherapistsList(@Req() req: any) {
+    return this.clinicPatientsService.getTherapistsList(req.user.clinicId);
   }
 
   @Get(':childId')
-  async getPatientDetail(@Param('childId') childId: string) {
-    return this.clinicPatientsService.getPatientDetail(childId);
+  async getPatientDetail(@Param('childId') childId: string, @Req() req: any) {
+    return this.clinicPatientsService.getPatientDetail(childId, req.user.clinicId);
   }
 
   @Patch(':childId')
   async updatePatientStatus(
     @Param('childId') childId: string,
     @Body() dto: UpdatePatientStatusDto,
+    @Req() req: any,
   ) {
-    return this.clinicPatientsService.updatePatientStatus(childId, dto);
+    return this.clinicPatientsService.updatePatientStatus(childId, dto, req.user.clinicId);
   }
 
   @Post(':childId/assign')
@@ -61,7 +62,8 @@ export class ClinicPatientsController {
   async assignTherapist(
     @Param('childId') childId: string,
     @Body() dto: AssignTherapistDto,
+    @Req() req: any,
   ) {
-    return this.clinicPatientsService.assignTherapist(childId, dto);
+    return this.clinicPatientsService.assignTherapist(childId, dto, req.user.clinicId);
   }
 }

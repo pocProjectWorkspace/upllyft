@@ -48,6 +48,18 @@ async function main() {
     });
     console.log('✅ Admin:', adminUser.email);
 
+    // ── 1.5. Organization ──────────────────────────────────────────────────────
+    const organization = await prisma.organization.upsert({
+        where: { slug: 'ancc' },
+        update: {},
+        create: {
+            name: 'Abu Dhabi Neurodevelopmental Care Center',
+            slug: 'ancc',
+            description: 'Leading pediatric neurodevelopmental care center in Abu Dhabi.',
+        },
+    });
+    console.log('✅ Organization:', organization.name);
+
     // ── 2. Clinic ──────────────────────────────────────────────────────────────
     const clinic = await prisma.clinic.upsert({
         where: { adminId: adminUser.id },
@@ -58,6 +70,7 @@ async function main() {
             phone: '+971 2 XXX XXXX',
             email: 'info@ancc.ae',
             adminId: adminUser.id,
+            organizationId: organization.id,
         },
     });
     console.log('✅ Clinic:', clinic.name);
@@ -262,6 +275,7 @@ async function main() {
                 walkinCreatedByAdmin: true,
                 developmentalConcerns: def.concern,
                 referralSource: 'Walk-in',
+                clinicId: clinic.id,
             },
         });
 

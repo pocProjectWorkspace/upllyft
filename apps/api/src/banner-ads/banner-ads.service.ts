@@ -6,7 +6,7 @@ import { UpdateBannerAdDto } from './dto/update-banner-ad.dto';
 
 @Injectable()
 export class BannerAdsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(dto: CreateBannerAdDto, userId: string) {
     return this.prisma.bannerAd.create({
@@ -15,6 +15,7 @@ export class BannerAdsService {
         imageUrl: dto.imageUrl,
         targetUrl: dto.targetUrl,
         placement: dto.placement,
+        status: dto.status || 'DRAFT',
         startDate: dto.startDate ? new Date(dto.startDate) : null,
         endDate: dto.endDate ? new Date(dto.endDate) : null,
         priority: dto.priority ?? 0,

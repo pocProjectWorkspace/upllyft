@@ -372,6 +372,19 @@ export default function BannerAdsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as BannerAd['status'] })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['DRAFT', 'ACTIVE', 'PAUSED', 'EXPIRED'].map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label>Priority</Label>
                 <Input
                   type="number"

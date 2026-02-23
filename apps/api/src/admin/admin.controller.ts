@@ -205,4 +205,18 @@ export class AdminController {
   async deleteUserData(@Param('id') userId: string, @Req() req: any) {
     return this.adminService.deleteUserData(userId, req.user.id);
   }
+
+  // ── Platform Admin: Clinics ───────────────────────────────────
+
+  @Get('clinics')
+  @Roles(Role.ADMIN)
+  async getAllClinics() {
+    return this.adminService.getAllClinics();
+  }
+
+  @Post('clinics')
+  @Roles(Role.ADMIN)
+  async createPlatformClinic(@Body() body: any) {
+    return this.adminService.createPlatformClinic(body);
+  }
 }

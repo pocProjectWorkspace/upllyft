@@ -140,6 +140,17 @@ export class AuthService {
       });
     }
 
+    let clinicId: string | null = null;
+    let organizationId: string | null = null;
+
+    if (user.role === 'ADMIN') {
+      clinicId = fullProfile.adminOfClinic?.id || null;
+      organizationId = (fullProfile.adminOfClinic as any)?.organizationId || null;
+    } else if (user.role === 'THERAPIST') {
+      clinicId = fullProfile.therapistProfile?.clinicId || null;
+      organizationId = (fullProfile.therapistProfile as any)?.clinic?.organizationId || null;
+    }
+
     const tokens = this.generateTokens({
       id: user.id,
       email: user.email,
@@ -148,6 +159,8 @@ export class AuthService {
       name: user.name ?? undefined,
       avatar: user.image ?? undefined,
       bio: user.bio ?? undefined,
+      clinicId,
+      organizationId,
     });
 
     // Log successful login
@@ -476,6 +489,12 @@ export class AuthService {
             organization: true,
           },
         },
+        therapistProfile: {
+          include: {
+            clinic: true,
+          }
+        },
+        adminOfClinic: true,
       },
     });
 
@@ -537,12 +556,16 @@ export class AuthService {
     name?: string;
     avatar?: string;
     bio?: string;
+    clinicId?: string | null;
+    organizationId?: string | null;
   }) {
     const payload = {
       sub: user.id,
       email: user.email,
       role: user.role,
       verificationStatus: user.verificationStatus,
+      ...(user.clinicId && { clinicId: user.clinicId }),
+      ...(user.organizationId && { organizationId: user.organizationId }),
     };
 
     const accessToken = this.jwtService.sign(payload, {

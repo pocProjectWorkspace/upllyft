@@ -26,6 +26,15 @@ export interface User {
   verificationStatus: VerificationStatus;
   createdAt: string;
   updatedAt: string;
+  clinic?: {
+    id: string;
+    name: string;
+    logoUrl?: string | null;
+    bannerUrl?: string | null;
+    primaryColor?: string | null;
+    secondaryColor?: string | null;
+    accentColor?: string | null;
+  } | null;
 }
 
 export interface UserProfile extends User {

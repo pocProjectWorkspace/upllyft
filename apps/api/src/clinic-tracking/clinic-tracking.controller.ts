@@ -27,21 +27,22 @@ export class ClinicTrackingController {
   constructor(private readonly clinicTrackingService: ClinicTrackingService) { }
 
   @Get('today')
-  async getTodayAppointments(@Query() query: TrackingQueryDto) {
-    return this.clinicTrackingService.getTodayAppointments(query.date);
+  async getTodayAppointments(@Query() query: TrackingQueryDto, @Req() req: any) {
+    return this.clinicTrackingService.getTodayAppointments(query.date, req.user.clinicId);
   }
 
   @Post('book')
   @Roles(Role.ADMIN)
   async createWalkinBooking(@Body() dto: CreateWalkinBookingDto, @Req() req: any) {
-    return this.clinicTrackingService.createWalkinBooking(dto);
+    return this.clinicTrackingService.createWalkinBooking(dto, req.user.clinicId);
   }
 
   @Patch(':bookingId')
   async updateTrackingStatus(
     @Param('bookingId') bookingId: string,
     @Body() dto: UpdateTrackingStatusDto,
+    @Req() req: any,
   ) {
-    return this.clinicTrackingService.updateTrackingStatus(bookingId, dto);
+    return this.clinicTrackingService.updateTrackingStatus(bookingId, dto, req.user.clinicId);
   }
 }

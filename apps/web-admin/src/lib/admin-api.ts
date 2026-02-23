@@ -223,6 +223,10 @@ export interface ClinicDetail {
   id: string;
   name: string;
   logoUrl: string | null;
+  bannerUrl: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  accentColor: string | null;
   address: string | null;
   licenseNo: string | null;
   phone: string | null;
@@ -243,6 +247,11 @@ export interface UpdateClinicInput {
   licenseNo?: string;
   phone?: string;
   email?: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
 }
 
 export async function getClinic(): Promise<ClinicDetail> {

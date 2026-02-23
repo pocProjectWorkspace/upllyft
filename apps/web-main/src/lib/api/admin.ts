@@ -131,6 +131,25 @@ export interface Organization {
   _count?: { members: number };
 }
 
+export interface Clinic {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+  bannerUrl?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
+  accentColor?: string | null;
+  address?: string;
+  phone?: string;
+  email?: string;
+  adminId: string;
+  organizationId: string;
+  createdAt: string;
+  organization?: Organization;
+  admin?: { id: string; name: string; email: string };
+  _count?: { therapists: number; cases: number; bookings: number };
+}
+
 export interface BannerAd {
   id: string;
   title: string;
@@ -301,6 +320,25 @@ export async function createOrganization(payload: {
   description?: string;
 }): Promise<Organization> {
   const { data } = await apiClient.post<Organization>('/organizations', payload);
+  return data;
+}
+
+// ─── Clinics ─────────────────────────────────────────────────────
+
+export async function getClinics(): Promise<Clinic[]> {
+  const { data } = await apiClient.get<Clinic[]>('/admin/clinics');
+  return data;
+}
+
+export async function createClinic(payload: {
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  adminEmail: string;
+  organizationId: string;
+}): Promise<Clinic> {
+  const { data } = await apiClient.post<Clinic>('/admin/clinics', payload);
   return data;
 }
 

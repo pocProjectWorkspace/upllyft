@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { AdminShell } from '@/components/admin-shell';
 import { getClinic, updateClinic, type ClinicDetail } from '@/lib/admin-api';
-import { Building2, Save, Mail, Phone, MapPin, FileText, CheckCircle2 } from 'lucide-react';
+import { Building2, Save, Mail, Phone, MapPin, FileText, CheckCircle2, Palette } from 'lucide-react';
 
 export default function SettingsPage() {
     const [clinic, setClinic] = useState<ClinicDetail | null>(null);
@@ -18,6 +18,11 @@ export default function SettingsPage() {
         phone: '',
         email: '',
         licenseNo: '',
+        logoUrl: '',
+        bannerUrl: '',
+        primaryColor: '#0d9488',
+        secondaryColor: '#f0fdfa',
+        accentColor: '#14b8a6',
     });
 
     useEffect(() => {
@@ -31,6 +36,11 @@ export default function SettingsPage() {
                     phone: data.phone || '',
                     email: data.email || '',
                     licenseNo: data.licenseNo || '',
+                    logoUrl: data.logoUrl || '',
+                    bannerUrl: data.bannerUrl || '',
+                    primaryColor: data.primaryColor || '#0d9488',
+                    secondaryColor: data.secondaryColor || '#f0fdfa',
+                    accentColor: data.accentColor || '#14b8a6',
                 });
             } catch (err) {
                 setError('Failed to load clinic information.');
@@ -200,6 +210,116 @@ export default function SettingsPage() {
                                         className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
                                         placeholder="Unit 123, Building Name, Street..."
                                     />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Appearance & Branding Section */}
+                        <div className="pt-8 border-t border-gray-100">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+                                    <Palette className="w-5 h-5 text-purple-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-semibold text-gray-900">Appearance & Branding</h2>
+                                    <p className="text-sm text-gray-500">Customize the look and feel of your clinic interface and patient portals.</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Logo Image URL
+                                        </label>
+                                        <input
+                                            type="url"
+                                            name="logoUrl"
+                                            value={formData.logoUrl}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
+                                            placeholder="https://example.com/logo.png"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Banner Image URL
+                                        </label>
+                                        <input
+                                            type="url"
+                                            name="bannerUrl"
+                                            value={formData.bannerUrl}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
+                                            placeholder="https://example.com/banner.png"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Primary Color
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                name="primaryColor"
+                                                value={formData.primaryColor}
+                                                onChange={handleChange}
+                                                className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                                            />
+                                            <input
+                                                type="text"
+                                                name="primaryColor"
+                                                value={formData.primaryColor}
+                                                onChange={handleChange}
+                                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Secondary Color
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                name="secondaryColor"
+                                                value={formData.secondaryColor}
+                                                onChange={handleChange}
+                                                className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                                            />
+                                            <input
+                                                type="text"
+                                                name="secondaryColor"
+                                                value={formData.secondaryColor}
+                                                onChange={handleChange}
+                                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Accent Color
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                name="accentColor"
+                                                value={formData.accentColor}
+                                                onChange={handleChange}
+                                                className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                                            />
+                                            <input
+                                                type="text"
+                                                name="accentColor"
+                                                value={formData.accentColor}
+                                                onChange={handleChange}
+                                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

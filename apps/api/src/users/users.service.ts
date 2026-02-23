@@ -29,6 +29,32 @@ export class UsersService {
         yearsOfExperience: true,
         organization: true,
         trustScore: true,
+        adminOfClinic: {
+          select: {
+            id: true,
+            name: true,
+            logoUrl: true,
+            bannerUrl: true,
+            primaryColor: true,
+            secondaryColor: true,
+            accentColor: true,
+          }
+        },
+        therapistProfile: {
+          select: {
+            clinic: {
+              select: {
+                id: true,
+                name: true,
+                logoUrl: true,
+                bannerUrl: true,
+                primaryColor: true,
+                secondaryColor: true,
+                accentColor: true,
+              }
+            }
+          }
+        },
         _count: {
           select: {
             posts: true,
@@ -83,8 +109,11 @@ export class UsersService {
       take: 5,
     });
 
+    const userClinic = user.adminOfClinic || user.therapistProfile?.clinic || null;
+
     return {
       ...user,
+      clinic: userClinic,
       stats,
       trustScore,
       badges,

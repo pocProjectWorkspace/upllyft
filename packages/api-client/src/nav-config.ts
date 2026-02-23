@@ -19,12 +19,13 @@ export interface GlobalNavItem {
 export function getNavItems(role: string): GlobalNavItem[] {
   const isProfessional = role === 'THERAPIST' || role === 'EDUCATOR';
   const isAdmin = role === 'ADMIN';
+  const isSuperAdmin = role === 'SUPERADMIN';
 
   const items: GlobalNavItem[] = [
     { label: 'Hub', app: 'main', href: APP_URLS.main },
   ];
 
-  if (isProfessional || isAdmin) {
+  if (isProfessional || isAdmin || isSuperAdmin) {
     items.push({ label: 'Cases', app: 'cases', href: APP_URLS.cases });
   }
 
@@ -35,7 +36,12 @@ export function getNavItems(role: string): GlobalNavItem[] {
     { label: 'Resources', app: 'resources', href: APP_URLS.resources },
   );
 
-  if (isProfessional || isAdmin) {
+  if (isSuperAdmin) {
+    items.push(
+      { label: 'Admin', app: 'main', href: `${APP_URLS.main}/admin` },
+      { label: 'Clinic', app: 'main', href: `${APP_URLS.main}/admin/clinics` }
+    );
+  } else if (isProfessional || isAdmin) {
     items.push({ label: 'Clinic', app: 'admin', href: APP_URLS.admin });
   }
 

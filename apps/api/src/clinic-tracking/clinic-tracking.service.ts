@@ -7,7 +7,7 @@ import { UpdateTrackingStatusDto } from './dto/clinic-tracking.dto';
 export class ClinicTrackingService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async getTodayAppointments(date?: string) {
+  async getTodayAppointments(date?: string, clinicId?: string) {
     const targetDate = date ? new Date(date) : new Date();
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -20,6 +20,7 @@ export class ClinicTrackingService {
           gte: startOfDay,
           lte: endOfDay,
         },
+        ...(clinicId ? { clinicId } : {}),
         status: {
           in: [
             'CONFIRMED',
@@ -149,9 +150,12 @@ export class ClinicTrackingService {
     });
   }
 
-  async updateTrackingStatus(bookingId: string, dto: UpdateTrackingStatusDto) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
+  async updateTrackingStatus(bookingId: string, dto: UpdateTrackingStatusDto, clinicId?: string) {
+    const booking = await this.prisma.booking.findFirst({
+      where: {
+        id: bookingId,
+        ...(clinicId ? { clinicId } : {}),
+      },
       include: { therapist: true }
     });
 
@@ -332,7 +336,7 @@ export class ClinicTrackingService {
     return age;
   }
 
-  async createWalkinBooking(dto: import('./dto/clinic-tracking.dto').CreateWalkinBookingDto) {
+  async createWalkinBooking(dto: import('./dto/clinic-tracking.dto').CreateWalkinBookingDto, clinicId?: string) {
     const durationMins = dto.durationMins ?? 60;
     const startDateTime = new Date(dto.scheduledAt);
     const endDateTime = new Date(startDateTime.getTime() + durationMins * 60 * 1000);
@@ -390,6 +394,7 @@ export class ClinicTrackingService {
         currency: 'AED',
         paymentStatus: 'PENDING',
         trackingStatus: 'SCHEDULED',
+        clinicId,
       },
     });
 

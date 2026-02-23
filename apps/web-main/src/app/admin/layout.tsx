@@ -60,6 +60,15 @@ const sidebarItems = [
     ),
   },
   {
+    label: 'Clinics (B2B SaaS)',
+    href: '/admin/clinics',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+  },
+  {
     label: 'Onboarding',
     href: '/admin/onboarding-settings',
     icon: (
@@ -104,7 +113,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || user?.role !== 'ADMIN')) {
+    if (!isLoading && (!isAuthenticated || !['ADMIN', 'SUPERADMIN'].includes(user?.role || ''))) {
       router.replace('/');
     }
   }, [isLoading, isAuthenticated, user, router]);
@@ -117,7 +126,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'ADMIN') {
+  if (!isAuthenticated || !['ADMIN', 'SUPERADMIN'].includes(user?.role || '')) {
     return null;
   }
 
@@ -140,11 +149,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <a
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-teal-50 text-teal-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isActive
+                  ? 'bg-teal-50 text-teal-700'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
               >
                 <span className="flex-shrink-0">{item.icon}</span>
                 <span>{item.label}</span>

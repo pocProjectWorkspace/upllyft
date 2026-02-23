@@ -168,6 +168,30 @@ export function useCreateOrganization() {
   });
 }
 
+// ─── Clinics ─────────────────────────────────────────────────────
+
+export function useClinics() {
+  return useQuery({
+    queryKey: ['admin', 'clinics'],
+    queryFn: adminApi.getClinics,
+  });
+}
+
+export function useCreateClinic() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      name: string;
+      address?: string;
+      phone?: string;
+      email?: string;
+      adminEmail: string;
+      organizationId: string;
+    }) => adminApi.createClinic(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'clinics'] }),
+  });
+}
+
 // ─── Banner Ads ──────────────────────────────────────────────────
 
 export function useBannerAds(params?: {

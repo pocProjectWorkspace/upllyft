@@ -26,7 +26,7 @@ export class AdminService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private auditService: AuditService,
-  ) {}
+  ) { }
 
   private get supabase(): SupabaseClient {
     if (!this._supabase) {
@@ -1015,5 +1015,59 @@ export class AdminService {
     });
 
     return { success: true, anonymisedAt: new Date().toISOString() };
+  }
+
+  // ── Platform Admin: Clinics ───────────────────────────────────
+
+  async getAllClinics() {
+    return this.prisma.clinic.findMany({
+      include: {
+        organization: true,
+        admin: {
+          select: { id: true, name: true, email: true }
+        },
+        _count: {
+          select: { therapists: true, cases: true, bookings: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async createPlatformClinic(data: {
+    name: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    adminEmail: string;
+    organizationId: string;
+    logoUrl?: string;
+    bannerUrl?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    accentColor?: string;
+  }) {
+    // find admin user
+    let adminUser = await this.prisma.user.findUnique({ where: { email: data.adminEmail } });
+    if (!adminUser) {
+      // if not found, we can fail or gracefully handle it.
+      throw new NotFoundException('Clinic Admin user not found with email: ' + data.adminEmail + '. Please create the user first.');
+    }
+
+    return this.prisma.clinic.create({
+      data: {
+        name: data.name,
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        adminId: adminUser.id,
+        organizationId: data.organizationId,
+        logoUrl: data.logoUrl,
+        bannerUrl: data.bannerUrl,
+        primaryColor: data.primaryColor,
+        secondaryColor: data.secondaryColor,
+        accentColor: data.accentColor,
+      }
+    });
   }
 }

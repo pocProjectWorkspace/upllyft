@@ -12,6 +12,9 @@ import { Card, Button, Avatar, Badge, Skeleton, toast } from '@upllyft/ui';
 import { ShareModal } from '@/components/share-modal';
 import type { Post } from '@/lib/api/posts';
 import type { Question, QuestionFilters } from '@/lib/api/questions';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { getActiveBannerAds } from '@/lib/api/banner-ads';
+import { FeedAd } from '@/components/feed-ad';
 
 // ===== Constants =====
 
@@ -239,11 +242,10 @@ function PostMenu({
                 <button
                   key={reason}
                   onClick={() => setReportReason(reason)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-                    reportReason === reason
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${reportReason === reason
                       ? 'bg-pink-50 text-pink-700 font-medium border border-pink-200'
                       : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-transparent'
-                  }`}
+                    }`}
                 >
                   {reason}
                 </button>
@@ -445,9 +447,8 @@ function PostCard({ post }: { post: Post }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
               </svg>
             </button>
-            <span className={`px-2 text-sm font-semibold min-w-[2rem] text-center ${
-              voteScore > 0 ? 'text-pink-600' : voteScore < 0 ? 'text-red-500' : 'text-gray-700'
-            }`}>
+            <span className={`px-2 text-sm font-semibold min-w-[2rem] text-center ${voteScore > 0 ? 'text-pink-600' : voteScore < 0 ? 'text-red-500' : 'text-gray-700'
+              }`}>
               {voteScore}
             </span>
             <button
@@ -994,6 +995,23 @@ export default function CommunityFeedPage() {
     limit: 10,
   };
 
+  const { data: topBannerAds } = useInfiniteQuery({
+    queryKey: ['bannerAds', 'BANNER_TOP'],
+    queryFn: () => getActiveBannerAds('BANNER_TOP'),
+    initialPageParam: 1,
+    getNextPageParam: () => undefined,
+  });
+
+  const { data: feedBannerAds } = useInfiniteQuery({
+    queryKey: ['bannerAds', 'FEED'],
+    queryFn: () => getActiveBannerAds('FEED'),
+    initialPageParam: 1,
+    getNextPageParam: () => undefined,
+  });
+
+  const topBanners = topBannerAds?.pages?.[0] || [];
+  const feedBanners = feedBannerAds?.pages?.[0] || [];
+
   const {
     data,
     isLoading,
@@ -1012,6 +1030,13 @@ export default function CommunityFeedPage() {
 
         {/* Center Feed */}
         <main className="flex-1 min-w-0 flex flex-col gap-4">
+          {/* Top Banner Ad */}
+          {topBanners.length > 0 && (
+            <div className="mb-2">
+              <FeedAd ad={topBanners[0]} />
+            </div>
+          )}
+
           {/* Create Post Card */}
           <CreatePostCard />
 
@@ -1022,11 +1047,10 @@ export default function CommunityFeedPage() {
                 <button
                   key={tab.value}
                   onClick={() => setView(tab.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    view === tab.value
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === tab.value
                       ? 'bg-gray-100 text-gray-900 font-semibold'
                       : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -1051,11 +1075,10 @@ export default function CommunityFeedPage() {
               <button
                 key={filter.label}
                 onClick={() => setTypeFilter(filter.value)}
-                className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-                  typeFilter === filter.value
+                className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${typeFilter === filter.value
                     ? 'bg-pink-600 text-white shadow-sm'
                     : 'bg-white text-gray-600 border border-gray-200 hover:border-pink-300 hover:text-pink-600'
-                }`}
+                  }`}
               >
                 {filter.label}
               </button>
@@ -1118,9 +1141,21 @@ export default function CommunityFeedPage() {
             </Card>
           ) : (
             <div className="flex flex-col gap-4">
-              {allPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
-              ))}
+              {allPosts.map((post, index) => {
+                // Interject an ad every 7 posts if feed ads are available
+                const shouldShowAd = (index + 1) % 7 === 0;
+                const adIndex = Math.floor(index / 7) % Math.max(feedBanners.length, 1);
+                const feedAd = feedBanners[adIndex];
+
+                return (
+                  <div key={post.id} className="flex flex-col gap-4">
+                    <PostCard post={post} />
+                    {shouldShowAd && feedAd && (
+                      <FeedAd ad={feedAd} />
+                    )}
+                  </div>
+                );
+              })}
               {hasNextPage && (
                 <div className="flex justify-center pt-2">
                   <Button

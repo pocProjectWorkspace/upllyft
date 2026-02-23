@@ -22,7 +22,7 @@ import { Role, AdPlacement, AdStatus } from '@prisma/client';
 
 @Controller('banner-ads')
 export class BannerAdsController {
-  constructor(private readonly bannerAdsService: BannerAdsService) {}
+  constructor(private readonly bannerAdsService: BannerAdsService) { }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)

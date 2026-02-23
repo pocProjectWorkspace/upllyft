@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCases } from '@/hooks/use-cases';
+import { useAuth } from '@upllyft/api-client';
 import type { Case } from '@/lib/api/cases';
 import { caseStatusColors, caseStatusLabels, formatDate } from '@/lib/utils';
 import { Button, Input, Badge, Card, Skeleton } from '@upllyft/ui';
@@ -12,6 +13,9 @@ export function CaseListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const statusFilter = searchParams.get('status') || 'ALL';
+  const { user } = useAuth();
+  const clinic = user?.clinic;
+
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -28,6 +32,44 @@ export function CaseListView() {
 
   return (
     <div>
+      {/* Clinic Branding Banner */}
+      {clinic && (clinic.bannerUrl || clinic.logoUrl) && (
+        <div
+          className="relative w-full h-32 md:h-48 rounded-xl overflow-hidden mb-8"
+          style={{ backgroundColor: clinic.primaryColor ?? '#0f766e' }}
+        >
+          {clinic.bannerUrl && (
+            <img
+              src={clinic.bannerUrl ?? undefined}
+              alt={`${clinic.name} Banner`}
+              className="absolute inset-0 w-full h-full object-cover opacity-90 mix-blend-overlay"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+
+          <div className="absolute bottom-0 left-0 p-6 flex items-end gap-4 w-full">
+            {clinic.logoUrl && (
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-white rounded-lg p-1.5 shadow-lg shrink-0">
+                <img
+                  src={clinic.logoUrl ?? undefined}
+                  alt={`${clinic.name} Logo`}
+                  className="w-full h-full object-contain rounded-md"
+                />
+              </div>
+            )}
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white shadow-sm">{clinic.name}</h1>
+              {clinic.accentColor && (
+                <div
+                  className="w-12 h-1.5 mt-2 rounded-full shadow-sm"
+                  style={{ backgroundColor: clinic.accentColor ?? undefined }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -93,7 +135,8 @@ export function CaseListView() {
             <Button
               variant="primary"
               onClick={() => router.push('/new')}
-              className="bg-teal-600 hover:bg-teal-700"
+              style={clinic?.primaryColor ? { backgroundColor: clinic.primaryColor as string, borderColor: clinic.primaryColor as string } : {}}
+              className={!clinic?.primaryColor ? "bg-teal-600 hover:bg-teal-700" : "hover:opacity-90"}
             >
               New Case
             </Button>

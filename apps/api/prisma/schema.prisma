@@ -114,47 +114,47 @@ model User {
   bannerAds               BannerAd[]
 
   // Case management relations
-  caseInternalNotes       CaseInternalNote[]       @relation("CaseInternalNotes")
-  createdIEPs             IEP[]                    @relation("CreatedIEPs")
-  createdIEPTemplates     IEPTemplate[]            @relation("CreatedIEPTemplates")
-  caseDocuments           CaseDocument[]           @relation("CaseDocuments")
-  caseSharedWith          CaseShare[]              @relation("CaseSharedWith")
-  caseSharedBy            CaseShare[]              @relation("CaseSharedBy")
-  createdTreatmentPlans   TreatmentPlan[]          @relation("CreatedTreatmentPlans")
-  caseAuditLogs           CaseAuditLog[]           @relation("CaseAuditLogs")
-  caseConsents            CaseConsent[]            @relation("CaseConsents")
-  caseSessions            CaseSession[]            @relation("CaseSessionTherapist")
+  caseInternalNotes     CaseInternalNote[] @relation("CaseInternalNotes")
+  createdIEPs           IEP[]              @relation("CreatedIEPs")
+  createdIEPTemplates   IEPTemplate[]      @relation("CreatedIEPTemplates")
+  caseDocuments         CaseDocument[]     @relation("CaseDocuments")
+  caseSharedWith        CaseShare[]        @relation("CaseSharedWith")
+  caseSharedBy          CaseShare[]        @relation("CaseSharedBy")
+  createdTreatmentPlans TreatmentPlan[]    @relation("CreatedTreatmentPlans")
+  caseAuditLogs         CaseAuditLog[]     @relation("CaseAuditLogs")
+  caseConsents          CaseConsent[]      @relation("CaseConsents")
+  caseSessions          CaseSession[]      @relation("CaseSessionTherapist")
 
   // Learning resources relations
-  worksheets              Worksheet[]              @relation("UserWorksheets")
+  worksheets                   Worksheet[]           @relation("UserWorksheets")
   sentWorksheetAssignments     WorksheetAssignment[] @relation("SentWorksheetAssignments")
   receivedWorksheetAssignments WorksheetAssignment[] @relation("ReceivedWorksheetAssignments")
-  worksheetReviews        WorksheetReview[]         @relation("UserWorksheetReviews")
-  worksheetFlags          WorksheetFlag[]           @relation("UserWorksheetFlags")
-  resolvedWorksheetFlags  WorksheetFlag[]           @relation("ResolvedWorksheetFlags")
+  worksheetReviews             WorksheetReview[]     @relation("UserWorksheetReviews")
+  worksheetFlags               WorksheetFlag[]       @relation("UserWorksheetFlags")
+  resolvedWorksheetFlags       WorksheetFlag[]       @relation("ResolvedWorksheetFlags")
 
   // Phase 2: Consent, Billing, Messaging, Notifications
-  consentFormsAsPatient   ConsentForm[]        @relation("ConsentFormPatient")
-  consentFormsSent        ConsentForm[]        @relation("ConsentFormSentBy")
-  credentials             Credential[]         @relation("TherapistCredentials")
-  uploadedCredentials     Credential[]         @relation("UploadedCredentials")
-  invoicesAsPatient       Invoice[]            @relation("InvoicePatient")
-  invoicesAsTherapist     Invoice[]            @relation("InvoiceTherapist")
-  sentMessages            Message[]            @relation("MessageSender")
-  parentConversations     Conversation[]       @relation("ParentConversations")
-  therapistConversations  Conversation[]       @relation("TherapistConversations")
-  deviceTokens            DeviceToken[]        @relation("UserDeviceTokens")
+  consentFormsAsPatient  ConsentForm[]  @relation("ConsentFormPatient")
+  consentFormsSent       ConsentForm[]  @relation("ConsentFormSentBy")
+  credentials            Credential[]   @relation("TherapistCredentials")
+  uploadedCredentials    Credential[]   @relation("UploadedCredentials")
+  invoicesAsPatient      Invoice[]      @relation("InvoicePatient")
+  invoicesAsTherapist    Invoice[]      @relation("InvoiceTherapist")
+  sentMessages           Message[]      @relation("MessageSender")
+  parentConversations    Conversation[] @relation("ParentConversations")
+  therapistConversations Conversation[] @relation("TherapistConversations")
+  deviceTokens           DeviceToken[]  @relation("UserDeviceTokens")
 
   // Mira conversations
-  miraConversations       MiraConversation[]
+  miraConversations MiraConversation[]
 
   // PDPL audit logs
-  auditLogs               AuditLog[]           @relation("AuditLogs")
+  auditLogs AuditLog[] @relation("AuditLogs")
 
   // Verified contributor
-  isVerifiedContributor   Boolean                   @default(false)
-  verifiedContributorAt   DateTime?
-  contributorBio          String?
+  isVerifiedContributor Boolean   @default(false)
+  verifiedContributorAt DateTime?
+  contributorBio        String?
 
   @@index([email])
   @@index([role])
@@ -1292,7 +1292,7 @@ model UserProfile {
 }
 
 model Child {
-  id                                    String           @id @default(cuid())
+  id                                    String                   @id @default(cuid())
   profileId                             String
   firstName                             String
   nickname                              String?
@@ -1300,10 +1300,10 @@ model Child {
   gender                                String
   schoolType                            String?
   grade                                 String?
-  hasCondition                          Boolean          @default(false)
+  hasCondition                          Boolean                  @default(false)
   diagnosisStatus                       String?
-  createdAt                             DateTime         @default(now())
-  updatedAt                             DateTime         @updatedAt
+  createdAt                             DateTime                 @default(now())
+  updatedAt                             DateTime                 @updatedAt
   address                               String?
   attendancePattern                     String?
   birthComplications                    String?
@@ -1338,20 +1338,23 @@ model Child {
   takingMedications                     Boolean?
   teacherConcerns                       String?
   visionHearingIssues                   String?
-  clinicStatus                          ClinicStatus     @default(INTAKE)
-  walkinCreatedByAdmin                  Boolean          @default(false)
+  clinicStatus                          ClinicStatus             @default(INTAKE)
+  walkinCreatedByAdmin                  Boolean                  @default(false)
+  clinicId                              String?
+  clinic                                Clinic?                  @relation(fields: [clinicId], references: [id])
   assessments                           Assessment[]
   conditions                            ChildCondition[]
   cases                                 Case[]
   miraConversations                     MiraConversation[]
-  worksheets                            Worksheet[]      @relation("ChildWorksheets")
-  worksheetAssignments                  WorksheetAssignment[] @relation("ChildWorksheetAssignments")
+  worksheets                            Worksheet[]              @relation("ChildWorksheets")
+  worksheetAssignments                  WorksheetAssignment[]    @relation("ChildWorksheetAssignments")
   worksheetCompletions                  WorksheetCompletion[]
   worksheetEffectiveness                WorksheetEffectiveness[]
-  profile                               UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile                               UserProfile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
   @@index([dateOfBirth])
+  @@index([clinicId])
   @@map("children")
 }
 
@@ -1414,8 +1417,9 @@ model Organization {
   therapistLinks       TherapistOrganizationLink[]
 
   // Case management relations
-  cases                Case[]
-  iepTemplates         IEPTemplate[]
+  cases        Case[]
+  iepTemplates IEPTemplate[]
+  clinics      Clinic[]      @relation("OrganizationClinics")
 
   @@index([slug])
 }
@@ -1480,12 +1484,12 @@ model FcmToken {
 }
 
 model ClinicalConversation {
-  id        String            @id @default(cuid())
+  id        String             @id @default(cuid())
   userId    String
   title     String
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  ClinicalMessage[]
   feedbacks ClinicalFeedback[]
   shares    InsightShare[]
@@ -1522,7 +1526,7 @@ model ClinicalFeedback {
   id             String               @id @default(cuid())
   userId         String
   conversationId String
-  value          Int                  // 1 (helpful) or -1 (not helpful)
+  value          Int // 1 (helpful) or -1 (not helpful)
   comment        String?
   createdAt      DateTime             @default(now())
   user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1551,30 +1555,30 @@ model InsightShare {
 }
 
 model Assessment {
-  id                String               @id @default(cuid())
-  childId           String
-  ageGroup          String
-  status            AssessmentStatus     @default(IN_PROGRESS)
-  tier1Completed    Boolean              @default(false)
-  tier2Completed    Boolean              @default(false)
-  tier1CompletedAt  DateTime?
-  tier2CompletedAt  DateTime?
-  completedAt       DateTime?
-  expiresAt         DateTime?
-  overallScore      Float?
-  domainScores      Json?
-  flaggedDomains    String[]             @default([])
-  reportGenerated   Boolean              @default(false)
-  reportGeneratedAt DateTime?
-  v2ReportGenerated Boolean              @default(false)
+  id                  String               @id @default(cuid())
+  childId             String
+  ageGroup            String
+  status              AssessmentStatus     @default(IN_PROGRESS)
+  tier1Completed      Boolean              @default(false)
+  tier2Completed      Boolean              @default(false)
+  tier1CompletedAt    DateTime?
+  tier2CompletedAt    DateTime?
+  completedAt         DateTime?
+  expiresAt           DateTime?
+  overallScore        Float?
+  domainScores        Json?
+  flaggedDomains      String[]             @default([])
+  reportGenerated     Boolean              @default(false)
+  reportGeneratedAt   DateTime?
+  v2ReportGenerated   Boolean              @default(false)
   v2ReportGeneratedAt DateTime?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  reports           AssessmentReport[]
-  responses         AssessmentResponse[]
-  shares            AssessmentShare[]
-  child             Child                @relation(fields: [childId], references: [id], onDelete: Cascade)
-  worksheets        Worksheet[]          @relation("WorksheetScreening")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  reports             AssessmentReport[]
+  responses           AssessmentResponse[]
+  shares              AssessmentShare[]
+  child               Child                @relation(fields: [childId], references: [id], onDelete: Cascade)
+  worksheets          Worksheet[]          @relation("WorksheetScreening")
 
   @@index([childId])
   @@index([status])
@@ -1675,8 +1679,8 @@ model TherapistProfile {
   user                     User                        @relation("TherapistProfile", fields: [userId], references: [id], onDelete: Cascade)
 
   // Case management relations
-  primaryCases             Case[]                      @relation("PrimaryTherapistCases")
-  caseAssignments          CaseTherapist[]             @relation("CaseTherapistAssignments")
+  primaryCases    Case[]          @relation("PrimaryTherapistCases")
+  caseAssignments CaseTherapist[] @relation("CaseTherapistAssignments")
 
   @@index([userId])
   @@index([isActive])
@@ -1789,7 +1793,7 @@ model AvailabilityException {
 }
 
 model Booking {
-  id                           String                         @id @default(cuid())
+  id                           String        @id @default(cuid())
   patientId                    String
   therapistId                  String
   sessionTypeId                String
@@ -1798,15 +1802,15 @@ model Booking {
   endDateTime                  DateTime
   timezone                     String
   duration                     Int
-  status                       BookingStatus                  @default(PENDING_PAYMENT)
+  status                       BookingStatus @default(PENDING_PAYMENT)
   subtotal                     Float
   platformFee                  Float
-  platformFeePercentage        Float                          @default(15)
+  platformFeePercentage        Float         @default(15)
   therapistAmount              Float
-  organizationAmount           Float                          @default(0)
-  currency                     String                         @default("USD")
-  stripePaymentIntentId        String?                        @unique
-  paymentStatus                PaymentStatus                  @default(PENDING)
+  organizationAmount           Float         @default(0)
+  currency                     String        @default("USD")
+  stripePaymentIntentId        String?       @unique
+  paymentStatus                PaymentStatus @default(PENDING)
   paidAt                       DateTime?
   escrowReleasedAt             DateTime?
   googleMeetLink               String?
@@ -1815,42 +1819,42 @@ model Booking {
   patientJoinedAt              DateTime?
   therapistJoinedAt            DateTime?
   sessionCompletedAt           DateTime?
-  patientConfirmedCompletion   Boolean                        @default(false)
-  therapistConfirmedCompletion Boolean                        @default(false)
+  patientConfirmedCompletion   Boolean       @default(false)
+  therapistConfirmedCompletion Boolean       @default(false)
   cancelledBy                  String?
   cancelledAt                  DateTime?
   cancellationReason           String?
   refundAmount                 Float?
   refundedAt                   DateTime?
   patientNotes                 String?
-  patientFiles                 String[]                       @default([])
+  patientFiles                 String[]      @default([])
   therapistAcceptedAt          DateTime?
   therapistRejectedAt          DateTime?
   rejectionReason              String?
   acceptanceDeadline           DateTime?
 
-  reminderSent                 Boolean                        @default(false)
+  reminderSent Boolean @default(false)
 
   // Clinic tracking fields
-  trackingStatus               TrackingStatus?
-  checkedInAt                  DateTime?
-  sessionStartedAt             DateTime?
-  sessionEndedAt               DateTime?
-  receptionistNotes            String?
-  clinicId                     String?
+  trackingStatus    TrackingStatus?
+  checkedInAt       DateTime?
+  sessionStartedAt  DateTime?
+  sessionEndedAt    DateTime?
+  receptionistNotes String?
+  clinicId          String?
 
-  createdAt                    DateTime                       @default(now())
-  updatedAt                    DateTime                       @updatedAt
-  questionnaireResponses       BookingQuestionnaireResponse[]
-  organization                 Organization?                  @relation(fields: [organizationId], references: [id])
-  patient                      User                           @relation("PatientBookings", fields: [patientId], references: [id])
-  sessionType                  SessionType                    @relation(fields: [sessionTypeId], references: [id])
-  therapist                    TherapistProfile               @relation(fields: [therapistId], references: [id])
-  clinic                       Clinic?                        @relation("ClinicBookings", fields: [clinicId], references: [id])
-  disputes                     SessionDispute[]
-  ratings                      SessionRating[]
-  caseSession                  CaseSession?
-  invoice                      Invoice?
+  createdAt              DateTime                       @default(now())
+  updatedAt              DateTime                       @updatedAt
+  questionnaireResponses BookingQuestionnaireResponse[]
+  organization           Organization?                  @relation(fields: [organizationId], references: [id])
+  patient                User                           @relation("PatientBookings", fields: [patientId], references: [id])
+  sessionType            SessionType                    @relation(fields: [sessionTypeId], references: [id])
+  therapist              TherapistProfile               @relation(fields: [therapistId], references: [id])
+  clinic                 Clinic?                        @relation("ClinicBookings", fields: [clinicId], references: [id])
+  disputes               SessionDispute[]
+  ratings                SessionRating[]
+  caseSession            CaseSession?
+  invoice                Invoice?
 
   @@index([patientId])
   @@index([therapistId])
@@ -2069,29 +2073,29 @@ model Worksheet {
   parsedReportData  Json?
 
   // Session notes data source
-  sessionNoteIds    String[]
+  sessionNoteIds String[]
 
   // Version tracking
-  version           Int                 @default(1)
-  parentVersionId   String?
-  parentVersion     Worksheet?          @relation("WorksheetVersions", fields: [parentVersionId], references: [id])
-  childVersions     Worksheet[]         @relation("WorksheetVersions")
+  version         Int         @default(1)
+  parentVersionId String?
+  parentVersion   Worksheet?  @relation("WorksheetVersions", fields: [parentVersionId], references: [id])
+  childVersions   Worksheet[] @relation("WorksheetVersions")
 
   // Community library fields
-  isPublic          Boolean             @default(false)
-  publishedAt       DateTime?
-  contributorNotes  String?
-  clonedFromId      String?
-  clonedFrom        Worksheet?          @relation("WorksheetClones", fields: [clonedFromId], references: [id])
-  clones            Worksheet[]         @relation("WorksheetClones")
-  cloneCount        Int                 @default(0)
-  averageRating     Float?
-  reviewCount       Int                 @default(0)
+  isPublic         Boolean     @default(false)
+  publishedAt      DateTime?
+  contributorNotes String?
+  clonedFromId     String?
+  clonedFrom       Worksheet?  @relation("WorksheetClones", fields: [clonedFromId], references: [id])
+  clones           Worksheet[] @relation("WorksheetClones")
+  cloneCount       Int         @default(0)
+  averageRating    Float?
+  reviewCount      Int         @default(0)
 
   createdById   String
-  createdBy     User                @relation("UserWorksheets", fields: [createdById], references: [id])
+  createdBy     User                     @relation("UserWorksheets", fields: [createdById], references: [id])
   childId       String?
-  child         Child?              @relation("ChildWorksheets", fields: [childId], references: [id])
+  child         Child?                   @relation("ChildWorksheets", fields: [childId], references: [id])
   images        WorksheetImage[]
   assignments   WorksheetAssignment[]
   reviews       WorksheetReview[]
@@ -2099,8 +2103,8 @@ model Worksheet {
   completions   WorksheetCompletion[]
   effectiveness WorksheetEffectiveness[]
 
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([createdById])
   @@index([childId])
@@ -2116,43 +2120,43 @@ model Worksheet {
 }
 
 model WorksheetImage {
-  id            String               @id @default(cuid())
-  worksheetId   String
-  worksheet     Worksheet            @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
-  imageUrl      String
-  prompt        String
-  altText       String
-  position      Int
-  status        WorksheetImageStatus @default(PENDING)
+  id          String               @id @default(cuid())
+  worksheetId String
+  worksheet   Worksheet            @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  imageUrl    String
+  prompt      String
+  altText     String
+  position    Int
+  status      WorksheetImageStatus @default(PENDING)
 
-  createdAt     DateTime             @default(now())
+  createdAt DateTime @default(now())
 
   @@index([worksheetId])
   @@map("worksheet_images")
 }
 
 model WorksheetAssignment {
-  id            String                    @id @default(cuid())
-  worksheetId   String
-  worksheet     Worksheet                 @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
-  assignedById  String
-  assignedBy    User                      @relation("SentWorksheetAssignments", fields: [assignedById], references: [id])
-  assignedToId  String
-  assignedTo    User                      @relation("ReceivedWorksheetAssignments", fields: [assignedToId], references: [id])
-  childId       String
-  child         Child                     @relation("ChildWorksheetAssignments", fields: [childId], references: [id])
-  caseId        String?
-  case          Case?                     @relation("CaseWorksheetAssignments", fields: [caseId], references: [id])
-  status        WorksheetAssignmentStatus @default(ASSIGNED)
-  dueDate       DateTime?
-  notes         String?
-  parentNotes   String?
-  completedAt   DateTime?
-  viewedAt      DateTime?
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
+  id           String                    @id @default(cuid())
+  worksheetId  String
+  worksheet    Worksheet                 @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  assignedById String
+  assignedBy   User                      @relation("SentWorksheetAssignments", fields: [assignedById], references: [id])
+  assignedToId String
+  assignedTo   User                      @relation("ReceivedWorksheetAssignments", fields: [assignedToId], references: [id])
+  childId      String
+  child        Child                     @relation("ChildWorksheetAssignments", fields: [childId], references: [id])
+  caseId       String?
+  case         Case?                     @relation("CaseWorksheetAssignments", fields: [caseId], references: [id])
+  status       WorksheetAssignmentStatus @default(ASSIGNED)
+  dueDate      DateTime?
+  notes        String?
+  parentNotes  String?
+  completedAt  DateTime?
+  viewedAt     DateTime?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
 
-  completions   WorksheetCompletion[]
+  completions WorksheetCompletion[]
 
   @@unique([worksheetId, assignedToId, childId])
   @@index([assignedById])
@@ -2164,17 +2168,17 @@ model WorksheetAssignment {
 }
 
 model WorksheetReview {
-  id            String    @id @default(cuid())
-  worksheetId   String
-  worksheet     Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User      @relation("UserWorksheetReviews", fields: [userId], references: [id])
-  rating        Int
-  reviewText    String?
-  helpfulCount  Int       @default(0)
+  id           String    @id @default(cuid())
+  worksheetId  String
+  worksheet    Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation("UserWorksheetReviews", fields: [userId], references: [id])
+  rating       Int
+  reviewText   String?
+  helpfulCount Int       @default(0)
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([worksheetId, userId])
   @@index([worksheetId])
@@ -2184,20 +2188,20 @@ model WorksheetReview {
 }
 
 model WorksheetFlag {
-  id            String              @id @default(cuid())
-  worksheetId   String
-  worksheet     Worksheet           @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
-  flaggedById   String
-  flaggedBy     User                @relation("UserWorksheetFlags", fields: [flaggedById], references: [id])
-  reason        WorksheetFlagReason
-  details       String?
-  status        WorksheetFlagStatus @default(PENDING)
-  resolvedById  String?
-  resolvedBy    User?               @relation("ResolvedWorksheetFlags", fields: [resolvedById], references: [id])
-  resolvedAt    DateTime?
-  resolution    String?
+  id           String              @id @default(cuid())
+  worksheetId  String
+  worksheet    Worksheet           @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  flaggedById  String
+  flaggedBy    User                @relation("UserWorksheetFlags", fields: [flaggedById], references: [id])
+  reason       WorksheetFlagReason
+  details      String?
+  status       WorksheetFlagStatus @default(PENDING)
+  resolvedById String?
+  resolvedBy   User?               @relation("ResolvedWorksheetFlags", fields: [resolvedById], references: [id])
+  resolvedAt   DateTime?
+  resolution   String?
 
-  createdAt     DateTime            @default(now())
+  createdAt DateTime @default(now())
 
   @@index([worksheetId])
   @@index([flaggedById])
@@ -2230,18 +2234,18 @@ model WorksheetCompletion {
 }
 
 model WorksheetEffectiveness {
-  id              String    @id @default(cuid())
-  worksheetId     String
-  worksheet       Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
-  childId         String
-  child           Child     @relation(fields: [childId], references: [id])
-  domain          String
-  preScore        Float?
-  postScore       Float?
-  progressDelta   Float?
-  goalId          String?
-  goalProgress    Float?
-  measuredAt      DateTime  @default(now())
+  id            String    @id @default(cuid())
+  worksheetId   String
+  worksheet     Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  childId       String
+  child         Child     @relation(fields: [childId], references: [id])
+  domain        String
+  preScore      Float?
+  postScore     Float?
+  progressDelta Float?
+  goalId        String?
+  goalProgress  Float?
+  measuredAt    DateTime  @default(now())
 
   @@index([worksheetId])
   @@index([childId])
@@ -2284,6 +2288,7 @@ enum Role {
   EDUCATOR
   ORGANIZATION
   ADMIN
+  SUPERADMIN
   MODERATOR
 }
 
@@ -2628,7 +2633,7 @@ model AdAnalytics {
   id         String   @id @default(uuid())
   bannerAdId String
   bannerAd   BannerAd @relation(fields: [bannerAdId], references: [id], onDelete: Cascade)
-  type       String   // "impression" or "click"
+  type       String // "impression" or "click"
   userId     String?
   userAgent  String?
   ip         String?
@@ -2641,41 +2646,41 @@ model AdAnalytics {
 // ─── CASE MANAGEMENT ─────────────────────────────────────
 
 model Case {
-  id                 String            @id @default(cuid())
-  caseNumber         String            @unique
+  id                 String           @id @default(cuid())
+  caseNumber         String           @unique
   childId            String
-  child              Child             @relation(fields: [childId], references: [id])
+  child              Child            @relation(fields: [childId], references: [id])
   primaryTherapistId String
-  primaryTherapist   TherapistProfile  @relation("PrimaryTherapistCases", fields: [primaryTherapistId], references: [id])
-  status             CaseStatus        @default(ACTIVE)
+  primaryTherapist   TherapistProfile @relation("PrimaryTherapistCases", fields: [primaryTherapistId], references: [id])
+  status             CaseStatus       @default(ACTIVE)
   diagnosis          String?
   referralSource     String?
   notes              String?
-  openedAt           DateTime          @default(now())
+  openedAt           DateTime         @default(now())
   dischargedAt       DateTime?
   dischargeReason    String?
   organizationId     String?
-  organization       Organization?     @relation(fields: [organizationId], references: [id])
+  organization       Organization?    @relation(fields: [organizationId], references: [id])
   clinicId           String?
-  clinic             Clinic?           @relation("ClinicCases", fields: [clinicId], references: [id])
+  clinic             Clinic?          @relation("ClinicCases", fields: [clinicId], references: [id])
 
-  therapists         CaseTherapist[]
-  ieps               IEP[]
-  milestonePlans     MilestonePlan[]
-  sessions           CaseSession[]
-  documents          CaseDocument[]
-  auditLogs          CaseAuditLog[]
-  billingRecords     CaseBilling[]
-  consents           CaseConsent[]
-  treatmentPlans     TreatmentPlan[]
-  sharedItems        CaseShare[]
-  internalNotes      CaseInternalNote[]
-  worksheets         Worksheet[]       @relation("CaseWorksheets")
+  therapists           CaseTherapist[]
+  ieps                 IEP[]
+  milestonePlans       MilestonePlan[]
+  sessions             CaseSession[]
+  documents            CaseDocument[]
+  auditLogs            CaseAuditLog[]
+  billingRecords       CaseBilling[]
+  consents             CaseConsent[]
+  treatmentPlans       TreatmentPlan[]
+  sharedItems          CaseShare[]
+  internalNotes        CaseInternalNote[]
+  worksheets           Worksheet[]           @relation("CaseWorksheets")
   worksheetAssignments WorksheetAssignment[] @relation("CaseWorksheetAssignments")
-  conversations      Conversation[]
+  conversations        Conversation[]
 
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([childId])
   @@index([primaryTherapistId])
@@ -2735,14 +2740,14 @@ model IEP {
   meetingNotes          Json?
   pdfUrl                String?
 
-  goals                 IEPGoal[]
+  goals IEPGoal[]
 
-  previousVersionId     String?      @unique
-  previousVersion       IEP?         @relation("IEPVersioning", fields: [previousVersionId], references: [id])
-  nextVersion           IEP?         @relation("IEPVersioning")
+  previousVersionId String? @unique
+  previousVersion   IEP?    @relation("IEPVersioning", fields: [previousVersionId], references: [id])
+  nextVersion       IEP?    @relation("IEPVersioning")
 
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([caseId])
   @@index([status])
@@ -2769,22 +2774,22 @@ model IEPTemplate {
 }
 
 model IEPGoal {
-  id                        String              @id @default(cuid())
+  id                        String     @id @default(cuid())
   iepId                     String
-  iep                       IEP                 @relation(fields: [iepId], references: [id], onDelete: Cascade)
+  iep                       IEP        @relation(fields: [iepId], references: [id], onDelete: Cascade)
   domain                    String
   goalText                  String
   targetDate                DateTime?
   baselineScreeningId       String?
-  currentProgress           Float               @default(0)
-  status                    GoalStatus          @default(NOT_STARTED)
+  currentProgress           Float      @default(0)
+  status                    GoalStatus @default(NOT_STARTED)
   linkedScreeningIndicators Json?
-  order                     Int                 @default(0)
+  order                     Int        @default(0)
 
-  sessionProgress           SessionGoalProgress[]
+  sessionProgress SessionGoalProgress[]
 
-  createdAt                 DateTime            @default(now())
-  updatedAt                 DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([iepId])
   @@index([status])
@@ -2809,22 +2814,22 @@ model GoalBankItem {
 // ─── MILESTONE PLANS ─────────────────────────────────────
 
 model MilestonePlan {
-  id               String      @id @default(cuid())
+  id               String  @id @default(cuid())
   caseId           String
-  case             Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  version          Int         @default(1)
-  status           String      @default("active")
+  case             Case    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  version          Int     @default(1)
+  status           String  @default("active")
   pdfUrl           String?
-  sharedWithParent Boolean     @default(false)
+  sharedWithParent Boolean @default(false)
 
-  milestones       Milestone[]
+  milestones Milestone[]
 
-  previousVersionId String?    @unique
+  previousVersionId String?        @unique
   previousVersion   MilestonePlan? @relation("MilestonePlanVersioning", fields: [previousVersionId], references: [id])
   nextVersion       MilestonePlan? @relation("MilestonePlanVersioning")
 
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([caseId])
   @@map("milestone_plans")
@@ -2843,8 +2848,8 @@ model Milestone {
   achievedAt        DateTime?
   order             Int             @default(0)
 
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([planId])
   @@index([status])
@@ -2867,20 +2872,20 @@ model CaseSession {
   sessionType      String?
   location         String?
 
-  rawNotes         String?
-  aiSummary        String?
-  aiDraft          Json?
-  noteFormat       SessionNoteFormat?
-  structuredNotes  Json?
-  noteStatus       SessionNoteStatus @default(DRAFT)
-  signedAt         DateTime?
+  rawNotes        String?
+  aiSummary       String?
+  aiDraft         Json?
+  noteFormat      SessionNoteFormat?
+  structuredNotes Json?
+  noteStatus      SessionNoteStatus  @default(DRAFT)
+  signedAt        DateTime?
 
-  goalProgress     SessionGoalProgress[]
-  billing          CaseBilling?
-  invoice          Invoice?
+  goalProgress SessionGoalProgress[]
+  billing      CaseBilling?
+  invoice      Invoice?
 
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([caseId])
   @@index([therapistId])
@@ -2918,10 +2923,10 @@ model CaseDocument {
   createdById String
   createdBy   User             @relation("CaseDocuments", fields: [createdById], references: [id])
 
-  shares      CaseShare[]
+  shares CaseShare[]
 
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([caseId])
   @@index([type])
@@ -2960,8 +2965,8 @@ model TreatmentPlan {
   approvedAt  DateTime?
   expiresAt   DateTime?
 
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([caseId])
   @@index([status])
@@ -2982,8 +2987,8 @@ model CaseBilling {
   paidAt      DateTime?
   invoiceUrl  String?
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([caseId])
   @@index([status])
@@ -3024,7 +3029,7 @@ model CaseConsent {
   revokedAt   DateTime?
   notes       String?
 
-  createdAt   DateTime    @default(now())
+  createdAt DateTime @default(now())
 
   @@index([caseId])
   @@index([type])
@@ -3206,11 +3211,11 @@ model MiraMessage {
   id             String           @id @default(cuid())
   conversationId String
   conversation   MiraConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role           String           // 'user' | 'assistant'
+  role           String // 'user' | 'assistant'
   content        String
-  cards          Json?            // MiraCard[] as JSON
-  choices        Json?            // string[] as JSON
-  actions        Json?            // MiraAction[] as JSON
+  cards          Json? // MiraCard[] as JSON
+  choices        Json? // string[] as JSON
+  actions        Json? // MiraAction[] as JSON
   sentiment      String?
   createdAt      DateTime         @default(now())
 
@@ -3307,9 +3312,13 @@ model Invoice {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  clinicId String?
+  clinic   Clinic? @relation("ClinicInvoices", fields: [clinicId], references: [id])
+
   @@index([patientId])
   @@index([therapistId])
   @@index([status])
+  @@index([clinicId])
   @@map("invoices")
 }
 
@@ -3368,9 +3377,9 @@ model AuditLog {
   id           String   @id @default(cuid())
   userId       String
   user         User     @relation("AuditLogs", fields: [userId], references: [id])
-  resourceType String   // e.g. 'CaseSession', 'ConsentForm'
+  resourceType String // e.g. 'CaseSession', 'ConsentForm'
   resourceId   String
-  action       String   // e.g. 'READ', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'
+  action       String // e.g. 'READ', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'
   metadata     Json?
   timestamp    DateTime @default(now())
 
@@ -3383,21 +3392,30 @@ model AuditLog {
 // ─── CLINIC (UAE Multi-tenant Foundation) ─────────────────────────────────
 
 model Clinic {
-  id          String             @id @default(cuid())
-  name        String
-  logoUrl     String?
-  address     String?
-  licenseNo   String?
-  phone       String?
-  email       String?
-  adminId     String             @unique
-  admin       User               @relation("ClinicAdmin", fields: [adminId], references: [id])
-  therapists  TherapistProfile[] @relation("ClinicTherapists")
-  bookings    Booking[]          @relation("ClinicBookings")
-  cases       Case[]             @relation("ClinicCases")
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id             String             @id @default(cuid())
+  name           String
+  logoUrl        String?
+  bannerUrl      String?
+  primaryColor   String?
+  secondaryColor String?
+  accentColor    String?
+  address        String?
+  licenseNo      String?
+  phone          String?
+  email          String?
+  organizationId String?
+  organization   Organization?      @relation("OrganizationClinics", fields: [organizationId], references: [id])
+  adminId        String             @unique
+  admin          User               @relation("ClinicAdmin", fields: [adminId], references: [id])
+  therapists     TherapistProfile[] @relation("ClinicTherapists")
+  bookings       Booking[]          @relation("ClinicBookings")
+  cases          Case[]             @relation("ClinicCases")
+  children       Child[]
+  invoices       Invoice[]          @relation("ClinicInvoices")
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   @@index([adminId])
+  @@index([organizationId])
   @@map("clinics")
 }
