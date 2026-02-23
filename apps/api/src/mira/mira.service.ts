@@ -97,7 +97,7 @@ export class MiraService {
     private aiService: AiService,
   ) {
     this.openai = new OpenAI({
-      apiKey: this.configService.get<string>('OPENAI_API_KEY'),
+      apiKey: this.configService.get<string>('OPENAI_API_KEY') || 'dummy-key-to-prevent-crash',
     });
 
     const isProd = this.configService.get('NODE_ENV') === 'production';
@@ -627,10 +627,10 @@ Return ONLY valid JSON with these four keys:
             flaggedDomains: assessment.flaggedDomains || [],
             domainScores: domainScores
               ? Object.entries(domainScores).map(([domain, val]) => ({
-                  domain,
-                  score: Math.round((1 - val.riskIndex) * 100),
-                  status: val.status,
-                }))
+                domain,
+                score: Math.round((1 - val.riskIndex) * 100),
+                status: val.status,
+              }))
               : [],
           };
         }

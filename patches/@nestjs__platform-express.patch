@@ -1,0 +1,20 @@
+diff --git a/adapters/express-adapter.js b/adapters/express-adapter.js
+index fd11a17caad1ad0da2f39fb42bcc43495be5a362..f6d4d17b8aac5ea06d680c8b3f8a3dae66303b10 100644
+--- a/adapters/express-adapter.js
++++ b/adapters/express-adapter.js
+@@ -346,10 +346,11 @@ class ExpressAdapter extends http_adapter_1.AbstractHttpAdapter {
+     }
+     isMiddlewareApplied(name) {
+         const app = this.getInstance();
+-        return (!!app.router &&
+-            !!app.router.stack &&
+-            (0, shared_utils_1.isFunction)(app.router.stack.filter) &&
+-            app.router.stack.some((layer) => layer && layer.handle && layer.handle.name === name));
++        const router = app._router || (function () { try { return app.router; } catch (e) { return undefined; } })();
++        return (!!router &&
++            !!router.stack &&
++            (0, shared_utils_1.isFunction)(router.stack.filter) &&
++            router.stack.some((layer) => layer && layer.handle && layer.handle.name === name));
+     }
+ }
+ exports.ExpressAdapter = ExpressAdapter;

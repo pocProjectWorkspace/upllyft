@@ -1,27 +1,30 @@
 const fs = require('fs');
-const path = require('path');
+const { execSync } = require('child_process');
 
-function replaceSymlinkWithFolder(targetPath) {
-    if (!fs.existsSync(targetPath)) return;
-
-    const stat = fs.lstatSync(targetPath);
-    if (stat.isSymbolicLink() || stat.isDirectory()) {
-        try {
-            const realPath = fs.realpathSync(targetPath);
-            // If the real path is different from the target path, it's a symlink/junction
-            if (realPath !== path.resolve(targetPath)) {
-                console.log(`Resolving symlink for ${targetPath}...`);
-                fs.rmSync(targetPath, { recursive: true, force: true });
-                fs.cpSync(realPath, targetPath, { recursive: true });
-                console.log(`Successfully replaced ${targetPath} with physical folder.`);
-            } else {
-                console.log(`${targetPath} is already a physical folder.`);
-            }
-        } catch (e) {
-            console.error(`Error processing ${targetPath}:`, e);
+function safeUnlinkJunction(target) {
+    try {
+        const stat = fs.lstatSync(target);
+        if (stat.isSymbolicLink() || stat.isDirectory()) {
+            console.log(`Unlinking junction: ${target}`);
+            // Use rmdirSync to delete the Windows junction cleanly
+            fs.rmdirSync(target);
         }
+    } catch (e) {
+        // Ignore missing or regular files
     }
 }
 
-replaceSymlinkWithFolder('node_modules/@prisma/client');
-replaceSymlinkWithFolder('node_modules/.prisma');
+console.log('Preparing Prisma client for Serverless deployment on Windows...');
+
+// Force local physical generation by safely dropping the workspace junctions
+safeUnlinkJunction('node_modules/.prisma');
+safeUnlinkJunction('node_modules/@prisma/client');
+
+console.log('Generating Prisma client physically in local node_modules...');
+try {
+    execSync('npx prisma generate', { stdio: 'inherit', shell: true });
+    console.log('Prisma packaging prep successful.');
+} catch (error) {
+    console.error('Failed to run prisma generate:', error);
+    process.exit(1);
+}

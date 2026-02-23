@@ -34,7 +34,7 @@ export class ClinicalInsightsService {
     private aiService: AiService,
   ) {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
-    this.openai = new OpenAI({ apiKey });
+    this.openai = new OpenAI({ apiKey: apiKey || 'dummy-key-to-prevent-crash' });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -174,9 +174,9 @@ export class ClinicalInsightsService {
   }> {
     const domainSummary = domainScores
       ? Object.entries(domainScores).map(([key, val]) => {
-          const score = Math.round((1 - val.riskIndex) * 100);
-          return `- ${key}: ${score}% (${val.status})`;
-        }).join('\n')
+        const score = Math.round((1 - val.riskIndex) * 100);
+        return `- ${key}: ${score}% (${val.status})`;
+      }).join('\n')
       : 'No domain scores available';
 
     const conditions = (child.conditions || []).map((c: any) =>

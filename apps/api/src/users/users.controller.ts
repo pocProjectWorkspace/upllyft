@@ -68,7 +68,15 @@ export class UsersController {
   @UseInterceptors(
     FileInterceptor('image', {
       storage: diskStorage({
-        destination: process.env.IS_LAMBDA === 'true' ? os.tmpdir() : './uploads/avatars',
+        destination: (req, file, cb) => {
+          const isLambda = process.env.IS_LAMBDA === 'true';
+          const dest = isLambda ? os.tmpdir() : './uploads/avatars';
+          if (!isLambda) {
+            const fs = require('fs');
+            fs.mkdirSync(dest, { recursive: true });
+          }
+          cb(null, dest);
+        },
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)

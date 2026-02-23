@@ -25,8 +25,8 @@
     "prisma:studio": "prisma studio --schema=../../packages/database/prisma/schema.prisma",
     "db:seed:cases": "tsx prisma/seeds/seed-dr-meena-cases.ts",
     "db:seed:all": "pnpm db:seed && pnpm db:seed:events && pnpm db:seed:qa && pnpm db:seed:crisis",
-    "deploy:dev": "node copy-prisma.js && serverless deploy --stage dev",
-    "deploy:prod": "node copy-prisma.js && serverless deploy --stage prod",
+    "deploy:dev": "pnpm build && node copy-prisma.js && serverless deploy --stage dev",
+    "deploy:prod": "pnpm build && node copy-prisma.js && serverless deploy --stage prod",
     "offline": "serverless offline"
   },
   "dependencies": {
@@ -73,6 +73,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "docusign-esign": "^8.6.0",
+    "express": "^4.21.2",
     "express-session": "^1.18.2",
     "firebase-admin": "^13.6.0",
     "google-auth-library": "^10.5.0",

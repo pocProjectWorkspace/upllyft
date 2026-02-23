@@ -43,7 +43,7 @@ export class WorksheetRecommendationService {
     private readonly configService: ConfigService,
   ) {
     this.anthropic = new Anthropic({
-      apiKey: this.configService.get<string>('ANTHROPIC_API_KEY'),
+      apiKey: this.configService.get<string>('ANTHROPIC_API_KEY') || 'dummy-key-to-prevent-crash',
     });
     this.model = this.configService.get<string>(
       'ANTHROPIC_MODEL',
