@@ -102,11 +102,11 @@ export class MiraService {
 
     const isProd = this.configService.get('NODE_ENV') === 'production';
     this.appUrls = {
-      main: isProd ? 'https://app.upllyft.com' : 'http://localhost:3000',
-      screening: isProd ? 'https://screening.upllyft.com' : 'http://localhost:3003',
-      booking: isProd ? 'https://booking.upllyft.com' : 'http://localhost:3004',
-      community: isProd ? 'https://community.upllyft.com' : 'http://localhost:3002',
-      resources: isProd ? 'https://resources.upllyft.com' : 'http://localhost:3005',
+      main: isProd ? 'https://app.safehaven-upllyft.com' : 'http://localhost:3000',
+      screening: isProd ? 'https://screening.safehaven-upllyft.com' : 'http://localhost:3003',
+      booking: isProd ? 'https://booking.safehaven-upllyft.com' : 'http://localhost:3004',
+      community: isProd ? 'https://community.safehaven-upllyft.com' : 'http://localhost:3002',
+      resources: isProd ? 'https://resources.safehaven-upllyft.com' : 'http://localhost:3005',
     };
   }
 

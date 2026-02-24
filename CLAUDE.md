@@ -152,16 +152,16 @@ eas submit
 For production, all web apps should be served under a single domain to share authentication:
 
 ```
-upllyft.com          → web-main
-community.upllyft.com → web-community
-screening.upllyft.com → web-screening
-booking.upllyft.com   → web-booking
-resources.upllyft.com → web-resources
-cases.upllyft.com     → web-cases
-api.upllyft.com       → API
+safehaven-upllyft.com          → web-main
+community.safehaven-upllyft → web-community
+screening.safehaven-upllyft → web-screening
+booking.safehaven-upllyft   → web-booking
+resources.safehaven-upllyft → web-resources
+cases.safehaven-upllyft     → web-cases
+api.safehaven-upllyft       → API
 ```
 
-**Auth note:** In development, auth tokens are shared across ports via cookies on `localhost`. In production with subdomains, cookies are scoped to `.upllyft.com` domain for seamless cross-app authentication.
+**Auth note:** In development, auth tokens are shared across ports via cookies on `localhost`. In production with subdomains, cookies are scoped to `.safehaven-upllyft` domain for seamless cross-app authentication.
 
 ## Architecture
 

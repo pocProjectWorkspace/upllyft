@@ -1118,7 +1118,7 @@ export class OrganizationsService {
                         </div>
                         <p>If you believe this was done in error, please contact your organization administrator to request reactivation.</p>
                         <p style="font-size: 14px; color: #718096; margin-top: 30px;">
-                            Need help? Contact us at <a href="mailto:support@upllyft.com">support@upllyft.com</a>
+                            Need help? Contact us at <a href="mailto:support@safehaven-upllyft.com">support@safehaven-upllyft.com</a>
                         </p>
                     </div>
                 </div>

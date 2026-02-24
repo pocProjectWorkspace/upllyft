@@ -1,11 +1,11 @@
 export const APP_URLS = {
-  main: process.env.NODE_ENV === 'production' ? 'https://app.upllyft.com' : 'http://localhost:3000',
-  community: process.env.NODE_ENV === 'production' ? 'https://community.upllyft.com' : 'http://localhost:3002',
-  screening: process.env.NODE_ENV === 'production' ? 'https://screening.upllyft.com' : 'http://localhost:3003',
-  booking: process.env.NODE_ENV === 'production' ? 'https://booking.upllyft.com' : 'http://localhost:3004',
-  resources: process.env.NODE_ENV === 'production' ? 'https://resources.upllyft.com' : 'http://localhost:3005',
-  cases: process.env.NODE_ENV === 'production' ? 'https://cases.upllyft.com' : 'http://localhost:3006',
-  admin: process.env.NODE_ENV === 'production' ? 'https://admin.upllyft.com' : 'http://localhost:3007',
+  main: process.env.NODE_ENV === 'production' ? 'https://app.safehaven-upllyft.com' : 'http://localhost:3000',
+  community: process.env.NODE_ENV === 'production' ? 'https://community.safehaven-upllyft.com' : 'http://localhost:3002',
+  screening: process.env.NODE_ENV === 'production' ? 'https://screening.safehaven-upllyft.com' : 'http://localhost:3003',
+  booking: process.env.NODE_ENV === 'production' ? 'https://booking.safehaven-upllyft.com' : 'http://localhost:3004',
+  resources: process.env.NODE_ENV === 'production' ? 'https://resources.safehaven-upllyft.com' : 'http://localhost:3005',
+  cases: process.env.NODE_ENV === 'production' ? 'https://cases.safehaven-upllyft.com' : 'http://localhost:3006',
+  admin: process.env.NODE_ENV === 'production' ? 'https://admin.safehaven-upllyft.com' : 'http://localhost:3007',
 } as const;
 
 export type AppName = keyof typeof APP_URLS;

@@ -73,7 +73,7 @@ async function bootstrap() {
   origin: (origin, callback) => {
     const allowedOrigins = [
       'http://localhost:3000',
-      'http://localhost:3001','https://upllyft.com', 'https://www.upllyft.com',
+      'http://localhost:3001','https://upllyft.com', 'https://www.safhaven.upllyft.com',
       
       configService.get<string>('FRONTEND_URL', 'http://localhost:3000')
     ];

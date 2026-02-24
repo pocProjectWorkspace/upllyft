@@ -56,7 +56,7 @@
 | Session access logged | DONE | `CaseSessionsService.getSession()` writes an audit record when a session is viewed. |
 | ConsentForm access logged | DONE | `ConsentService.getSigningUrl()` writes an audit record when a consent form is accessed. |
 | Data export/deletion logged | DONE | Both `exportUserData` and `deleteUserData` admin endpoints write audit records. |
-| Admin UI behind HTTPS | PASS | Vercel enforces HTTPS for all deployments. The web-admin app at `admin.upllyft.com` is served over HTTPS with automatic certificate management. |
+| Admin UI behind HTTPS | PASS | Vercel enforces HTTPS for all deployments. The web-admin app at `adminsafehaven-upllyft` is served over HTTPS with automatic certificate management. |
 
 ---
 
