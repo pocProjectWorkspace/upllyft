@@ -30,7 +30,7 @@ export class WorksheetsService {
     private readonly pdfService: WorksheetPdfService,
     private readonly dataSourcesService: WorksheetDataSourcesService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   /**
    * Generate a new worksheet. Resolves data source, generates content,
@@ -48,10 +48,10 @@ export class WorksheetsService {
       childAge: sourceData.childAge,
       conditions: sourceData.conditions,
       developmentalNotes: sourceData.developmentalNotes,
-      subType: dto.subType,
+      subType: dto.subType ?? '',
       targetDomains: dto.targetDomains,
       difficulty: dto.difficulty,
-      interests: dto.interests,
+      interests: dto.interests ?? '',
       duration: dto.duration,
       setting: dto.setting,
       specialInstructions: dto.specialInstructions ?? '',
@@ -65,7 +65,7 @@ export class WorksheetsService {
       data: {
         title: content.title,
         type: dto.type,
-        subType: dto.subType,
+        subType: dto.subType ?? '',
         content: content as unknown as Prisma.JsonObject,
         metadata: {
           dataSource: dto.dataSource,
@@ -169,7 +169,7 @@ export class WorksheetsService {
 
       const imageMap = await this.imageService.generateImagesForWorksheet({
         activities: imagePrompts,
-        interests: dto.interests,
+        interests: dto.interests ?? '',
         setting: dto.setting,
         ageMonths,
         colorMode: dto.colorMode,
@@ -216,7 +216,7 @@ export class WorksheetsService {
       const { pdfUrl, previewUrl } = await this.pdfService.generatePdf({
         title: content.title,
         worksheetType: dto.type,
-        subType: dto.subType,
+        subType: dto.subType ?? '',
         difficulty: dto.difficulty,
         duration: dto.duration,
         setting: dto.setting,

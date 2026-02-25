@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
-import * as puppeteer from 'puppeteer';
+const pdfParse = require('pdf-parse');
 import {
   extractDomainScoreSummaries,
   mapFlaggedDomainsToWorksheetDomains,
@@ -129,9 +129,9 @@ export class WorksheetDataSourcesService {
 
     const domainScores = assessment.domainScores
       ? extractDomainScoreSummaries(
-          assessment.domainScores as Record<string, any>,
-          assessment.flaggedDomains,
-        )
+        assessment.domainScores as Record<string, any>,
+        assessment.flaggedDomains,
+      )
       : [];
 
     const suggestedWorksheetDomains = mapFlaggedDomainsToWorksheetDomains(
@@ -238,8 +238,10 @@ export class WorksheetDataSourcesService {
       source: { type: 'base64'; media_type: ImageMediaType; data: string };
     }> = [];
 
+    let extractedPdfText = '';
+
     if (fileType === 'pdf') {
-      imageDataList = await this.convertPdfToImages(reportUrl);
+      extractedPdfText = await this.extractTextFromPdf(reportUrl);
     } else {
       const response = await fetch(reportUrl);
       if (!response.ok) throw new Error('Failed to download report image');
@@ -256,6 +258,10 @@ export class WorksheetDataSourcesService {
       }];
     }
 
+    const reportContentPrompt = extractedPdfText
+      ? `\n\n--- REPORT CONTENT ---\n${extractedPdfText}\n--- END REPORT CONTENT ---\n`
+      : '';
+
     const result = await this.anthropic.messages.create({
       model: this.model,
       max_tokens: 4096,
@@ -266,7 +272,7 @@ export class WorksheetDataSourcesService {
           ...imageDataList,
           {
             type: 'text' as const,
-            text: `Analyze this therapy/assessment report and extract the following information as JSON:
+            text: `Analyze this therapy/assessment report and extract the following information as JSON:${reportContentPrompt}
 
 {
   "childAge": number | null,  // age in months if mentioned
@@ -370,47 +376,19 @@ Map each observed developmental area to one of the standard worksheet domains:
     return 'image/png';
   }
 
-  private async convertPdfToImages(
-    pdfUrl: string,
-  ): Promise<Array<{
-    type: 'image';
-    source: { type: 'base64'; media_type: ImageMediaType; data: string };
-  }>> {
-    const images: Array<{
-      type: 'image';
-      source: { type: 'base64'; media_type: ImageMediaType; data: string };
-    }> = [];
-
-    let browser: puppeteer.Browser | null = null;
+  private async extractTextFromPdf(pdfUrl: string): Promise<string> {
     try {
-      browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
-      const page = await browser.newPage();
-      await page.goto(pdfUrl, { waitUntil: 'networkidle0', timeout: 30000 });
-      await page.setViewport({ width: 1200, height: 1600 });
+      const response = await fetch(pdfUrl);
+      if (!response.ok) throw new Error('Failed to download PDF report');
 
-      const screenshotBuffer = await page.screenshot({ fullPage: true, type: 'png' });
-      await browser.close();
-      browser = null;
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const data = await pdfParse(buffer);
 
-      images.push({
-        type: 'image' as const,
-        source: {
-          type: 'base64' as const,
-          media_type: 'image/png' as const,
-          data: Buffer.from(screenshotBuffer).toString('base64'),
-        },
-      });
+      return data.text;
     } catch (error) {
-      this.logger.error(`PDF to image conversion failed: ${error.message}`);
+      this.logger.error(`PDF text extraction failed: ${error.message}`);
       throw new Error('Failed to process PDF report');
-    } finally {
-      if (browser) await browser.close();
     }
-
-    return images;
   }
 
   // ─── Session Notes ─────────────────────────────────────────

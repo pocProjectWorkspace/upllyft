@@ -506,7 +506,18 @@ export class AuthService {
     this.logger.debug(`getProfile: userId=${userId}, memberships=${user.organizationMemberships?.length ?? 0}`);
 
     const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+
+    let clinic: any = null;
+    if (user.role === 'ADMIN' && user.adminOfClinic) {
+      clinic = user.adminOfClinic;
+    } else if (user.role === 'THERAPIST' && user.therapistProfile?.clinic) {
+      clinic = user.therapistProfile.clinic;
+    }
+
+    return {
+      ...userWithoutPassword,
+      clinic,
+    };
   }
 
   async updateProfile(userId: string, updateProfileDto: UpdateAuthProfileDto) {

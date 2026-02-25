@@ -369,26 +369,43 @@ export async function regenerateImage(worksheetId: string, data: { imageId: stri
 }
 
 export async function downloadWorksheetPdf(worksheetId: string, title?: string, pdfUrl?: string): Promise<void> {
-  if (pdfUrl) {
+  const fileTitle = `${title || 'worksheet'}.pdf`;
+
+  try {
+    let blob: Blob;
+
+    if (pdfUrl) {
+      // Fetch the raw URL directly to bypass popup blockers and force a save-as dialog
+      const response = await fetch(pdfUrl);
+      if (!response.ok) throw new Error('Failed to fetch PDF directly');
+      blob = await response.blob();
+    } else {
+      // Fallback to our API if the URL isn't directly passed
+      const res = await apiClient.get(`/worksheets/${worksheetId}/download`, { responseType: 'blob' });
+      blob = new Blob([res.data], { type: 'application/pdf' });
+    }
+
+    const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = pdfUrl;
-    a.download = `${title || 'worksheet'}.pdf`;
-    a.target = '_blank';
+    a.href = url;
+    a.download = fileTitle;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    return;
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Failed to download PDF:', error);
+    // Fallback if fetch fails (e.g. CORS restrictions on the bucket)
+    if (pdfUrl) {
+      const a = document.createElement('a');
+      a.href = pdfUrl;
+      a.download = fileTitle;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   }
-  const res = await apiClient.get(`/worksheets/${worksheetId}/download`, { responseType: 'blob' });
-  const blob = new Blob([res.data], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${title || 'worksheet'}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 // Data Sources

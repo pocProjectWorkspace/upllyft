@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import OpenAI from 'openai';
+// Removed OpenAI import
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuid } from 'uuid';
 import { buildImagePrompt } from './constants/prompts';
@@ -14,14 +14,12 @@ export interface GeneratedImage {
 @Injectable()
 export class WorksheetImageService {
   private readonly logger = new Logger(WorksheetImageService.name);
-  private readonly openai: OpenAI;
+  private readonly falApiKey: string;
   private _supabase: SupabaseClient | null = null;
   private readonly bucketName = 'worksheet-images';
 
   constructor(private readonly configService: ConfigService) {
-    this.openai = new OpenAI({
-      apiKey: this.configService.get<string>('OPENAI_API_KEY', ''),
-    });
+    this.falApiKey = this.configService.get<string>('FAL_KEY', '');
   }
 
   private get supabase(): SupabaseClient {
@@ -57,22 +55,39 @@ export class WorksheetImageService {
     this.logger.log(`Generating image: "${params.altText}"`);
 
     try {
-      const response = await this.openai.images.generate({
-        model: 'dall-e-3',
-        prompt,
-        n: 1,
-        size: '1024x1024',
-        quality: 'standard',
-        style: 'natural',
+      if (!this.falApiKey) {
+        throw new Error('FAL_KEY is not configured.');
+      }
+
+      const response = await fetch('https://fal.run/fal-ai/flux/schnell', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${this.falApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          image_size: 'square_hd',
+          num_inference_steps: 4,
+          num_images: 1,
+          enable_safety_checker: true,
+        }),
       });
 
-      const imageData = response.data?.[0];
-      if (!imageData?.url) {
-        throw new Error('No image URL in DALL-E response');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Fal.ai request failed: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json() as { images?: Array<{ url: string }> };
+      const generatedImageUrl = data.images?.[0]?.url;
+
+      if (!generatedImageUrl) {
+        throw new Error('No image URL in Fal.ai response');
       }
 
       // Download the image and upload to Supabase
-      const imageUrl = await this.uploadToSupabase(imageData.url);
+      const imageUrl = await this.uploadToSupabase(generatedImageUrl);
 
       return {
         imageUrl,

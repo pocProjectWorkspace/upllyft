@@ -104,8 +104,9 @@ export class GenerateWorksheetDto {
   @IsEnum(['ACTIVITY', 'VISUAL_SUPPORT', 'STRUCTURED_PLAN'] as const)
   type: 'ACTIVITY' | 'VISUAL_SUPPORT' | 'STRUCTURED_PLAN';
 
+  @IsOptional()
   @IsString()
-  subType: string;
+  subType?: string;
 
   @IsArray()
   @ArrayMinSize(1)
@@ -115,8 +116,9 @@ export class GenerateWorksheetDto {
   @IsEnum(WorksheetDifficulty)
   difficulty: WorksheetDifficulty;
 
+  @IsOptional()
   @IsString()
-  interests: string;
+  interests?: string;
 
   @IsEnum(['5min', '10min', '15min', '20plus'] as const)
   duration: '5min' | '10min' | '15min' | '20plus';

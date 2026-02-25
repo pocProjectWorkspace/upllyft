@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import * as puppeteer from 'puppeteer';
+// removed backend puppeteer import
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuid } from 'uuid';
@@ -86,45 +86,86 @@ export class WorksheetPdfService {
     this.logger.log(`Generating PDF for worksheet: "${data.title}" (${data.worksheetType}/${data.subType})`);
 
     const html = this.buildHtml(data);
+    const apiKey = this.configService.get<string>('API2PDF_KEY');
 
-    let browser: puppeteer.Browser | null = null;
+    if (!apiKey) {
+      this.logger.error('API2PDF_KEY is missing from environment variables.');
+      throw new Error('API2PDF_KEY is not configured.');
+    }
+
     try {
-      browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
-      });
-
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
-
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '18mm',
-          right: '14mm',
-          bottom: '18mm',
-          left: '14mm',
+      // 1. Generate PDF via Api2Pdf
+      const pdfResponse = await fetch('https://v2.api2pdf.com/chrome/pdf/html', {
+        method: 'POST',
+        headers: {
+          'Authorization': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        body: JSON.stringify({
+          html: html,
+          inline: true,
+          options: {
+            landscape: false,
+            printBackground: true,
+            format: 'A4',
+            margin: {
+              top: '18mm',
+              right: '14mm',
+              bottom: '18mm',
+              left: '14mm',
+            }
+          }
+        })
       });
 
-      await page.setViewport({ width: 794, height: 1123 });
-      const screenshotBuffer = await page.screenshot({
-        type: 'png',
-        clip: { x: 0, y: 0, width: 794, height: 1123 },
+      if (!pdfResponse.ok) {
+        throw new Error(`Api2Pdf PDF generation failed: ${pdfResponse.statusText}`);
+      }
+
+      const pdfData = await pdfResponse.json();
+      if (!pdfData.Success) throw new Error(`Api2Pdf error: ${pdfData.Error}`);
+
+      // 2. Generate Image Preview via Api2Pdf
+      const imgResponse = await fetch('https://v2.api2pdf.com/chrome/image/html', {
+        method: 'POST',
+        headers: {
+          'Authorization': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          html: html,
+          inline: true,
+          options: {
+            quality: 80,
+            fullPage: true
+          }
+        })
       });
 
-      await browser.close();
-      browser = null;
+      if (!imgResponse.ok) {
+        throw new Error(`Api2Pdf Image generation failed: ${imgResponse.statusText}`);
+      }
+
+      const imgData = await imgResponse.json();
+      if (!imgData.Success) throw new Error(`Api2Pdf error: ${imgData.Error}`);
+
+      // 3. Download the files from Api2Pdf's temporary hosting and upload them to our Supabase Bucket
+      const pdfBufferRes = await fetch(pdfData.FileUrl);
+      const pdfBuffer = Buffer.from(await pdfBufferRes.arrayBuffer());
+
+      const imgBufferRes = await fetch(imgData.FileUrl);
+      const imgBuffer = Buffer.from(await imgBufferRes.arrayBuffer());
 
       const pdfUrl = await this.uploadToSupabase(
-        Buffer.from(pdfBuffer),
+        pdfBuffer,
         `${uuid()}.pdf`,
         'application/pdf',
       );
 
       const previewUrl = await this.uploadPreview(
-        Buffer.from(screenshotBuffer),
+        imgBuffer,
         `${uuid()}-preview.png`,
       );
 
@@ -134,10 +175,6 @@ export class WorksheetPdfService {
     } catch (error) {
       this.logger.error(`PDF generation failed: ${error.message}`);
       throw error;
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
     }
   }
 

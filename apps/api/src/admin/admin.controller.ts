@@ -214,9 +214,33 @@ export class AdminController {
     return this.adminService.getAllClinics();
   }
 
+  @Get('clinics/:id')
+  @Roles(Role.ADMIN)
+  async getClinicDetails(@Param('id') clinicId: string) {
+    return this.adminService.getClinicDetails(clinicId);
+  }
+
   @Post('clinics')
   @Roles(Role.ADMIN)
   async createPlatformClinic(@Body() body: any) {
     return this.adminService.createPlatformClinic(body);
+  }
+
+  @Post('clinics/:id/therapists')
+  @Roles(Role.ADMIN)
+  async assignTherapistToClinic(
+    @Param('id') clinicId: string,
+    @Body('email') email: string,
+  ) {
+    return this.adminService.assignTherapistToClinic(clinicId, email);
+  }
+
+  @Delete('clinics/:id/therapists/:therapistId')
+  @Roles(Role.ADMIN)
+  async removeTherapistFromClinic(
+    @Param('id') clinicId: string,
+    @Param('therapistId') therapistId: string,
+  ) {
+    return this.adminService.removeTherapistFromClinic(clinicId, therapistId);
   }
 }

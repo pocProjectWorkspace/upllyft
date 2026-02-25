@@ -639,7 +639,7 @@ export default function WorksheetDetailPage() {
                       Based on {effectiveness.sampleSize} {effectiveness.sampleSize === 1 ? 'completion' : 'completions'}
                     </div>
                   </div>
-                  {effectiveness.domains.length > 0 && (
+                  {effectiveness.domains?.length > 0 && (
                     <div className="space-y-2">
                       <h4 className="text-sm font-medium text-gray-700">Domain Progress</h4>
                       {effectiveness.domains.map((d) => (

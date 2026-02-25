@@ -134,6 +134,41 @@ export async function reactivateOrgMember(
   );
 }
 
+// ── Invitations ─────────────────────────────────────────────────────
+
+export interface OrgInvitation {
+  id: string;
+  email: string;
+  organizationId: string;
+  role: string;
+  token: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED' | 'EXPIRED';
+  invitedById: string;
+  expiresAt: string;
+  createdAt: string;
+  organization?: {
+    name: string;
+    logo?: string;
+  };
+  invitedBy?: {
+    name: string;
+    email: string;
+  };
+}
+
+export async function getMyInvitations(): Promise<OrgInvitation[]> {
+  const { data } = await apiClient.get<OrgInvitation[]>('/organizations/invitations/my');
+  return data;
+}
+
+export async function acceptInvitation(token: string): Promise<void> {
+  await apiClient.post('/organizations/invitations/accept', { token });
+}
+
+export async function declineInvitation(token: string): Promise<void> {
+  await apiClient.post('/organizations/invitations/decline', { token });
+}
+
 // ── Communities ─────────────────────────────────────────────────────
 
 export async function getOrgCommunities(

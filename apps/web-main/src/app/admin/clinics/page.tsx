@@ -20,9 +20,12 @@ import {
     Skeleton,
     useToast,
 } from '@upllyft/ui';
+import { apiClient } from '@upllyft/api-client';
+import { useRouter } from 'next/navigation';
 import { useClinics, useCreateClinic, useOrganizations } from '@/hooks/use-admin';
 
 export default function ClinicsPage() {
+    const router = useRouter();
     const [search, setSearch] = useState('');
     const [showCreate, setShowCreate] = useState(false);
     const [newName, setNewName] = useState('');
@@ -159,7 +162,11 @@ export default function ClinicsPage() {
                                         {clinic._count?.cases ?? 0}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="outline" size="sm">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => router.push(`/admin/clinics/${clinic.id}`)}
+                                        >
                                             View
                                         </Button>
                                     </TableCell>

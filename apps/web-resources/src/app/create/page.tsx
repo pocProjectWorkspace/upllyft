@@ -41,7 +41,18 @@ const WORKSHEET_TYPES: { value: WorksheetType; desc: string }[] = [
 
 const VISUAL_SUB_TYPES = ['visual_schedule', 'social_story', 'emotion_thermometer'] as const;
 const PLAN_SUB_TYPES = ['weekly_plan', 'daily_routine'] as const;
-const DURATIONS = ['10', '15', '20', '30', '45', '60'];
+const DURATIONS = [
+  { value: '5min', label: '5 minutes' },
+  { value: '10min', label: '10 minutes' },
+  { value: '15min', label: '15 minutes' },
+  { value: '20plus', label: '20+ minutes' }
+];
+const SETTINGS = [
+  { value: 'HOME', label: 'Home' },
+  { value: 'CLINIC', label: 'Clinic' },
+  { value: 'SCHOOL', label: 'School' },
+  { value: 'OUTDOOR', label: 'Outdoor' }
+];
 const ALL_DOMAINS = Object.keys(domainLabels);
 
 export default function CreateWorksheetPage() {
@@ -78,7 +89,8 @@ export default function CreateWorksheetPage() {
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState<WorksheetDifficulty>('FOUNDATIONAL');
   const [interests, setInterests] = useState('');
-  const [duration, setDuration] = useState('20');
+  const [duration, setDuration] = useState('15min');
+  const [setting, setSetting] = useState('CLINIC');
   const [colorMode, setColorMode] = useState<WorksheetColorMode>('FULL_COLOR');
   const [specialInstructions, setSpecialInstructions] = useState('');
 
@@ -90,7 +102,14 @@ export default function CreateWorksheetPage() {
 
   // ── Validation ──
   function canNext(): boolean {
-    if (step === 0) return !!dataSource;
+    if (step === 0) {
+      if (!dataSource) return false;
+      if (dataSource === 'MANUAL' && !childAge) return false;
+      if (dataSource === 'SCREENING' && !selectedAssessmentId) return false;
+      if (dataSource === 'IEP_GOALS' && selectedGoalIds.length === 0) return false;
+      if (dataSource === 'SESSION_NOTES' && selectedSessionIds.length === 0) return false;
+      return true;
+    }
     if (step === 1) {
       if (!wsType) return false;
       if (wsType === 'VISUAL_SUPPORT' && !subType) return false;
@@ -117,7 +136,8 @@ export default function CreateWorksheetPage() {
       targetDomains: selectedDomains,
       difficulty,
       ...(interests && { interests }),
-      ...(duration && { duration: `${duration} minutes` }),
+      duration,
+      setting,
       colorMode,
       ...(specialInstructions && { specialInstructions }),
     };
@@ -155,13 +175,12 @@ export default function CreateWorksheetPage() {
         {STEPS.map((label, i) => (
           <div key={label} className="flex items-center gap-2">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                i < step
-                  ? 'bg-teal-500 text-white'
-                  : i === step
-                    ? 'bg-teal-600 text-white ring-2 ring-teal-300'
-                    : 'bg-gray-200 text-gray-500'
-              }`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${i < step
+                ? 'bg-teal-500 text-white'
+                : i === step
+                  ? 'bg-teal-600 text-white ring-2 ring-teal-300'
+                  : 'bg-gray-200 text-gray-500'
+                }`}
             >
               {i < step ? (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,11 +209,10 @@ export default function CreateWorksheetPage() {
           {DATA_SOURCES.map((ds) => (
             <Card
               key={ds.value}
-              className={`p-4 cursor-pointer transition-all ${
-                dataSource === ds.value
-                  ? 'ring-2 ring-teal-500 bg-teal-50/50'
-                  : 'hover:shadow-sm'
-              }`}
+              className={`p-4 cursor-pointer transition-all ${dataSource === ds.value
+                ? 'ring-2 ring-teal-500 bg-teal-50/50'
+                : 'hover:shadow-sm'
+                }`}
               onClick={() => { setDataSource(ds.value); }}
             >
               <h3 className="font-medium text-gray-900">{dataSourceLabels[ds.value]}</h3>
@@ -252,9 +270,8 @@ export default function CreateWorksheetPage() {
                 {screeningsQuery.data.assessments.map((a) => (
                   <Card
                     key={a.id}
-                    className={`p-3 cursor-pointer transition-all ${
-                      selectedAssessmentId === a.id ? 'ring-2 ring-teal-500 bg-teal-50/50' : 'hover:shadow-sm'
-                    }`}
+                    className={`p-3 cursor-pointer transition-all ${selectedAssessmentId === a.id ? 'ring-2 ring-teal-500 bg-teal-50/50' : 'hover:shadow-sm'
+                      }`}
                     onClick={() => setSelectedAssessmentId(a.id)}
                   >
                     <div className="flex items-center justify-between">
@@ -327,11 +344,10 @@ export default function CreateWorksheetPage() {
                 {iepGoalsQuery.data.goals.map((goal) => (
                   <label
                     key={goal.id}
-                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                      selectedGoalIds.includes(goal.id)
-                        ? 'border-teal-500 bg-teal-50/50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedGoalIds.includes(goal.id)
+                      ? 'border-teal-500 bg-teal-50/50'
+                      : 'border-gray-200 hover:border-gray-300'
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -384,11 +400,10 @@ export default function CreateWorksheetPage() {
                 {sessionNotesQuery.data.sessions.map((session) => (
                   <label
                     key={session.id}
-                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                      selectedSessionIds.includes(session.id)
-                        ? 'border-teal-500 bg-teal-50/50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedSessionIds.includes(session.id)
+                      ? 'border-teal-500 bg-teal-50/50'
+                      : 'border-gray-200 hover:border-gray-300'
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -427,9 +442,8 @@ export default function CreateWorksheetPage() {
           {WORKSHEET_TYPES.map((wt) => (
             <Card
               key={wt.value}
-              className={`p-4 cursor-pointer transition-all ${
-                wsType === wt.value ? 'ring-2 ring-teal-500 bg-teal-50/50' : 'hover:shadow-sm'
-              }`}
+              className={`p-4 cursor-pointer transition-all ${wsType === wt.value ? 'ring-2 ring-teal-500 bg-teal-50/50' : 'hover:shadow-sm'
+                }`}
               onClick={() => { setWsType(wt.value); setSubType(''); }}
             >
               <h3 className="font-medium text-gray-900">{worksheetTypeLabels[wt.value]}</h3>
@@ -445,9 +459,8 @@ export default function CreateWorksheetPage() {
               {VISUAL_SUB_TYPES.map((st) => (
                 <Card
                   key={st}
-                  className={`p-3 cursor-pointer transition-all ${
-                    subType === st ? 'ring-2 ring-teal-500 bg-teal-50/50' : 'hover:shadow-sm'
-                  }`}
+                  className={`p-3 cursor-pointer transition-all ${subType === st ? 'ring-2 ring-teal-500 bg-teal-50/50' : 'hover:shadow-sm'
+                    }`}
                   onClick={() => setSubType(st)}
                 >
                   <h3 className="font-medium text-gray-900 text-sm">{subTypeLabels[st]}</h3>
@@ -464,9 +477,8 @@ export default function CreateWorksheetPage() {
               {PLAN_SUB_TYPES.map((st) => (
                 <Card
                   key={st}
-                  className={`p-3 cursor-pointer transition-all ${
-                    subType === st ? 'ring-2 ring-teal-500 bg-teal-50/50' : 'hover:shadow-sm'
-                  }`}
+                  className={`p-3 cursor-pointer transition-all ${subType === st ? 'ring-2 ring-teal-500 bg-teal-50/50' : 'hover:shadow-sm'
+                    }`}
                   onClick={() => setSubType(st)}
                 >
                   <h3 className="font-medium text-gray-900 text-sm">{subTypeLabels[st]}</h3>
@@ -493,11 +505,10 @@ export default function CreateWorksheetPage() {
                 key={d}
                 type="button"
                 onClick={() => toggleDomain(d)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  selectedDomains.includes(d)
-                    ? 'bg-teal-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${selectedDomains.includes(d)
+                  ? 'bg-teal-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
               >
                 {domainLabels[d]}
               </button>
@@ -535,17 +546,30 @@ export default function CreateWorksheetPage() {
           />
         </div>
 
-        {/* Duration & Color Mode */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Environment, Duration & Color Mode */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <Label>Duration (minutes)</Label>
+            <Label>Setting</Label>
+            <Select value={setting} onValueChange={setSetting}>
+              <SelectTrigger className="w-full mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SETTINGS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Duration</Label>
             <Select value={duration} onValueChange={setDuration}>
               <SelectTrigger className="w-full mt-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {DURATIONS.map((d) => (
-                  <SelectItem key={d} value={d}>{d} min</SelectItem>
+                  <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -594,6 +618,12 @@ export default function CreateWorksheetPage() {
           <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
             <span className="text-gray-500">Data Source</span>
             <span className="text-gray-900">{dataSource ? dataSourceLabels[dataSource] : '-'}</span>
+            {dataSource === 'MANUAL' && childAge && (
+              <>
+                <span className="text-gray-500">Child Age</span>
+                <span className="text-gray-900">{childAge} years</span>
+              </>
+            )}
             <span className="text-gray-500">Type</span>
             <span className="text-gray-900">
               {wsType ? worksheetTypeLabels[wsType] : '-'}
@@ -603,8 +633,10 @@ export default function CreateWorksheetPage() {
             <span className="text-gray-900">{selectedDomains.map((d) => domainLabels[d]).join(', ') || '-'}</span>
             <span className="text-gray-500">Difficulty</span>
             <span className="text-gray-900">{difficultyLabels[difficulty]}</span>
+            <span className="text-gray-500">Setting</span>
+            <span className="text-gray-900">{SETTINGS.find((s) => s.value === setting)?.label || setting}</span>
             <span className="text-gray-500">Duration</span>
-            <span className="text-gray-900">{duration} minutes</span>
+            <span className="text-gray-900">{DURATIONS.find((d) => d.value === duration)?.label || duration}</span>
             <span className="text-gray-500">Color Mode</span>
             <span className="text-gray-900">{colorModeLabels[colorMode]}</span>
             {interests && (

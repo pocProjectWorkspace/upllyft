@@ -147,6 +147,15 @@ export interface Clinic {
   createdAt: string;
   organization?: Organization;
   admin?: { id: string; name: string; email: string };
+  therapists?: {
+    id: string;
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      image?: string | null;
+    }
+  }[];
   _count?: { therapists: number; cases: number; bookings: number };
 }
 
@@ -327,6 +336,21 @@ export async function createOrganization(payload: {
 
 export async function getClinics(): Promise<Clinic[]> {
   const { data } = await apiClient.get<Clinic[]>('/admin/clinics');
+  return data;
+}
+
+export async function getClinicDetails(id: string): Promise<Clinic> {
+  const { data } = await apiClient.get<Clinic>(`/admin/clinics/${id}`);
+  return data;
+}
+
+export async function assignTherapistToClinic(clinicId: string, email: string) {
+  const { data } = await apiClient.post(`/admin/clinics/${clinicId}/therapists`, { email });
+  return data;
+}
+
+export async function removeTherapistFromClinic(clinicId: string, therapistId: string) {
+  const { data } = await apiClient.delete(`/admin/clinics/${clinicId}/therapists/${therapistId}`);
   return data;
 }
 

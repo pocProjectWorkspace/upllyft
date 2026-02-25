@@ -1024,14 +1024,42 @@ export class AdminService {
       include: {
         organization: true,
         admin: {
-          select: { id: true, name: true, email: true }
+          select: { id: true, name: true, email: true },
         },
         _count: {
-          select: { therapists: true, cases: true, bookings: true }
-        }
+          select: { therapists: true, cases: true, bookings: true },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async getClinicDetails(clinicId: string) {
+    const clinic = await this.prisma.clinic.findUnique({
+      where: { id: clinicId },
+      include: {
+        organization: true,
+        admin: {
+          select: { id: true, name: true, email: true },
+        },
+        therapists: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, image: true }
+            }
+          }
+        },
+        _count: {
+          select: { therapists: true, cases: true, bookings: true },
+        },
+      }
+    });
+
+    if (!clinic) {
+      throw new NotFoundException(`Clinic Details not found with ID: ${clinicId}`);
+    }
+
+    return clinic;
   }
 
   async createPlatformClinic(data: {
@@ -1068,6 +1096,57 @@ export class AdminService {
         secondaryColor: data.secondaryColor,
         accentColor: data.accentColor,
       }
+    });
+  }
+
+  async assignTherapistToClinic(clinicId: string, email: string) {
+    // Verify the clinic exists
+    const clinic = await this.prisma.clinic.findUnique({
+      where: { id: clinicId }
+    });
+    if (!clinic) {
+      throw new NotFoundException(`Clinic not found with ID: ${clinicId}`);
+    }
+
+    // Find the user by email
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: { therapistProfile: true }
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User not found with email: ${email}`);
+    }
+
+    if (user.role !== 'THERAPIST') {
+      throw new BadRequestException('User must have the THERAPIST role to be assigned to a clinic.');
+    }
+
+    if (!user.therapistProfile) {
+      throw new BadRequestException('User does not have an active Therapist Profile.');
+    }
+
+    // Assign the therapist to the clinic
+    return this.prisma.therapistProfile.update({
+      where: { id: user.therapistProfile.id },
+      data: { clinicId }
+    });
+  }
+
+  async removeTherapistFromClinic(clinicId: string, therapistId: string) {
+    // Verify the therapist profile belongs to this clinic
+    const therapist = await this.prisma.therapistProfile.findUnique({
+      where: { id: therapistId }
+    });
+
+    if (!therapist || therapist.clinicId !== clinicId) {
+      throw new NotFoundException('Therapist not found or not assigned to this clinic.');
+    }
+
+    // Remove the association
+    return this.prisma.therapistProfile.update({
+      where: { id: therapistId },
+      data: { clinicId: null }
     });
   }
 }
