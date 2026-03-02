@@ -41,6 +41,8 @@ model User {
   emergencyPhone          String?
   state                   String?
   city                    String?
+  country                 String?
+  preferredRegion         String?
   preferredLanguage       String                   @default("en")
   resetPasswordToken      String?                  @unique
   resetPasswordExpiry     DateTime?
@@ -1403,6 +1405,7 @@ model Organization {
   logo                 String?
   banner               String?
   website              String?
+  region               String?
   createdAt            DateTime                    @default(now())
   updatedAt            DateTime                    @updatedAt
   commissionPercentage Float?
@@ -3402,8 +3405,15 @@ model Clinic {
   address        String?
   licenseNo      String?
   phone          String?
-  email          String?
-  organizationId String?
+  email           String?
+  country         String?
+  description     String?
+  website         String?
+  rating          Float?             @default(0)
+  totalReviews    Int                @default(0)
+  specializations String[]           @default([])
+  isPublic        Boolean            @default(true)
+  organizationId  String?
   organization   Organization?      @relation("OrganizationClinics", fields: [organizationId], references: [id])
   adminId        String             @unique
   admin          User               @relation("ClinicAdmin", fields: [adminId], references: [id])

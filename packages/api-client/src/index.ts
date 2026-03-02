@@ -3,6 +3,7 @@ export { login, logout, register, refreshToken, getCurrentUser } from './auth';
 export type { LoginPayload, RegisterPayload, AuthResponse, RefreshResponse, MembershipStatus } from './auth';
 export { AuthProvider, useAuth } from './hooks/useAuth';
 export { useNotifications, type UseNotificationsReturn } from './hooks/useNotifications';
+export { useRegion, type RegionContextValue } from './hooks/useRegion';
 export { APP_URLS, getNavItems, type AppName, type GlobalNavItem } from './nav-config';
 export type { Notification, NotificationsResponse } from './notifications';
 export {

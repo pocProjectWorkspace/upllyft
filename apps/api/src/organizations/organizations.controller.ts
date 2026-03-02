@@ -69,6 +69,16 @@ export class OrganizationsController {
         return this.organizationsService.getCommunities(slug);
     }
 
+    @Post(':slug/communities')
+    @UseGuards(JwtAuthGuard)
+    createCommunity(
+        @Param('slug') slug: string,
+        @Body() body: any,
+        @Request() req: any
+    ) {
+        return this.organizationsService.createCommunity(slug, body, req.user.id);
+    }
+
     @Get(':slug/invitations')
     @UseGuards(JwtAuthGuard)
     getPendingInvitations(@Param('slug') slug: string, @Request() req: any) {

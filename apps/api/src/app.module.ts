@@ -87,6 +87,7 @@ import { MessagingModule } from './messaging/messaging.module';
 import { AuditModule } from './audit/audit.module';
 import { RetentionModule } from './retention/retention.module';
 import { ClinicModule } from './clinic/clinic.module';
+import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace.module';
 
 
 @Module({
@@ -151,6 +152,7 @@ import { ClinicModule } from './clinic/clinic.module';
     MarketplaceAdminModule,
     PackageModule,
     DisputeModule,
+    ClinicMarketplaceModule,
     BannerAdsModule,
 
     // Case management

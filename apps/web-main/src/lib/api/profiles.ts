@@ -221,6 +221,7 @@ export interface CompleteOnboardingPayload {
     conditions?: string[];
   };
   concerns: string[];
+  country?: string;
 }
 
 export async function getOnboardingStatus(): Promise<OnboardingStatus> {

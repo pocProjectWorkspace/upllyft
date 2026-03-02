@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
 import { AppHeader } from '@upllyft/ui';
 import { useRouter, usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -25,12 +25,20 @@ export function BookingShell({ children }: { children: ReactNode }) {
 
   const isTherapist = user.role === 'THERAPIST';
   const isAdmin = user.role === 'ADMIN';
+  const { serviceModel } = useRegion();
+  const isClinicDirectory = serviceModel === 'CLINIC_DIRECTORY';
 
-  const patientLocal = [
-    { label: 'Find Therapists', href: '/', active: pathname === '/' },
-    { label: 'My Bookings', href: '/bookings', active: pathname.startsWith('/bookings') },
-    { label: 'Invoices', href: '/invoices', active: pathname.startsWith('/invoices') },
-  ];
+  const patientLocal = isClinicDirectory
+    ? [
+        { label: 'Find Clinics', href: '/clinics', active: pathname === '/clinics' || pathname.startsWith('/clinics/') },
+        { label: 'My Bookings', href: '/bookings', active: pathname.startsWith('/bookings') },
+        { label: 'Invoices', href: '/invoices', active: pathname.startsWith('/invoices') },
+      ]
+    : [
+        { label: 'Find Therapists', href: '/', active: pathname === '/' },
+        { label: 'My Bookings', href: '/bookings', active: pathname.startsWith('/bookings') },
+        { label: 'Invoices', href: '/invoices', active: pathname.startsWith('/invoices') },
+      ];
 
   const therapistLocal = [
     { label: 'Dashboard', href: '/therapist/dashboard', active: pathname === '/therapist/dashboard' },

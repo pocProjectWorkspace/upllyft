@@ -189,7 +189,7 @@ export async function createOrgCommunity(
     organizationId: string;
   },
 ): Promise<OrgCommunity> {
-  const { data } = await apiClient.post<OrgCommunity>(`/communities`, {
+  const { data } = await apiClient.post<OrgCommunity>(`/organizations/${slug}/communities`, {
     ...payload,
     type: 'professional',
   });
@@ -206,6 +206,10 @@ export async function createOrgEvent(payload: {
   location?: string;
   communityId?: string;
   organizationId?: string;
+  eventType: string; // EventCategory in Prisma
+  format: string; // EventFormat in Prisma
+  ageGroup: string[];
+  languages: string[];
 }): Promise<unknown> {
   const { data } = await apiClient.post('/events', payload);
   return data;

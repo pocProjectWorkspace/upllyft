@@ -190,6 +190,14 @@ export class OnboardingService {
       }
     }
 
+    // Save country to User model (for useAuth/useRegion on the frontend)
+    if (dto.country) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { country: dto.country },
+      });
+    }
+
     return {
       success: true,
       onboardingData,

@@ -20,11 +20,11 @@ export class StripeConnectService {
     /**
      * Create Stripe Connect Express account for therapist
      */
-    async createTherapistAccount(therapistId: string, email: string) {
+    async createTherapistAccount(therapistId: string, email: string, country = 'IN') {
         try {
             const account = await this.stripe.accounts.create({
                 type: 'express',
-                country: 'US', // TODO: Make this dynamic based on therapist location
+                country,
                 email,
                 capabilities: {
                     transfers: { requested: true },
@@ -54,11 +54,11 @@ export class StripeConnectService {
     /**
      * Create Stripe Connect Express account for organization
      */
-    async createOrganizationAccount(organizationId: string, email: string, businessName: string) {
+    async createOrganizationAccount(organizationId: string, email: string, businessName: string, country = 'IN') {
         try {
             const account = await this.stripe.accounts.create({
                 type: 'express',
-                country: 'US',
+                country,
                 email,
                 capabilities: {
                     transfers: { requested: true },
@@ -211,11 +211,12 @@ export class StripeConnectService {
             bookingId: string;
             organizationId: string;
         },
+        currency = 'inr',
     ) {
         try {
             const transfer = await this.stripe.transfers.create({
                 amount,
-                currency: 'usd',
+                currency,
                 destination: destinationAccountId,
                 metadata,
             });

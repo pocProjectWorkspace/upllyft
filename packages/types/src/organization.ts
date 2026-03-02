@@ -4,6 +4,7 @@ export interface Organization {
   slug: string;
   logo?: string;
   description?: string;
+  region?: string;
   createdAt: string;
   updatedAt: string;
 }

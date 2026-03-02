@@ -15,7 +15,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // ── Constants ──────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
+
+const COUNTRIES = [
+  { code: 'IN', label: 'India', flag: '\uD83C\uDDEE\uD83C\uDDF3', description: 'Browse individual therapists and book sessions directly' },
+  { code: 'AE', label: 'United Arab Emirates', flag: '\uD83C\uDDE6\uD83C\uDDEA', description: 'Browse clinics and book through verified centers' },
+] as const;
 
 const PRIMARY_REASONS = [
   {
@@ -152,6 +157,7 @@ const RECOMMENDATION_COPY: Record<string, string> = {
 const STEP_BACKGROUNDS = [
   '', // unused (0-indexed pad)
   'from-teal-50/30 to-white',
+  'from-blue-50/20 to-white',
   'from-teal-50/40 to-white',
   'from-blue-50/30 to-white',
   'from-purple-50/30 to-white',
@@ -201,7 +207,12 @@ export default function OnboardingPage() {
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [saving, setSaving] = useState(false);
 
-  // Step 2
+  // Step 2 (Country)
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [isOtherCountry, setIsOtherCountry] = useState(false);
+  const [selectedPreferredRegion, setSelectedPreferredRegion] = useState('');
+
+  // Step 3 (Primary Reason)
   const [primaryReason, setPrimaryReason] = useState('');
 
   // Step 3
@@ -253,6 +264,7 @@ export default function OnboardingPage() {
       await completeOnboarding({
         primaryReason: primaryReason || 'just-exploring',
         concerns: selectedConcerns,
+        country: selectedCountry || selectedPreferredRegion || undefined,
         ...(childName && childDob
           ? {
               child: {
@@ -275,6 +287,8 @@ export default function OnboardingPage() {
   }, [
     primaryReason,
     selectedConcerns,
+    selectedCountry,
+    selectedPreferredRegion,
     childName,
     childDob,
     childGender,
@@ -291,6 +305,7 @@ export default function OnboardingPage() {
         const payload: CompleteOnboardingPayload = {
           primaryReason: primaryReason || 'just-exploring',
           concerns: selectedConcerns,
+          country: selectedCountry || selectedPreferredRegion || undefined,
         };
 
         if (childName && childDob && !hasExistingChild) {
@@ -329,6 +344,8 @@ export default function OnboardingPage() {
     [
       primaryReason,
       selectedConcerns,
+      selectedCountry,
+      selectedPreferredRegion,
       childName,
       childDob,
       childGender,
@@ -341,9 +358,9 @@ export default function OnboardingPage() {
     ],
   );
 
-  // Step 5: trigger completion on mount
+  // Step 6: trigger completion on mount
   useEffect(() => {
-    if (step === 5 && !recommendation && !saving) {
+    if (step === 6 && !recommendation && !saving) {
       handleComplete();
     }
   }, [step, recommendation, saving, handleComplete]);
@@ -413,7 +430,7 @@ export default function OnboardingPage() {
 
         {/* Back arrow */}
         <AnimatePresence>
-          {step > 1 && step < 5 && (
+          {step > 1 && step < 6 && (
             <motion.button
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
@@ -497,8 +514,170 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ── Step 2: What brings you here ─────────────────── */}
+            {/* ── Step 2: Where are you located ────────────────── */}
             {step === 2 && (
+              <div>
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.05, duration: 0.4 }}
+                  className="flex justify-center mb-6"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-100 to-teal-100 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </motion.div>
+                <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+                  Where are you located?
+                </h2>
+                <p className="text-gray-500 text-center mb-8">
+                  This helps us connect you with the right support in your area.
+                </p>
+
+                <div className="space-y-3">
+                  {COUNTRIES.map((c, i) => {
+                    const selected = selectedCountry === c.code && !isOtherCountry;
+                    return (
+                      <motion.button
+                        key={c.code}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 + i * 0.06, duration: 0.35 }}
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          setSelectedCountry(c.code);
+                          setIsOtherCountry(false);
+                          setSelectedPreferredRegion('');
+                        }}
+                        className={`w-full text-left rounded-2xl border-2 p-5 transition-colors duration-200 ${
+                          selected
+                            ? 'border-teal-500 bg-teal-50 shadow-md'
+                            : 'border-gray-200 bg-white hover:border-teal-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="text-3xl flex-shrink-0">{c.flag}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-semibold ${selected ? 'text-teal-700' : 'text-gray-900'}`}>
+                              {c.label}
+                            </p>
+                            <p className="text-sm text-gray-500 mt-0.5">{c.description}</p>
+                          </div>
+                          <AnimatePresence>
+                            {selected && (
+                              <motion.svg
+                                variants={checkmarkVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="exit"
+                                className="w-6 h-6 text-teal-600 flex-shrink-0"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </motion.svg>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+
+                  {/* Other country option */}
+                  <motion.button
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.22, duration: 0.35 }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      setIsOtherCountry(true);
+                      setSelectedCountry('');
+                    }}
+                    className={`w-full text-left rounded-2xl border-2 p-5 transition-colors duration-200 ${
+                      isOtherCountry
+                        ? 'border-teal-500 bg-teal-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-teal-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="text-3xl flex-shrink-0">{'\uD83C\uDF0D'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-semibold ${isOtherCountry ? 'text-teal-700' : 'text-gray-900'}`}>
+                          I&apos;m in a different country
+                        </p>
+                        <p className="text-sm text-gray-500 mt-0.5">You can still access most features</p>
+                      </div>
+                    </div>
+                  </motion.button>
+                </div>
+
+                {/* Preferred region picker for other countries */}
+                <AnimatePresence>
+                  {isOtherCountry && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-4 p-4 bg-blue-50/60 rounded-xl border border-blue-100">
+                        <p className="text-sm font-medium text-gray-700 mb-3">
+                          Pick a region to browse therapy services
+                        </p>
+                        <div className="flex gap-2">
+                          {COUNTRIES.map((c) => (
+                            <button
+                              key={c.code}
+                              onClick={() => setSelectedPreferredRegion(c.code)}
+                              className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                                selectedPreferredRegion === c.code
+                                  ? 'bg-teal-100 text-teal-700 border border-teal-300'
+                                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              {c.flag} {c.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Booking is currently available in India and UAE. You can change this later.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Continue */}
+                <AnimatePresence>
+                  {(selectedCountry || isOtherCountry) && (
+                    <motion.div
+                      variants={fadeUpVariants}
+                      initial="hidden"
+                      animate="visible"
+                      transition={{ duration: 0.3 }}
+                      className="mt-8 text-center"
+                    >
+                      <motion.button
+                        whileHover={{ scale: 1.02, boxShadow: '0 8px 30px rgba(13,148,136,0.25)' }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={goForward}
+                        className="bg-gradient-to-r from-teal-400 to-teal-600 text-white rounded-xl px-8 py-3 font-semibold shadow-md"
+                      >
+                        Continue
+                      </motion.button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* ── Step 3: What brings you here ─────────────────── */}
+            {step === 3 && (
               <div>
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
@@ -614,8 +793,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ── Step 3: About your child ─────────────────────── */}
-            {step === 3 && (
+            {/* ── Step 4: About your child ─────────────────────── */}
+            {step === 4 && (
               <div>
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
@@ -815,8 +994,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ── Step 4: Biggest concerns ─────────────────────── */}
-            {step === 4 && (
+            {/* ── Step 5: Biggest concerns ─────────────────────── */}
+            {step === 5 && (
               <div>
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
@@ -929,8 +1108,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ── Step 5: Meet Mira ────────────────────────────── */}
-            {step === 5 && (
+            {/* ── Step 6: Meet Mira ────────────────────────────── */}
+            {step === 6 && (
               <div>
                 {!recommendation ? (
                   <div className="text-center py-12">

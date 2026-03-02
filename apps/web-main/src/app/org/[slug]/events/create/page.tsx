@@ -23,6 +23,10 @@ export default function CreateOrgEventPage() {
     startDate: '',
     endDate: '',
     location: '',
+    eventType: 'WORKSHOP',
+    format: 'IN_PERSON',
+    ageGroup: 'All Ages',
+    languages: 'English',
   });
 
   useEffect(() => {
@@ -61,6 +65,10 @@ export default function CreateOrgEventPage() {
         location: form.location.trim() || undefined,
         organizationId: isGeneral ? org?.id : undefined,
         communityId: isGeneral ? undefined : scope,
+        eventType: form.eventType,
+        format: form.format,
+        ageGroup: form.ageGroup.split(',').map(s => s.trim()),
+        languages: form.languages.split(',').map(s => s.trim()),
       });
       toast({ title: 'Success', description: 'Event created' });
       router.push(`/org/${slug}/events`);
@@ -158,6 +166,57 @@ export default function CreateOrgEventPage() {
               type="datetime-local"
               value={form.endDate}
               onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+            <Select value={form.eventType} onValueChange={(v) => setForm({ ...form, eventType: v })}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="WORKSHOP">Workshop</SelectItem>
+                <SelectItem value="SUPPORT_GROUP">Support Group</SelectItem>
+                <SelectItem value="SOCIAL">Social Event</SelectItem>
+                <SelectItem value="WEBINAR">Webinar</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Format</label>
+            <Select value={form.format} onValueChange={(v) => setForm({ ...form, format: v })}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="IN_PERSON">In Person</SelectItem>
+                <SelectItem value="VIRTUAL">Virtual</SelectItem>
+                <SelectItem value="HYBRID">Hybrid</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Age Group</label>
+            <input
+              value={form.ageGroup}
+              onChange={(e) => setForm({ ...form, ageGroup: e.target.value })}
+              placeholder="e.g. 5-10 yrs, Teens"
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Languages</label>
+            <input
+              value={form.languages}
+              onChange={(e) => setForm({ ...form, languages: e.target.value })}
+              placeholder="e.g. English, Arabic"
               className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
             />
           </div>

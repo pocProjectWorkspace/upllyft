@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Put,
+  Patch,
   Post,
   Delete,
   Body,
@@ -32,6 +33,19 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async getMyProfile(@Request() req: any) {
     return this.usersService.getProfileWithStats(req.user.id, req.user.id);
+  }
+
+  // Update current user's region/country
+  @Patch('me/region')
+  @UseGuards(JwtAuthGuard)
+  async updateRegion(
+    @Request() req: any,
+    @Body() body: { country?: string; preferredRegion?: string },
+  ) {
+    const data: Record<string, string> = {};
+    if (body.country) data.country = body.country;
+    if (body.preferredRegion) data.preferredRegion = body.preferredRegion;
+    return this.usersService.update(req.user.id, data);
   }
 
   // Get current user's organizations

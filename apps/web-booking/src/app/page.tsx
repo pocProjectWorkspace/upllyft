@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
 import { BookingShell } from '@/components/booking-shell';
+import { RegionGate } from '@/components/region-gate';
 import { useSearchTherapists } from '@/hooks/use-marketplace';
 import { formatCurrency } from '@/lib/utils';
 import type { TherapistSearchFilters } from '@/lib/api/marketplace';
@@ -174,10 +175,28 @@ function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId
 
 export default function MarketplacePage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const { serviceModel, isRegionResolved } = useRegion();
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [specialization, setSpecialization] = useState('');
   const [page, setPage] = useState(1);
+
+  // Redirect clinic-directory users to /clinics
+  useEffect(() => {
+    if (serviceModel === 'CLINIC_DIRECTORY') {
+      router.replace('/clinics');
+    }
+  }, [serviceModel, router]);
+
+  // Show region gate for unresolved parents
+  if (!isRegionResolved && user?.role === 'USER') {
+    return (
+      <BookingShell>
+        <RegionGate />
+      </BookingShell>
+    );
+  }
 
   // Debounce search input
   useEffect(() => {

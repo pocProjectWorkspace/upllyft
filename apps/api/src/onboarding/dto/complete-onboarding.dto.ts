@@ -51,4 +51,9 @@ export class CompleteOnboardingDto {
   @IsArray()
   @IsString({ each: true })
   concerns: string[];
+
+  @ApiPropertyOptional({ description: 'User country (ISO 3166-1 alpha-2, e.g. IN, AE)' })
+  @IsOptional()
+  @IsString()
+  country?: string;
 }

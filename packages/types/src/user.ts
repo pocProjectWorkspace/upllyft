@@ -22,6 +22,8 @@ export interface User {
   bio?: string;
   phone?: string;
   location?: string;
+  country?: string;
+  preferredRegion?: string;
   isVerified: boolean;
   verificationStatus: VerificationStatus;
   createdAt: string;

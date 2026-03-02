@@ -322,6 +322,46 @@ export class OrganizationsService {
         });
     }
 
+    async createCommunity(slug: string, data: any, userId: string) {
+        const org = await this.findOne(slug);
+
+        const member = await this.prisma.organizationMember.findUnique({
+            where: { userId_organizationId: { userId, organizationId: org.id } },
+        });
+
+        if (!member) {
+            throw new BadRequestException('Only members can create a community in this organization');
+        }
+
+        let communitySlug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        communitySlug += '-' + randomBytes(4).toString('hex');
+
+        return this.prisma.$transaction(async (tx) => {
+            const community = await tx.community.create({
+                data: {
+                    name: data.name,
+                    description: data.description,
+                    slug: communitySlug,
+                    type: data.type || 'professional',
+                    isPrivate: data.isPrivate || false,
+                    organizationId: org.id,
+                    creatorId: userId,
+                }
+            });
+
+            await tx.communityMember.create({
+                data: {
+                    userId,
+                    communityId: community.id,
+                    role: 'ADMIN',
+                    status: 'ACTIVE',
+                }
+            });
+
+            return community;
+        });
+    }
+
     async updateMemberStatus(
         slug: string,
         memberId: string,

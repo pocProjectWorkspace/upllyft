@@ -6,3 +6,4 @@ export * from './worksheet';
 export * from './community';
 export * from './organization';
 export * from './api';
+export * from './region';
