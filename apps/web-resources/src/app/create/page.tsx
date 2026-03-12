@@ -27,7 +27,7 @@ const STEPS = ['Data Source', 'Type', 'Customize', 'Generate', 'Download'];
 
 const DATA_SOURCES: { value: WorksheetDataSource; desc: string }[] = [
   { value: 'MANUAL', desc: 'Enter child details and preferences manually' },
-  { value: 'SCREENING', desc: 'Use completed UFMF screening results' },
+  { value: 'SCREENING', desc: 'Use completed developmental screening results' },
   { value: 'UPLOADED_REPORT', desc: 'Upload and parse a clinical report' },
   { value: 'IEP_GOALS', desc: 'Select goals from an existing IEP' },
   { value: 'SESSION_NOTES', desc: 'Use notes from therapy sessions' },

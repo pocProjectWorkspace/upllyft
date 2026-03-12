@@ -86,7 +86,7 @@ export class WorksheetDataSourcesService {
     return this._supabase;
   }
 
-  // ─── UFMF Screening ───────────────────────────────────────
+  // ─── Developmental Screening ─────────────────────────────────
 
   async getChildScreenings(childId: string) {
     const child = await this.prisma.child.findUnique({
@@ -189,7 +189,7 @@ export class WorksheetDataSourcesService {
     return {
       childAge: Math.round(ageMonths),
       conditions: assessment.child.conditions.map((c) => c.conditionType),
-      developmentalNotes: `UFMF Screening results (${assessment.ageGroup}): Overall score ${assessment.overallScore ?? 'N/A'}. Flagged domains: ${flaggedDomainDescriptions || 'None'}. Assessment completed ${assessment.completedAt?.toLocaleDateString() ?? 'N/A'}.`,
+      developmentalNotes: `Developmental Screening results (${assessment.ageGroup}): Overall score ${assessment.overallScore ?? 'N/A'}. Flagged domains: ${flaggedDomainDescriptions || 'None'}. Assessment completed ${assessment.completedAt?.toLocaleDateString() ?? 'N/A'}.`,
       suggestedDomains: mapFlaggedDomainsToWorksheetDomains(assessment.flaggedDomains),
       contextData: {
         assessmentId: assessment.id,

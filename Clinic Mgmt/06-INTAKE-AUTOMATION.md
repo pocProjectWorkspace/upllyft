@@ -97,7 +97,7 @@ const newCase = {
 
 ### Screening Data Carry-Forward
 
-If the child has completed a UFMF screening before being assigned, the case should reference it:
+If the child has completed a developmental screening before being assigned, the case should reference it:
 
 ```typescript
 // When creating case, check for screening

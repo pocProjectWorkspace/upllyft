@@ -52,7 +52,7 @@ A read-only summary pulling data from across the platform:
 
 **Sections:**
 - **Demographics:** Name, DOB, age, gender, parent info, contact
-- **Screening Summary:** Latest UFMF scores by domain (pull from web-screening data)
+- **Screening Summary:** Latest screening scores by domain (pull from web-screening data)
 - **Active Cases:** List of cases with therapist, status, goal count
 - **Session History:** List of sessions (dates, therapist, type) — will be populated once Feature 05 (SOAP notes) is built
 - **Milestones:** Key milestones from web-cases
@@ -99,7 +99,7 @@ Check the existing schema first — if a similar field exists, use it. Don't dup
 
 /patients/[id] page:
 ├── PatientHeader         — name, age, status, parent info
-├── ScreeningSummary      — domain scores from latest UFMF
+├── ScreeningSummary      — domain scores from latest screening
 ├── CasesList             — active cases with therapist
 ├── SessionTimeline       — chronological session list
 ├── MilestoneTracker      — key milestones

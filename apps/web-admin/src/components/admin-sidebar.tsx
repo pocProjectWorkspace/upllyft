@@ -79,19 +79,6 @@ export function AdminSidebar() {
 
   return (
     <aside className="w-60 bg-white border-r border-gray-100 flex flex-col min-h-screen sticky top-0">
-      {/* Branding */}
-      <div className="p-5 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">U</span>
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-gray-900">Upllyft</h1>
-            <p className="text-xs text-gray-500">Clinic Admin</p>
-          </div>
-        </div>
-      </div>
-
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {visibleItems.map((item) => {

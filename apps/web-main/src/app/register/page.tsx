@@ -528,7 +528,7 @@ export default function RegisterPage() {
               <p className="text-white font-semibold text-base mb-4">What you&apos;ll get access to:</p>
               <div className="space-y-3">
                 {[
-                  'UFMF developmental screening tools',
+                  'Evidence-based developmental screening',
                   'Connect with verified therapists',
                   'AI-powered personalized worksheets',
                   'Community support from other families',

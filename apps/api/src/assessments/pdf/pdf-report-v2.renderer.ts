@@ -21,7 +21,7 @@ export async function renderV2Report(
   // ── Header ──────────────────────────────────────────────────────────
   pdf.reportHeader(
     report.reportTitle || 'Milestone Map Report',
-    'UFMF v2.0 Deep Insight Report',
+    'Upllyft Developmental Screening — Deep Insight Report',
     report.generatedAt
       ? `Generated ${new Date(report.generatedAt).toLocaleDateString()}`
       : '',

@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import { AppHeader } from '@upllyft/ui';
 import { RoleGuard } from './role-guard';
 import { AdminSidebar } from './admin-sidebar';
-import { AdminHeader } from './admin-header';
 
 export function AdminShell({ children }: { children: ReactNode }) {
   return (
@@ -13,10 +12,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <AppHeader currentApp="admin" />
         <div className="flex flex-1 overflow-hidden">
           <AdminSidebar />
-          <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-            <AdminHeader />
-            <main className="flex-1 p-6">{children}</main>
-          </div>
+          <main className="flex-1 p-6 min-w-0 overflow-y-auto">{children}</main>
         </div>
       </div>
     </RoleGuard>

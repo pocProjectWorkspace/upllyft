@@ -12,7 +12,7 @@ upllyft/
 │   ├── api/                    # NestJS 11 backend (port 3001)
 │   ├── web-main/               # Main hub: dashboard, feed, profile, settings, admin (port 3000)
 │   ├── web-community/          # Community: posts, Q&A, events, crisis, providers (port 3002)
-│   ├── web-screening/          # Screening: UFMF assessments, reports (port 3003)
+│   ├── web-screening/          # Screening: developmental assessments, reports (port 3003)
 │   ├── web-booking/            # Booking: therapist marketplace, sessions, Stripe (port 3004)
 │   ├── web-resources/          # Learning: AI worksheets, assignments, community library (port 3005)
 │   ├── web-cases/              # Cases: therapist case management, IEPs, milestones (port 3006)

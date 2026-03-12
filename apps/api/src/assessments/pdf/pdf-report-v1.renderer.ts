@@ -2,10 +2,10 @@ import { PdfBuilder } from './pdf-helpers';
 import type { ReportData } from '../report-generator.service';
 
 const FRAMEWORK_PARAGRAPHS = [
-  'Upllyft Fusion Milestones Framework (UFMF v2.0) is a multi-domain developmental screening and functional formulation framework designed to identify strengths, emerging risks, and support needs across the full spectrum of neurodivergence. It organizes caregiver- and self-reported observations into recognized neurodevelopmental domains (including motor, language, cognition, social-emotional, adaptive functioning, sensory processing, and vision/hearing) and evaluates these against age-anchored developmental expectations.',
-  'UFMF v2.0 is explicitly aligned with international diagnostic and functioning standards. Diagnostic classification remains the responsibility of qualified clinicians using established systems such as ICD-11 (WHO) and DSM-5-TR (APA). Functional interpretation within the framework is consistent with the ICF, emphasizing how observed patterns affect daily activities, participation, and contextual support needs.',
-  'The framework integrates three complementary layers: (1) developmental milestone and skill mapping across domains; (2) synthesis of functional impact on everyday life, learning, and independence; and (3) non-diagnostic clinical hypothesis links that explain how observed patterns may relate to known neurodevelopmental mechanisms.',
-  'All UFMF v2.0 outputs are provided as clinical decision-support and require professional judgment. Results are expressed using screening-appropriate language and include confidence indicators to support responsible interpretation.',
+  'Upllyft Developmental Screening is a multi-domain, parent-reported developmental screening and functional formulation tool adapted from internationally recognized frameworks including the WHO/UNICEF Nurturing Care Framework, the ASQ-3 developmental screening methodology, the WHO International Classification of Functioning, Disability and Health (ICF), and the CDC developmental milestones program. It organizes caregiver- and self-reported observations into recognized neurodevelopmental domains (including motor, language, cognition, social-emotional, adaptive functioning, sensory processing, and vision/hearing) and evaluates these against age-anchored developmental expectations.',
+  'This screening tool is explicitly aligned with international diagnostic and functioning standards. Diagnostic classification remains the responsibility of qualified clinicians using established systems such as ICD-11 (WHO) and DSM-5-TR (APA). Functional interpretation within the framework is consistent with the ICF, emphasizing how observed patterns affect daily activities, participation, and contextual support needs.',
+  'The screening integrates three complementary layers: (1) developmental milestone and skill mapping across domains; (2) synthesis of functional impact on everyday life, learning, and independence; and (3) non-diagnostic clinical hypothesis links that explain how observed patterns may relate to known neurodevelopmental mechanisms.',
+  'All outputs are provided as clinical decision-support and require professional judgment. Results are expressed using screening-appropriate language and include confidence indicators to support responsible interpretation.',
 ];
 
 const DISCLAIMER_TEXT =
@@ -66,7 +66,7 @@ export async function renderV1Report(
   // ── Header ──────────────────────────────────────────────────────────
   pdf.reportHeader(
     'Developmental Assessment Report',
-    'Upllyft Fusion Milestones Framework (UFMF v2.0)',
+    'Upllyft Developmental Screening',
     `Generated on ${dateStr}`,
   );
 
@@ -98,7 +98,7 @@ export async function renderV1Report(
   pdf.disclaimerBox(DISCLAIMER_TEXT);
 
   // ── Framework Description ───────────────────────────────────────────
-  pdf.frameworkBox('About This Framework \u2014 UFMF v2.0', FRAMEWORK_PARAGRAPHS);
+  pdf.frameworkBox('About This Screening Tool', FRAMEWORK_PARAGRAPHS);
 
   // ── Domain Breakdowns ───────────────────────────────────────────────
   const domains = Object.keys(domainScores);
@@ -152,7 +152,7 @@ export async function renderV1Report(
   // ── Footer ──────────────────────────────────────────────────────────
   pdf.footer([
     'Upllyft \u2014 Supporting developmental milestones',
-    'This report was generated using the Upllyft Fusion Milestones Framework (UFMF v2.0)',
+    'This report was generated using Upllyft Developmental Screening',
     'For questions or concerns, please consult with your healthcare provider or therapist.',
   ]);
 

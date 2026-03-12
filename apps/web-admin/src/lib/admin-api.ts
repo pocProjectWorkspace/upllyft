@@ -788,3 +788,97 @@ export async function deleteTherapistCredential(therapistId: string, credId: str
   const { data } = await apiClient.delete(`/admin/therapists/${therapistId}/credentials/${credId}`);
   return data;
 }
+
+// --- Session Types & Pricing Types ---
+
+export interface SessionType {
+  id: string;
+  name: string;
+  description: string | null;
+  duration: number;
+  defaultPrice: number;
+  currency: string;
+  therapistId: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  sessionPricing?: SessionPricing[];
+}
+
+export interface SessionPricing {
+  id: string;
+  therapistId: string;
+  sessionTypeId: string;
+  price: number;
+  currency: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  sessionType?: SessionType;
+}
+
+export interface CreateSessionTypeInput {
+  name: string;
+  description?: string;
+  duration: number;
+  defaultPrice: number;
+  currency?: string;
+}
+
+export interface UpdateSessionTypeInput {
+  name?: string;
+  description?: string;
+  duration?: number;
+  defaultPrice?: number;
+  isActive?: boolean;
+}
+
+export interface UpsertSessionPricingInput {
+  sessionTypeId: string;
+  basePrice: number;
+  currency?: string;
+}
+
+// --- Session Types & Pricing API Functions ---
+
+export async function getTherapistSessionTypes(therapistId: string): Promise<SessionType[]> {
+  const { data } = await apiClient.get(`/admin/clinic/therapists/${therapistId}/session-types`);
+  return data;
+}
+
+export async function createSessionType(therapistId: string, input: CreateSessionTypeInput): Promise<SessionType> {
+  const { data } = await apiClient.post(`/admin/clinic/therapists/${therapistId}/session-types`, input);
+  return data;
+}
+
+export async function updateSessionType(
+  therapistId: string,
+  sessionTypeId: string,
+  input: UpdateSessionTypeInput,
+): Promise<SessionType> {
+  const { data } = await apiClient.patch(
+    `/admin/clinic/therapists/${therapistId}/session-types/${sessionTypeId}`,
+    input,
+  );
+  return data;
+}
+
+export async function deleteSessionType(therapistId: string, sessionTypeId: string): Promise<SessionType> {
+  const { data } = await apiClient.delete(
+    `/admin/clinic/therapists/${therapistId}/session-types/${sessionTypeId}`,
+  );
+  return data;
+}
+
+export async function getTherapistPricing(therapistId: string): Promise<SessionPricing[]> {
+  const { data } = await apiClient.get(`/admin/clinic/therapists/${therapistId}/pricing`);
+  return data;
+}
+
+export async function upsertSessionPricing(
+  therapistId: string,
+  input: UpsertSessionPricingInput,
+): Promise<SessionPricing> {
+  const { data } = await apiClient.post(`/admin/clinic/therapists/${therapistId}/pricing`, input);
+  return data;
+}

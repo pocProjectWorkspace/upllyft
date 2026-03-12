@@ -862,7 +862,7 @@ Flagged domains: ${ctx.screening.flaggedDomains.join(', ') || 'None'}
 Domain scores:
 ${ctx.screening.domainScores.map((d) => `- ${d.domain}: ${d.score}% (${d.status})`).join('\n')}`);
     } else if (ctx.child) {
-      parts.push(`\n\nNote: This child has NOT completed a developmental screening yet. Consider suggesting the UFMF screening.`);
+      parts.push(`\n\nNote: This child has NOT completed a developmental screening yet. Consider suggesting the Upllyft Developmental Screening.`);
     }
 
     if (ctx.therapists && ctx.therapists.length > 0) {

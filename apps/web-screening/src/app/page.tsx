@@ -913,6 +913,19 @@ export default function ScreeningLibraryPage() {
         </Button>
       </div>
 
+      {/* Framework Attribution */}
+      <div className="mb-8 px-5 py-4 bg-teal-50/60 border border-teal-100 rounded-2xl">
+        <p className="text-sm text-teal-800 leading-relaxed">
+          <span className="font-semibold">Evidence-based screening</span>{' — '}
+          Our developmental screening is adapted from the{' '}
+          <span className="font-medium">WHO/UNICEF Nurturing Care Framework</span>,{' '}
+          <span className="font-medium">ASQ-3</span> (Ages &amp; Stages Questionnaires),{' '}
+          the <span className="font-medium">WHO International Classification of Functioning (ICF)</span>,{' '}
+          and <span className="font-medium">CDC developmental milestones</span>.
+          {' '}This is a screening tool, not a diagnostic assessment.
+        </p>
+      </div>
+
       {/* ── Progress Overview ── */}
       <ProgressOverview childrenList={children} />
 

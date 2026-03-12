@@ -709,7 +709,7 @@ function ScreeningTab({ assessments }: { assessments: PatientDetail['assessments
       <EmptyState
         icon={Brain}
         title="No screenings yet"
-        description="Screening results will appear here once the parent completes a UFMF assessment."
+        description="Screening results will appear here once the parent completes a developmental screening."
       />
     );
   }

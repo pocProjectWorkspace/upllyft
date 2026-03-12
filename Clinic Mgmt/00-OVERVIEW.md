@@ -12,7 +12,7 @@ Upllyft already covers ~60% of what a clinic EHR like Medplum offers. The gap is
 | **Therapist Profiles** | web-booking marketplace with bios, specialties, availability |
 | **Parent Booking** | Full booking flow in web-booking (port 3004) |
 | **Case Management** | web-cases (port 3006) — IEP goals, milestones, case files |
-| **Screening** | web-screening (port 3003) — full UFMF assessment + reports |
+| **Screening** | web-screening (port 3003) — developmental screening assessment + reports |
 | **AI (Mira)** | Streaming chat, cross-app nudges, worksheet generation |
 | **Auth** | JWT + refresh tokens, Google OAuth, role-based nav |
 | **Payments** | Stripe Connect wired in web-booking |

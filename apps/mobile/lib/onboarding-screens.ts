@@ -24,7 +24,7 @@ export const parentScreens: OnboardingScreenConfig[] = [
   {
     title: 'Track Milestones',
     points: [
-      'Complete UFMF screening',
+      'Complete developmental screening',
       'Get detailed reports',
       'Monitor progress over time',
     ],
@@ -95,7 +95,7 @@ export const therapistScreens: OnboardingScreenConfig[] = [
   {
     title: 'Access Screening Results',
     points: [
-      'View UFMF reports',
+      'View screening reports',
       'Track client progress',
       'Get clinical insights',
     ],

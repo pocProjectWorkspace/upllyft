@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { AdminShell } from '@/components/admin-shell';
 import { Avatar } from '@upllyft/ui';
 import { EditScheduleModal } from '@/components/edit-schedule-modal';
+import { EditSessionTypesModal } from '@/components/edit-session-types-modal';
 import {
   getTherapistDetail,
   getTherapistSchedule,
@@ -34,6 +35,7 @@ import {
   X,
   AlertCircle,
   FileText,
+  Tag,
 } from 'lucide-react';
 import {
   getTherapistCredentials,
@@ -41,6 +43,8 @@ import {
   getCredentialDownloadUrl,
   deleteTherapistCredential as deleteCredential,
   type TherapistCredential as Credential,
+  getTherapistSessionTypes,
+  type SessionType,
 } from '@/lib/admin-api';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -110,7 +114,7 @@ function statusColor(status: string): string {
   }
 }
 
-type Tab = 'caseload' | 'schedule' | 'credentials';
+type Tab = 'caseload' | 'schedule' | 'credentials' | 'sessions';
 
 export default function TherapistDetailPage() {
   const params = useParams();
@@ -120,6 +124,9 @@ export default function TherapistDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('caseload');
   const [editScheduleOpen, setEditScheduleOpen] = useState(false);
+  const [editSessionTypesOpen, setEditSessionTypesOpen] = useState(false);
+  const [sessionTypes, setSessionTypes] = useState<SessionType[]>([]);
+  const [loadingSessionTypes, setLoadingSessionTypes] = useState(false);
 
   // Schedule state
   const [weekRef, setWeekRef] = useState(new Date());
@@ -165,6 +172,26 @@ export default function TherapistDetailPage() {
     }
   }, [activeTab, fetchWeekSchedule]);
 
+  // Fetch session types when sessions tab is active
+  const fetchSessionTypes = useCallback(async () => {
+    if (!therapist) return;
+    setLoadingSessionTypes(true);
+    try {
+      const data = await getTherapistSessionTypes(therapist.userId);
+      setSessionTypes(data);
+    } catch {
+      setSessionTypes([]);
+    } finally {
+      setLoadingSessionTypes(false);
+    }
+  }, [therapist]);
+
+  useEffect(() => {
+    if (activeTab === 'sessions') {
+      fetchSessionTypes();
+    }
+  }, [activeTab, fetchSessionTypes]);
+
   const weekDates = getWeekDates(weekRef);
 
   if (loading) {
@@ -193,6 +220,7 @@ export default function TherapistDetailPage() {
   const tabs: { key: Tab; label: string; icon: typeof FolderOpen }[] = [
     { key: 'caseload', label: 'Caseload', icon: FolderOpen },
     { key: 'schedule', label: 'Schedule', icon: Calendar },
+    { key: 'sessions', label: 'Session Types', icon: Tag },
     { key: 'credentials', label: 'Credentials', icon: ShieldCheck },
   ];
 
@@ -498,6 +526,71 @@ export default function TherapistDetailPage() {
           </div>
         )}
 
+        {activeTab === 'sessions' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900">Session Types & Pricing</h3>
+              <button
+                onClick={() => setEditSessionTypesOpen(true)}
+                className="text-xs font-semibold text-teal-600 hover:text-teal-700 hover:underline"
+              >
+                Edit Session Types
+              </button>
+            </div>
+
+            {loadingSessionTypes ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : sessionTypes.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Tag className="w-6 h-6 text-gray-400" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">No session types</h3>
+                <p className="text-xs text-gray-500">Click &quot;Edit Session Types&quot; to add session types and pricing.</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Default Price</th>
+                        <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Override Price</th>
+                        <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Currency</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {sessionTypes.map((st) => {
+                        const pricing = st.sessionPricing?.[0];
+                        return (
+                          <tr key={st.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-5 py-3">
+                              <p className="text-sm font-medium text-gray-900">{st.name}</p>
+                              {st.description && (
+                                <p className="text-xs text-gray-500 mt-0.5">{st.description}</p>
+                              )}
+                            </td>
+                            <td className="px-5 py-3 text-sm text-gray-600">{st.duration} min</td>
+                            <td className="px-5 py-3 text-sm text-gray-600">{st.defaultPrice.toFixed(2)}</td>
+                            <td className="px-5 py-3 text-sm text-gray-600">
+                              {pricing ? pricing.price.toFixed(2) : '-'}
+                            </td>
+                            <td className="px-5 py-3 text-sm text-gray-600">{st.currency}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'credentials' && (
           <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
             <h3 className="text-base font-semibold text-gray-900">Credential Information</h3>
@@ -568,13 +661,21 @@ export default function TherapistDetailPage() {
       </div>
 
       {therapist && (
-        <EditScheduleModal
-          open={editScheduleOpen}
-          therapistId={therapist.id}
-          initialAvailability={therapist.availability}
-          onClose={() => setEditScheduleOpen(false)}
-          onUpdated={fetchTherapist}
-        />
+        <>
+          <EditScheduleModal
+            open={editScheduleOpen}
+            therapistId={therapist.id}
+            initialAvailability={therapist.availability}
+            onClose={() => setEditScheduleOpen(false)}
+            onUpdated={fetchTherapist}
+          />
+          <EditSessionTypesModal
+            open={editSessionTypesOpen}
+            therapistId={therapist.userId}
+            onClose={() => setEditSessionTypesOpen(false)}
+            onUpdated={fetchSessionTypes}
+          />
+        </>
       )}
     </AdminShell>
   );

@@ -1,5 +1,5 @@
 /**
- * Maps UFMF Assessment domain keys to Worksheet developmental domains.
+ * Maps Assessment domain keys to Worksheet developmental domains.
  * Assessment domainScores JSON uses keys like "grossMotor", "fineMotor", etc.
  * Worksheet targetDomains use the DEVELOPMENTAL_DOMAINS keys.
  */

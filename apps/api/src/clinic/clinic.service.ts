@@ -1,7 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
-import { CreateClinicTherapistDto, UpdateTherapistScheduleDto } from './dto/clinic.dto';
+import {
+    CreateClinicTherapistDto,
+    UpdateTherapistScheduleDto,
+    CreateSessionTypeDto,
+    UpdateSessionTypeDto,
+    UpsertSessionPricingDto,
+} from './dto/clinic.dto';
 
 @Injectable()
 export class ClinicService {
@@ -114,15 +120,7 @@ export class ClinicService {
         dto: UpdateTherapistScheduleDto,
         adminId: string,
     ) {
-        const clinic = await this.prisma.clinic.findUnique({ where: { adminId } });
-        if (!clinic) throw new NotFoundException('Clinic not found');
-
-        const profile = await this.prisma.therapistProfile.findUnique({
-            where: { userId: therapistUserId },
-        });
-        if (!profile || profile.clinicId !== clinic.id) {
-            throw new NotFoundException('Therapist not found in this clinic');
-        }
+        const profile = await this.resolveTherapistProfile(adminId, therapistUserId);
 
         // Delete existing availability for this therapist
         await this.prisma.therapistAvailability.deleteMany({
@@ -143,5 +141,121 @@ export class ClinicService {
         }
 
         return { success: true, therapistId: therapistUserId, slotsSet: dto.availability?.length ?? 0 };
+    }
+
+    // --- Session Types & Pricing ---
+
+    private async resolveTherapistProfile(adminId: string, therapistUserId: string) {
+        const clinic = await this.prisma.clinic.findUnique({ where: { adminId } });
+        if (!clinic) throw new NotFoundException('Clinic not found');
+
+        const profile = await this.prisma.therapistProfile.findUnique({
+            where: { userId: therapistUserId },
+        });
+        if (!profile || profile.clinicId !== clinic.id) {
+            throw new NotFoundException('Therapist not found in this clinic');
+        }
+
+        return profile;
+    }
+
+    async getTherapistSessionTypes(adminId: string, therapistUserId: string) {
+        const profile = await this.resolveTherapistProfile(adminId, therapistUserId);
+        return this.prisma.sessionType.findMany({
+            where: { therapistId: profile.id, isActive: true },
+            include: { sessionPricing: true },
+        });
+    }
+
+    async createSessionType(adminId: string, therapistUserId: string, dto: CreateSessionTypeDto) {
+        const profile = await this.resolveTherapistProfile(adminId, therapistUserId);
+        return this.prisma.sessionType.create({
+            data: {
+                name: dto.name,
+                description: dto.description,
+                duration: dto.duration,
+                defaultPrice: dto.defaultPrice,
+                currency: dto.currency || 'INR',
+                therapistId: profile.id,
+                isActive: true,
+            },
+        });
+    }
+
+    async updateSessionType(
+        adminId: string,
+        therapistUserId: string,
+        sessionTypeId: string,
+        dto: UpdateSessionTypeDto,
+    ) {
+        const profile = await this.resolveTherapistProfile(adminId, therapistUserId);
+
+        const sessionType = await this.prisma.sessionType.findUnique({
+            where: { id: sessionTypeId },
+        });
+        if (!sessionType || sessionType.therapistId !== profile.id) {
+            throw new NotFoundException('Session type not found for this therapist');
+        }
+
+        return this.prisma.sessionType.update({
+            where: { id: sessionTypeId },
+            data: dto,
+        });
+    }
+
+    async deleteSessionType(adminId: string, therapistUserId: string, sessionTypeId: string) {
+        const profile = await this.resolveTherapistProfile(adminId, therapistUserId);
+
+        const sessionType = await this.prisma.sessionType.findUnique({
+            where: { id: sessionTypeId },
+        });
+        if (!sessionType || sessionType.therapistId !== profile.id) {
+            throw new NotFoundException('Session type not found for this therapist');
+        }
+
+        return this.prisma.sessionType.update({
+            where: { id: sessionTypeId },
+            data: { isActive: false },
+        });
+    }
+
+    async getTherapistPricing(adminId: string, therapistUserId: string) {
+        const profile = await this.resolveTherapistProfile(adminId, therapistUserId);
+        return this.prisma.sessionPricing.findMany({
+            where: { therapistId: profile.id },
+            include: { sessionType: true },
+        });
+    }
+
+    async upsertSessionPricing(adminId: string, therapistUserId: string, dto: UpsertSessionPricingDto) {
+        const profile = await this.resolveTherapistProfile(adminId, therapistUserId);
+
+        // Verify the session type belongs to this therapist
+        const sessionType = await this.prisma.sessionType.findUnique({
+            where: { id: dto.sessionTypeId },
+        });
+        if (!sessionType || sessionType.therapistId !== profile.id) {
+            throw new NotFoundException('Session type not found for this therapist');
+        }
+
+        return this.prisma.sessionPricing.upsert({
+            where: {
+                therapistId_sessionTypeId: {
+                    therapistId: profile.id,
+                    sessionTypeId: dto.sessionTypeId,
+                },
+            },
+            create: {
+                therapistId: profile.id,
+                sessionTypeId: dto.sessionTypeId,
+                price: dto.basePrice,
+                currency: dto.currency || sessionType.currency,
+                isActive: true,
+            },
+            update: {
+                price: dto.basePrice,
+                currency: dto.currency || undefined,
+            },
+        });
     }
 }

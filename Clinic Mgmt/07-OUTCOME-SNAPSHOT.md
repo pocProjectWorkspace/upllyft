@@ -19,7 +19,7 @@ A dashboard showing aggregate outcomes across all active patients.
 | Active Patients | Count of children with clinicStatus = ACTIVE |
 | Total Sessions This Month | Count from sessions table |
 | Goals Progressing | % of goals rated "Progressing" or "Achieved" in latest session |
-| Average Screening Improvement | % change in UFMF scores from first to latest screening |
+| Average Screening Improvement | % change in screening scores from first to latest screening |
 
 **Section 1: Goal Progress Overview**
 
@@ -40,7 +40,7 @@ For children with multiple screenings, show improvement trends by domain:
 
 - Bar chart: Average domain scores (first screening vs latest screening)
 - Highlight domains with most improvement
-- Domains: Motor, Communication, Social, Cognitive, Self-Help, etc. (from UFMF)
+- Domains: Motor, Communication, Social, Cognitive, Self-Help, etc. (from developmental screening)
 
 **Section 3: Patient Outcome Table**
 
@@ -74,7 +74,7 @@ Verbal communication    | 🟡  | 🟡  | 🟡  | 🟡  | 🟢  |
 ```
 
 **Screening Score Chart:**
-- Line chart showing UFMF domain scores over time (if multiple screenings)
+- Line chart showing screening domain scores over time (if multiple screenings)
 - Each domain as a separate line
 - X-axis = screening dates, Y-axis = score
 
@@ -169,7 +169,7 @@ Patient detail (embedded):
 This feature depends on:
 - **Feature 02** (Patient Directory) — for patient data and detail page
 - **Feature 05** (SOAP Notes) — for `goalProgress` data from sessions
-- **web-screening** — for UFMF screening scores
+- **web-screening** — for developmental screening scores
 - **web-cases** — for milestones and goal data
 
 Without session notes (Feature 05) the goal progress sections will be empty. That's fine — the screening trends and milestone data still have value, and the goal progress will populate as therapists start using SOAP notes.

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsInt, Min, Max, IsBoolean, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateClinicTherapistDto {
@@ -82,4 +82,62 @@ export class UpdateClinicDto {
     @IsOptional()
     @IsString()
     accentColor?: string;
+}
+
+export class CreateSessionTypeDto {
+    @IsString()
+    name: string;
+
+    @IsOptional()
+    @IsString()
+    description?: string;
+
+    @IsInt()
+    @Min(1)
+    duration: number;
+
+    @IsNumber()
+    @Min(0)
+    defaultPrice: number;
+
+    @IsOptional()
+    @IsString()
+    currency?: string;
+}
+
+export class UpdateSessionTypeDto {
+    @IsOptional()
+    @IsString()
+    name?: string;
+
+    @IsOptional()
+    @IsString()
+    description?: string;
+
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    duration?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    defaultPrice?: number;
+
+    @IsOptional()
+    @IsBoolean()
+    isActive?: boolean;
+}
+
+export class UpsertSessionPricingDto {
+    @IsString()
+    sessionTypeId: string;
+
+    @IsNumber()
+    @Min(0)
+    basePrice: number;
+
+    @IsOptional()
+    @IsString()
+    currency?: string;
 }
