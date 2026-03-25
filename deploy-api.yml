@@ -1,0 +1,240 @@
+name: Deploy API to AWS Lambda
+
+# ─────────────────────────────────────────────
+# TRIGGER
+# Runs only when code under apps/api/ changes
+# on a push to main branch.
+# ─────────────────────────────────────────────
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - '.github/workflows/deploy-api.yml'  # also re-run if this file itself changes
+
+# ─────────────────────────────────────────────
+# ENVIRONMENT VARIABLES
+# Shared across all steps in the job.
+# Non-sensitive values go here.
+# Sensitive values come from GitHub Secrets.
+# ─────────────────────────────────────────────
+env:
+  AWS_REGION: us-east-1                        # change to your region e.g. ap-south-1
+  LAMBDA_FUNCTION_NAME: uplilyft-api           # your Lambda function name in AWS
+  S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}      # bucket used to store the deployment zip
+  S3_KEY: deployments/api-${{ github.sha }}.zip  # unique key per commit, keeps history
+
+jobs:
+  deploy:
+    name: Build and Deploy API
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ───────────────────────────────────────
+      # 1. CHECKOUT
+      # Clones the repo onto the runner VM.
+      # Without this, no files are available.
+      # ───────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ───────────────────────────────────────
+      # 2. SET UP NODE
+      # Installs Node.js. Match this version
+      # to whatever you use locally / in prod.
+      # ───────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # ───────────────────────────────────────
+      # 3. SET UP PNPM
+      # Installs pnpm globally on the runner.
+      # Version should match your packageManager
+      # field in package.json if you have one.
+      # ───────────────────────────────────────
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8                           # change to match your pnpm version
+
+      # ───────────────────────────────────────
+      # 4. CACHE node_modules
+      # Speeds up subsequent runs by caching
+      # installed packages. Cache key is based
+      # on the lockfile hash — invalidates
+      # automatically when deps change.
+      # ───────────────────────────────────────
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      # ───────────────────────────────────────
+      # 5. INSTALL DEPENDENCIES
+      # --filter installs only the api app and
+      # its workspace dependencies — not the
+      # entire monorepo. Faster and leaner.
+      # ───────────────────────────────────────
+      - name: Install dependencies
+        run: pnpm install --filter @uplilyft/api...
+        # NOTE: The "..." suffix also installs
+        # any local packages that api depends on.
+        # If your api package name differs, check
+        # apps/api/package.json → "name" field
+        # and update the filter accordingly.
+
+      # ───────────────────────────────────────
+      # 6. GENERATE PRISMA CLIENT
+      # Prisma generates a typed client from
+      # your schema. Must run before build
+      # so TypeScript can resolve Prisma types.
+      # ───────────────────────────────────────
+      - name: Generate Prisma client
+        run: pnpm --filter @uplilyft/api exec prisma generate
+
+      # ───────────────────────────────────────
+      # 7. BUILD
+      # Compiles TypeScript → JavaScript.
+      # NestJS outputs to apps/api/dist/
+      # ───────────────────────────────────────
+      - name: Build API
+        run: pnpm --filter @uplilyft/api build
+        env:
+          NODE_ENV: production
+
+      # ───────────────────────────────────────
+      # 8. PACKAGE FOR LAMBDA
+      # Lambda expects a zip file containing:
+      #   - dist/          (compiled JS)
+      #   - node_modules/  (production deps only)
+      #   - prisma/        (schema + migrations)
+      #
+      # We install prod-only deps fresh into a
+      # staging folder to keep the zip lean.
+      # Lambda has a 250MB unzipped size limit.
+      # ───────────────────────────────────────
+      - name: Package Lambda bundle
+        run: |
+          cd apps/api
+
+          # Create a clean staging directory
+          mkdir -p lambda-package
+
+          # Copy compiled output
+          cp -r dist lambda-package/
+
+          # Copy Prisma schema and generated client
+          # (Lambda needs the query engine binary at runtime)
+          cp -r prisma lambda-package/
+          cp -r node_modules/.pnpm/*/node_modules/@prisma lambda-package/prisma/ 2>/dev/null || true
+          cp -r node_modules/.prisma lambda-package/node_modules/.prisma 2>/dev/null || true
+
+          # Install ONLY production dependencies into staging
+          # This avoids bundling devDependencies (ts, eslint, etc.)
+          cd lambda-package
+          cp ../package.json .
+          npm install --omit=dev --ignore-scripts
+          cd ..
+
+          # Zip everything up
+          cd lambda-package
+          zip -r ../../api-bundle.zip .
+          cd ../..
+
+          echo "Bundle size: $(du -sh api-bundle.zip | cut -f1)"
+
+      # ───────────────────────────────────────
+      # 9. CONFIGURE AWS CREDENTIALS
+      # Injects your AWS keys from GitHub
+      # Secrets into the runner environment.
+      # Never hardcode keys in the YAML.
+      # ───────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ───────────────────────────────────────
+      # 10. UPLOAD ZIP TO S3
+      # Uploads the bundle to S3 first rather
+      # than pushing directly to Lambda.
+      # Benefits:
+      #  - Keeps a versioned history of deploys
+      #  - Allows rollback to any previous zip
+      #  - Required for bundles > 50MB (direct
+      #    Lambda upload limit is 50MB)
+      # ───────────────────────────────────────
+      - name: Upload bundle to S3
+        run: |
+          aws s3 cp api-bundle.zip s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }}
+          echo "Uploaded to s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }}"
+
+      # ───────────────────────────────────────
+      # 11. DEPLOY TO LAMBDA
+      # Tells Lambda to pull the new zip from
+      # S3 and replace the function code.
+      # The --publish flag creates a new
+      # numbered version (v1, v2, v3...) so
+      # you can roll back via Lambda console.
+      # ───────────────────────────────────────
+      - name: Deploy to Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --s3-bucket ${{ env.S3_BUCKET }} \
+            --s3-key ${{ env.S3_KEY }} \
+            --publish
+
+      # ───────────────────────────────────────
+      # 12. WAIT FOR UPDATE TO COMPLETE
+      # Lambda updates are async. This waits
+      # until the function state is Active
+      # before proceeding. Without this, the
+      # config update below might race.
+      # ───────────────────────────────────────
+      - name: Wait for Lambda update
+        run: |
+          aws lambda wait function-updated \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }}
+
+      # ───────────────────────────────────────
+      # 13. UPDATE LAMBDA ENVIRONMENT VARS
+      # Pushes your runtime secrets to Lambda's
+      # environment configuration.
+      # Add or remove variables to match your
+      # actual .env.example keys.
+      # ───────────────────────────────────────
+      - name: Update Lambda environment variables
+        run: |
+          aws lambda update-function-configuration \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --environment "Variables={
+              NODE_ENV=production,
+              DATABASE_URL=${{ secrets.DATABASE_URL }},
+              JWT_SECRET=${{ secrets.JWT_SECRET }},
+              AWS_REGION=${{ env.AWS_REGION }}
+            }"
+        # NOTE: This overwrites ALL env vars on the function.
+        # Any variable not listed here will be removed.
+        # Keep this list in sync with your .env.example
+
+      # ───────────────────────────────────────
+      # 14. PRINT SUMMARY
+      # Outputs useful info to the Actions log
+      # so you can confirm what was deployed.
+      # ───────────────────────────────────────
+      - name: Print deployment summary
+        run: |
+          echo "✅ Deployment complete"
+          echo "Function : ${{ env.LAMBDA_FUNCTION_NAME }}"
+          echo "Commit   : ${{ github.sha }}"
+          echo "S3 path  : s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }}"
+          echo "Deployed by: ${{ github.actor }}"
