@@ -88,11 +88,15 @@ export class AuthController {
     @Req() req: any,
     @Res({ passthrough: false }) res: express.Response,
   ) {
+    console.log(`[AuthController] 🔵 Callback reached. req.user: ${req.user ? 'FOUND' : 'MISSING'}`);
     try {
       this.logger.log('Google callback received');
-      this.logger.debug(`Google user data: ${JSON.stringify(req.user?.email)}`);
+      if (req.user) {
+        this.logger.debug(`Google user data: ${JSON.stringify(req.user.email)}`);
+      }
 
       if (!req.user) {
+        console.error('[AuthController] 🆘 No user data from Google');
         this.logger.error('No user data from Google');
         throw new Error('No user from Google auth');
       }
