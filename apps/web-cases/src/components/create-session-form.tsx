@@ -407,7 +407,7 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
               </div>
               <div>
                 <Label>Attendance</Label>
-                <Select value={attendance} onValueChange={setAttendance}>
+                <Select value={attendance} onValueChange={(val) => setAttendance(val as any)}>
                   <SelectTrigger className="mt-1.5">
                     <SelectValue />
                   </SelectTrigger>
