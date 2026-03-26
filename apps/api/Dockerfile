@@ -59,6 +59,9 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 
+# ── Copy pnpm from builder (required for Railway start command) ──
+COPY --from=builder /root/.local/share/corepack /root/.local/share/corepack
+
 # ── Copy compiled assets from builder ──
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/node_modules ./node_modules
