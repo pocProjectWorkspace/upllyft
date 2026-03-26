@@ -37,6 +37,10 @@ apps/web-resources
 apps/web-screening
 apps/mobile
 
+# ── Shared packages (required by Dockerfile COPY steps) ──
+!packages
+!packages/**
+
 # ── Documentation & misc ──
 *.md
 !apps/api/src/**/*.md
