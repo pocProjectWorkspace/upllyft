@@ -130,14 +130,19 @@ async function bootstrap() {
     },
   });
 
-  logger.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`);
+  logger.log(`📚 Swagger documentation: http://0.0.0.0:${port}/api/docs`);
+  logger.log(`🔍 Environment check: PORT=${port}, NODE_ENV=${nodeEnv}, SESSION_SECRET=${sessionSecret ? 'SET' : 'MISSING'}`);
 
   // Start server
-  await app.listen(port, '0.0.0.0');
+  try {
+    await app.listen(port, '0.0.0.0');
+    logger.log(`🚀 Application listening on 0.0.0.0:${port}`);
+  } catch (err) {
+    logger.error(`❌ Failed to listen on port ${port}: ${err.message}`, err.stack);
+    process.exit(1);
+  }
 
-  logger.log(`🚀 Application running on: http://localhost:${port}`);
-  logger.log(`📍 Environment: ${nodeEnv}`);
-  logger.log(`📚 API endpoints: http://localhost:${port}/api`);
+  logger.log(`📚 API endpoints: http://0.0.0.0:${port}/api`);
   logger.log(`🏥 Upllyft Backend Service Started Successfully`);
 }
 

@@ -24,7 +24,7 @@ import {
     AnalyticsQueryDto,
 } from './dto/organization.dto';
 
-@Controller('api/marketplace/organization')
+@Controller('marketplace/organization')
 @UseGuards(JwtAuthGuard)
 export class OrganizationController {
     constructor(private readonly organizationService: OrganizationService) { }
