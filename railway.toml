@@ -1,0 +1,16 @@
+[build]
+# Use the Dockerfile at apps/api/Dockerfile
+# Build context is the repo root (needed for monorepo workspace files)
+dockerfilePath = "apps/api/Dockerfile"
+
+[deploy]
+# Health check — Railway pings this to know the app is ready
+healthcheckPath = "/health"
+healthcheckTimeout = 90
+
+# Restart on crash
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+# Start command (defined in Dockerfile CMD, but can override here)
+# startCommand = "node dist/main.js"

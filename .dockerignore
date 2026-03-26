@@ -1,0 +1,53 @@
+# ── Dependencies (reinstalled in Docker) ──
+node_modules
+.pnpm-store
+
+# ── Build outputs (rebuilt in Docker) ──
+dist
+.next
+.turbo
+out
+
+# ── Git ──
+.git
+.gitignore
+
+# ── Environment files (secrets set via Railway dashboard) ──
+.env
+.env.*
+!.env.example
+
+# ── IDE / OS ──
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# ── Testing ──
+coverage
+
+# ── Frontend apps (not needed for API deployment) ──
+apps/web-admin
+apps/web-booking
+apps/web-cases
+apps/web-community
+apps/web-main
+apps/web-resources
+apps/web-screening
+apps/mobile
+
+# ── Documentation & misc ──
+*.md
+!apps/api/src/**/*.md
+docs
+public
+*.log
+*.sql
+dev_backup.sql
+schema.prisma-bk
+schema.prisma.corrupted
+schema.prisma_mainbkup
+lambda-debug.js
+deploy-api.yml
+Clinic Mgmt
