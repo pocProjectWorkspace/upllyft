@@ -1,6 +1,3 @@
-# ─────────────────────────────────────────────
-# Single stage — avoids all pnpm symlink issues
-# ─────────────────────────────────────────────
 FROM node:20-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -37,13 +34,10 @@ COPY packages ./packages
 RUN cd apps/api && npx prisma generate
 RUN pnpm --filter @upllyft/api build
 
-# Debug: verify build output exists
 RUN ls -la apps/api/dist/ && echo "✅ Build output found"
 
-RUN pnpm prune --prod
+RUN CI=true pnpm prune --prod
 
 EXPOSE ${PORT:-3001}
-
-WORKDIR /app
 
 CMD ["sh", "-c", "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
