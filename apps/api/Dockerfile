@@ -2,10 +2,12 @@
 # Stage 1: Build
 # Installs all deps, generates Prisma, compiles TS
 # ─────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 # Native module build tools (bcrypt, canvas, prisma)
-RUN apk add --no-cache python3 make g++ libc6-compat
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -38,19 +40,18 @@ RUN pnpm --filter @upllyft/api build
 # Stage 2: Production Runner
 # Minimal image with only runtime dependencies
 # ─────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 # Runtime deps: Chromium for Puppeteer, native module support
-RUN apk add --no-cache \
-    libc6-compat \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
-    nss \
-    freetype \
-    harfbuzz \
+    libnss3 \
+    libfreetype6 \
+    libharfbuzz0b \
     ca-certificates \
-    ttf-freefont \
-    font-noto-emoji \
-    && rm -rf /var/cache/apk/*
+    fonts-freefont-ttf \
+    fonts-noto-color-emoji \
+    && rm -rf /var/lib/apt/lists/*
 
 # Tell Puppeteer to use system Chromium (no download)
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
