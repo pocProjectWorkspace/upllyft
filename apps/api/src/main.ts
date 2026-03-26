@@ -45,7 +45,7 @@ async function bootstrap() {
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         httpOnly: true,
         secure: nodeEnv === 'production',
-        sameSite: 'lax',
+        sameSite: nodeEnv === 'production' ? 'none' : 'lax',
       },
     }),
   );
@@ -62,7 +62,7 @@ async function bootstrap() {
   // CORS - Restrict to Upllyft origins + Vercel previews + Railway
   app.enableCors({
     origin: nodeEnv === 'production'
-      ? [/\.upllyft\.com$/, /\.vercel\.app$/, /\.railway\.app$/]
+      ? [/\.upllyft\.com$/, /\.safehaven-upllyft\.com$/, /\.vercel\.app$/, /\.railway\.app$/]
       : [
           'http://localhost:3000',
           'http://localhost:3002',
