@@ -88,7 +88,7 @@ export function loadLoggingConfig(): LoggingConfig {
         level: (process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug')) as LoggingConfig['level'],
 
         cloudwatch: {
-            enabled: envBool('ENABLE_CLOUDWATCH_LOGS', isProduction),
+            enabled: envBool('ENABLE_CLOUDWATCH_LOGS', false),
             logGroup: process.env.CLOUDWATCH_LOG_GROUP || '/upllyft/api',
             logStream: process.env.CLOUDWATCH_LOG_STREAM,
             region: process.env.AWS_REGION || 'ap-south-1',
