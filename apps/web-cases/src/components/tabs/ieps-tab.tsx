@@ -95,7 +95,7 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showGoalBank, setShowGoalBank] = useState(false);
   const [suggestDomain, setSuggestDomain] = useState('COMMUNICATION');
-  const [suggestions, setSuggestions] = useState<Record<string, unknown>[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [goalBankDomain, setGoalBankDomain] = useState('');
 
   // ── Form state ──
@@ -175,7 +175,7 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
       });
       setShowCreate(false);
       setNewIEP({ title: '', startDate: '', endDate: '', templateId: '', reviewDate: '' });
-      const resultId = (result as Record<string, unknown>)?.id;
+      const resultId = (result as any)?.id;
       if (typeof resultId === 'string') setSelectedIepId(resultId);
     } catch {
       // Error handled by hook
@@ -224,7 +224,7 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
         caseId,
         data: {},
       });
-      const resultId = (result as Record<string, unknown>)?.id;
+      const resultId = (result as any)?.id;
       if (typeof resultId === 'string') setSelectedIepId(resultId);
     } catch {
       // Error handled by hook
@@ -237,19 +237,19 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
         caseId,
         data: { domain, count: 5 },
       });
-      const resultData = result as Record<string, unknown>;
+      const resultData = result as any;
       const goals = Array.isArray(resultData?.goals)
         ? resultData.goals
         : Array.isArray(result)
           ? result
           : [];
-      setSuggestions(goals as Record<string, unknown>[]);
+      setSuggestions(goals as any[]);
     } catch {
       // Error handled by hook
     }
   };
 
-  const handleAddSuggestion = async (suggestion: Record<string, unknown>) => {
+  const handleAddSuggestion = async (suggestion: any) => {
     if (!selectedIepId) return;
     const domain =
       typeof suggestion.domain === 'string' ? suggestion.domain : 'COMMUNICATION';
@@ -295,7 +295,7 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
         caseId,
         iepId: selectedIepId,
       });
-      const resultId = (result as Record<string, unknown>)?.id;
+      const resultId = (result as any)?.id;
       if (typeof resultId === 'string') setSelectedIepId(resultId);
     } catch {
       // Error handled by hook
@@ -303,7 +303,7 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
   };
 
   const openMeetingNotesEditor = () => {
-    const mn = (selectedIEP?.meetingNotes as Record<string, unknown>) || {};
+    const mn = (selectedIEP?.meetingNotes as any) || {};
     const attendees = Array.isArray(mn.attendees)
       ? (mn.attendees as string[]).join(', ')
       : '';
@@ -368,7 +368,7 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
       await updateIEP.mutateAsync({
         caseId,
         iepId: selectedIepId,
-        data: { servicesTracking: parsed as Record<string, unknown> },
+        data: { servicesTracking: parsed as any },
       });
       setEditingServices(false);
     } catch {
@@ -393,7 +393,7 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
   if (selectedIEP && selectedIepId) {
     const meetingNotes =
       selectedIEP.meetingNotes && typeof selectedIEP.meetingNotes === 'object'
-        ? (selectedIEP.meetingNotes as Record<string, unknown>)
+        ? (selectedIEP.meetingNotes as any)
         : null;
     const servicesTracking = selectedIEP.servicesTracking;
 
@@ -912,7 +912,7 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
             <div className="text-sm">
               {Array.isArray(servicesTracking) ? (
                 <div className="space-y-2">
-                  {(servicesTracking as Record<string, unknown>[]).map(
+                  {(servicesTracking as any[]).map(
                     (s, i) => {
                       const serviceName =
                         typeof s.service === 'string'

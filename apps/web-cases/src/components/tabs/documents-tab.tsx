@@ -81,7 +81,7 @@ export function DocumentsTab({ caseId }: DocumentsTabProps) {
   const [reportDateTo, setReportDateTo] = useState('');
   const [reportFocusAreas, setReportFocusAreas] = useState('');
 
-  const documents: Record<string, unknown>[] = Array.isArray(documentsData?.data)
+  const documents: any[] = Array.isArray(documentsData?.data)
     ? documentsData.data
     : Array.isArray(documentsData)
       ? documentsData
@@ -137,7 +137,7 @@ export function DocumentsTab({ caseId }: DocumentsTabProps) {
 
   const handleGenerateReport = async () => {
     try {
-      const payload: Record<string, unknown> = { type: reportType };
+      const payload: any = { type: reportType };
       if (reportDateFrom) payload.startDate = reportDateFrom;
       if (reportDateTo) payload.endDate = reportDateTo;
       if (reportFocusAreas.trim()) payload.focusAreas = reportFocusAreas.trim();
@@ -421,13 +421,13 @@ export function DocumentsTab({ caseId }: DocumentsTabProps) {
                           Shared With
                         </p>
                         <div className="space-y-2">
-                          {shares.map((share: Record<string, unknown>) => {
+                          {shares.map((share: any) => {
                             const shareId =
                               typeof share.id === 'string' ? share.id : String(share.id);
                             const sharedWith =
                               share.sharedWith &&
                               typeof share.sharedWith === 'object'
-                                ? (share.sharedWith as Record<string, unknown>)
+                                ? (share.sharedWith as any)
                                 : null;
                             const shareName =
                               sharedWith && typeof sharedWith.name === 'string'

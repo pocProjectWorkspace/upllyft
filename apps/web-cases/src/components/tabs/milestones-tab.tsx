@@ -129,7 +129,7 @@ export function MilestonesTab({ caseId }: MilestonesTabProps) {
       });
       setShowCreate(false);
       setNewPlan({ sharedWithParent: false });
-      const resultId = (result as Record<string, unknown>)?.id;
+      const resultId = (result as any)?.id;
       if (typeof resultId === 'string') setSelectedPlanId(resultId);
     } catch {
       // Error handled by hook

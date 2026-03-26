@@ -6,32 +6,32 @@ import * as casesApi from '@/lib/api/cases';
 
 const keys = {
   all: ['cases'] as const,
-  list: (params?: Record<string, unknown>) => [...keys.all, 'list', params] as const,
+  list: (params?: any) => [...keys.all, 'list', params] as const,
   detail: (id: string) => [...keys.all, 'detail', id] as const,
   timeline: (caseId: string) => [...keys.all, 'timeline', caseId] as const,
   internalNotes: (caseId: string) => [...keys.all, 'internal-notes', caseId] as const,
-  sessions: (caseId: string, params?: Record<string, unknown>) =>
+  sessions: (caseId: string, params?: any) =>
     [...keys.all, 'sessions', caseId, params] as const,
   session: (caseId: string, sessionId: string) =>
     [...keys.all, 'session', caseId, sessionId] as const,
   ieps: (caseId: string) => [...keys.all, 'ieps', caseId] as const,
   iep: (caseId: string, iepId: string) => [...keys.all, 'iep', caseId, iepId] as const,
-  iepTemplates: (params?: Record<string, unknown>) =>
+  iepTemplates: (params?: any) =>
     [...keys.all, 'iep-templates', params] as const,
-  goalBank: (params?: Record<string, unknown>) =>
+  goalBank: (params?: any) =>
     [...keys.all, 'goal-bank', params] as const,
   milestonePlans: (caseId: string) => [...keys.all, 'milestone-plans', caseId] as const,
   milestonePlan: (caseId: string, planId: string) =>
     [...keys.all, 'milestone-plan', caseId, planId] as const,
-  documents: (caseId: string, params?: Record<string, unknown>) =>
+  documents: (caseId: string, params?: any) =>
     [...keys.all, 'documents', caseId, params] as const,
-  billing: (caseId: string, params?: Record<string, unknown>) =>
+  billing: (caseId: string, params?: any) =>
     [...keys.all, 'billing', caseId, params] as const,
   billingSummary: (caseId: string) => [...keys.all, 'billing-summary', caseId] as const,
-  consents: (caseId: string, params?: Record<string, unknown>) =>
+  consents: (caseId: string, params?: any) =>
     [...keys.all, 'consents', caseId, params] as const,
   complianceStatus: (caseId: string) => [...keys.all, 'compliance-status', caseId] as const,
-  auditLogs: (caseId: string, params?: Record<string, unknown>) =>
+  auditLogs: (caseId: string, params?: any) =>
     [...keys.all, 'audit-logs', caseId, params] as const,
   auditSummary: (caseId: string) => [...keys.all, 'audit-summary', caseId] as const,
   worksheets: (caseId: string) => [...keys.all, 'worksheets', caseId] as const,
@@ -48,7 +48,7 @@ export function useTherapistPatients(search?: string) {
 
 // ── Cases ──
 
-export function useCases(params?: Record<string, unknown>) {
+export function useCases(params?: any) {
   return useQuery({
     queryKey: keys.list(params),
     queryFn: () => casesApi.listCases(params),
@@ -66,7 +66,7 @@ export function useCase(id: string) {
 export function useCreateCase() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) => casesApi.createCase(data),
+    mutationFn: (data: any) => casesApi.createCase(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.all });
       toast({ title: 'Case created successfully' });
@@ -78,7 +78,7 @@ export function useCreateCase() {
 export function useUpdateCaseStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
       casesApi.updateCaseStatus(id, data),
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: keys.detail(id) });
@@ -103,7 +103,7 @@ export function useCaseTimeline(caseId: string) {
 export function useAddCaseTherapist() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.addCaseTherapist(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.detail(caseId) });
@@ -117,7 +117,7 @@ export function useAddCaseTherapist() {
 export function useTransferCase() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.transferCase(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.detail(caseId) });
@@ -142,7 +142,7 @@ export function useInternalNotes(caseId: string) {
 export function useCreateInternalNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.createInternalNote(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.internalNotes(caseId) });
@@ -155,7 +155,7 @@ export function useCreateInternalNote() {
 
 // ── Sessions ──
 
-export function useSessions(caseId: string, params?: Record<string, unknown>) {
+export function useSessions(caseId: string, params?: any) {
   return useQuery({
     queryKey: keys.sessions(caseId, params),
     queryFn: () => casesApi.listSessions(caseId, params),
@@ -174,7 +174,7 @@ export function useSession(caseId: string, sessionId: string) {
 export function useCreateSession() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.createSession(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.sessions(caseId) });
@@ -195,7 +195,7 @@ export function useUpdateSession() {
     }: {
       caseId: string;
       sessionId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.updateSession(caseId, sessionId, data),
     onSuccess: (_, { caseId, sessionId }) => {
       qc.invalidateQueries({ queryKey: keys.session(caseId, sessionId) });
@@ -216,7 +216,7 @@ export function useGenerateAiSummary() {
     }: {
       caseId: string;
       sessionId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.generateAiSummary(caseId, sessionId, data),
     onSuccess: (_, { caseId, sessionId }) => {
       qc.invalidateQueries({ queryKey: keys.session(caseId, sessionId) });
@@ -260,7 +260,7 @@ export function useLogGoalProgress() {
     }: {
       caseId: string;
       sessionId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.logGoalProgress(caseId, sessionId, data),
     onSuccess: (_, { caseId, sessionId }) => {
       qc.invalidateQueries({ queryKey: keys.session(caseId, sessionId) });
@@ -330,7 +330,7 @@ export function useIEP(caseId: string, iepId: string) {
 export function useCreateIEP() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.createIEP(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.ieps(caseId) });
@@ -351,7 +351,7 @@ export function useUpdateIEP() {
     }: {
       caseId: string;
       iepId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.updateIEP(caseId, iepId, data),
     onSuccess: (_, { caseId, iepId }) => {
       qc.invalidateQueries({ queryKey: keys.iep(caseId, iepId) });
@@ -409,7 +409,7 @@ export function useAddIEPGoal() {
     }: {
       caseId: string;
       iepId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.addIEPGoal(caseId, iepId, data),
     onSuccess: (_, { caseId, iepId }) => {
       qc.invalidateQueries({ queryKey: keys.iep(caseId, iepId) });
@@ -431,7 +431,7 @@ export function useUpdateIEPGoal() {
       caseId: string;
       iepId: string;
       goalId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.updateIEPGoal(caseId, iepId, goalId, data),
     onSuccess: (_, { caseId, iepId }) => {
       qc.invalidateQueries({ queryKey: keys.iep(caseId, iepId) });
@@ -451,7 +451,7 @@ export function useBulkAddIEPGoals() {
     }: {
       caseId: string;
       iepId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.bulkAddIEPGoals(caseId, iepId, data),
     onSuccess: (_, { caseId, iepId }) => {
       qc.invalidateQueries({ queryKey: keys.iep(caseId, iepId) });
@@ -466,7 +466,7 @@ export function useBulkAddIEPGoals() {
 export function useGenerateIEPFromScreening() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.generateIEPFromScreening(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.ieps(caseId) });
@@ -480,7 +480,7 @@ export function useGenerateIEPFromScreening() {
 
 export function useSuggestIEPGoals() {
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.suggestIEPGoals(caseId, data),
     onError: () => toast({ title: 'Failed to suggest goals', variant: 'destructive' }),
   });
@@ -488,14 +488,14 @@ export function useSuggestIEPGoals() {
 
 // ── IEP Templates & Goal Bank ──
 
-export function useIEPTemplates(params?: Record<string, unknown>) {
+export function useIEPTemplates(params?: any) {
   return useQuery({
     queryKey: keys.iepTemplates(params),
     queryFn: () => casesApi.listIEPTemplates(params),
   });
 }
 
-export function useSearchGoalBank(params?: Record<string, unknown>) {
+export function useSearchGoalBank(params?: any) {
   return useQuery({
     queryKey: keys.goalBank(params),
     queryFn: () => casesApi.searchGoalBank(params),
@@ -523,7 +523,7 @@ export function useMilestonePlan(caseId: string, planId: string) {
 export function useCreateMilestonePlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.createMilestonePlan(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.milestonePlans(caseId) });
@@ -545,7 +545,7 @@ export function useCreateMilestone() {
     }: {
       caseId: string;
       planId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.createMilestone(caseId, planId, data),
     onSuccess: (_, { caseId, planId }) => {
       qc.invalidateQueries({ queryKey: keys.milestonePlan(caseId, planId) });
@@ -568,7 +568,7 @@ export function useUpdateMilestone() {
       caseId: string;
       planId: string;
       milestoneId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.updateMilestone(caseId, planId, milestoneId, data),
     onSuccess: (_, { caseId, planId }) => {
       qc.invalidateQueries({ queryKey: keys.milestonePlan(caseId, planId) });
@@ -589,7 +589,7 @@ export function useGenerateMilestonesAI() {
     }: {
       caseId: string;
       planId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.generateMilestonesAI(caseId, planId, data),
     onSuccess: (_, { caseId, planId }) => {
       qc.invalidateQueries({ queryKey: keys.milestonePlan(caseId, planId) });
@@ -603,7 +603,7 @@ export function useGenerateMilestonesAI() {
 
 // ── Documents ──
 
-export function useDocuments(caseId: string, params?: Record<string, unknown>) {
+export function useDocuments(caseId: string, params?: any) {
   return useQuery({
     queryKey: keys.documents(caseId, params),
     queryFn: () => casesApi.listDocuments(caseId, params),
@@ -614,7 +614,7 @@ export function useDocuments(caseId: string, params?: Record<string, unknown>) {
 export function useCreateDocument() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.createDocument(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.documents(caseId) });
@@ -635,7 +635,7 @@ export function useShareDocument() {
     }: {
       caseId: string;
       documentId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.shareDocument(caseId, documentId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.documents(caseId) });
@@ -662,7 +662,7 @@ export function useRevokeDocumentShare() {
 export function useGenerateReport() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.generateReport(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.documents(caseId) });
@@ -675,7 +675,7 @@ export function useGenerateReport() {
 
 // ── Billing ──
 
-export function useBilling(caseId: string, params?: Record<string, unknown>) {
+export function useBilling(caseId: string, params?: any) {
   return useQuery({
     queryKey: keys.billing(caseId, params),
     queryFn: () => casesApi.listBilling(caseId, params),
@@ -694,7 +694,7 @@ export function useBillingSummary(caseId: string) {
 export function useCreateBilling() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.createBilling(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.billing(caseId) });
@@ -717,7 +717,7 @@ export function useUpdateBilling() {
     }: {
       caseId: string;
       billingId: string;
-      data: Record<string, unknown>;
+      data: any;
     }) => casesApi.updateBilling(caseId, billingId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.billing(caseId) });
@@ -731,7 +731,7 @@ export function useUpdateBilling() {
 
 // ── Consents ──
 
-export function useConsents(caseId: string, params?: Record<string, unknown>) {
+export function useConsents(caseId: string, params?: any) {
   return useQuery({
     queryKey: keys.consents(caseId, params),
     queryFn: () => casesApi.listConsents(caseId, params),
@@ -742,7 +742,7 @@ export function useConsents(caseId: string, params?: Record<string, unknown>) {
 export function useCreateConsent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, data }: { caseId: string; data: Record<string, unknown> }) =>
+    mutationFn: ({ caseId, data }: { caseId: string; data: any }) =>
       casesApi.createConsent(caseId, data),
     onSuccess: (_, { caseId }) => {
       qc.invalidateQueries({ queryKey: keys.consents(caseId) });
@@ -779,7 +779,7 @@ export function useComplianceStatus(caseId: string) {
 
 // ── Audit ──
 
-export function useAuditLogs(caseId: string, params?: Record<string, unknown>) {
+export function useAuditLogs(caseId: string, params?: any) {
   return useQuery({
     queryKey: keys.auditLogs(caseId, params),
     queryFn: () => casesApi.listAuditLogs(caseId, params),

@@ -66,7 +66,7 @@ export function WorksheetsTab({ caseId }: { caseId: string }) {
         Worksheets ({items.length})
       </h2>
       <div className="space-y-3">
-        {items.map((w: Record<string, unknown>) => {
+        {items.map((w: any) => {
           const wId = typeof w.id === 'string' ? w.id : String(w.id);
           const title = typeof w.title === 'string' ? w.title : 'Untitled';
           const type = typeof w.type === 'string' ? w.type : '';
@@ -82,7 +82,7 @@ export function WorksheetsTab({ caseId }: { caseId: string }) {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-medium text-gray-900">{title}</h3>
-                    <Badge color={typeColors[type] ?? 'gray'}>
+                    <Badge color={(typeColors[type] ?? 'gray') as any}>
                       {type.replace('_', ' ')}
                     </Badge>
                     {subType && (

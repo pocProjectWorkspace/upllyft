@@ -75,7 +75,7 @@ export function BillingTab({ caseId }: BillingTabProps) {
     serviceDate: new Date().toISOString().split('T')[0],
   });
 
-  const entries: Record<string, unknown>[] = Array.isArray(billingData?.data)
+  const entries: any[] = Array.isArray(billingData?.data)
     ? billingData.data
     : Array.isArray(billingData)
       ? billingData
@@ -83,7 +83,7 @@ export function BillingTab({ caseId }: BillingTabProps) {
 
   const summary =
     summaryData && typeof summaryData === 'object'
-      ? (summaryData as Record<string, unknown>)
+      ? (summaryData as any)
       : null;
 
   const handleCreate = async () => {
@@ -138,7 +138,7 @@ export function BillingTab({ caseId }: BillingTabProps) {
     }
   };
 
-  const openEdit = (entry: Record<string, unknown>) => {
+  const openEdit = (entry: any) => {
     setEditingEntry({
       id: typeof entry.id === 'string' ? entry.id : String(entry.id),
       serviceCode: typeof entry.serviceCode === 'string' ? entry.serviceCode : '',
@@ -408,7 +408,7 @@ export function BillingTab({ caseId }: BillingTabProps) {
                     <span className="font-medium text-gray-900">
                       {description || serviceCode || 'Service'}
                     </span>
-                    <Badge color={statusBadgeColor(status)}>
+                    <Badge color={statusBadgeColor(status) as any}>
                       {STATUS_LABELS[status] || status}
                     </Badge>
                   </div>

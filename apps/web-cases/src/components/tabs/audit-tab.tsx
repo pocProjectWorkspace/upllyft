@@ -51,7 +51,7 @@ export function AuditTab({ caseId }: { caseId: string }) {
         <div className="space-y-2">
           {items.map((entry, idx) => {
             const action = entry.action ?? '';
-            const description = (entry as Record<string, unknown>).description as string ?? '';
+            const description = (entry as any).description as string ?? '';
             const createdAt = entry.timestamp ?? '';
             const userName = entry.user?.name ?? 'System';
 

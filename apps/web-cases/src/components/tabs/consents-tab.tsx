@@ -55,13 +55,13 @@ export function ConsentsTab({ caseId }: ConsentsTabProps) {
     notes: '',
   });
 
-  const consents: Record<string, unknown>[] = Array.isArray(consentsData)
+  const consents: any[] = Array.isArray(consentsData)
     ? consentsData
     : [];
 
   const compliance =
     complianceData && typeof complianceData === 'object'
-      ? (complianceData as Record<string, unknown>)
+      ? (complianceData as any)
       : null;
 
   const isCompliant =
@@ -74,7 +74,7 @@ export function ConsentsTab({ caseId }: ConsentsTabProps) {
     : [];
 
   const activeConsents = Array.isArray(compliance?.activeConsents)
-    ? (compliance.activeConsents as Record<string, unknown>[])
+    ? (compliance.activeConsents as any[])
     : [];
 
   const handleCreate = async () => {
@@ -103,7 +103,7 @@ export function ConsentsTab({ caseId }: ConsentsTabProps) {
   };
 
   const getConsentStatus = (
-    consent: Record<string, unknown>
+    consent: any
   ): { label: string; color: string } => {
     const revokedAt = consent.revokedAt;
     const validUntil = typeof consent.validUntil === 'string' ? consent.validUntil : null;
@@ -117,7 +117,7 @@ export function ConsentsTab({ caseId }: ConsentsTabProps) {
     return { label: 'Active', color: 'green' };
   };
 
-  const isConsentActive = (consent: Record<string, unknown>): boolean => {
+  const isConsentActive = (consent: any): boolean => {
     const status = getConsentStatus(consent);
     return status.label === 'Active';
   };
@@ -294,7 +294,7 @@ export function ConsentsTab({ caseId }: ConsentsTabProps) {
               typeof consent.createdAt === 'string' ? consent.createdAt : '';
             const grantedBy =
               consent.grantedBy && typeof consent.grantedBy === 'object'
-                ? (consent.grantedBy as Record<string, unknown>)
+                ? (consent.grantedBy as any)
                 : null;
             const grantedByName =
               grantedBy && typeof grantedBy.name === 'string'

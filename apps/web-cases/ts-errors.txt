@@ -1,0 +1,59 @@
+﻿src/components/tabs/billing-tab.tsx(78,9): error TS2322: Type 'CaseBilling[] | (PaginatedResponse<CaseBilling> & { summary?: BillingSummary | undefined; } & any[])' is not assignable to type 'Record<string, unknown>[]'.
+  Type 'CaseBilling[]' is not assignable to type 'Record<string, unknown>[]'.
+    Type 'CaseBilling' is not assignable to type 'Record<string, unknown>'.
+      Index signature for type 'string' is missing in type 'CaseBilling'.
+src/components/tabs/billing-tab.tsx(86,10): error TS2352: Conversion of type 'BillingSummary' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'BillingSummary'.
+src/components/tabs/billing-tab.tsx(411,28): error TS2322: Type 'string' is not assignable to type '"teal" | "green" | "yellow" | "red" | "blue" | "purple" | "gray" | undefined'.
+src/components/tabs/consents-tab.tsx(58,9): error TS2322: Type 'CaseConsent[]' is not assignable to type 'Record<string, unknown>[]'.
+  Type 'CaseConsent' is not assignable to type 'Record<string, unknown>'.
+    Index signature for type 'string' is missing in type 'CaseConsent'.
+src/components/tabs/consents-tab.tsx(64,10): error TS2352: Conversion of type 'ComplianceStatus' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'ComplianceStatus'.
+src/components/tabs/documents-tab.tsx(84,9): error TS2322: Type 'CaseDocument[] | (PaginatedResponse<CaseDocument> & any[])' is not assignable to type 'Record<string, unknown>[]'.
+  Type 'CaseDocument[]' is not assignable to type 'Record<string, unknown>[]'.
+    Type 'CaseDocument' is not assignable to type 'Record<string, unknown>'.
+      Index signature for type 'string' is missing in type 'CaseDocument'.
+src/components/tabs/ieps-tab.tsx(178,25): error TS2352: Conversion of type 'IEP' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'IEP'.
+src/components/tabs/ieps-tab.tsx(227,25): error TS2352: Conversion of type 'IEP' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'IEP'.
+src/components/tabs/ieps-tab.tsx(298,25): error TS2352: Conversion of type 'IEP' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'IEP'.
+src/components/tabs/milestones-tab.tsx(132,25): error TS2352: Conversion of type 'MilestonePlan' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'MilestonePlan'.
+src/components/tabs/worksheets-tab.tsx(69,20): error TS2345: Argument of type '(w: Record<string, unknown>) => JSX.Element' is not assignable to parameter of type '(value: CaseWorksheet, index: number, array: CaseWorksheet[]) => Element'.
+  Types of parameters 'w' and 'value' are incompatible.
+    Type 'CaseWorksheet' is not assignable to type 'Record<string, unknown>'.
+      Index signature for type 'string' is missing in type 'CaseWorksheet'.
+src/components/tabs/worksheets-tab.tsx(85,28): error TS2322: Type 'string' is not assignable to type '"teal" | "green" | "yellow" | "red" | "blue" | "purple" | "gray" | undefined'.
+src/hooks/use-cases.ts(69,72): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'CreateCaseInput'.
+  Property 'childId' is missing in type 'Record<string, unknown>' but required in type 'CreateCaseInput'.
+src/hooks/use-cases.ts(82,37): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'UpdateCaseStatusInput'.
+  Property 'status' is missing in type 'Record<string, unknown>' but required in type 'UpdateCaseStatusInput'.
+src/hooks/use-cases.ts(107,41): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'AddTherapistInput'.
+  Property 'therapistId' is missing in type 'Record<string, unknown>' but required in type 'AddTherapistInput'.
+src/hooks/use-cases.ts(121,37): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'TransferCaseInput'.
+  Property 'newTherapistId' is missing in type 'Record<string, unknown>' but required in type 'TransferCaseInput'.
+src/hooks/use-cases.ts(146,43): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'CreateInternalNoteInput'.
+  Property 'content' is missing in type 'Record<string, unknown>' but required in type 'CreateInternalNoteInput'.
+src/hooks/use-cases.ts(178,38): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'CreateSessionInput'.
+  Property 'scheduledAt' is missing in type 'Record<string, unknown>' but required in type 'CreateSessionInput'.
+src/hooks/use-cases.ts(264,55): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'GoalProgressInput'.
+  Property 'goalId' is missing in type 'Record<string, unknown>' but required in type 'GoalProgressInput'.
+src/hooks/use-cases.ts(413,46): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'AddIEPGoalInput'.
+  Type 'Record<string, unknown>' is missing the following properties from type 'AddIEPGoalInput': domain, goalText
+src/hooks/use-cases.ts(455,51): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'BulkAddGoalsInput'.
+  Property 'goals' is missing in type 'Record<string, unknown>' but required in type 'BulkAddGoalsInput'.
+src/hooks/use-cases.ts(549,52): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'CreateMilestoneInput'.
+  Type 'Record<string, unknown>' is missing the following properties from type 'CreateMilestoneInput': domain, description
+src/hooks/use-cases.ts(618,39): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'CreateDocumentInput'.
+  Type 'Record<string, unknown>' is missing the following properties from type 'CreateDocumentInput': type, title
+src/hooks/use-cases.ts(639,54): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'ShareDocumentInput'.
+  Property 'sharedWithId' is missing in type 'Record<string, unknown>' but required in type 'ShareDocumentInput'.
+src/hooks/use-cases.ts(666,39): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'GenerateReportInput'.
+  Property 'type' is missing in type 'Record<string, unknown>' but required in type 'GenerateReportInput'.
+src/hooks/use-cases.ts(698,38): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'CreateBillingInput'.
+  Property 'amount' is missing in type 'Record<string, unknown>' but required in type 'CreateBillingInput'.
+src/hooks/use-cases.ts(746,38): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'CreateConsentInput'.
+  Property 'type' is missing in type 'Record<string, unknown>' but required in type 'CreateConsentInput'.
