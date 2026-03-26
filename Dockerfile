@@ -21,6 +21,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
+COPY patches ./patches
 COPY apps/api/package.json ./apps/api/
 COPY packages/types/package.json ./packages/types/
 COPY packages/config/package.json ./packages/config/
@@ -36,6 +37,12 @@ COPY packages ./packages
 RUN cd apps/api && npx prisma generate
 RUN pnpm --filter @upllyft/api build
 
+# Debug: verify build output exists
+RUN ls -la apps/api/dist/ && echo "✅ Build output found"
+
 EXPOSE ${PORT:-3001}
 
-CMD ["node", "apps/api/dist/main.js"]
+WORKDIR /app/apps/api
+
+CMD ["node", "dist/main.js"]
+
