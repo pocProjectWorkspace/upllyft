@@ -59,10 +59,10 @@ async function bootstrap() {
   // This is critical for 'secure: true' cookies and session handling in production
   (app.getHttpAdapter().getInstance() as any).set('trust proxy', 1);
 
-  // CORS - Restrict to Upllyft origins
+  // CORS - Restrict to Upllyft origins + Vercel previews + Railway
   app.enableCors({
     origin: nodeEnv === 'production'
-      ? [/\.upllyft\.com$/]
+      ? [/\.upllyft\.com$/, /\.vercel\.app$/, /\.railway\.app$/]
       : [
           'http://localhost:3000',
           'http://localhost:3002',
