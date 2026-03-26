@@ -15,9 +15,10 @@ COPY patches ./patches
 
 # ── Copy package.json files for dependency resolution ──
 COPY apps/api/package.json ./apps/api/
-COPY packages/types/package.json ./packages/types/ 2>/dev/null || true
-COPY packages/config/package.json ./packages/config/ 2>/dev/null || true
-COPY packages/ui/package.json ./packages/ui/ 2>/dev/null || true
+COPY packages/types/package.json ./packages/types/
+COPY packages/config/package.json ./packages/config/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/api-client/package.json ./packages/api-client/
 
 # ── Install dependencies ──
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
