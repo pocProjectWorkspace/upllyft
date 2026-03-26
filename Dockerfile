@@ -36,7 +36,7 @@ RUN pnpm --filter @upllyft/api build
 
 RUN ls -la apps/api/dist/ && echo "✅ Build output found"
 
-RUN CI=true pnpm prune --prod
+//RUN CI=true pnpm prune --prod
 
 EXPOSE ${PORT:-3001}
 
