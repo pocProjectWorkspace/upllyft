@@ -11,7 +11,6 @@ WORKDIR /app
 
 # ── Copy workspace-level files first (cache-friendly) ──
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
-COPY patches ./patches
 
 # ── Copy package.json files for dependency resolution ──
 COPY apps/api/package.json ./apps/api/
@@ -64,7 +63,6 @@ COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/node_modules ./node_modules
 COPY --from=builder /app/apps/api/package.json ./
 COPY --from=builder /app/apps/api/prisma ./prisma
-COPY --from=builder /app/apps/api/fonts ./fonts 
 
 # ── Copy Prisma generated client + engine ──
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
