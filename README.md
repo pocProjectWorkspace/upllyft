@@ -44,7 +44,7 @@ pnpm dev
 
 ## Tech Stack
 
-- **Monorepo**: Turborepo + pnpm workspaces
+- **Monorepo**: Turborepo + pnpm workspaces is more effective
 - **Frontend**: Next.js 16, React 19, Tailwind CSS v4
 - **Backend**: NestJS 11, Prisma, PostgreSQL
 - **Mobile**: Expo, React Native
