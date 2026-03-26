@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     fonts-freefont-ttf \
     fonts-noto-color-emoji \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
@@ -39,9 +40,10 @@ RUN pnpm --filter @upllyft/api build
 # Debug: verify build output exists
 RUN ls -la apps/api/dist/ && echo "✅ Build output found"
 
+RUN pnpm prune --prod
+
 EXPOSE ${PORT:-3001}
 
-WORKDIR /app/apps/api
+WORKDIR /app
 
-CMD ["sh", "-c", "npx prisma db push --schema=../../packages/database/prisma/schema.prisma && node dist/main.js"]
-
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
