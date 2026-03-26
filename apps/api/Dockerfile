@@ -71,6 +71,8 @@ COPY --from=builder /app/apps/api/prisma ./prisma
 # ── Copy Prisma generated client + engine ──
 COPY --from=builder /app/node_modules/.pnpm ./node_modules/.pnpm
 
+COPY --from=builder /app/node_modules/@nestjs ./node_modules/@nestjs
+
 # ── Runtime configuration ──
 ENV NODE_ENV=production
 
