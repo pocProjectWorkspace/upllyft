@@ -10,6 +10,11 @@ export class AppController {
     private readonly prisma: PrismaService,
   ) {}
 
+  @Get('health')
+  health() {
+    return { status: 'ok' };
+  }
+
   @Get()
   getHello(): string {
     return this.appService.getHello();
@@ -19,12 +24,10 @@ export class AppController {
   async getResources(@Query() query: any) {
     const { page = 1, limit = 10 } = query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
-
     const where: any = {
       type: 'RESOURCE',
-      isPublished: true,  // ✅ FIXED: Changed from 'published' to 'isPublished'
+      isPublished: true,
     };
-
     const [posts, total] = await Promise.all([
       this.prisma.post.findMany({
         where,
@@ -52,7 +55,6 @@ export class AppController {
       }),
       this.prisma.post.count({ where }),
     ]);
-
     return {
       posts,
       total,
