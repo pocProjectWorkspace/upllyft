@@ -43,5 +43,5 @@ EXPOSE ${PORT:-3001}
 
 WORKDIR /app/apps/api
 
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "npx prisma db push --schema=../../packages/database/prisma/schema.prisma && node dist/main.js"]
 
