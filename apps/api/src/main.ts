@@ -7,6 +7,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import session from 'express-session';
 import passport from 'passport';
 import cookieParser from 'cookie-parser';
+import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -24,7 +25,12 @@ async function bootstrap() {
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
   // Simple session secret
-  const sessionSecret = configService.get<string>('SESSION_SECRET') || 'dev-secret-change-in-production';
+ // const sessionSecret = configService.get<string>('SESSION_SECRET') || 'dev-secret-change-in-production';
+  const sessionSecret = configService.get<string>('SESSION_SECRET');
+if (!sessionSecret && nodeEnv === 'production') {
+  logger.error('❌ SESSION_SECRET is not set in production!');
+  process.exit(1);
+}
 
   // Global prefix
   app.setGlobalPrefix('api', {
@@ -54,6 +60,8 @@ async function bootstrap() {
   // Initialize Passport
   app.use(passport.initialize());
   app.use(passport.session());
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // Passport serialization (required for Google OAuth session flow)
   passport.serializeUser((user: any, done: any) => {
@@ -130,7 +138,11 @@ async function bootstrap() {
     },
   });
 
-  logger.log(`📚 Swagger documentation: http://0.0.0.0:${port}/api/docs`);
+  const appUrl = nodeEnv === 'production' 
+  ? 'https://upllyftapi-production.up.railway.app' 
+  : `http://localhost:${port}`;
+logger.log(`📚 Swagger documentation: ${appUrl}/api/docs`);
+  logger.log(`📚 Swagger documentation: ${appUrl}/api/docs`);
   logger.log(`🔍 Environment check: PORT=${port}, NODE_ENV=${nodeEnv}, SESSION_SECRET=${sessionSecret ? 'SET' : 'MISSING'}`);
 
   // Start server
@@ -141,9 +153,12 @@ async function bootstrap() {
     logger.error(`❌ Failed to listen on port ${port}: ${err.message}`, err.stack);
     process.exit(1);
   }
-
-  logger.log(`📚 API endpoints: http://0.0.0.0:${port}/api`);
-  logger.log(`🏥 Upllyft Backend Service Started Successfully`);
+app.enableShutdownHooks();
+  // Change the final log lines to:
+logger.log(`🚀 Application running on: ${appUrl}`);
+logger.log(`📍 Environment: ${nodeEnv}`);
+logger.log(`📚 API endpoints: ${appUrl}/api`);
+logger.log(`🏥 Upllyft Backend Service Started Successfully`);
 }
 
 bootstrap().catch((error) => {
