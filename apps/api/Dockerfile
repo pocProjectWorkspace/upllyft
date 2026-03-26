@@ -56,32 +56,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Tell Puppeteer to use system Chromium (no download)
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV NODE_ENV=production
 
 WORKDIR /app
 
-# ── Copy pnpm from builder (required for Railway start command) ──
-COPY --from=builder /app/node_modules/.bin /app/node_modules/.bin
+# ── Copy entire root node_modules (keeps pnpm store + symlinks intact) ──
+COPY --from=builder /app/node_modules ./node_modules
 
-# ── Copy compiled assets from builder ──
+# ── Copy compiled output and app files ──
 COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/node_modules ./node_modules
 COPY --from=builder /app/apps/api/package.json ./
 COPY --from=builder /app/apps/api/prisma ./prisma
 
-# ── Copy Prisma generated client + engine ──
-COPY --from=builder /app/node_modules/.pnpm ./node_modules/.pnpm
-
-COPY --from=builder /app/node_modules/@nestjs ./node_modules/@nestjs
-
-# ── Runtime configuration ──
-ENV NODE_ENV=production
+# ── Copy local workspace packages (needed for internal symlinks) ──
+COPY --from=builder /app/packages ./packages
 
 # Railway sets PORT automatically — app reads from process.env.PORT
 EXPOSE ${PORT:-3001}
-
-# ── Health check ──
-#HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-  #  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-3001}/health || exit 1
 
 # ── Start the server ──
 CMD ["node", "dist/main.js"]
