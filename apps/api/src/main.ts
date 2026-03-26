@@ -55,6 +55,14 @@ async function bootstrap() {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Passport serialization (required for Google OAuth session flow)
+  passport.serializeUser((user: any, done: any) => {
+    done(null, user);
+  });
+  passport.deserializeUser((user: any, done: any) => {
+    done(null, user);
+  });
+
   // Enable trust proxy for secure cookies behind proxies (Heroku, Vercel, Nginx, etc.)
   // This is critical for 'secure: true' cookies and session handling in production
   (app.getHttpAdapter().getInstance() as any).set('trust proxy', 1);
