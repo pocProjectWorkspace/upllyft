@@ -67,7 +67,7 @@ COPY --from=builder /app/apps/api/prisma ./prisma
 
 # ── Copy Prisma generated client + engine ──
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/.pnpm ./node_modules/.pnpm
 
 # ── Runtime configuration ──
 ENV NODE_ENV=production
