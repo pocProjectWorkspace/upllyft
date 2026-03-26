@@ -5,8 +5,8 @@ dockerfilePath = "apps/api/Dockerfile"
 
 [deploy]
 # Health check — Railway pings this to know the app is ready
-healthcheckPath = "/health"
-healthcheckTimeout = 90
+#healthcheckPath = "/health"
+#healthcheckTimeout = 90
 
 # Restart on crash
 restartPolicyType = "ON_FAILURE"
