@@ -30,6 +30,7 @@ export interface AppHeaderProps {
 export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, messagesHref, unreadMessages = 0 }: AppHeaderProps) {
   const { user, isAuthenticated, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close user dropdown when clicking outside
@@ -44,6 +45,15 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [menuOpen]);
+
+  // Close mobile nav on resize to desktop
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth >= 768) setMobileNavOpen(false);
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (!isAuthenticated || !user) return null;
 
@@ -63,17 +73,34 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
-          {/* Left: Logo + Nav */}
-          <div className="flex items-center gap-8 min-w-0 flex-1 overflow-hidden">
+        <div className="flex items-center justify-between h-14 md:h-16">
+          {/* Left: Hamburger (mobile) + Logo + Nav (desktop) */}
+          <div className="flex items-center gap-2 md:gap-8 min-w-0 flex-1">
+            {/* Hamburger button — mobile only */}
+            <button
+              onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileNavOpen ? (
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+
             {logo || (
               <a href={APP_URLS.main} className="flex items-center gap-2 flex-shrink-0">
-                <img src="/logo.png" alt="Upllyft" className="h-8 w-auto" />
+                <img src="/logo.png" alt="Upllyft" className="h-7 md:h-8 w-auto" />
               </a>
             )}
 
-            {/* Navigation */}
-            <nav className="flex items-center gap-1 min-w-0 overflow-hidden">
+            {/* Desktop navigation */}
+            <nav className="hidden md:flex items-center gap-1 min-w-0 overflow-hidden">
               {globalNav.map((item) => {
                 const isActive = item.app === currentApp;
                 return (
@@ -111,8 +138,8 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
             </nav>
           </div>
 
-          {/* Right: Notifications + User */}
-          <div className="flex items-center gap-3 flex-shrink-0 relative z-10">
+          {/* Right: SOS + Messages + Notifications + User */}
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0 relative z-10">
             {/* SOS Button */}
             <SOSButton compact onActivate={onSOSClick} />
 
@@ -162,37 +189,25 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
 
                   {/* Menu Items */}
                   <div className="py-1">
-                    <a
-                      href={profileUrl}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors"
-                    >
+                    <a href={profileUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                       <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                       Profile
                     </a>
-                    <a
-                      href={bookmarksUrl}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors"
-                    >
+                    <a href={bookmarksUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                       <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                       </svg>
                       Bookmarks
                     </a>
-                    <a
-                      href={invitationsUrl}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors"
-                    >
+                    <a href={invitationsUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                       <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                       Invitations
                     </a>
-                    <a
-                      href={settingsUrl}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors"
-                    >
+                    <a href={settingsUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                       <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -219,6 +234,48 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
           </div>
         </div>
       </div>
+
+      {/* Mobile navigation drawer */}
+      {mobileNavOpen && (
+        <div className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-md">
+          <nav className="max-w-7xl mx-auto px-4 py-3 space-y-1">
+            {globalNav.map((item) => {
+              const isActive = item.app === currentApp;
+              return (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-teal-50 text-teal-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  {item.label}
+                </a>
+              );
+            })}
+            {localNavItems && localNavItems.length > 0 && (
+              <>
+                <div className="h-px bg-gray-200 my-2" />
+                {localNavItems.map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      item.active
+                        ? 'bg-teal-50 text-teal-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </>
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
