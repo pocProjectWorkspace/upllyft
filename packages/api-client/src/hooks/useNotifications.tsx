@@ -41,7 +41,7 @@ export function useNotifications(): UseNotificationsReturn {
         limit: 20,
         filter,
       });
-      setNotifications(res.data);
+      setNotifications(Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : []);
     } catch {
       // Silently fail
     } finally {
