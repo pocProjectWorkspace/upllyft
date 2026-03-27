@@ -9,6 +9,7 @@ export function BookingShell({ children }: { children: ReactNode }) {
   const { user, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { serviceModel } = useRegion();
 
   if (isLoading) {
     return (
@@ -25,7 +26,6 @@ export function BookingShell({ children }: { children: ReactNode }) {
 
   const isTherapist = user.role === 'THERAPIST';
   const isAdmin = user.role === 'ADMIN';
-  const { serviceModel } = useRegion();
   const isClinicDirectory = serviceModel === 'CLINIC_DIRECTORY';
 
   const patientLocal = isClinicDirectory
