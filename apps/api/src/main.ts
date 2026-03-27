@@ -77,22 +77,24 @@ if (!sessionSecret && nodeEnv === 'production') {
 
   // CORS - Restrict to Upllyft origins + Vercel previews + Railway
   app.enableCors({
-    origin: nodeEnv === 'production'
-      ? [/\.upllyft\.com$/, /\.safehaven-upllyft\.com$/, /\.vercel\.app$/, /\.railway\.app$/]
-      : [
-          'http://localhost:3000',
-          'http://localhost:3002',
-          'http://localhost:3003',
-          'http://localhost:3004',
-          'http://localhost:3005',
-          'http://localhost:3006',
-        ],
+    origin: [
+      /\.upllyft\.com$/,
+      /\.safehaven-upllyft\.com$/,
+      /\.vercel\.app$/,
+      /\.railway\.app$/,
+      'http://localhost:3000',
+      'http://localhost:3002',
+      'http://localhost:3003',
+      'http://localhost:3004',
+      'http://localhost:3005',
+      'http://localhost:3006',
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
     exposedHeaders: ['Set-Cookie'],
   });
-  logger.log('✅ CORS enabled for Upllyft origins');
+  logger.log(`✅ CORS enabled for Upllyft origins (including localhost)`);
 
   // Simple validation pipe
   app.useGlobalPipes(
