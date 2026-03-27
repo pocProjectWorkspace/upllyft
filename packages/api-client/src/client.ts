@@ -3,11 +3,27 @@ import axios, { type AxiosInstance } from 'axios';
 const TOKEN_KEY = 'upllyft_access_token';
 const REFRESH_KEY = 'upllyft_refresh_token';
 
-// Cookie helpers for cross-port token sharing in development.
-// localStorage is per-origin (port-specific), but cookies on localhost
-// are shared across all ports, enabling seamless cross-app auth.
+// Cookie helpers for cross-app token sharing.
+// In development, cookies on localhost are shared across all ports.
+// In production, cookies are scoped to .safehaven-upllyft.com so all
+// subdomains (app., community., screening., etc.) share authentication.
+function getCookieDomain(): string {
+  if (typeof window === 'undefined') return '';
+  const hostname = window.location.hostname;
+  // Match any subdomain of safehaven-upllyft.com
+  if (hostname === 'safehaven-upllyft.com' || hostname.endsWith('.safehaven-upllyft.com')) {
+    return '; domain=.safehaven-upllyft.com';
+  }
+  // Match any subdomain of upllyft.com
+  if (hostname === 'upllyft.com' || hostname.endsWith('.upllyft.com')) {
+    return '; domain=.upllyft.com';
+  }
+  return '';
+}
+
 function setCookie(name: string, value: string) {
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax`;
+  const domain = getCookieDomain();
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax${domain}`;
 }
 
 function getCookie(name: string): string | null {
@@ -16,7 +32,8 @@ function getCookie(name: string): string | null {
 }
 
 function deleteCookie(name: string) {
-  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  const domain = getCookieDomain();
+  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT${domain}`;
 }
 
 const defaultBaseURL = typeof window !== 'undefined' ? '/api' : 'https://upllyftapi-production.up.railway.app/api';

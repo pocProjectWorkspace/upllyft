@@ -1,13 +1,13 @@
 const isProd = process.env.NODE_ENV === 'production';
 
 export const APP_URLS = {
-  main: process.env.NEXT_PUBLIC_APP_MAIN_URL || (isProd ? 'https://upllyft-web-main.vercel.app' : 'http://localhost:3000'),
-  community: process.env.NEXT_PUBLIC_APP_COMMUNITY_URL || (isProd ? 'https://upllyft-web-community.vercel.app' : 'http://localhost:3002'),
-  screening: process.env.NEXT_PUBLIC_APP_SCREENING_URL || (isProd ? 'https://upllyft-web-screening.vercel.app' : 'http://localhost:3003'),
-  booking: process.env.NEXT_PUBLIC_APP_BOOKING_URL || (isProd ? 'https://upllyft-web-booking.vercel.app' : 'http://localhost:3004'),
-  resources: process.env.NEXT_PUBLIC_APP_RESOURCES_URL || (isProd ? 'https://upllyft-web-resources.vercel.app' : 'http://localhost:3005'),
-  cases: process.env.NEXT_PUBLIC_APP_CASES_URL || (isProd ? 'https://upllyft-web-cases.vercel.app' : 'http://localhost:3006'),
-  admin: process.env.NEXT_PUBLIC_APP_ADMIN_URL || (isProd ? 'https://upllyft-web-admin.vercel.app' : 'http://localhost:3007'),
+  main: process.env.NEXT_PUBLIC_APP_MAIN_URL || (isProd ? 'https://app.safehaven-upllyft.com' : 'http://localhost:3000'),
+  community: process.env.NEXT_PUBLIC_APP_COMMUNITY_URL || (isProd ? 'https://community.safehaven-upllyft.com' : 'http://localhost:3002'),
+  screening: process.env.NEXT_PUBLIC_APP_SCREENING_URL || (isProd ? 'https://screening.safehaven-upllyft.com' : 'http://localhost:3003'),
+  booking: process.env.NEXT_PUBLIC_APP_BOOKING_URL || (isProd ? 'https://booking.safehaven-upllyft.com' : 'http://localhost:3004'),
+  resources: process.env.NEXT_PUBLIC_APP_RESOURCES_URL || (isProd ? 'https://resources.safehaven-upllyft.com' : 'http://localhost:3005'),
+  cases: process.env.NEXT_PUBLIC_APP_CASES_URL || (isProd ? 'https://cases.safehaven-upllyft.com' : 'http://localhost:3006'),
+  admin: process.env.NEXT_PUBLIC_APP_ADMIN_URL || (isProd ? 'https://admin.safehaven-upllyft.com' : 'http://localhost:3007'),
 } as const;
 
 export type AppName = keyof typeof APP_URLS;
