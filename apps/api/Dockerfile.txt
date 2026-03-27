@@ -37,5 +37,5 @@ RUN pnpm --filter @upllyft/api build
 RUN ls -la apps/api/dist/ && echo "✅ Build output found"
 
 EXPOSE ${PORT:-3001}
-#path to update prisma
+#path to update prisma database
 CMD ["sh", "-c", "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
