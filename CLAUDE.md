@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Project Overview
 
 Upllyft is a multi-app monorepo for a neurodivergent community platform, built with Turborepo + pnpm workspaces. **Mira** (Mindful Intelligent Response Assistant) is the platform's primary touchpoint — an empathetic AI guide that helps parents navigate their child's developmental journey.
@@ -16,6 +18,7 @@ upllyft/
 │   ├── web-booking/            # Booking: therapist marketplace, sessions, Stripe (port 3004)
 │   ├── web-resources/          # Learning: AI worksheets, assignments, community library (port 3005)
 │   ├── web-cases/              # Cases: therapist case management, IEPs, milestones (port 3006)
+│   ├── web-admin/              # Admin panel (port 3007)
 │   └── mobile/                 # Expo 54 React Native app (iOS + Android)
 ├── packages/
 │   ├── ui/                     # @upllyft/ui — 32 shared React components (web only, includes MiraNudge)
@@ -33,6 +36,7 @@ pnpm build                  # Build all packages and apps
 pnpm dev                    # Start all apps in dev mode (parallel)
 pnpm lint                   # Lint all packages and apps
 pnpm type-check             # Type-check all packages and apps
+pnpm clean                  # Clean all build artifacts (.next, dist, .turbo)
 ```
 
 ### Run specific apps:
@@ -55,8 +59,12 @@ cd apps/mobile && pnpm start
 pnpm --filter @upllyft/api prisma:generate   # Generate Prisma client
 pnpm --filter @upllyft/api prisma:migrate    # Run migrations
 pnpm --filter @upllyft/api prisma:studio     # Open Prisma Studio
-pnpm --filter @upllyft/api db:seed:all       # Seed database
-pnpm --filter @upllyft/api test              # Run unit tests
+pnpm --filter @upllyft/api db:seed:all       # Seed all data
+pnpm --filter @upllyft/api db:seed           # Seed base data only
+pnpm --filter @upllyft/api test              # Run unit tests (Jest)
+pnpm --filter @upllyft/api test:watch        # Run tests in watch mode
+pnpm --filter @upllyft/api test:cov          # Run tests with coverage
+pnpm --filter @upllyft/api test:e2e          # Run end-to-end tests
 ```
 
 ## Running the Full Stack
@@ -112,6 +120,7 @@ pnpm start
 | web-booking | 3004 | http://localhost:3004 |
 | web-resources | 3005 | http://localhost:3005 |
 | web-cases | 3006 | http://localhost:3006 |
+| web-admin | 3007 | http://localhost:3007 |
 
 ## Deployment
 
@@ -158,6 +167,7 @@ screening.safehaven-upllyft → web-screening
 booking.safehaven-upllyft   → web-booking
 resources.safehaven-upllyft → web-resources
 cases.safehaven-upllyft     → web-cases
+admin.safehaven-upllyft     → web-admin
 api.safehaven-upllyft       → API
 ```
 
@@ -257,9 +267,6 @@ Shadow database creation fails due to pgvector extension. Create migrations manu
 pnpm --filter @upllyft/api prisma:migrate --create-only
 # Edit the SQL, then apply
 ```
-
-### TypeScript errors in web-cases
-`web-cases` uses `ignoreBuildErrors: true` in next.config.ts due to complex type casting. TypeScript strict mode still runs on other apps.
 
 ### Mobile can't reach API
 For physical device testing, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your machine's local IP (not localhost):

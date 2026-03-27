@@ -101,12 +101,13 @@ export class MiraService {
     });
 
     const isProd = this.configService.get('NODE_ENV') === 'production';
+    const frontendUrl = this.configService.get('FRONTEND_URL') || (isProd ? 'https://upllyft-web-main.vercel.app' : 'http://localhost:3000');
     this.appUrls = {
-      main: isProd ? 'https://app.safehaven-upllyft.com' : 'http://localhost:3000',
-      screening: isProd ? 'https://screening.safehaven-upllyft.com' : 'http://localhost:3003',
-      booking: isProd ? 'https://booking.safehaven-upllyft.com' : 'http://localhost:3004',
-      community: isProd ? 'https://community.safehaven-upllyft.com' : 'http://localhost:3002',
-      resources: isProd ? 'https://resources.safehaven-upllyft.com' : 'http://localhost:3005',
+      main: frontendUrl,
+      screening: this.configService.get('APP_SCREENING_URL') || (isProd ? 'https://upllyft-web-screening.vercel.app' : 'http://localhost:3003'),
+      booking: this.configService.get('APP_BOOKING_URL') || (isProd ? 'https://upllyft-web-booking.vercel.app' : 'http://localhost:3004'),
+      community: this.configService.get('APP_COMMUNITY_URL') || (isProd ? 'https://upllyft-web-community.vercel.app' : 'http://localhost:3002'),
+      resources: this.configService.get('APP_RESOURCES_URL') || (isProd ? 'https://upllyft-web-resources.vercel.app' : 'http://localhost:3005'),
     };
   }
 

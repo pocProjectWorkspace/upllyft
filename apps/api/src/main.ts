@@ -88,6 +88,7 @@ if (!sessionSecret && nodeEnv === 'production') {
       'http://localhost:3004',
       'http://localhost:3005',
       'http://localhost:3006',
+      'http://localhost:3007',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -140,10 +141,9 @@ if (!sessionSecret && nodeEnv === 'production') {
     },
   });
 
-  const appUrl = nodeEnv === 'production' 
-  ? 'https://upllyftapi-production.up.railway.app' 
+  const appUrl = nodeEnv === 'production'
+  ? (configService.get<string>('BACKEND_URL') || 'https://upllyftapi-production.up.railway.app')
   : `http://localhost:${port}`;
-logger.log(`📚 Swagger documentation: ${appUrl}/api/docs`);
   logger.log(`📚 Swagger documentation: ${appUrl}/api/docs`);
   logger.log(`🔍 Environment check: PORT=${port}, NODE_ENV=${nodeEnv}, SESSION_SECRET=${sessionSecret ? 'SET' : 'MISSING'}`);
 

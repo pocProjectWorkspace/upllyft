@@ -19,7 +19,8 @@ function deleteCookie(name: string) {
   document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
-let apiClient: AxiosInstance = createClient('https://upllyftapi-production.up.railway.app/api');
+const defaultBaseURL = typeof window !== 'undefined' ? '/api' : 'https://upllyftapi-production.up.railway.app/api';
+let apiClient: AxiosInstance = createClient(defaultBaseURL);
 let storedRefreshToken: string | null = null;
 
 function createClient(baseURL: string): AxiosInstance {
