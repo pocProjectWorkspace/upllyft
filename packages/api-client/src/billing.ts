@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { apiClient } from './client';
 
 export interface Invoice {
@@ -49,12 +48,9 @@ export async function getPatientInvoices(params?: {
     return data;
 }
 
-export function usePatientInvoices(params?: { status?: string; limit?: number }) {
-    return useQuery({
-        queryKey: ['patient-invoices', params],
-        queryFn: () => getPatientInvoices(params),
-    });
-}
+// usePatientInvoices hook moved to consuming apps to avoid duplicate
+// @tanstack/react-query instances in the monorepo. Use getPatientInvoices
+// with your app's useQuery instead.
 
 /**
  * Initiates a browser download for the given invoice PDF.

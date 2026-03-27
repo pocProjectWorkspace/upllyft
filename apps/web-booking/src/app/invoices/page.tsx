@@ -4,7 +4,8 @@ import { Suspense, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { BookingShell } from '@/components/booking-shell';
 import { Card } from '@upllyft/ui';
-import { usePatientInvoices } from '@upllyft/api-client';
+import { getPatientInvoices } from '@upllyft/api-client';
+import { useQuery } from '@tanstack/react-query';
 import { Loader2, Receipt, Search, FileText } from 'lucide-react';
 import { InvoiceCard } from './components/invoice-card';
 
@@ -24,7 +25,10 @@ function ErrorFallback({ error, resetErrorBoundary }: any) {
 }
 
 function InvoicesList() {
-  const { data, isLoading, error } = usePatientInvoices({ limit: 50 });
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['patient-invoices', { limit: 50 }],
+    queryFn: () => getPatientInvoices({ limit: 50 }),
+  });
 
   if (isLoading) {
     return (
