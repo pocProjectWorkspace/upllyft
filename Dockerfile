@@ -26,8 +26,7 @@ COPY packages/ui/package.json ./packages/ui/
 COPY packages/api-client/package.json ./packages/api-client/
 
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
-#RUN pnpm install --frozen-lockfile
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 COPY apps/api ./apps/api
 COPY packages ./packages
