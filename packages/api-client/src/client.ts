@@ -19,7 +19,7 @@ function deleteCookie(name: string) {
   document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
-let apiClient: AxiosInstance = createClient('/api');
+let apiClient: AxiosInstance = createClient(process.env.NEXT_PUBLIC_API_URL + '/api');
 let storedRefreshToken: string | null = null;
 
 function createClient(baseURL: string): AxiosInstance {
