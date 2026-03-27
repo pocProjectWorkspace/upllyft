@@ -189,15 +189,6 @@ export default function MarketplacePage() {
     }
   }, [serviceModel, router]);
 
-  // Show region gate for unresolved parents
-  if (!isRegionResolved && user?.role === 'USER') {
-    return (
-      <BookingShell>
-        <RegionGate />
-      </BookingShell>
-    );
-  }
-
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -217,6 +208,15 @@ export default function MarketplacePage() {
   const { data, isLoading } = useSearchTherapists(filters);
   const therapists = data?.therapists ?? [];
   const totalPages = data?.totalPages ?? 1;
+
+  // Show region gate for unresolved parents (after all hooks)
+  if (!isRegionResolved && user?.role === 'USER') {
+    return (
+      <BookingShell>
+        <RegionGate />
+      </BookingShell>
+    );
+  }
 
   return (
     <BookingShell>
