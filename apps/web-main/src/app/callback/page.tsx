@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { setAuthToken, setRefreshToken } from '@upllyft/api-client';
 
 function CallbackContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -15,11 +14,12 @@ function CallbackContent() {
     if (accessToken && refreshToken) {
       setAuthToken(accessToken);
       setRefreshToken(refreshToken);
-      router.replace('/');
+      // Full page reload so AuthProvider re-initializes with the stored tokens
+      window.location.href = '/';
     } else {
-      router.replace('/login?error=auth_failed');
+      window.location.href = '/login?error=auth_failed';
     }
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-600">
