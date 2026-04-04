@@ -494,12 +494,22 @@ export default function RegisterPage() {
           </button>
 
           {/* Sign In Link */}
-          <p className="text-center text-sm text-gray-500 mt-6 mb-8">
+          <p className="text-center text-sm text-gray-500 mt-6 mb-4">
             Already have an account?{' '}
             <Link href="/login" className="text-teal-600 hover:text-teal-700 font-semibold">
               Sign In
             </Link>
           </p>
+
+          {/* Trust Footer */}
+          <div className="pb-8 text-center text-xs text-gray-400 space-y-1">
+            <p>
+              <Link href="/privacy-policy" className="hover:text-gray-600 underline">Privacy Policy</Link>
+              {' · '}
+              <Link href="/terms-of-service" className="hover:text-gray-600 underline">Terms of Service</Link>
+            </p>
+            <p>&copy; {new Date().getFullYear()} Upllyft. All rights reserved.</p>
+          </div>
         </div>
       </div>
 

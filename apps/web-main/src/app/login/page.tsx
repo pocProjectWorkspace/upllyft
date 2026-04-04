@@ -215,6 +215,16 @@ export default function LoginPage() {
               Sign Up
             </Link>
           </p>
+
+          {/* Trust Footer */}
+          <div className="mt-8 pt-6 border-t border-gray-100 text-center text-xs text-gray-400 space-y-1">
+            <p>
+              <Link href="/privacy-policy" className="hover:text-gray-600 underline">Privacy Policy</Link>
+              {' · '}
+              <Link href="/terms-of-service" className="hover:text-gray-600 underline">Terms of Service</Link>
+            </p>
+            <p>&copy; {new Date().getFullYear()} Upllyft. All rights reserved.</p>
+          </div>
         </div>
       </div>
 
