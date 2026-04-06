@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth, apiClient } from '@upllyft/api-client';
+import { useAuth, useRedirectIfAuthenticated, apiClient } from '@upllyft/api-client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -94,7 +94,8 @@ const inputWithIconClassName =
   'w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-11 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:bg-white focus:outline-none transition-colors';
 
 export default function RegisterPage() {
-  const { register, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { register } = useAuth();
+  useRedirectIfAuthenticated('/');
   const router = useRouter();
   const [accountType, setAccountType] = useState<AccountType>('individual');
   const [name, setName] = useState('');
@@ -130,11 +131,6 @@ export default function RegisterPage() {
   useEffect(() => {
     loadCaptcha();
   }, [loadCaptcha]);
-
-  if (!authLoading && isAuthenticated) {
-    router.replace('/');
-    return null;
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

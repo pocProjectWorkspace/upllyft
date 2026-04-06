@@ -1,19 +1,18 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useRequireAuth } from '@upllyft/api-client';
 import { AppHeader, Skeleton } from '@upllyft/ui';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useMyProfile } from '@/hooks/use-dashboard';
 import { ChildFormWizard } from '@/components/child-form-wizard';
 
 export default function EditChildPage() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user, isReady } = useRequireAuth();
   const { data: profile, isLoading: profileLoading } = useMyProfile();
-  const router = useRouter();
   const params = useParams();
   const childId = params.childId as string;
 
-  if (authLoading || profileLoading) {
+  if (!isReady || profileLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-3xl mx-auto px-4 py-20">
@@ -21,11 +20,6 @@ export default function EditChildPage() {
         </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   const child = profile?.children?.find((c) => c.id === childId);

@@ -1,16 +1,14 @@
 'use client';
 
-import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader, Skeleton } from '@upllyft/ui';
-import { useRouter } from 'next/navigation';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getPosts } from '@/lib/api/posts';
 import { PostCard } from '@/components/feed/post-card';
 import { useCallback, useEffect, useRef } from 'react';
 
 export default function BookmarksPage() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const observerRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -48,17 +46,12 @@ export default function BookmarksPage() {
     return () => observer.disconnect();
   }, [handleObserver]);
 
-  if (authLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   const posts = data?.pages.flatMap((page) => page.posts) || [];

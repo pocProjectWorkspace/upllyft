@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@upllyft/api-client';
+import { useRequireAuth } from '@upllyft/api-client';
 import { AppHeader, Card, Avatar, Badge, Skeleton, ProgressRing } from '@upllyft/ui';
-import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useMyProfile } from '@/hooks/use-dashboard';
 import { calculateAge, getMySocialProfile } from '@/lib/api/profiles';
@@ -14,9 +13,8 @@ import { ActivityFeed } from '@/components/profile/activity-feed';
 import { FollowersDialog } from '@/components/profile/followers-dialog';
 
 export default function ProfilePage() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const { data: profile, isLoading: profileLoading } = useMyProfile();
-  const router = useRouter();
 
   const { data: social } = useQuery({
     queryKey: ['social', 'me'],
@@ -27,17 +25,12 @@ export default function ProfilePage() {
   const [followersOpen, setFollowersOpen] = useState(false);
   const [followersTab, setFollowersTab] = useState<'followers' | 'following'>('followers');
 
-  if (authLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   const displayName = user.name || user.email?.split('@')[0] || 'User';

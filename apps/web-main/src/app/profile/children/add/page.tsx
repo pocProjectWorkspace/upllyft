@@ -1,15 +1,13 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useRequireAuth } from '@upllyft/api-client';
 import { AppHeader, Skeleton } from '@upllyft/ui';
-import { useRouter } from 'next/navigation';
 import { ChildFormWizard } from '@/components/child-form-wizard';
 
 export default function AddChildPage() {
-  const { user, isLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
+  const { user, isReady } = useRequireAuth();
 
-  if (isLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-3xl mx-auto px-4 py-20">
@@ -17,11 +15,6 @@ export default function AddChildPage() {
         </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
 import { useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -198,7 +198,7 @@ const fadeUpVariants = {
 // ── Component ──────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -393,17 +393,12 @@ export default function OnboardingPage() {
 
   // ── Auth guard ─────────────────────────────────────────────────
 
-  if (authLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   // ── Render ─────────────────────────────────────────────────────

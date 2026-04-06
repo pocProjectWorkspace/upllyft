@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@upllyft/api-client';
+import { useRequireAuth } from '@upllyft/api-client';
 import { apiClient } from '@upllyft/api-client';
 import { AppHeader } from '@upllyft/ui';
 
@@ -10,17 +10,13 @@ export default function ConsentSignPage() {
   const params = useParams();
   const consentId = params.consentId as string;
   const router = useRouter();
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const [loading, setLoading] = useState(true);
   const [alreadySigned, setAlreadySigned] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!isAuthenticated || !user) {
-      router.replace('/login');
-      return;
-    }
+    if (!isReady) return;
 
     const fetchSigningUrl = async () => {
       try {
@@ -51,7 +47,7 @@ export default function ConsentSignPage() {
     };
 
     fetchSigningUrl();
-  }, [authLoading, isAuthenticated, user, consentId, router]);
+  }, [isReady, consentId, router]);
 
   if (authLoading || (loading && !error && !alreadySigned)) {
     return (

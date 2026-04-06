@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader, Card, Avatar, Badge, Skeleton } from '@upllyft/ui';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -14,7 +14,7 @@ import { BadgeDisplay } from '@/components/profile/badge-display';
 import { ActivityFeed } from '@/components/profile/activity-feed';
 
 export default function UserProfilePage() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const router = useRouter();
   const params = useParams();
   const profileId = params.id as string;
@@ -34,17 +34,12 @@ export default function UserProfilePage() {
   const [followersOpen, setFollowersOpen] = useState(false);
   const [followersTab, setFollowersTab] = useState<'followers' | 'following'>('followers');
 
-  if (authLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   // Redirect to own profile page if viewing self

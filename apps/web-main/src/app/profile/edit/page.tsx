@@ -1,17 +1,15 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useRequireAuth } from '@upllyft/api-client';
 import { AppHeader, Card, Avatar, Skeleton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Badge, useToast } from '@upllyft/ui';
-import { useRouter } from 'next/navigation';
 import { useMyProfile } from '@/hooks/use-dashboard';
 import { updateProfile, updateAvatar, deleteChild, calculateAge } from '@/lib/api/profiles';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, useRef } from 'react';
 
 export default function EditProfilePage() {
-  const { user, isLoading: authLoading, isAuthenticated, refreshUser } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated, isReady, refreshUser } = useRequireAuth();
   const { data: profile, isLoading: profileLoading } = useMyProfile();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,7 +46,7 @@ export default function EditProfilePage() {
     }
   }, [profile, user?.name]);
 
-  if (authLoading || profileLoading) {
+  if (!isReady || profileLoading) {
     return (
       <div className="min-h-screen bg-gray-50/50">
         <div className="max-w-2xl mx-auto px-4 py-20">
@@ -56,11 +54,6 @@ export default function EditProfilePage() {
         </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   const displayName = user.name || user.email?.split('@')[0] || 'User';

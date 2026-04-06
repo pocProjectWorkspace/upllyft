@@ -1,12 +1,12 @@
 'use client';
 
-import { apiClient, useAuth } from '@upllyft/api-client';
+import { apiClient, useRequireAuth } from '@upllyft/api-client';
 import { AppHeader, Card, Switch, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function SettingsPage() {
-  const { user, isLoading: authLoading, isAuthenticated, logout } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated, isReady, logout } = useRequireAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'account' | 'notifications' | 'privacy' | 'crisis' | 'feed'>('account');
@@ -26,17 +26,12 @@ export default function SettingsPage() {
   // Download data state
   const [downloading, setDownloading] = useState(false);
 
-  if (authLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   async function handleChangePassword(e: React.FormEvent) {

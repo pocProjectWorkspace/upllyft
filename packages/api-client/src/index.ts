@@ -2,6 +2,7 @@ export { apiClient, setAuthToken, setRefreshToken, initializeApiClient, getStore
 export { login, logout, register, refreshToken, getCurrentUser } from './auth';
 export type { LoginPayload, RegisterPayload, AuthResponse, RefreshResponse, MembershipStatus } from './auth';
 export { AuthProvider, useAuth } from './hooks/useAuth';
+export { useRequireAuth, useRedirectIfAuthenticated } from './hooks/useRequireAuth';
 export { useNotifications, type UseNotificationsReturn } from './hooks/useNotifications';
 export { useRegion, type RegionContextValue } from './hooks/useRegion';
 export { APP_URLS, getNavItems, type AppName, type GlobalNavItem } from './nav-config';

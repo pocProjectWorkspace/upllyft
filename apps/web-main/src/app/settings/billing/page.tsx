@@ -1,14 +1,13 @@
 'use client';
 
-import { useAuth, apiClient } from '@upllyft/api-client';
+import { useRequireAuth, apiClient } from '@upllyft/api-client';
 import { AppHeader, Card, Badge, Skeleton } from '@upllyft/ui';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Suspense } from 'react';
 
 function BillingContent() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const searchParams = useSearchParams();
   const success = searchParams.get('success');
   const canceled = searchParams.get('canceled');
@@ -30,17 +29,12 @@ function BillingContent() {
     enabled: isAuthenticated,
   });
 
-  if (authLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   async function handleSubscribe() {

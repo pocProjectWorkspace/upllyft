@@ -1,24 +1,19 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@upllyft/api-client';
+import { useRequireAuth } from '@upllyft/api-client';
 import { AppHeader } from '@upllyft/ui';
 
 export default function ConsentCompletePage() {
   const router = useRouter();
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isReady } = useRequireAuth();
 
-  if (isLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    router.replace('/login');
-    return null;
   }
 
   return (

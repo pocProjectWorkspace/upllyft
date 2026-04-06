@@ -1,8 +1,8 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useRequireAuth } from '@upllyft/api-client';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 const sidebarItems = [
   {
@@ -108,26 +108,26 @@ const sidebarItems = [
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, isReady } = useRequireAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || !['ADMIN', 'SUPERADMIN'].includes(user?.role || ''))) {
+    if (isReady && !['ADMIN', 'SUPERADMIN'].includes(user?.role || '')) {
       router.replace('/');
     }
-  }, [isLoading, isAuthenticated, user, router]);
+    if (isReady && ['ADMIN', 'SUPERADMIN'].includes(user?.role || '')) {
+      setIsAdmin(true);
+    }
+  }, [isReady, user, router]);
 
-  if (isLoading) {
+  if (!isReady || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated || !['ADMIN', 'SUPERADMIN'].includes(user?.role || '')) {
-    return null;
   }
 
   return (

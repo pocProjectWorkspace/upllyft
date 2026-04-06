@@ -1,8 +1,7 @@
 'use client';
 
-import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader, Avatar, Badge, Card, Skeleton } from '@upllyft/ui';
-import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { getTrendingPosts, type Post } from '@/lib/api/posts';
 
@@ -34,8 +33,7 @@ function getTagColor(tag: string): 'teal' | 'blue' | 'purple' | 'green' | 'yello
 }
 
 export default function TrendingPage() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ['posts', 'trending'],
@@ -43,17 +41,12 @@ export default function TrendingPage() {
     enabled: isAuthenticated,
   });
 
-  if (authLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   return (

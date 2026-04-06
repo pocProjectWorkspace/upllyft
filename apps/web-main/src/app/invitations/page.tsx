@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@upllyft/api-client';
+import { useRequireAuth } from '@upllyft/api-client';
 import { AppHeader, Button, Card, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import {
@@ -12,7 +12,7 @@ import {
 } from '@/lib/api/organizations';
 
 export default function InvitationsPage() {
-  const { isLoading: isAuthLoading, isAuthenticated } = useAuth();
+  const { isAuthenticated, isReady } = useRequireAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -87,17 +87,12 @@ export default function InvitationsPage() {
     }
   };
 
-  if (isAuthLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    router.replace('/login');
-    return null;
   }
 
   return (

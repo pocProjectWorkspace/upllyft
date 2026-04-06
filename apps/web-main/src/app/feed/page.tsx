@@ -1,8 +1,7 @@
 'use client';
 
-import { useAuth, APP_URLS } from '@upllyft/api-client';
+import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader, Skeleton, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
-import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getPosts, type PostFilters } from '@/lib/api/posts';
@@ -84,8 +83,7 @@ const trendingTopics = [
 ];
 
 export default function FeedPage() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const [view, setView] = useState<FeedView>('for-you');
   const [sort, setSort] = useState<SortBy>('recent');
   const [search, setSearch] = useState('');
@@ -148,17 +146,12 @@ export default function FeedPage() {
     return () => observer.disconnect();
   }, [handleObserver]);
 
-  if (authLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   const displayName = user.name || user.email?.split('@')[0] || 'User';

@@ -1,8 +1,8 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useRequireAuth } from '@upllyft/api-client';
 import { AppHeader, Avatar, Badge, Card, Skeleton } from '@upllyft/ui';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { searchPosts, getTrendingSearches, type SearchResult, type SearchFilters } from '@/lib/api/search';
 
@@ -21,8 +21,7 @@ const SORT_OPTIONS = [
 ];
 
 function SearchContent() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
 
@@ -123,17 +122,12 @@ function SearchContent() {
     filters.verifiedOnly,
   ].filter(Boolean).length;
 
-  if (authLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
-    return null;
   }
 
   return (
