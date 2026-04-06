@@ -53,7 +53,7 @@ export function useNotifications(): UseNotificationsReturn {
     await Promise.all([fetchNotifications(), fetchUnreadCount()]);
   }, [fetchNotifications, fetchUnreadCount]);
 
-  // Initial fetch + polling for unread count
+  // Poll unread count only — lightweight, no full list fetch on mount
   useEffect(() => {
     fetchUnreadCount();
     pollRef.current = setInterval(fetchUnreadCount, POLL_INTERVAL);
@@ -62,8 +62,14 @@ export function useNotifications(): UseNotificationsReturn {
     };
   }, [fetchUnreadCount]);
 
-  // Fetch notifications when filter changes
+  // Fetch notifications list when filter changes, but skip initial mount
+  const hasFetched = useRef(false);
   useEffect(() => {
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     fetchNotifications();
   }, [fetchNotifications]);

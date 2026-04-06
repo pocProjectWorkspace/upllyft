@@ -13,6 +13,13 @@ export default function DashboardPage() {
   const router = useRouter();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isLoading, isAuthenticated, router]);
+
   // Check onboarding status for parent users
   useEffect(() => {
     if (!isLoading && isAuthenticated && user && user.role === 'USER') {
@@ -31,12 +38,12 @@ export default function DashboardPage() {
           // If the check fails, just show the dashboard
           setOnboardingChecked(true);
         });
-    } else if (!isLoading) {
+    } else if (!isLoading && isAuthenticated) {
       setOnboardingChecked(true);
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading || !onboardingChecked) {
+  if (isLoading || !isAuthenticated || !onboardingChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
@@ -44,8 +51,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!isAuthenticated || !user) {
-    router.replace('/login');
+  if (!user) {
     return null;
   }
 

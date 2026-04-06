@@ -52,18 +52,30 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
     const initAuth = async () => {
       const { accessToken, refreshToken } = getStoredTokens();
 
-      // Hydrate in-memory state from localStorage (cross-port sharing)
+      // Hydrate in-memory token state immediately (sync)
       if (accessToken) {
         setAuthToken(accessToken);
-        if (refreshToken) setRefreshToken(refreshToken);
+      }
+      if (refreshToken) {
+        setRefreshToken(refreshToken);
+      }
 
+      // No tokens at all — not authenticated
+      if (!accessToken && !refreshToken) {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // Try to fetch current user with existing token
+      if (accessToken) {
         try {
           const userData = await authApi.getCurrentUser();
           setUser(userData);
           setIsLoading(false);
           return;
         } catch {
-          // Token expired — try refresh below
+          // Token expired — fall through to refresh
         }
       }
 

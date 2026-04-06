@@ -63,6 +63,7 @@ function createClient(baseURL: string): AxiosInstance {
   });
 
   let isRefreshing = false;
+  let isRedirecting = false;
   let failedQueue: Array<{
     resolve: (value: unknown) => void;
     reject: (reason: unknown) => void;
@@ -117,7 +118,8 @@ function createClient(baseURL: string): AxiosInstance {
         } catch (refreshError) {
           processQueue(refreshError);
           clearStoredTokens();
-          if (typeof window !== 'undefined') {
+          if (typeof window !== 'undefined' && !isRedirecting) {
+            isRedirecting = true;
             window.location.href = '/login';
           }
           return Promise.reject(refreshError);
