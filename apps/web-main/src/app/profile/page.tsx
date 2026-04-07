@@ -33,6 +33,8 @@ export default function ProfilePage() {
     );
   }
 
+  if (!user) return null;
+
   const displayName = user.name || user.email?.split('@')[0] || 'User';
 
   const openFollowers = (tab: 'followers' | 'following') => {

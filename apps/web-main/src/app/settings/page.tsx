@@ -34,6 +34,8 @@ export default function SettingsPage() {
     );
   }
 
+  if (!user) return null;
+
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
     if (newPassword.length < 6) {

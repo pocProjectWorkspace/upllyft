@@ -42,6 +42,8 @@ export default function UserProfilePage() {
     );
   }
 
+  if (!user) return null;
+
   // Redirect to own profile page if viewing self
   if (user.id === profileId) {
     router.replace('/profile');

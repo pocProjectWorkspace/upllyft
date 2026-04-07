@@ -56,6 +56,8 @@ export default function EditProfilePage() {
     );
   }
 
+  if (!user) return null;
+
   const displayName = user.name || user.email?.split('@')[0] || 'User';
 
   function handleChange(field: string, value: string) {

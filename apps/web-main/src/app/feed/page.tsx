@@ -154,6 +154,8 @@ export default function FeedPage() {
     );
   }
 
+  if (!user) return null;
+
   const displayName = user.name || user.email?.split('@')[0] || 'User';
   const posts = data?.pages.flatMap((page) => page.posts) || [];
   const topBanners = topBannerAds?.pages?.[0] || [];

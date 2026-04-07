@@ -345,6 +345,8 @@ export default function MessagesPage() {
     );
   }
 
+  if (!user) return null;
+
   const selectedConv = conversations?.find((c) => c.id === selectedConvId) ?? null;
 
   return (
