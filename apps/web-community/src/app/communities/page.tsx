@@ -315,7 +315,7 @@ function CommunitiesGrid() {
             className="rounded-xl focus:ring-2 focus:ring-pink-500"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {COMMUNITY_TYPE_FILTERS.map((filter) => (
             <button
               key={filter.label}
@@ -334,6 +334,31 @@ function CommunitiesGrid() {
           ))}
         </div>
       </div>
+
+      {/* Active filter summary */}
+      {(typeFilter || search) && !isLoading && (
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <span>
+            {total} {total === 1 ? 'community' : 'communities'}
+            {typeFilter && (
+              <>
+                {' '}in <span className="font-medium text-pink-700">{COMMUNITY_TYPE_FILTERS.find(f => f.value === typeFilter)?.label}</span>
+              </>
+            )}
+            {search && <> matching &ldquo;<span className="font-medium">{search}</span>&rdquo;</>}
+          </span>
+          <button
+            onClick={() => {
+              setTypeFilter('');
+              setSearch('');
+              setPage(1);
+            }}
+            className="text-pink-600 hover:text-pink-700 font-medium underline"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -595,6 +620,16 @@ export default function BrowseCommunitiesPage() {
 
   return (
     <CommunityShell>
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-pink-600 mb-4 transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Feed
+      </Link>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Communities</h1>

@@ -22,34 +22,46 @@ const COUNTRIES = [
   { code: 'AE', label: 'United Arab Emirates', flag: '\uD83C\uDDE6\uD83C\uDDEA', description: 'Browse clinics and book through verified centers' },
 ] as const;
 
+// Inline outline icons for the "What brings you here" step.
+// These replace earlier emoji-style icons with clean line-art SVGs.
 const PRIMARY_REASONS = [
   {
     id: 'recent-diagnosis',
-    emoji: '\uD83D\uDD0D',
+    // Clipboard with check
+    iconPath:
+      'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
     title: 'My child recently received a diagnosis',
     subtitle: "We'll help you understand what comes next",
   },
   {
     id: 'screen-development',
-    emoji: '\uD83D\uDCCB',
+    // Chart / activity line
+    iconPath:
+      'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
     title: "I want to screen my child's development",
     subtitle: 'Our quick screening can highlight areas to focus on',
   },
   {
     id: 'find-therapist',
-    emoji: '\uD83D\uDC68\u200D\u2695\uFE0F',
+    // User plus
+    iconPath:
+      'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z',
     title: "I'm looking for the right therapist",
     subtitle: "We'll connect you with verified professionals",
   },
   {
     id: 'connect-parents',
-    emoji: '\uD83D\uDCAC',
+    // Two users / group
+    iconPath:
+      'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
     title: 'I want to connect with other parents',
     subtitle: 'Join a supportive community of parents like you',
   },
   {
     id: 'just-exploring',
-    emoji: '\uD83C\uDF1F',
+    // Compass
+    iconPath:
+      'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
     title: "I'm just exploring",
     subtitle: "No pressure — we'll show you around",
   },
@@ -217,6 +229,7 @@ export default function OnboardingPage() {
 
   // Step 3
   const [childName, setChildName] = useState('');
+  const [childLastName, setChildLastName] = useState('');
   const [childDob, setChildDob] = useState('');
   const [childGender, setChildGender] = useState('');
   const [hasConditions, setHasConditions] = useState(false);
@@ -258,6 +271,12 @@ export default function OnboardingPage() {
     setStep((s) => Math.max(s - 1, 1));
   }, []);
 
+  // Combine first + last name for storage. The Child model stores
+  // firstName as a single display string, so we join them here.
+  const combinedChildName = childLastName
+    ? `${childName.trim()} ${childLastName.trim()}`.trim()
+    : childName.trim();
+
   const handleSkip = useCallback(async () => {
     setSaving(true);
     try {
@@ -268,7 +287,7 @@ export default function OnboardingPage() {
         ...(childName && childDob
           ? {
               child: {
-                firstName: childName,
+                firstName: combinedChildName,
                 dateOfBirth: childDob,
                 gender: childGender || undefined,
                 hasConditions,
@@ -290,6 +309,8 @@ export default function OnboardingPage() {
     selectedCountry,
     selectedPreferredRegion,
     childName,
+    childLastName,
+    combinedChildName,
     childDob,
     childGender,
     hasConditions,
@@ -310,7 +331,7 @@ export default function OnboardingPage() {
 
         if (childName && childDob && !hasExistingChild) {
           payload.child = {
-            firstName: childName,
+            firstName: combinedChildName,
             dateOfBirth: childDob,
             gender: childGender || undefined,
             hasConditions,
@@ -347,6 +368,8 @@ export default function OnboardingPage() {
       selectedCountry,
       selectedPreferredRegion,
       childName,
+      childLastName,
+      combinedChildName,
       childDob,
       childGender,
       hasConditions,
@@ -710,9 +733,28 @@ export default function OnboardingPage() {
                         }`}
                       >
                         <div className="flex items-start gap-4">
-                          <span className="text-2xl flex-shrink-0 mt-0.5">
-                            {reason.emoji}
-                          </span>
+                          <div
+                            className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-colors ${
+                              selected
+                                ? 'bg-teal-100 text-teal-700'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.75}
+                                d={reason.iconPath}
+                              />
+                            </svg>
+                          </div>
                           <div className="flex-1 min-w-0">
                             <p
                               className={`font-semibold ${selected ? 'text-teal-700' : 'text-gray-900'}`}
@@ -826,17 +868,32 @@ export default function OnboardingPage() {
                   transition={{ delay: 0.15, duration: 0.4 }}
                   className="space-y-4"
                 >
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Child&apos;s first name
-                    </label>
-                    <input
-                      type="text"
-                      value={childName}
-                      onChange={(e) => setChildName(e.target.value)}
-                      placeholder="What should we call them?"
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-shadow"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Child&apos;s first name
+                      </label>
+                      <input
+                        type="text"
+                        value={childName}
+                        onChange={(e) => setChildName(e.target.value)}
+                        placeholder="What should we call them?"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-shadow"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Last name{' '}
+                        <span className="text-gray-400 font-normal">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={childLastName}
+                        onChange={(e) => setChildLastName(e.target.value)}
+                        placeholder="Family name"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-shadow"
+                      />
+                    </div>
                   </div>
 
                   <div>

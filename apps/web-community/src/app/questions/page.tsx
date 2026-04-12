@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Avatar,
@@ -75,9 +76,27 @@ export default function QuestionsPage() {
   const questions = questionsData?.data || [];
   const totalPages = questionsData?.totalPages || 1;
 
+  const STARTER_QUESTIONS = [
+    'How do I know if my child needs a developmental screening?',
+    'What are early signs of autism in toddlers?',
+    'How to help my child with speech delay at home?',
+    'Best sensory activities for ADHD kids?',
+    'How do I explain a diagnosis to my extended family?',
+  ];
+
   return (
     <CommunityShell>
       <div className="space-y-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-pink-600 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Feed
+        </Link>
+
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -181,17 +200,42 @@ export default function QuestionsPage() {
                 ))}
               </div>
             ) : questions.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+              <div className="py-10 px-4">
+                <div className="text-center mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-7 h-7 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Be the first to start a conversation</h3>
+                  <p className="text-gray-500 text-sm mt-1 max-w-md mx-auto">
+                    Parents often have similar concerns. Here are some popular starter topics — click one to ask, or write your own.
+                  </p>
                 </div>
-                <p className="text-gray-500 font-medium">No questions found</p>
-                <p className="text-gray-400 text-sm mt-1">Try adjusting your filters or be the first to ask.</p>
-                <Button variant="secondary" className="mt-4" onClick={() => router.push('/posts/create?type=QUESTION')}>
-                  Ask a Question
-                </Button>
+
+                <div className="max-w-2xl mx-auto space-y-2 mb-6">
+                  {STARTER_QUESTIONS.map((q) => (
+                    <button
+                      key={q}
+                      onClick={() =>
+                        router.push(
+                          `/posts/create?type=QUESTION&title=${encodeURIComponent(q)}`,
+                        )
+                      }
+                      className="w-full text-left p-3 rounded-xl bg-white border border-gray-200 hover:border-pink-300 hover:bg-pink-50/50 transition-colors group"
+                    >
+                      <span className="text-sm text-gray-700 group-hover:text-pink-700">
+                        {q}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="text-center">
+                  <Button onClick={() => router.push('/posts/create?type=QUESTION')}>
+                    Ask your own question
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">

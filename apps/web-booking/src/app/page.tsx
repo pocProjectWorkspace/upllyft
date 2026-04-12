@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
 import { BookingShell } from '@/components/booking-shell';
 import { RegionGate } from '@/components/region-gate';
 import { useSearchTherapists } from '@/hooks/use-marketplace';
 import { formatCurrency } from '@/lib/utils';
-import type { TherapistSearchFilters } from '@/lib/api/marketplace';
+import type { TherapistSearchFilters, TherapistProfile } from '@/lib/api/marketplace';
 import {
   Card,
   Badge,
@@ -173,14 +173,37 @@ function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId
   return <MiraNudge nudgeId={nudgeId} message={message} chipText={chipText} childName={childName} mainAppUrl={APP_URLS.main} />;
 }
 
+type SortOption = 'relevance' | 'rating' | 'experience';
+
 export default function MarketplacePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { serviceModel, isRegionResolved } = useRegion();
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [specialization, setSpecialization] = useState('');
+  const [minRating, setMinRating] = useState<number>(0);
+  const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [page, setPage] = useState(1);
+
+  // Hydrate filters from URL query params (used by Mira deep-links)
+  useEffect(() => {
+    const urlSpec = searchParams.get('specialization');
+    const urlSearch = searchParams.get('search');
+    const urlMinRating = searchParams.get('minRating');
+    if (urlSpec) setSpecialization(urlSpec);
+    if (urlSearch) {
+      setSearchInput(urlSearch);
+      setDebouncedSearch(urlSearch);
+    }
+    if (urlMinRating) {
+      const parsed = Number(urlMinRating);
+      if (!Number.isNaN(parsed)) setMinRating(parsed);
+    }
+    // Intentionally run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Redirect clinic-directory users to /clinics
   useEffect(() => {
@@ -201,13 +224,37 @@ export default function MarketplacePage() {
   const filters: TherapistSearchFilters = {
     search: debouncedSearch || undefined,
     specialization: specialization || undefined,
+    minRating: minRating > 0 ? minRating : undefined,
     page,
     limit: ITEMS_PER_PAGE,
   };
 
   const { data, isLoading } = useSearchTherapists(filters);
-  const therapists = data?.therapists ?? [];
+  const rawTherapists = data?.therapists ?? [];
   const totalPages = data?.totalPages ?? 1;
+
+  // Client-side sort (relevance = default API order)
+  const therapists = useMemo<TherapistProfile[]>(() => {
+    const list = [...rawTherapists];
+    if (sortBy === 'rating') {
+      list.sort((a, b) => (b.overallRating || 0) - (a.overallRating || 0));
+    } else if (sortBy === 'experience') {
+      list.sort((a, b) => (b.yearsExperience || 0) - (a.yearsExperience || 0));
+    }
+    return list;
+  }, [rawTherapists, sortBy]);
+
+  const hasActiveFilters =
+    !!specialization || !!debouncedSearch || minRating > 0 || sortBy !== 'relevance';
+
+  const clearFilters = () => {
+    setSpecialization('');
+    setSearchInput('');
+    setDebouncedSearch('');
+    setMinRating(0);
+    setSortBy('relevance');
+    setPage(1);
+  };
 
   // Show region gate for unresolved parents (after all hooks)
   if (!isRegionResolved && user?.role === 'USER') {
@@ -261,6 +308,63 @@ export default function MarketplacePage() {
             </button>
           ))}
         </div>
+
+        {/* Refine Filters: Rating + Sort */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-1">Rating</span>
+            {[0, 4, 4.5].map((r) => (
+              <button
+                key={r}
+                onClick={() => { setMinRating(r); setPage(1); }}
+                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  minRating === r
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-amber-50 hover:border-amber-300'
+                }`}
+              >
+                {r === 0 ? (
+                  'Any'
+                ) : (
+                  <>
+                    <StarIcon className="w-3 h-3" filled />
+                    {r}+
+                  </>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sort by</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="text-sm rounded-lg border border-gray-200 bg-white px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            >
+              <option value="relevance">Relevance</option>
+              <option value="rating">Highest rated</option>
+              <option value="experience">Most experienced</option>
+            </select>
+          </div>
+        </div>
+
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <span>
+              Showing {therapists.length} {therapists.length === 1 ? 'therapist' : 'therapists'}
+              {specialization && <> in <span className="font-medium">{specialization}</span></>}
+              {minRating > 0 && <> rated <span className="font-medium">{minRating}+</span></>}
+              {debouncedSearch && <> matching &ldquo;<span className="font-medium">{debouncedSearch}</span>&rdquo;</>}
+            </span>
+            <button
+              onClick={clearFilters}
+              className="text-teal-600 hover:text-teal-700 font-medium underline"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
 
         {/* Mira Nudge */}
         <MiraNudgeForParent

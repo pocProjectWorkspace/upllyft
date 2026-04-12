@@ -31,9 +31,22 @@ export function MiraCardRenderer({ card }: { card: MiraCard }) {
 }
 
 function TherapistCard({ data }: { data: any }) {
-  const bookingUrl = data.therapistProfileId
-    ? `${APP_URLS.booking}/therapists/${data.therapistProfileId}`
-    : APP_URLS.booking;
+  // Build booking URL: prefer a direct profile link, otherwise
+  // fall back to the marketplace pre-filtered by specialization or name
+  // so the user always lands on relevant results instead of a blank page.
+  let bookingUrl: string;
+  if (data.therapistProfileId) {
+    bookingUrl = `${APP_URLS.booking}/therapists/${data.therapistProfileId}`;
+  } else {
+    const params = new URLSearchParams();
+    const firstSpec = Array.isArray(data.specialization) && data.specialization.length > 0
+      ? data.specialization[0]
+      : null;
+    if (firstSpec) params.set('specialization', firstSpec);
+    else if (data.name) params.set('search', data.name);
+    const queryString = params.toString();
+    bookingUrl = queryString ? `${APP_URLS.booking}?${queryString}` : APP_URLS.booking;
+  }
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-3 mt-3">
@@ -204,12 +217,12 @@ export function MiraChoiceChips({
   onSelect: (choice: string) => void;
 }) {
   return (
-    <div className="flex gap-2 mt-3 overflow-x-auto pb-2 scrollbar-hide">
+    <div className="flex flex-col gap-2 mt-3">
       {choices.map((choice) => (
         <button
           key={choice}
           onClick={() => onSelect(choice)}
-          className="bg-white border border-teal-200 text-teal-700 rounded-full px-4 py-2 text-sm hover:bg-teal-50 cursor-pointer whitespace-nowrap transition-colors flex-shrink-0"
+          className="bg-white border border-teal-200 text-teal-700 rounded-xl px-4 py-2.5 text-sm text-left hover:bg-teal-50 hover:border-teal-300 cursor-pointer transition-colors"
         >
           {choice}
         </button>

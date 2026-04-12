@@ -14,6 +14,8 @@ interface ParentDashboardProps {
   user: User;
 }
 
+const WELCOME_DISMISSED_KEY = 'upllyft_welcome_dismissed';
+
 export function ParentDashboard({ user }: ParentDashboardProps) {
   const { data: profile, isLoading: profileLoading } = useMyProfile();
   const { data: upcomingSessions, isLoading: sessionsLoading } = useUpcomingBookings();
@@ -29,6 +31,19 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
   const [childDropdownOpen, setChildDropdownOpen] = useState(false);
   const [heroInput, setHeroInput] = useState('');
   const heroInputRef = useRef<HTMLInputElement>(null);
+  const [welcomeDismissed, setWelcomeDismissed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(WELCOME_DISMISSED_KEY) === '1';
+    }
+    return true;
+  });
+
+  function dismissWelcome() {
+    setWelcomeDismissed(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(WELCOME_DISMISSED_KEY, '1');
+    }
+  }
 
   const children = profile?.children || [];
   const selectedChild = selectedChildId
@@ -92,8 +107,84 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
     mira.open({ childId: selectedChild?.id, prefilledMessage: message });
   }
 
+  // Show a welcome note for newly onboarded parents. We consider a parent
+  // "newly onboarded" if the profile has onboardingData and they haven't
+  // dismissed the welcome banner yet.
+  const showWelcomeNote = !profileLoading && !welcomeDismissed && !!onboardingData;
+
   return (
     <div className="space-y-8">
+      {/* ── Welcome note (shown after onboarding, dismissable) ─── */}
+      {showWelcomeNote && (
+        <div className="rounded-2xl border border-teal-100 bg-gradient-to-r from-teal-50 via-white to-amber-50/60 p-5 sm:p-6 relative">
+          <button
+            onClick={dismissWelcome}
+            aria-label="Dismiss welcome"
+            className="absolute top-3 right-3 w-8 h-8 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex items-center justify-center"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <div className="flex items-start gap-4 pr-10">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Welcome to Upllyft, {displayName}!
+              </h2>
+              <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                Thanks for sharing a little about{' '}
+                {selectedChild ? (
+                  <span className="font-medium text-teal-700">{selectedChild.firstName}</span>
+                ) : (
+                  'your family'
+                )}
+                . Your personalised space is ready. Mira is here whenever you need
+                guidance, and you can explore screenings, therapists, and community
+                all from this dashboard.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Quick actions: Profile / Add child ─────────────────── */}
+      <div className="flex flex-wrap items-center gap-3">
+        <a
+          href="/profile"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-white border border-gray-200 text-gray-700 hover:border-teal-300 hover:text-teal-700 transition-colors shadow-sm"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          Edit profile
+        </a>
+        <a
+          href="/profile/children/add"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-white border border-gray-200 text-gray-700 hover:border-teal-300 hover:text-teal-700 transition-colors shadow-sm"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add a child
+        </a>
+        {selectedChild && (
+          <a
+            href={`/profile/children/${selectedChild.id}/edit`}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-white border border-gray-200 text-gray-700 hover:border-teal-300 hover:text-teal-700 transition-colors shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Update {selectedChild.firstName}&apos;s details
+          </a>
+        )}
+      </div>
+
       {/* ── Mira Hero Card ──────────────────────────────────────── */}
       <div className="rounded-2xl bg-gradient-to-br from-teal-500 via-teal-600 to-teal-700 p-6 sm:p-8 text-white relative overflow-hidden">
         {/* Subtle background pattern */}

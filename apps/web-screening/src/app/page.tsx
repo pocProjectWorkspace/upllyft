@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@upllyft/api-client';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import {
   Button,
   Card,
@@ -486,11 +486,20 @@ function ChildSection({
 // ── Progress Overview Component ──
 
 function ProgressOverview({ childrenList }: { childrenList: Child[] | undefined }) {
-  // For each child, fetch their assessments and find the latest completed one
-  const firstChild = childrenList?.[0];
-  const { data: assessments } = useChildAssessments(firstChild?.id || '');
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
-  if (!firstChild || !assessments) return null;
+  // Default to first child when data loads
+  useEffect(() => {
+    if (childrenList && childrenList.length > 0 && !selectedChildId) {
+      setSelectedChildId(childrenList[0].id);
+    }
+  }, [childrenList, selectedChildId]);
+
+  const activeChild =
+    childrenList?.find((c) => c.id === selectedChildId) ?? childrenList?.[0];
+  const { data: assessments } = useChildAssessments(activeChild?.id || '');
+
+  if (!activeChild || !assessments) return null;
 
   const completed = assessments
     .filter((a) => a.status === 'COMPLETED' && a.domainScores)
@@ -500,37 +509,63 @@ function ProgressOverview({ childrenList }: { childrenList: Child[] | undefined 
         new Date(a.completedAt || a.createdAt).getTime(),
     );
 
-  if (completed.length === 0) return null;
-
-  const latest = completed[0];
-  const scores = latest.domainScores!;
+  const hasMultipleChildren = (childrenList?.length ?? 0) > 1;
 
   return (
     <Card className="p-6 rounded-2xl border border-gray-200 mb-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">How They&apos;re Doing</h2>
-          <p className="text-sm text-gray-600">{latest.child.firstName}&apos;s latest screening results</p>
+          <p className="text-sm text-gray-600">
+            {completed.length > 0
+              ? `${activeChild.firstName}'s latest screening results`
+              : `No screening results yet for ${activeChild.firstName}`}
+          </p>
         </div>
+
+        {hasMultipleChildren && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {childrenList!.map((child) => (
+              <button
+                key={child.id}
+                onClick={() => setSelectedChildId(child.id)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  child.id === activeChild.id
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'
+                }`}
+              >
+                {child.firstName}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-        {OVERVIEW_DOMAINS.map((domain) => {
-          const score = scores[domain.key];
-          if (!score) return null;
-          // Convert risk index to progress (inverted: low risk = high progress)
-          const progressPct = Math.round((1 - score.riskIndex) * 100);
-          const zone = calculateZone(score.riskIndex);
-          return (
-            <ProgressRing
-              key={domain.key}
-              percentage={progressPct}
-              color={domain.color}
-              label={domain.label}
-              zone={zone}
-            />
-          );
-        })}
-      </div>
+
+      {completed.length === 0 ? (
+        <div className="text-center py-8 text-sm text-gray-500">
+          Complete a screening to see {activeChild.firstName}&apos;s developmental progress here.
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+          {OVERVIEW_DOMAINS.map((domain) => {
+            const score = completed[0].domainScores![domain.key];
+            if (!score) return null;
+            // Convert risk index to progress (inverted: low risk = high progress)
+            const progressPct = Math.round((1 - score.riskIndex) * 100);
+            const zone = calculateZone(score.riskIndex);
+            return (
+              <ProgressRing
+                key={domain.key}
+                percentage={progressPct}
+                color={domain.color}
+                label={domain.label}
+                zone={zone}
+              />
+            );
+          })}
+        </div>
+      )}
     </Card>
   );
 }
@@ -915,14 +950,17 @@ export default function ScreeningLibraryPage() {
 
       {/* Framework Attribution */}
       <div className="mb-8 px-5 py-4 bg-teal-50/60 border border-teal-100 rounded-2xl">
-        <p className="text-sm text-teal-800 leading-relaxed">
-          <span className="font-semibold">Evidence-based screening</span>{' — '}
-          Our developmental screening is adapted from the{' '}
-          <span className="font-medium">WHO/UNICEF Nurturing Care Framework</span>,{' '}
-          <span className="font-medium">ASQ-3</span> (Ages &amp; Stages Questionnaires),{' '}
-          the <span className="font-medium">WHO International Classification of Functioning (ICF)</span>,{' '}
-          and <span className="font-medium">CDC developmental milestones</span>.
-          {' '}This is a screening tool, not a diagnostic assessment.
+        <p className="text-sm text-teal-900 leading-relaxed">
+          <span className="font-semibold">Evidence-based methodology.</span>{' '}
+          Our developmental screening instruments are grounded in internationally
+          recognised frameworks, including the{' '}
+          <span className="font-medium">WHO/UNICEF Nurturing Care Framework</span>,
+          the <span className="font-medium">Ages &amp; Stages Questionnaires (ASQ-3)</span>,
+          the <span className="font-medium">WHO International Classification of Functioning, Disability and Health (ICF)</span>,
+          and the <span className="font-medium">CDC developmental milestones</span>.
+          These tools are designed for early identification and care planning. They
+          are intended as screening instruments and do not constitute a clinical
+          diagnostic assessment.
         </p>
       </div>
 
@@ -1056,7 +1094,16 @@ export default function ScreeningLibraryPage() {
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="child-select">Select Child</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="child-select">Select Child</Label>
+                <a
+                  href={`${APP_URLS.main}/profile/children/add`}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700"
+                >
+                  <PlusIcon className="w-3.5 h-3.5" />
+                  Add a new child
+                </a>
+              </div>
               <Select value={selectedChildId} onValueChange={setSelectedChildId}>
                 <SelectTrigger id="child-select">
                   <SelectValue placeholder="Choose a child..." />
@@ -1069,6 +1116,11 @@ export default function ScreeningLibraryPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {(!children || children.length === 0) && (
+                <p className="text-xs text-gray-500">
+                  No children yet — add one to get started.
+                </p>
+              )}
             </div>
 
             {selectedChild && ageGroup && (
