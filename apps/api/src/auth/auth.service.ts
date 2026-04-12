@@ -514,8 +514,13 @@ export class AuthService {
       clinic = user.therapistProfile.clinic;
     }
 
+    // Expose `avatar` alongside `image` so frontends that use the
+    // shared @upllyft/types User shape (which has `avatar`) work
+    // correctly. Both Google OAuth and uploaded avatars are stored
+    // in the User.image column.
     return {
       ...userWithoutPassword,
+      avatar: userWithoutPassword.image ?? null,
       clinic,
     };
   }
