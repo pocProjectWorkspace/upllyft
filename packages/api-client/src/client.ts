@@ -63,7 +63,6 @@ function createClient(baseURL: string): AxiosInstance {
   });
 
   let isRefreshing = false;
-  let isRedirecting = false;
   let failedQueue: Array<{
     resolve: (value: unknown) => void;
     reject: (reason: unknown) => void;
@@ -118,10 +117,10 @@ function createClient(baseURL: string): AxiosInstance {
         } catch (refreshError) {
           processQueue(refreshError);
           clearStoredTokens();
-          if (typeof window !== 'undefined' && !isRedirecting) {
-            isRedirecting = true;
-            window.location.href = '/login';
-          }
+          // Don't hard-redirect here — useRequireAuth handles the
+          // redirect via React router. A window.location.href reload
+          // causes an infinite loop because each reload re-initialises
+          // the module, finds stale tokens, and repeats.
           return Promise.reject(refreshError);
         } finally {
           isRefreshing = false;
