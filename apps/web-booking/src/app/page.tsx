@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
 import { BookingShell } from '@/components/booking-shell';
@@ -175,7 +175,7 @@ function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId
 
 type SortOption = 'relevance' | 'rating' | 'experience';
 
-export default function MarketplacePage() {
+function MarketplacePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -512,5 +512,31 @@ export default function MarketplacePage() {
         )}
       </div>
     </BookingShell>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary during prerender.
+export default function MarketplacePage() {
+  return (
+    <Suspense
+      fallback={
+        <BookingShell>
+          <div className="space-y-8">
+            <div className="text-center">
+              <Skeleton className="w-14 h-14 rounded-2xl mx-auto mb-4" />
+              <Skeleton className="h-7 w-64 mx-auto mb-2" />
+              <Skeleton className="h-5 w-80 mx-auto" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <TherapistCardSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+        </BookingShell>
+      }
+    >
+      <MarketplacePageContent />
+    </Suspense>
   );
 }
