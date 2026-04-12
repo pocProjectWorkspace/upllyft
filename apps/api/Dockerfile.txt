@@ -38,4 +38,4 @@ RUN ls -la apps/api/dist/ && echo "✅ Build output found"
 
 EXPOSE ${PORT:-3001}
 #path to update prisma database
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "cd apps/api && npx prisma db push --skip-generate && node dist/main.js"]
