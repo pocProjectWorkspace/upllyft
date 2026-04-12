@@ -49,6 +49,7 @@ model User {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   googleId                String?                  @unique
+  ssoSource               String?
   acceptedAnswerCount     Int                      @default(0)
   answerCount             Int                      @default(0)
   expertTopics            String[]                 @default([])

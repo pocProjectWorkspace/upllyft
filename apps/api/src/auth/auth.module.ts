@@ -12,6 +12,8 @@ import { CaptchaModule } from '../captcha/captcha.module';
 import { EmailModule } from '../email/email.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { FcmTokenModule } from '../fcm-token/fcm-token.module';
+import { OneVoiceSsoService } from './sso/onevoice-sso.service';
+import { OneVoiceSsoController } from './sso/onevoice-sso.controller';
 
 @Module({
   imports: [
@@ -33,8 +35,8 @@ import { FcmTokenModule } from '../fcm-token/fcm-token.module';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, GoogleStrategy],
+  controllers: [AuthController, OneVoiceSsoController],
+  providers: [AuthService, LocalStrategy, JwtStrategy, GoogleStrategy, OneVoiceSsoService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule { }
