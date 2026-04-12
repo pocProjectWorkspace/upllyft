@@ -35,6 +35,7 @@ COPY packages ./packages
 RUN chmod +x apps/api/entrypoint.sh
 
 RUN cd apps/api && npx prisma generate
+RUN cd apps/api && npx prisma db push --skip-generate
 RUN pnpm --filter @upllyft/api build
 RUN ls -la apps/api/dist/ && echo "✅ Build output found"
 
