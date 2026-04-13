@@ -518,9 +518,12 @@ export class AuthService {
     // shared @upllyft/types User shape (which has `avatar`) work
     // correctly. Both Google OAuth and uploaded avatars are stored
     // in the User.image column.
+    // `ssoSource` is forwarded so frontends can apply per-origin
+    // theming (e.g. OneVoice skin on feeds/screening pages).
     return {
       ...userWithoutPassword,
       avatar: userWithoutPassword.image ?? null,
+      ssoSource: (userWithoutPassword as any).ssoSource ?? null,
       clinic,
     };
   }

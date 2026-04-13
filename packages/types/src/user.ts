@@ -24,6 +24,8 @@ export interface User {
   location?: string;
   country?: string;
   preferredRegion?: string;
+  /** Origin of the account, e.g. "onevoice" for users provisioned via OneVoice SSO. */
+  ssoSource?: string | null;
   isVerified: boolean;
   verificationStatus: VerificationStatus;
   createdAt: string;

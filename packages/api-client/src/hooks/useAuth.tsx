@@ -123,6 +123,22 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
     }
   }, []);
 
+  // Apply a per-origin theme marker to <html> so CSS can skin the
+  // app differently for users provisioned via external SSO partners.
+  // Currently used by web-community and web-screening to render an
+  // OneVoice-branded (blue/green) theme instead of the default
+  // pink/teal theme.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    const source = user?.ssoSource;
+    if (source) {
+      root.dataset.theme = source;
+    } else if (root.dataset.theme) {
+      delete root.dataset.theme;
+    }
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
