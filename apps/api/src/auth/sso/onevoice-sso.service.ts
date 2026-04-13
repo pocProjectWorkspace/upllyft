@@ -136,9 +136,19 @@ export class OneVoiceSsoService {
       throw new SsoVerificationError('token_invalid');
     }
 
-    // Normalise the key: env vars may arrive with literal "\n" instead of real
-    // newlines when loaded from .env files or hosting platforms.
-    const normalizedKey = publicKey.replace(/\\n/g, '\n');
+    // Normalise the PEM so parser errors don't fire on innocent whitespace:
+    //  1. Convert literal "\n" escape sequences to real newlines (some hosts
+    //     store env vars as a single-line escaped string).
+    //  2. Strip leading/trailing whitespace from EVERY line — pasting from
+    //     Markdown / documentation often introduces indent spaces that break
+    //     strict PEM parsers like Node's crypto.createPublicKey.
+    //  3. Trim any blank lines at the top/bottom of the whole value.
+    const normalizedKey = publicKey
+      .replace(/\\n/g, '\n')
+      .split('\n')
+      .map((line) => line.trim())
+      .join('\n')
+      .trim();
 
     let payload: OneVoiceSsoClaims;
     try {
