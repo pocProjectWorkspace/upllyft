@@ -1,4 +1,4 @@
-export type SupportedCountry = 'IN' | 'AE';
+export type SupportedCountry = 'IN' | 'AE' | 'SA';
 
 export type ServiceModel = 'THERAPIST_MARKETPLACE' | 'CLINIC_DIRECTORY';
 
@@ -40,9 +40,21 @@ export const REGION_CONFIGS: Record<SupportedCountry, RegionConfig> = {
     contactEmail: 'support-ae@upllyft.com',
     timezone: 'Asia/Dubai',
   },
+  SA: {
+    country: 'SA',
+    label: 'Saudi Arabia',
+    currency: 'SAR',
+    currencySymbol: '\u0633.\u0631',
+    locale: 'en-SA',
+    stripeCountry: 'SA',
+    serviceModel: 'CLINIC_DIRECTORY',
+    contactPhone: '+966-XXXXXXXXX',
+    contactEmail: 'support-sa@upllyft.com',
+    timezone: 'Asia/Riyadh',
+  },
 };
 
-export const SUPPORTED_COUNTRIES: SupportedCountry[] = ['IN', 'AE'];
+export const SUPPORTED_COUNTRIES: SupportedCountry[] = ['IN', 'AE', 'SA'];
 
 export function getRegionConfig(country: string | null | undefined): RegionConfig | null {
   if (!country) return null;

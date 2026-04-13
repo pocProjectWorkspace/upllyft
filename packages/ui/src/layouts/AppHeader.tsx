@@ -58,7 +58,12 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
   if (!isAuthenticated || !user) return null;
 
   const displayName = user.name || user.email?.split('@')[0] || 'User';
-  const globalNav = getNavItems(user.role);
+  const isOneVoiceUser = user.ssoSource === 'onevoice';
+  const globalNav = getNavItems(user.role, user.ssoSource);
+
+  // OneVoice users land on the community feed as their "home", so the logo
+  // link points there instead of the main hub.
+  const logoHref = isOneVoiceUser ? APP_URLS.community : APP_URLS.main;
 
   const handleLogout = async () => {
     await logout();
@@ -94,7 +99,7 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
             </button>
 
             {logo || (
-              <a href={APP_URLS.main} className="flex items-center gap-2 flex-shrink-0">
+              <a href={logoHref} className="flex items-center gap-2 flex-shrink-0">
                 <img src="/logo.png" alt="Upllyft" className="h-7 md:h-8 w-auto" />
               </a>
             )}
@@ -195,18 +200,22 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                       </svg>
                       Profile
                     </a>
-                    <a href={bookmarksUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
-                      <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                      </svg>
-                      Bookmarks
-                    </a>
-                    <a href={invitationsUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
-                      <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                      Invitations
-                    </a>
+                    {!isOneVoiceUser && (
+                      <>
+                        <a href={bookmarksUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
+                          <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                          </svg>
+                          Bookmarks
+                        </a>
+                        <a href={invitationsUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
+                          <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          Invitations
+                        </a>
+                      </>
+                    )}
                     <a href={settingsUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                       <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />

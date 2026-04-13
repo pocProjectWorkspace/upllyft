@@ -18,7 +18,21 @@ export interface GlobalNavItem {
   href: string;
 }
 
-export function getNavItems(role: string): GlobalNavItem[] {
+export function getNavItems(
+  role: string,
+  ssoSource?: string | null,
+): GlobalNavItem[] {
+  // OneVoice SSO users get a trimmed navigation: only Feed (community) and
+  // Screening are exposed. Hub, Booking, Resources, Cases, Admin and Clinic
+  // are hidden so the partner experience stays focused on the two modules
+  // OneVoice has integrated with.
+  if (ssoSource === 'onevoice') {
+    return [
+      { label: 'Feed', app: 'community', href: APP_URLS.community },
+      { label: 'Screening', app: 'screening', href: APP_URLS.screening },
+    ];
+  }
+
   const isProfessional = role === 'THERAPIST' || role === 'EDUCATOR';
   const isAdmin = role === 'ADMIN';
   const isSuperAdmin = role === 'SUPERADMIN';

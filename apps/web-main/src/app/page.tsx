@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -19,6 +19,22 @@ export default function DashboardPage() {
       router.replace('/login');
     }
   }, [isLoading, isAuthenticated, router]);
+
+  // OneVoice SSO users land on the community feed rather than the main hub.
+  // This redirect fires once onboarding has been checked and the user has
+  // ssoSource === 'onevoice'. Runs AFTER the onboarding check so the flow
+  // for brand-new OneVoice users is: SSO → onboarding → community feed.
+  useEffect(() => {
+    if (
+      !isLoading &&
+      isAuthenticated &&
+      user &&
+      (user as any).ssoSource === 'onevoice' &&
+      onboardingChecked
+    ) {
+      window.location.href = APP_URLS.community;
+    }
+  }, [isLoading, isAuthenticated, user, onboardingChecked]);
 
   // Check onboarding status for parent users
   useEffect(() => {

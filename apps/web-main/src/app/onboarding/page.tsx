@@ -20,6 +20,7 @@ const TOTAL_STEPS = 6;
 const COUNTRIES = [
   { code: 'IN', label: 'India', flag: '\uD83C\uDDEE\uD83C\uDDF3', description: 'Browse individual therapists and book sessions directly' },
   { code: 'AE', label: 'United Arab Emirates', flag: '\uD83C\uDDE6\uD83C\uDDEA', description: 'Browse clinics and book through verified centers' },
+  { code: 'SA', label: 'Saudi Arabia', flag: '\uD83C\uDDF8\uD83C\uDDE6', description: 'Connect with verified schools and wellbeing partners' },
 ] as const;
 
 // Inline outline icons for the "What brings you here" step.
@@ -261,15 +262,38 @@ export default function OnboardingPage() {
     }
   }, [user, isAuthenticated]);
 
+  // For users provisioned via OneVoice SSO, default the region to Saudi Arabia
+  // and auto-skip the country selection step — their region is known upfront.
+  const isOneVoiceUser = (user as any)?.ssoSource === 'onevoice';
+  useEffect(() => {
+    if (isOneVoiceUser && !selectedCountry) {
+      setSelectedCountry('SA');
+    }
+  }, [isOneVoiceUser, selectedCountry]);
+
   const goForward = useCallback(() => {
     setDirection('forward');
-    setStep((s) => Math.min(s + 1, TOTAL_STEPS));
-  }, []);
+    setStep((s) => {
+      let next = Math.min(s + 1, TOTAL_STEPS);
+      // Skip the country picker for OneVoice users (region auto-assigned).
+      if (isOneVoiceUser && next === 2) {
+        next = 3;
+      }
+      return next;
+    });
+  }, [isOneVoiceUser]);
 
   const goBack = useCallback(() => {
     setDirection('back');
-    setStep((s) => Math.max(s - 1, 1));
-  }, []);
+    setStep((s) => {
+      let prev = Math.max(s - 1, 1);
+      // Mirror the skip: going back past step 3 on OneVoice lands on welcome.
+      if (isOneVoiceUser && prev === 2) {
+        prev = 1;
+      }
+      return prev;
+    });
+  }, [isOneVoiceUser]);
 
   // Combine first + last name for storage. The Child model stores
   // firstName as a single display string, so we join them here.
@@ -1243,7 +1267,12 @@ export default function OnboardingPage() {
                             primaryGoal: primaryReason,
                           };
                           localStorage.setItem('mira_onboarding_handoff', JSON.stringify(handoff));
-                          router.push('/');
+                          // OneVoice users land on the community feed, not the main hub.
+                          if (isOneVoiceUser) {
+                            window.location.href = APP_URLS.community;
+                          } else {
+                            router.push('/');
+                          }
                         }}
                         disabled={saving}
                         className="bg-gradient-to-r from-teal-400 to-teal-600 text-white rounded-xl px-10 py-4 text-lg font-semibold shadow-lg"
@@ -1260,7 +1289,13 @@ export default function OnboardingPage() {
                       className="text-center mb-10"
                     >
                       <button
-                        onClick={() => router.push('/')}
+                        onClick={() => {
+                          if (isOneVoiceUser) {
+                            window.location.href = APP_URLS.community;
+                          } else {
+                            router.push('/');
+                          }
+                        }}
                         className="text-sm text-gray-400 hover:text-gray-600 font-medium transition-colors"
                       >
                         Or explore on your own &rarr;
