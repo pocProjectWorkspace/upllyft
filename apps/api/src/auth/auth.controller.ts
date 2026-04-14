@@ -16,9 +16,20 @@ import {
   Logger,
   BadRequestException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type express from 'express';
 import { AuthService } from './auth.service';
+
+/**
+ * Cookie name for the stateless captcha challenge. The cookie contains a
+ * JWT signed with JWT_SECRET that encodes the captcha text. This works
+ * across multiple Railway replicas because nothing is stored server-side
+ * — the challenge travels with the request.
+ */
+const CAPTCHA_COOKIE = 'captcha_token';
+const CAPTCHA_TTL_SECONDS = 300; // 5 minutes — same as the existing session captcha
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -34,7 +45,71 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) { }
+
+  /**
+   * Sign a captcha challenge as a short-lived JWT so it can travel as a
+   * cookie instead of relying on server-side session state. Required for
+   * multi-replica deployments where in-memory sessions don't sync.
+   */
+  private signCaptchaToken(text: string): string {
+    return this.jwtService.sign(
+      { captcha: text, type: 'captcha' },
+      {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        expiresIn: `${CAPTCHA_TTL_SECONDS}s`,
+      },
+    );
+  }
+
+  /** Verify a captcha JWT and return the original text, or null on failure. */
+  private verifyCaptchaToken(token: string | undefined): string | null {
+    if (!token) return null;
+    try {
+      const payload = this.jwtService.verify<{ captcha: string; type: string }>(
+        token,
+        { secret: this.configService.get<string>('JWT_SECRET') },
+      );
+      if (payload.type !== 'captcha') return null;
+      return payload.captcha ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Resolve the expected captcha text by checking the cookie first
+   * (stateless, multi-replica safe) then falling back to the session
+   * (legacy, single-replica). Returns null if neither path works.
+   */
+  private getExpectedCaptcha(req: any, session: any): string | null {
+    const fromCookie = this.verifyCaptchaToken(req.cookies?.[CAPTCHA_COOKIE]);
+    if (fromCookie) return fromCookie;
+
+    if (session?.captcha) {
+      if (typeof session.captcha === 'string') return session.captcha;
+      if (typeof session.captcha === 'object' && typeof session.captcha.text === 'string') {
+        return session.captcha.text;
+      }
+    }
+    return null;
+  }
+
+  /** Standard cookie attributes for the captcha challenge cookie. */
+  private captchaCookieOptions() {
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+    return {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+      maxAge: CAPTCHA_TTL_SECONDS * 1000,
+      path: '/',
+    };
+  }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user with captcha validation' })
@@ -44,33 +119,23 @@ export class AuthController {
   async register(
     @Body() registerDto: RegisterDto,
     @Session() session: any,
+    @Req() req: express.Request,
+    @Res({ passthrough: true }) res: express.Response,
   ) {
-    // ✅ Validate session has captcha
-    if (!session.captcha) {
+    // Resolve the expected captcha from the cookie (multi-replica safe)
+    // or the session (legacy fallback).
+    const expectedCaptcha = this.getExpectedCaptcha(req, session);
+    if (!expectedCaptcha) {
       throw new BadRequestException('Captcha not found. Please generate a new captcha.');
     }
 
-    // ✅ Normalise session.captcha — the generate endpoint stores it as an
-    // object { text, generatedAt } but older handlers may store it as a
-    // plain string. Extract the text for the service to compare.
-    let sessionCaptchaText: string;
-    if (typeof session.captcha === 'string') {
-      sessionCaptchaText = session.captcha;
-    } else if (
-      typeof session.captcha === 'object' &&
-      session.captcha !== null &&
-      typeof session.captcha.text === 'string'
-    ) {
-      sessionCaptchaText = session.captcha.text;
-    } else {
-      throw new BadRequestException('Captcha invalid. Please generate a new captcha.');
-    }
+    // Call service with captcha validation
+    const result = await this.authService.register(registerDto, expectedCaptcha);
 
-    // ✅ Call service with captcha validation
-    const result = await this.authService.register(registerDto, sessionCaptchaText);
-
-    // ✅ Clear captcha from session after successful registration
+    // Clear both stores after successful registration so the challenge
+    // can't be replayed.
     delete session.captcha;
+    res.clearCookie(CAPTCHA_COOKIE, { path: '/' });
 
     return {
       ...result,
@@ -252,11 +317,22 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Generate captcha for registration/password reset' })
   @ApiResponse({ status: 200, description: 'Captcha generated successfully' })
-  async generateCaptcha(@Session() session: any) {
+  async generateCaptcha(
+    @Session() session: any,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
     try {
       const captcha = await this.authService.generateCaptcha();
 
-      // Store captcha in session with timestamp for expiration
+      // Stateless path: sign the captcha text into a JWT cookie. This
+      // works across multiple Railway replicas because the cookie
+      // travels with the request — no server-side store required.
+      const captchaToken = this.signCaptchaToken(captcha.text);
+      res.cookie(CAPTCHA_COOKIE, captchaToken, this.captchaCookieOptions());
+
+      // Stateful path: also keep the session-based captcha for backwards
+      // compatibility with single-replica/dev deployments and for any
+      // caller that hasn't enabled withCredentials yet.
       session.captcha = {
         text: captcha.text,
         generatedAt: Date.now(),
@@ -264,7 +340,7 @@ export class AuthController {
 
       return {
         image: captcha.image,
-        expiresIn: 300000, // 5 minutes in milliseconds
+        expiresIn: CAPTCHA_TTL_SECONDS * 1000,
       };
     } catch (error) {
       this.logger.error('Failed to generate captcha', error);
@@ -280,33 +356,11 @@ export class AuthController {
   async forgotPassword(
     @Body() forgotPasswordDto: ForgotPasswordDto,
     @Session() session: any,
+    @Req() req: express.Request,
+    @Res({ passthrough: true }) res: express.Response,
   ) {
     try {
       this.logger.debug(`Forgot password request for: ${forgotPasswordDto.email}`);
-
-      // Validate session exists
-      if (!session) {
-        this.logger.error('Session is undefined');
-        throw new BadRequestException('Session initialization failed. Please refresh the page.');
-      }
-
-      // Validate captcha object in session
-      if (!session.captcha) {
-        this.logger.warn('Captcha not found in session');
-        throw new BadRequestException('Captcha not found. Please generate a new captcha.');
-      }
-
-      // Handle both string and object formats for captcha
-      let sessionCaptchaText: string;
-
-      if (typeof session.captcha === 'string') {
-        sessionCaptchaText = session.captcha;
-      } else if (typeof session.captcha === 'object' && session.captcha.text) {
-        sessionCaptchaText = session.captcha.text;
-      } else {
-        this.logger.error('Invalid captcha format in session');
-        throw new BadRequestException('Captcha invalid. Please generate a new captcha.');
-      }
 
       // Validate captcha in DTO
       if (!forgotPasswordDto.captcha) {
@@ -314,19 +368,23 @@ export class AuthController {
         throw new BadRequestException('Captcha is required');
       }
 
-      const normalizedSessionCaptcha = sessionCaptchaText.toLowerCase();
-      const normalizedUserCaptcha = forgotPasswordDto.captcha.toLowerCase().trim();
+      // Resolve expected captcha from cookie (multi-replica safe) or session
+      const expectedCaptcha = this.getExpectedCaptcha(req, session);
+      if (!expectedCaptcha) {
+        this.logger.warn('Captcha not found in cookie or session');
+        throw new BadRequestException('Captcha not found. Please generate a new captcha.');
+      }
 
-      this.logger.debug('Verifying captcha input against session');
-
-      const isValidCaptcha = normalizedSessionCaptcha === normalizedUserCaptcha;
+      const isValidCaptcha =
+        expectedCaptcha.toLowerCase() === forgotPasswordDto.captcha.toLowerCase().trim();
 
       if (!isValidCaptcha) {
         throw new BadRequestException('Invalid captcha');
       }
 
-      // Clear captcha from session
+      // Clear both captcha stores so the challenge can't be replayed
       delete session.captcha;
+      res.clearCookie(CAPTCHA_COOKIE, { path: '/' });
 
       return await this.authService.forgotPassword(forgotPasswordDto.email);
     } catch (error) {
