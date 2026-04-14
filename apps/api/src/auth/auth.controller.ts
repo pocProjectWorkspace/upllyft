@@ -82,11 +82,26 @@ export class AuthController {
   }
 
   /**
-   * Resolve the expected captcha text by checking the cookie first
-   * (stateless, multi-replica safe) then falling back to the session
-   * (legacy, single-replica). Returns null if neither path works.
+   * Resolve the expected captcha text. Tries three sources in order:
+   *
+   *   1. captchaToken in the request body — preferred. Eliminates cookie
+   *      races entirely: the client receives the JWT in the captcha/generate
+   *      response body and echoes it back when submitting the form.
+   *   2. captcha_token cookie — fallback for clients that haven't been
+   *      updated yet. Multi-replica safe (the cookie travels with the request).
+   *   3. session.captcha — legacy fallback for single-replica/dev. Will not
+   *      work reliably across multiple Railway replicas.
+   *
+   * Returns null if none of the three paths yields a verified captcha.
    */
-  private getExpectedCaptcha(req: any, session: any): string | null {
+  private getExpectedCaptcha(
+    req: any,
+    session: any,
+    bodyToken?: string | null,
+  ): string | null {
+    const fromBody = this.verifyCaptchaToken(bodyToken ?? undefined);
+    if (fromBody) return fromBody;
+
     const fromCookie = this.verifyCaptchaToken(req.cookies?.[CAPTCHA_COOKIE]);
     if (fromCookie) return fromCookie;
 
@@ -122,9 +137,13 @@ export class AuthController {
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
   ) {
-    // Resolve the expected captcha from the cookie (multi-replica safe)
-    // or the session (legacy fallback).
-    const expectedCaptcha = this.getExpectedCaptcha(req, session);
+    // Prefer captchaToken from request body (eliminates cookie races),
+    // fall back to cookie (multi-replica safe), then session (legacy).
+    const expectedCaptcha = this.getExpectedCaptcha(
+      req,
+      session,
+      registerDto.captchaToken,
+    );
     if (!expectedCaptcha) {
       throw new BadRequestException('Captcha not found. Please generate a new captcha.');
     }
@@ -323,16 +342,15 @@ export class AuthController {
   ) {
     try {
       const captcha = await this.authService.generateCaptcha();
-
-      // Stateless path: sign the captcha text into a JWT cookie. This
-      // works across multiple Railway replicas because the cookie
-      // travels with the request — no server-side store required.
       const captchaToken = this.signCaptchaToken(captcha.text);
-      res.cookie(CAPTCHA_COOKIE, captchaToken, this.captchaCookieOptions());
 
-      // Stateful path: also keep the session-based captcha for backwards
-      // compatibility with single-replica/dev deployments and for any
-      // caller that hasn't enabled withCredentials yet.
+      // Primary path: return the JWT token in the response body so the
+      // client can echo it back when submitting. This eliminates ALL the
+      // cookie race conditions where a second captcha generation could
+      // overwrite the first one's cookie before the form submits.
+      // Also cookie-based path (multi-replica safe) and session-based path
+      // (legacy) are kept as fallbacks.
+      res.cookie(CAPTCHA_COOKIE, captchaToken, this.captchaCookieOptions());
       session.captcha = {
         text: captcha.text,
         generatedAt: Date.now(),
@@ -340,6 +358,7 @@ export class AuthController {
 
       return {
         image: captcha.image,
+        captchaToken, // ← NEW: clients should echo this back in the form body
         expiresIn: CAPTCHA_TTL_SECONDS * 1000,
       };
     } catch (error) {
@@ -368,10 +387,15 @@ export class AuthController {
         throw new BadRequestException('Captcha is required');
       }
 
-      // Resolve expected captcha from cookie (multi-replica safe) or session
-      const expectedCaptcha = this.getExpectedCaptcha(req, session);
+      // Prefer captchaToken from the body (eliminates cookie races), then
+      // fall back to cookie (multi-replica safe), then session (legacy).
+      const expectedCaptcha = this.getExpectedCaptcha(
+        req,
+        session,
+        forgotPasswordDto.captchaToken,
+      );
       if (!expectedCaptcha) {
-        this.logger.warn('Captcha not found in cookie or session');
+        this.logger.warn('Captcha not found in body, cookie or session');
         throw new BadRequestException('Captcha not found. Please generate a new captcha.');
       }
 
@@ -419,15 +443,44 @@ export class AuthController {
   // ==========================================
 
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout current session' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async logout(@Request() req: any, @Body('refreshToken') refreshToken: string) {
-    if (refreshToken) {
-      await this.authService.revokeRefreshToken(req.user.id, refreshToken);
+  async logout(
+    @Request() req: any,
+    @Body('refreshToken') refreshToken: string,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    // Note: deliberately NOT guarded by JwtAuthGuard. Logout must succeed
+    // even if the access token is expired or missing — otherwise users
+    // get stuck "logged in" client-side because their attempt to clean
+    // up server-side state fails with 401.
+
+    // Best-effort revoke the refresh token if provided
+    if (refreshToken && req.user?.id) {
+      try {
+        await this.authService.revokeRefreshToken(req.user.id, refreshToken);
+      } catch (err) {
+        this.logger.warn(`Refresh token revoke failed during logout: ${err.message}`);
+      }
     }
+
+    // Destroy the Express session (if any). This kills server-side passport
+    // state so a stale session cookie can't re-attach a user identity to
+    // subsequent requests.
+    if (req.session && typeof req.session.destroy === 'function') {
+      await new Promise<void>((resolve) => {
+        req.session.destroy(() => resolve());
+      });
+    }
+
+    // Clear cookies the backend owns (session, captcha challenge).
+    // Frontend-set tokens (upllyft_access_token / upllyft_refresh_token)
+    // live on the .safehaven-upllyft.com parent domain — the API can't
+    // clear those itself, the frontend's clearStoredTokens() handles it.
+    res.clearCookie('session', { path: '/' });
+    res.clearCookie(CAPTCHA_COOKIE, { path: '/' });
+
     return {
       message: 'Logged out successfully',
       success: true,

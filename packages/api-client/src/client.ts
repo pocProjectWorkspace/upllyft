@@ -31,9 +31,33 @@ function getCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+/**
+ * Delete a cookie. Browsers only delete a cookie when the deletion
+ * directive matches the original cookie's domain + path scope, so we
+ * issue THREE delete attempts to cover any historic scope:
+ *
+ *   1. Host-scoped (no domain) — for cookies set on localhost or before
+ *      we added the cross-subdomain domain logic.
+ *   2. Parent-domain-scoped (.safehaven-upllyft.com / .upllyft.com).
+ *   3. Current hostname explicitly — defensive coverage.
+ *
+ * Without this, a stale host-scoped cookie keeps the user "logged in"
+ * client-side even after a clean Sign Out.
+ */
 function deleteCookie(name: string) {
+  if (typeof document === 'undefined') return;
+  const expires = 'expires=Thu, 01 Jan 1970 00:00:00 GMT';
   const domain = getCookieDomain();
-  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT${domain}`;
+  // 1. Host-scoped (no domain attribute)
+  document.cookie = `${name}=; path=/; ${expires}`;
+  // 2. Parent-domain-scoped if applicable
+  if (domain) {
+    document.cookie = `${name}=; path=/; ${expires}${domain}`;
+  }
+  // 3. Explicit current hostname
+  if (typeof window !== 'undefined') {
+    document.cookie = `${name}=; path=/; ${expires}; domain=${window.location.hostname}`;
+  }
 }
 
 const defaultBaseURL = typeof window !== 'undefined' ? '/api' : 'https://upllyftapi-production.up.railway.app/api';
@@ -181,6 +205,20 @@ export function getStoredTokens(): {
   };
 }
 
+/**
+ * Wipe every trace of authenticated state from this browser. Called by
+ * logout and by the response interceptor when token refresh fails.
+ *
+ * Clears, in order:
+ *   1. The in-memory `storedRefreshToken` module variable
+ *   2. The Axios default Authorization header
+ *   3. localStorage for both access and refresh tokens
+ *   4. Cookies for access + refresh tokens (host scope, parent-domain scope)
+ *   5. The captcha challenge cookie so a stale captcha can't bleed across
+ *      sessions
+ *
+ * After this returns, getStoredTokens() must yield { null, null }.
+ */
 export function clearStoredTokens() {
   storedRefreshToken = null;
   delete apiClient.defaults.headers.common['Authorization'];
@@ -189,6 +227,8 @@ export function clearStoredTokens() {
     localStorage.removeItem(REFRESH_KEY);
     deleteCookie(TOKEN_KEY);
     deleteCookie(REFRESH_KEY);
+    // Captcha challenge — wipe so a stale captcha can't survive logout
+    deleteCookie('captcha_token');
   }
 }
 

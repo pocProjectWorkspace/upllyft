@@ -49,9 +49,20 @@ export class RegisterDto {
   @IsString()
   bio?: string;
 
-  @ApiProperty({ example: 'ABC123', description: 'Captcha verification code' })
+  @ApiProperty({ example: 'ABC123', description: 'Captcha verification code (the user-typed answer)' })
   @IsString()
   captcha: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Signed JWT captcha token returned by /auth/captcha/generate. ' +
+      'When provided, the server verifies the user-typed captcha against this ' +
+      'token instead of relying on a session cookie. This makes registration ' +
+      'work reliably across multi-replica deployments and avoids cookie races.',
+  })
+  @IsOptional()
+  @IsString()
+  captchaToken?: string;
 
   @ApiPropertyOptional({
     example: 'dAPZpk2bRl2XXXXXXXXXXXXXX:APA91bGXXXXXXXXXX...',

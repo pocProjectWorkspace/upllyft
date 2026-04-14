@@ -12,6 +12,13 @@ export interface RegisterPayload {
   name: string;
   role?: string;
   captcha: string;
+  /**
+   * Optional signed JWT captcha token returned by /auth/captcha/generate.
+   * When provided, the server verifies the user-typed `captcha` against
+   * this token instead of relying on a session cookie. Strongly recommended
+   * for any new client — eliminates cookie-race bugs on multi-replica APIs.
+   */
+  captchaToken?: string;
   licenseNumber?: string;
   specialization?: string[];
   yearsOfExperience?: number;
@@ -58,12 +65,24 @@ export async function register(payload: RegisterPayload): Promise<AuthResponse> 
 }
 
 export async function logout(): Promise<void> {
-  try {
-    await apiClient.post('/auth/logout');
-  } catch {
-    // Ignore logout API errors — clear tokens regardless
-  }
+  // Best-effort tell the server (revoke refresh token, destroy session,
+  // clear server-owned cookies). We send the refresh token in the body
+  // so the server can revoke it even if our auth header is already stale.
+  const refreshToken =
+    (typeof window !== 'undefined' &&
+      (document.cookie.match(/upllyft_refresh_token=([^;]+)/)?.[1] ||
+        localStorage.getItem('upllyft_refresh_token'))) ||
+    undefined;
+
+  // Always clear local state FIRST so a hung or 401'd network call can't
+  // leave the UI in a "still logged in" state.
   clearStoredTokens();
+
+  try {
+    await apiClient.post('/auth/logout', refreshToken ? { refreshToken } : {});
+  } catch {
+    // Ignore — local state is already cleared
+  }
 }
 
 export async function refreshToken(token: string): Promise<RefreshResponse> {

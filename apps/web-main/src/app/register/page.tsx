@@ -112,6 +112,10 @@ export default function RegisterPage() {
   const [bio, setBio] = useState('');
   const [captcha, setCaptcha] = useState('');
   const [captchaImage, setCaptchaImage] = useState('');
+  // Signed JWT returned by /captcha/generate. Echoed back on submit so the
+  // server doesn't have to rely on a session cookie (which doesn't survive
+  // multi-replica routing). See bug fix in commit history if ever in doubt.
+  const [captchaToken, setCaptchaToken] = useState('');
   const [captchaLoading, setCaptchaLoading] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -119,8 +123,12 @@ export default function RegisterPage() {
   const loadCaptcha = useCallback(async () => {
     setCaptchaLoading(true);
     try {
-      const { data } = await apiClient.get<{ image: string }>('/captcha/generate');
+      const { data } = await apiClient.get<{ image: string; captchaToken?: string }>(
+        '/auth/captcha/generate',
+      );
       setCaptchaImage(data.image);
+      // Newer server returns a captchaToken — older one doesn't. Both work.
+      setCaptchaToken(data.captchaToken || '');
     } catch {
       setError('Failed to load captcha. Please refresh.');
     } finally {
@@ -151,6 +159,18 @@ export default function RegisterPage() {
       return;
     }
 
+    // Professional accounts have additional required fields
+    if (accountType === 'professional') {
+      if (!yearsOfExperience.trim()) {
+        setError('Years of Experience is required for professional accounts.');
+        return;
+      }
+      if (!specialization.trim()) {
+        setError('At least one specialization is required for professional accounts.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const payload: any = {
@@ -158,21 +178,21 @@ export default function RegisterPage() {
         email,
         password,
         captcha,
+        // Echo back the signed JWT from /captcha/generate so the server
+        // can verify the captcha without relying on a session cookie.
+        // This makes registration work reliably across multi-replica APIs.
+        captchaToken,
         role: accountType === 'professional' ? role : 'USER',
       };
 
       if (accountType === 'professional') {
         if (licenseNumber.trim()) payload.licenseNumber = licenseNumber.trim();
-        if (yearsOfExperience.trim()) {
-          payload.yearsOfExperience = parseInt(yearsOfExperience, 10);
-        }
+        payload.yearsOfExperience = parseInt(yearsOfExperience, 10);
         if (organization.trim()) payload.organization = organization.trim();
-        if (specialization.trim()) {
-          payload.specialization = specialization
-            .split(',')
-            .map((s: string) => s.trim())
-            .filter((s: string) => s.length > 0);
-        }
+        payload.specialization = specialization
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter((s: string) => s.length > 0);
         if (bio.trim()) payload.bio = bio.trim();
       }
 
@@ -304,13 +324,16 @@ export default function RegisterPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Years of Experience</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Years of Experience <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="number"
                       value={yearsOfExperience}
                       onChange={(e) => setYearsOfExperience(e.target.value)}
                       placeholder="5"
                       min="0"
+                      required
                       className={inputClassName}
                     />
                   </div>
@@ -333,13 +356,15 @@ export default function RegisterPage() {
                 {/* Specializations */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Specializations <span className="text-gray-400 font-normal">(comma-separated)</span>
+                    Specializations <span className="text-red-500">*</span>
+                    <span className="text-gray-400 font-normal ml-1">(comma-separated)</span>
                   </label>
                   <input
                     type="text"
                     value={specialization}
                     onChange={(e) => setSpecialization(e.target.value)}
                     placeholder="Pediatric Therapy, Autism Spectrum, Speech Therapy"
+                    required
                     className={inputClassName}
                   />
                 </div>
