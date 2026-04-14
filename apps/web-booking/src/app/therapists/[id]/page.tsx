@@ -190,10 +190,20 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
         {isLoading ? (
           <ProfileSkeleton />
         ) : !therapist ? (
-          <div className="text-center py-20">
-            <UserIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700">Therapist not found</h3>
-            <p className="text-gray-500 mt-1">This profile may no longer be available.</p>
+          <div className="text-center py-20 px-4 max-w-xl mx-auto">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-100 to-blue-100 flex items-center justify-center mx-auto mb-5">
+              <UserIcon className="w-8 h-8 text-teal-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900">Therapist not found</h3>
+            <p className="text-gray-600 mt-2 leading-relaxed">
+              This profile may no longer be available, or the link you followed is
+              out of date. You can browse all available therapists below.
+            </p>
+            <div className="mt-6">
+              <Button onClick={() => router.push('/')}>
+                Browse all therapists
+              </Button>
+            </div>
           </div>
         ) : (
           <>

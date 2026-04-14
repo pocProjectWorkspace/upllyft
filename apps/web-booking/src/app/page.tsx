@@ -187,11 +187,30 @@ function MarketplacePageContent() {
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [page, setPage] = useState(1);
 
+  // Read incoming URL filters ONCE so the redirect effect below can
+  // short-circuit when a Mira deep-link arrives.
+  const urlHasIncomingFilter = useMemo(() => {
+    return !!(
+      searchParams.get('specialization') ||
+      searchParams.get('search') ||
+      searchParams.get('therapistId') ||
+      searchParams.get('minRating')
+    );
+  }, [searchParams]);
+
   // Hydrate filters from URL query params (used by Mira deep-links)
   useEffect(() => {
     const urlSpec = searchParams.get('specialization');
     const urlSearch = searchParams.get('search');
     const urlMinRating = searchParams.get('minRating');
+    const urlTherapistId = searchParams.get('therapistId');
+
+    // If Mira passed a specific therapistId, jump straight to that profile.
+    if (urlTherapistId) {
+      router.replace(`/therapists/${urlTherapistId}`);
+      return;
+    }
+
     if (urlSpec) setSpecialization(urlSpec);
     if (urlSearch) {
       setSearchInput(urlSearch);
@@ -205,12 +224,16 @@ function MarketplacePageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Redirect clinic-directory users to /clinics
+  // Redirect clinic-directory users to /clinics — but ONLY when they land
+  // here with no filters. If Mira sent them here with a specific search or
+  // specialization filter, respect that: show them the therapists that
+  // match, even if their region is clinic-based. Redirecting and dropping
+  // the filter is what caused the "blank booking page" bug.
   useEffect(() => {
-    if (serviceModel === 'CLINIC_DIRECTORY') {
+    if (serviceModel === 'CLINIC_DIRECTORY' && !urlHasIncomingFilter) {
       router.replace('/clinics');
     }
-  }, [serviceModel, router]);
+  }, [serviceModel, router, urlHasIncomingFilter]);
 
   // Debounce search input
   useEffect(() => {
@@ -381,12 +404,34 @@ function MarketplacePageContent() {
             ))}
           </div>
         ) : therapists.length === 0 ? (
-          <div className="text-center py-16">
-            <SearchIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700">We couldn&rsquo;t find a match</h3>
-            <p className="text-gray-500 mt-1">
-              Try adjusting your search or filters, or browse all therapists.
+          <div className="text-center py-16 px-4 max-w-xl mx-auto">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-100 to-blue-100 flex items-center justify-center mx-auto mb-5">
+              <SearchIcon className="w-8 h-8 text-teal-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900">
+              No therapists match these filters
+            </h3>
+            <p className="text-gray-600 mt-2 leading-relaxed">
+              {hasActiveFilters
+                ? (<>We couldn&rsquo;t find any therapists matching
+                    {specialization && <> the specialization <span className="font-medium">{specialization}</span></>}
+                    {debouncedSearch && <> the search &ldquo;<span className="font-medium">{debouncedSearch}</span>&rdquo;</>}
+                    {minRating > 0 && <> with rating {minRating}+</>}
+                    . Try adjusting the filters, or browse all therapists below.</>)
+                : 'No therapists are available right now. Please check back soon.'}
             </p>
+            {hasActiveFilters && (
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Button onClick={clearFilters}>
+                  Browse all therapists
+                </Button>
+                {serviceModel === 'CLINIC_DIRECTORY' && (
+                  <Button variant="outline" onClick={() => router.push('/clinics')}>
+                    See clinics in your region
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <>
