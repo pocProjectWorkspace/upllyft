@@ -350,10 +350,29 @@ export class AuthService {
 
       this.logger.log(`Registration attempt: ${email} (role: ${role || 'USER'})`);
 
-      // Validate captcha
+      // Validate captcha — tolerate both plain-string and object
+      // ({ text, generatedAt }) shapes in case a caller forgot to
+      // unwrap the session value. If the shape is unrecognisable,
+      // surface a 400 instead of crashing with "toLowerCase is not
+      // a function".
       if (sessionCaptcha && captcha) {
+        let sessionCaptchaText: string | null = null;
+        if (typeof sessionCaptcha === 'string') {
+          sessionCaptchaText = sessionCaptcha;
+        } else if (
+          typeof sessionCaptcha === 'object' &&
+          sessionCaptcha !== null &&
+          typeof (sessionCaptcha as any).text === 'string'
+        ) {
+          sessionCaptchaText = (sessionCaptcha as any).text;
+        }
+
+        if (!sessionCaptchaText) {
+          throw new BadRequestException('Captcha invalid. Please generate a new captcha.');
+        }
+
         const isValidCaptcha =
-          sessionCaptcha.toLowerCase() === captcha.toLowerCase().trim();
+          sessionCaptchaText.toLowerCase() === captcha.toLowerCase().trim();
 
         if (!isValidCaptcha) {
           throw new BadRequestException('Invalid captcha');

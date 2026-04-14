@@ -50,8 +50,24 @@ export class AuthController {
       throw new BadRequestException('Captcha not found. Please generate a new captcha.');
     }
 
+    // ✅ Normalise session.captcha — the generate endpoint stores it as an
+    // object { text, generatedAt } but older handlers may store it as a
+    // plain string. Extract the text for the service to compare.
+    let sessionCaptchaText: string;
+    if (typeof session.captcha === 'string') {
+      sessionCaptchaText = session.captcha;
+    } else if (
+      typeof session.captcha === 'object' &&
+      session.captcha !== null &&
+      typeof session.captcha.text === 'string'
+    ) {
+      sessionCaptchaText = session.captcha.text;
+    } else {
+      throw new BadRequestException('Captcha invalid. Please generate a new captcha.');
+    }
+
     // ✅ Call service with captcha validation
-    const result = await this.authService.register(registerDto, session.captcha);
+    const result = await this.authService.register(registerDto, sessionCaptchaText);
 
     // ✅ Clear captcha from session after successful registration
     delete session.captcha;
