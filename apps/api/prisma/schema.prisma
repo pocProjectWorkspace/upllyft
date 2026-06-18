@@ -1368,6 +1368,7 @@ model Child {
   guardians                             Guardian[]
   identityDocuments                     PatientIdentityDocument[]
   preVisitTasks                         PreVisitTask[]
+  insurancePolicies                     InsurancePolicy[]
   profile                               UserProfile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
@@ -1747,6 +1748,12 @@ model SessionType {
   organizationId String?
   therapistId    String?
   isActive       Boolean           @default(true)
+  // --- UAE Phase 2: service modality + payer config ---
+  modality          SessionModality @default(IN_PERSON)
+  serviceCode       String?
+  payerRoute        PayerType?
+  requiresPreAuth   Boolean         @default(false)
+  insuranceEligible Boolean         @default(false)
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   packages       BookingPackage[]
@@ -1865,6 +1872,14 @@ model Booking {
   sessionEndedAt    DateTime?
   receptionistNotes String?
   clinicId          String?
+
+  // --- UAE Phase 2: modality + payer route + financial clearance ---
+  modality              SessionModality?
+  paymentRoute          PayerType                @default(SELF_PAY)
+  financialClearance    FinancialClearanceStatus @default(NOT_REQUIRED)
+  clearanceApprovedById String?
+  preAuthorizationId    String?
+  depositAmount         Float?
 
   createdAt              DateTime                       @default(now())
   updatedAt              DateTime                       @updatedAt
@@ -2313,6 +2328,7 @@ enum Role {
   ADMIN
   SUPERADMIN
   MODERATOR
+  BILLING // UAE Phase 2: billing/insurance coordinator — payer access, restricted clinical visibility
 }
 
 enum VerificationStatus {
@@ -2695,6 +2711,7 @@ model Case {
   auditLogs            CaseAuditLog[]
   billingRecords       CaseBilling[]
   consents             CaseConsent[]
+  preAuthorizations    PreAuthorization[]
   treatmentPlans       TreatmentPlan[]
   sharedItems          CaseShare[]
   internalNotes        CaseInternalNote[]
@@ -3009,6 +3026,10 @@ model CaseBilling {
   status      BillingStatus @default(PENDING)
   paidAt      DateTime?
   invoiceUrl  String?
+  // --- UAE Phase 2: payer-aware billing ---
+  payerType          PayerType @default(SELF_PAY)
+  insurancePolicyId  String?
+  preAuthorizationId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3156,6 +3177,56 @@ model PreVisitTask {
   @@map("pre_visit_tasks")
 }
 
+// ─── UAE CLINIC PHASE 2: PAYER / INSURANCE / PRE-AUTHORISATION ──────────────
+
+model InsurancePolicy {
+  id                String             @id @default(cuid())
+  childId           String
+  child             Child              @relation(fields: [childId], references: [id], onDelete: Cascade)
+  payerType         PayerType          @default(INSURANCE)
+  insurerName       String?
+  sponsorName       String?
+  policyNumber      String?
+  memberId          String?
+  cardDocumentUrl   String?
+  validFrom         DateTime?
+  validUntil        DateTime?
+  coPayPercent      Float?
+  isActive          Boolean            @default(true)
+  preAuthorizations PreAuthorization[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([childId])
+  @@map("insurance_policies")
+}
+
+model PreAuthorization {
+  id               String            @id @default(cuid())
+  policyId         String
+  policy           InsurancePolicy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  caseId           String?
+  case             Case?             @relation(fields: [caseId], references: [id])
+  serviceCode      String?
+  preAuthNumber    String?
+  status           PreAuthStatus     @default(PENDING)
+  approvedSessions Int?
+  usedSessions     Int               @default(0)
+  validFrom        DateTime?
+  validUntil       DateTime?
+  denialReason     String?
+  renewedFromId    String?           @unique
+  renewedFrom      PreAuthorization? @relation("PreAuthRenewal", fields: [renewedFromId], references: [id])
+  renewal          PreAuthorization? @relation("PreAuthRenewal")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([policyId])
+  @@index([caseId])
+  @@index([status])
+  @@map("pre_authorizations")
+}
+
 // ─── UAE CLINIC PHASE 0 ENUMS ────────────────────────────
 
 enum LicenseAuthority {
@@ -3222,6 +3293,39 @@ enum PreVisitTaskStatus {
   IN_PROGRESS
   COMPLETE
   WAIVED
+}
+
+// ─── UAE CLINIC PHASE 2 ENUMS (payer / insurance) ────────
+
+enum PayerType {
+  SELF_PAY
+  INSURANCE
+  EMPLOYER
+  SCHOOL_SPONSOR
+  NGO_SPONSOR
+  OTHER_THIRD_PARTY
+}
+
+enum PreAuthStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  DENIED
+  EXPIRED
+}
+
+enum FinancialClearanceStatus {
+  NOT_REQUIRED
+  PENDING
+  CLEARED
+  EXCEPTION_APPROVED
+  BLOCKED
+}
+
+enum SessionModality {
+  IN_PERSON
+  TELEHEALTH
+  HYBRID
 }
 
 // ─── CASE MANAGEMENT ENUMS ───────────────────────────────
@@ -3501,6 +3605,9 @@ model Invoice {
   paidAt          DateTime?
   dueDate         DateTime?
   notes           String?
+  // --- UAE Phase 2: payer-aware invoicing ---
+  payerType         PayerType @default(SELF_PAY)
+  insurancePolicyId String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

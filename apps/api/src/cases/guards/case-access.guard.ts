@@ -41,6 +41,12 @@ export class CaseAccessGuard implements CanActivate {
     // Admins always have access
     if (user.role === 'ADMIN') return true;
 
+    // Phase 2 (UAE): billing/insurance coordinators have NO clinical case
+    // visibility (PHI minimisation) — they use payer/billing endpoints only.
+    if (user.role === 'BILLING') {
+      throw new ForbiddenException('Billing role does not have access to clinical case data');
+    }
+
     const caseId = request.params.caseId || request.params.id;
     if (!caseId) return true; // No case param, skip guard
 
