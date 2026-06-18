@@ -154,6 +154,10 @@ model User {
   // PDPL audit logs
   auditLogs AuditLog[] @relation("AuditLogs")
 
+  // UAE clinic Phase 1 relations
+  uploadedIdentityDocs PatientIdentityDocument[] @relation("UploadedIdentityDocs")
+  guardianProfiles     Guardian[]                @relation("GuardianUser")
+
   // Verified contributor
   isVerifiedContributor Boolean   @default(false)
   verifiedContributorAt DateTime?
@@ -1353,6 +1357,17 @@ model Child {
   worksheetAssignments                  WorksheetAssignment[]    @relation("ChildWorksheetAssignments")
   worksheetCompletions                  WorksheetCompletion[]
   worksheetEffectiveness                WorksheetEffectiveness[]
+  // --- UAE Phase 1: identity (emiratesId/passportNumber stored ENCRYPTED at app layer) ---
+  emiratesId                            String?
+  emiratesIdExpiry                      DateTime?
+  passportNumber                        String?
+  identityType                          IdentityDocType?
+  identityVerified                      Boolean                  @default(false)
+  identityVerifiedAt                    DateTime?
+  identityVerifiedBy                    String?
+  guardians                             Guardian[]
+  identityDocuments                     PatientIdentityDocument[]
+  preVisitTasks                         PreVisitTask[]
   profile                               UserProfile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
@@ -3036,12 +3051,109 @@ model CaseConsent {
   validUntil  DateTime?
   revokedAt   DateTime?
   notes       String?
+  // --- UAE Phase 1: actionable, versioned consent ---
+  consentVersionId    String?
+  consentVersion      ConsentVersion? @relation(fields: [consentVersionId], references: [id])
+  purpose             String?
+  recipient           String?
+  scope               Json?
+  grantedByGuardianId String?
+  grantedByGuardian   Guardian?       @relation("ConsentGuardian", fields: [grantedByGuardianId], references: [id])
+  consentFormId       String?
 
   createdAt DateTime @default(now())
 
   @@index([caseId])
   @@index([type])
   @@map("case_consents")
+}
+
+// ─── UAE CLINIC PHASE 1: IDENTITY, GUARDIAN, CONSENT VERSIONING, PRE-VISIT ──
+
+model PatientIdentityDocument {
+  id           String          @id @default(cuid())
+  childId      String
+  child        Child           @relation(fields: [childId], references: [id], onDelete: Cascade)
+  type         IdentityDocType
+  fileUrl      String
+  uploadedById String
+  uploadedBy   User            @relation("UploadedIdentityDocs", fields: [uploadedById], references: [id])
+  createdAt    DateTime        @default(now())
+
+  @@index([childId])
+  @@map("patient_identity_documents")
+}
+
+model Guardian {
+  id                    String               @id @default(cuid())
+  childId               String
+  child                 Child                @relation(fields: [childId], references: [id], onDelete: Cascade)
+  userId                String?
+  user                  User?                @relation("GuardianUser", fields: [userId], references: [id])
+  fullName              String
+  relationship          GuardianRelationship
+  hasAuthorityToConsent Boolean              @default(false)
+  isPrimaryContact      Boolean              @default(false)
+  isEmergencyContact    Boolean              @default(false)
+  phone                 String?
+  email                 String?
+  accessLevel           GuardianAccessLevel  @default(VIEW_ONLY)
+  consentsGranted       CaseConsent[]        @relation("ConsentGuardian")
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@index([childId])
+  @@map("guardians")
+}
+
+model ConsentTemplate {
+  id        String           @id @default(cuid())
+  clinicId  String?
+  clinic    Clinic?          @relation("ClinicConsentTemplates", fields: [clinicId], references: [id])
+  type      ConsentType
+  name      String
+  isActive  Boolean          @default(true)
+  versions  ConsentVersion[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([clinicId])
+  @@index([type])
+  @@map("consent_templates")
+}
+
+model ConsentVersion {
+  id          String          @id @default(cuid())
+  templateId  String
+  template    ConsentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version     Int
+  purpose     String
+  bodyUrl     String?
+  bodyHash    String?
+  publishedAt DateTime        @default(now())
+  consents    CaseConsent[]
+
+  @@unique([templateId, version])
+  @@map("consent_versions")
+}
+
+model PreVisitTask {
+  id          String             @id @default(cuid())
+  childId     String
+  child       Child              @relation(fields: [childId], references: [id], onDelete: Cascade)
+  caseId      String?
+  bookingId   String?
+  type        PreVisitTaskType
+  status      PreVisitTaskStatus @default(PENDING)
+  label       String
+  dueAt       DateTime?
+  completedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([childId])
+  @@index([status])
+  @@map("pre_visit_tasks")
 }
 
 // ─── UAE CLINIC PHASE 0 ENUMS ────────────────────────────
@@ -3068,6 +3180,48 @@ enum FacilityComplianceStatus {
   IN_REVIEW
   ACTIVE
   SUSPENDED
+}
+
+// ─── UAE CLINIC PHASE 1 ENUMS ────────────────────────────
+
+enum IdentityDocType {
+  EMIRATES_ID
+  PASSPORT
+  BIRTH_CERTIFICATE
+  OTHER
+}
+
+enum GuardianRelationship {
+  MOTHER
+  FATHER
+  LEGAL_GUARDIAN
+  GRANDPARENT
+  SIBLING
+  OTHER
+}
+
+enum GuardianAccessLevel {
+  FULL
+  LIMITED
+  VIEW_ONLY
+  NONE
+}
+
+enum PreVisitTaskType {
+  INTAKE_FORM
+  CONSENT
+  IDENTITY
+  DOCUMENT
+  PAYMENT
+  PREAUTH
+  QUESTIONNAIRE
+}
+
+enum PreVisitTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETE
+  WAIVED
 }
 
 // ─── CASE MANAGEMENT ENUMS ───────────────────────────────
@@ -3168,6 +3322,10 @@ enum ConsentType {
   ASSESSMENT
   RECORDING
   RESEARCH
+  TELEHEALTH
+  REPORT_SHARING
+  COMMUNICATION
+  DATA_PROCESSING
 }
 
 // ─── Learning Resources Enums ────────────────────────────────
@@ -3462,6 +3620,7 @@ model Clinic {
   cases          Case[]             @relation("ClinicCases")
   children       Child[]
   invoices       Invoice[]          @relation("ClinicInvoices")
+  consentTemplates ConsentTemplate[] @relation("ClinicConsentTemplates")
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 

@@ -4,7 +4,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma, CaseDocumentType } from '@prisma/client';
+import { Prisma, CaseDocumentType, ConsentType } from '@prisma/client';
+import { CaseConsentsService } from '../case-consents/case-consents.service';
 import {
   CreateCaseDocumentDto,
   ShareDocumentDto,
@@ -13,7 +14,10 @@ import {
 
 @Injectable()
 export class CaseDocumentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private consents: CaseConsentsService,
+  ) {}
 
   async createDocument(caseId: string, userId: string, dto: CreateCaseDocumentDto) {
     const caseRecord = await this.prisma.case.findUnique({ where: { id: caseId } });
@@ -86,6 +90,13 @@ export class CaseDocumentsService {
   }
 
   async shareDocument(caseId: string, userId: string, dto: ShareDocumentDto) {
+    // Phase 1 (UAE): consent-gated sharing — a document/report may only be
+    // shared when an active SHARING or REPORT_SHARING consent exists.
+    await this.consents.assertActiveConsent(caseId, [
+      ConsentType.SHARING,
+      ConsentType.REPORT_SHARING,
+    ]);
+
     // Validate shared-with user exists
     const targetUser = await this.prisma.user.findUnique({
       where: { id: dto.sharedWithUserId },

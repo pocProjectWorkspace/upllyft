@@ -75,6 +75,7 @@ import { CaseDocumentsModule } from './case-documents/case-documents.module';
 import { CaseBillingModule } from './case-billing/case-billing.module';
 import { CaseAuditModule } from './case-audit/case-audit.module';
 import { CaseConsentsModule } from './case-consents/case-consents.module';
+import { ClinicIntakeModule } from './clinic-intake/clinic-intake.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { WorksheetsModule } from './worksheets/worksheets.module';
 import { MiraModule } from './mira/mira.module';
@@ -165,6 +166,7 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     CaseBillingModule,
     CaseAuditModule,
     CaseConsentsModule,
+    ClinicIntakeModule,
 
     // Notifications (controller + gateway)
     NotificationModule,
