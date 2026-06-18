@@ -191,14 +191,13 @@ export class PayerService {
     if (!booking) throw new NotFoundException('Booking not found');
 
     const blockers: string[] = [];
-    if (booking.paymentStatus !== 'PAID' && booking.paymentRoute === 'SELF_PAY') {
+    if (!booking.paidAt && booking.paymentRoute === 'SELF_PAY') {
       blockers.push('Payment outstanding (self-pay)');
     }
     if (
       booking.clinicId &&
-      [FinancialClearanceStatus.PENDING, FinancialClearanceStatus.BLOCKED].includes(
-        booking.financialClearance,
-      )
+      (booking.financialClearance === FinancialClearanceStatus.PENDING ||
+        booking.financialClearance === FinancialClearanceStatus.BLOCKED)
     ) {
       blockers.push(`Financial clearance: ${booking.financialClearance}`);
     }
@@ -238,9 +237,9 @@ export class PayerService {
     financialClearance: FinancialClearanceStatus;
   }) {
     if (!booking.clinicId) return; // not a clinic booking
-    const blocked = [FinancialClearanceStatus.PENDING, FinancialClearanceStatus.BLOCKED].includes(
-      booking.financialClearance,
-    );
+    const blocked =
+      booking.financialClearance === FinancialClearanceStatus.PENDING ||
+      booking.financialClearance === FinancialClearanceStatus.BLOCKED;
     if (blocked) {
       throw new ForbiddenException(
         `Encounter cannot start: financial clearance is ${booking.financialClearance}. Clear payment/pre-authorisation or record an approved exception.`,

@@ -173,9 +173,8 @@ export class ClinicTrackingService {
     if (
       booking.clinicId &&
       dto.status === TrackingStatus.IN_SESSION &&
-      [FinancialClearanceStatus.PENDING, FinancialClearanceStatus.BLOCKED].includes(
-        booking.financialClearance,
-      )
+      (booking.financialClearance === FinancialClearanceStatus.PENDING ||
+        booking.financialClearance === FinancialClearanceStatus.BLOCKED)
     ) {
       throw new ForbiddenException(
         `Encounter cannot start: financial clearance is ${booking.financialClearance}. Clear payment/pre-authorisation or record an approved exception.`,
