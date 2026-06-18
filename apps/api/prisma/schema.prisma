@@ -158,6 +158,15 @@ model User {
   uploadedIdentityDocs PatientIdentityDocument[] @relation("UploadedIdentityDocs")
   guardianProfiles     Guardian[]                @relation("GuardianUser")
 
+  // UAE clinic Phase 3 relations
+  assignedLeads        Lead[]            @relation("LeadAssignee")
+  triageReviews        TriageReview[]    @relation("TriageReviewer")
+  mdtConducted         MdtReview[]       @relation("MdtConductor")
+  mdtAttendances       MdtAttendee[]     @relation("MdtAttendee")
+  completedCaseReviews CaseReview[]      @relation("CaseReviewCompleter")
+  sessionAddendums     SessionAddendum[] @relation("SessionAddendumAuthor")
+  ehrExports           EhrExport[]       @relation("EhrExporter")
+
   // Verified contributor
   isVerifiedContributor Boolean   @default(false)
   verifiedContributorAt DateTime?
@@ -1369,6 +1378,7 @@ model Child {
   identityDocuments                     PatientIdentityDocument[]
   preVisitTasks                         PreVisitTask[]
   insurancePolicies                     InsurancePolicy[]
+  convertedFromLead                     Lead?                    @relation("LeadConversion")
   profile                               UserProfile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
@@ -1687,6 +1697,8 @@ model TherapistProfile {
   licenseAuthority         LicenseAuthority?
   canDiagnose              Boolean                     @default(false)
   scopeOfPractice          String[]                    @default([])
+  // --- UAE Phase 3: clinic governance role ---
+  clinicRole               ClinicRole                  @default(THERAPIST)
   clinicId                 String?
   createdAt                DateTime                    @default(now())
   updatedAt                DateTime                    @updatedAt
@@ -2695,6 +2707,7 @@ model Case {
   diagnosis          String?
   referralSource     String?
   notes              String?
+  pathwayTemplateId  String?
   openedAt           DateTime         @default(now())
   dischargedAt       DateTime?
   dischargeReason    String?
@@ -2712,6 +2725,9 @@ model Case {
   billingRecords       CaseBilling[]
   consents             CaseConsent[]
   preAuthorizations    PreAuthorization[]
+  triageReviews        TriageReview[]
+  mdtReviews           MdtReview[]
+  reviews              CaseReview[]
   treatmentPlans       TreatmentPlan[]
   sharedItems          CaseShare[]
   internalNotes        CaseInternalNote[]
@@ -2825,6 +2841,10 @@ model IEPGoal {
   status                    GoalStatus @default(NOT_STARTED)
   linkedScreeningIndicators Json?
   order                     Int        @default(0)
+  // --- UAE Phase 3: measurability ---
+  frequency          String?
+  baselineValue      Float?
+  reviewIntervalDays Int?
 
   sessionProgress SessionGoalProgress[]
 
@@ -2919,10 +2939,19 @@ model CaseSession {
   structuredNotes Json?
   noteStatus      SessionNoteStatus  @default(DRAFT)
   signedAt        DateTime?
+  // --- UAE Phase 3: plan link, clinical flag, EHR export ---
+  treatmentPlanId String?
+  clinicalFlag    Boolean            @default(false)
+  flagType        ClinicalFlagType?
+  flagReason      String?
+  ehrRef          String?
+  exportedToEhrAt DateTime?
 
   goalProgress SessionGoalProgress[]
   billing      CaseBilling?
   invoice      Invoice?
+  telehealthEncounter TelehealthEncounter?
+  addendums           SessionAddendum[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2962,6 +2991,22 @@ model CaseDocument {
   version     Int              @default(1)
   createdById String
   createdBy   User             @relation("CaseDocuments", fields: [createdById], references: [id])
+
+  // --- UAE Phase 3: report governance + dual audience + EHR export ---
+  status              ReportStatus   @default(DRAFT)
+  audience            ReportAudience @default(PROFESSIONAL)
+  approvedById        String?
+  approvedAt          DateTime?
+  rejectionReason     String?
+  parentVersionId     String?        @unique
+  parentVersion       CaseDocument?  @relation("ReportParentVersion", fields: [parentVersionId], references: [id])
+  professionalVersion CaseDocument?  @relation("ReportParentVersion")
+  mdtReviewId         String?
+  mdtReview           MdtReview?     @relation(fields: [mdtReviewId], references: [id])
+  downloadCount       Int            @default(0)
+  lastDownloadedAt    DateTime?
+  ehrRef              String?
+  exportedToEhrAt     DateTime?
 
   shares CaseShare[]
 
@@ -3004,6 +3049,13 @@ model TreatmentPlan {
   createdBy   User                @relation("CreatedTreatmentPlans", fields: [createdById], references: [id])
   approvedAt  DateTime?
   expiresAt   DateTime?
+  // --- UAE Phase 3: activation + review cadence ---
+  frequency          String?
+  sessionsPlanned    Int?
+  reviewIntervalDays Int?
+  activatedAt        DateTime?
+  parentAcceptedAt   DateTime?
+  reviews            CaseReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3227,6 +3279,186 @@ model PreAuthorization {
   @@map("pre_authorizations")
 }
 
+// ─── UAE CLINIC PHASE 3: ORCHESTRATION ─────────────────────────────────────
+
+model Lead {
+  id                String      @id @default(cuid())
+  clinicId          String
+  clinic            Clinic      @relation("ClinicLeads", fields: [clinicId], references: [id])
+  channel           LeadChannel @default(WEBSITE)
+  status            LeadStatus  @default(NEW)
+  concern           String?
+  childAge          String?
+  preferredBranch   String?
+  language          String?
+  payerIndication   PayerType?
+  contactName       String?
+  contactPhone      String?
+  contactEmail      String?
+  referralSource    String?
+  referrerName      String?
+  referrerOrg       String?
+  referrerContact   String?
+  referrerConsentId String?
+  assignedToId      String?
+  assignedTo        User?       @relation("LeadAssignee", fields: [assignedToId], references: [id])
+  qualifiedAt       DateTime?
+  closeReason       String?
+  convertedChildId  String?     @unique
+  convertedChild    Child?      @relation("LeadConversion", fields: [convertedChildId], references: [id])
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([clinicId])
+  @@index([status])
+  @@index([channel])
+  @@map("leads")
+}
+
+model PathwayTemplate {
+  id            String         @id @default(cuid())
+  clinicId      String?
+  clinic        Clinic?        @relation("ClinicPathways", fields: [clinicId], references: [id])
+  name          String
+  serviceCodes  String[]       @default([])
+  generates     Json
+  isActive      Boolean        @default(true)
+  triageReviews TriageReview[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([clinicId])
+  @@map("pathway_templates")
+}
+
+model TriageReview {
+  id                       String           @id @default(cuid())
+  caseId                   String?
+  case                     Case?            @relation(fields: [caseId], references: [id])
+  leadId                   String?
+  reviewedById             String
+  reviewedBy               User             @relation("TriageReviewer", fields: [reviewedById], references: [id])
+  status                   TriageStatus     @default(PENDING)
+  decision                 TriageDecision?
+  riskLevel                RiskLevel        @default(NONE)
+  aiSummary                String?
+  notes                    String?
+  pathwayTemplateId        String?
+  pathwayTemplate          PathwayTemplate? @relation(fields: [pathwayTemplateId], references: [id])
+  acknowledgedByGuardianAt DateTime?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  @@index([caseId])
+  @@index([status])
+  @@map("triage_reviews")
+}
+
+model TelehealthEncounter {
+  id                  String             @id @default(cuid())
+  sessionId           String             @unique
+  session             CaseSession        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  platform            TelehealthPlatform @default(GOOGLE_MEET)
+  clinicianLicence    String?
+  clinicianLocation   String?
+  patientLocation     String?
+  telehealthConsentId String?
+  startedAt           DateTime?
+  endedAt             DateTime?
+  createdAt           DateTime           @default(now())
+
+  @@map("telehealth_encounters")
+}
+
+model MdtReview {
+  id            String          @id @default(cuid())
+  caseId        String
+  case          Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  scheduledAt   DateTime?
+  status        MdtReviewStatus @default(SCHEDULED)
+  summary       String?
+  conductedById String?
+  conductedBy   User?           @relation("MdtConductor", fields: [conductedById], references: [id])
+  attendees     MdtAttendee[]
+  reports       CaseDocument[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([caseId])
+  @@map("mdt_reviews")
+}
+
+model MdtAttendee {
+  id          String    @id @default(cuid())
+  mdtReviewId String
+  mdtReview   MdtReview @relation(fields: [mdtReviewId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation("MdtAttendee", fields: [userId], references: [id])
+  required    Boolean   @default(true)
+  attended    Boolean   @default(false)
+  approvedAt  DateTime?
+
+  @@unique([mdtReviewId, userId])
+  @@index([mdtReviewId])
+  @@map("mdt_attendees")
+}
+
+model SessionAddendum {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   CaseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User        @relation("SessionAddendumAuthor", fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId])
+  @@map("session_addendums")
+}
+
+model CaseReview {
+  id              String            @id @default(cuid())
+  caseId          String
+  case            Case              @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  treatmentPlanId String?
+  treatmentPlan   TreatmentPlan?    @relation(fields: [treatmentPlanId], references: [id])
+  triggerType     ReviewTriggerType
+  status          ReviewStatus      @default(DUE)
+  dueAt           DateTime?
+  completedById   String?
+  completedBy     User?             @relation("CaseReviewCompleter", fields: [completedById], references: [id])
+  outcome         String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([caseId])
+  @@index([status])
+  @@map("case_reviews")
+}
+
+model EhrExport {
+  id           String          @id @default(cuid())
+  clinicId     String
+  clinic       Clinic          @relation("ClinicEhrExports", fields: [clinicId], references: [id])
+  resourceType String
+  resourceId   String
+  format       EhrExportFormat @default(PDF)
+  status       EhrExportStatus @default(PENDING)
+  payloadUrl   String?
+  ehrRef       String?
+  exportedById String?
+  exportedBy   User?           @relation("EhrExporter", fields: [exportedById], references: [id])
+  reconciledAt DateTime?
+  error        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([clinicId])
+  @@index([resourceType, resourceId])
+  @@index([status])
+  @@map("ehr_exports")
+}
+
 // ─── UAE CLINIC PHASE 0 ENUMS ────────────────────────────
 
 enum LicenseAuthority {
@@ -3326,6 +3558,119 @@ enum SessionModality {
   IN_PERSON
   TELEHEALTH
   HYBRID
+}
+
+// ─── UAE CLINIC PHASE 3 ENUMS (orchestration) ────────────
+
+enum LeadChannel {
+  WEBSITE
+  WHATSAPP
+  SOCIAL
+  PHONE
+  REFERRAL
+  INSURER
+  WALK_IN
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  WAITLISTED
+  CONVERTED
+  OUT_OF_SCOPE
+  DUPLICATE
+  CLOSED
+}
+
+enum ClinicRole {
+  THERAPIST
+  CLINICAL_LEAD
+  MEDICAL_DIRECTOR
+  CARE_COORDINATOR
+}
+
+enum TriageStatus {
+  PENDING
+  IN_REVIEW
+  DECIDED
+}
+
+enum TriageDecision {
+  PROCEED
+  REQUEST_MORE_INFO
+  URGENT_REFERRAL
+  ALTERNATE_SERVICE
+  OUT_OF_SCOPE
+}
+
+enum RiskLevel {
+  NONE
+  LOW
+  MODERATE
+  HIGH
+}
+
+enum TelehealthPlatform {
+  GOOGLE_MEET
+  ZOOM
+  MS_TEAMS
+  WHATSAPP
+  OTHER
+}
+
+enum MdtReviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum ReportStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum ReportAudience {
+  PROFESSIONAL
+  PARENT
+}
+
+enum ClinicalFlagType {
+  REGRESSION
+  NEW_RISK
+  POOR_PROGRESS
+  PLAN_REVIEW
+}
+
+enum ReviewTriggerType {
+  PLAN_DATE
+  SESSION_COUNT
+  AUTH_EXPIRY
+  GOAL_PROGRESS
+  CLINICAL_FLAG
+  MANUAL
+}
+
+enum ReviewStatus {
+  DUE
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum EhrExportFormat {
+  PDF
+  FHIR
+  STRUCTURED_JSON
+}
+
+enum EhrExportStatus {
+  PENDING
+  EXPORTED
+  RECONCILED
+  FAILED
 }
 
 // ─── CASE MANAGEMENT ENUMS ───────────────────────────────
@@ -3728,6 +4073,9 @@ model Clinic {
   children       Child[]
   invoices       Invoice[]          @relation("ClinicInvoices")
   consentTemplates ConsentTemplate[] @relation("ClinicConsentTemplates")
+  leads            Lead[]             @relation("ClinicLeads")
+  pathwayTemplates PathwayTemplate[]  @relation("ClinicPathways")
+  ehrExports       EhrExport[]        @relation("ClinicEhrExports")
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
