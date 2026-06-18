@@ -103,12 +103,18 @@ export class CaseDocumentsService {
     });
     if (!targetUser) throw new NotFoundException('User to share with not found');
 
-    // If document specified, validate it
+    // If document specified, validate it — and (Phase 3) only allow sharing an
+    // APPROVED report. Draft/pending/rejected reports cannot be released.
     if (dto.documentId) {
       const doc = await this.prisma.caseDocument.findFirst({
         where: { id: dto.documentId, caseId },
       });
       if (!doc) throw new NotFoundException('Document not found');
+      if (doc.status !== 'APPROVED') {
+        throw new BadRequestException(
+          `Report cannot be shared until it is APPROVED (current status: ${doc.status}).`,
+        );
+      }
     }
 
     // Check for existing active share
@@ -141,6 +147,69 @@ export class CaseDocumentsService {
     });
 
     return share;
+  }
+
+  // ── Phase 3 (UAE): report approval gate ──
+  private async getDoc(caseId: string, docId: string) {
+    const doc = await this.prisma.caseDocument.findFirst({ where: { id: docId, caseId } });
+    if (!doc) throw new NotFoundException('Document not found');
+    return doc;
+  }
+
+  async submitReportForApproval(caseId: string, docId: string, userId: string) {
+    await this.getDoc(caseId, docId);
+    const updated = await this.prisma.caseDocument.update({
+      where: { id: docId },
+      data: { status: 'PENDING_APPROVAL' },
+    });
+    await this.auditLog(caseId, userId, 'REPORT_SUBMITTED', 'CaseDocument', docId);
+    return updated;
+  }
+
+  async approveReport(caseId: string, docId: string, userId: string) {
+    await this.getDoc(caseId, docId);
+    const updated = await this.prisma.caseDocument.update({
+      where: { id: docId },
+      data: { status: 'APPROVED', approvedById: userId, approvedAt: new Date(), rejectionReason: null },
+    });
+    await this.auditLog(caseId, userId, 'REPORT_APPROVED', 'CaseDocument', docId);
+    return updated;
+  }
+
+  async rejectReport(caseId: string, docId: string, userId: string, reason: string) {
+    await this.getDoc(caseId, docId);
+    const updated = await this.prisma.caseDocument.update({
+      where: { id: docId },
+      data: { status: 'REJECTED', rejectionReason: reason },
+    });
+    await this.auditLog(caseId, userId, 'REPORT_REJECTED', 'CaseDocument', docId, { reason });
+    return updated;
+  }
+
+  /** Create a parent-friendly version linked to the professional source report. */
+  async createParentVersion(
+    caseId: string,
+    docId: string,
+    userId: string,
+    dto: { title: string; content?: string; fileUrl?: string },
+  ) {
+    const source = await this.getDoc(caseId, docId);
+    const parent = await this.prisma.caseDocument.create({
+      data: {
+        caseId,
+        type: source.type,
+        title: dto.title,
+        content: dto.content,
+        fileUrl: dto.fileUrl,
+        createdById: userId,
+        audience: 'PARENT',
+      },
+    });
+    await this.prisma.caseDocument.update({
+      where: { id: docId },
+      data: { parentVersionId: parent.id },
+    });
+    return parent;
   }
 
   async revokeShare(caseId: string, shareId: string, userId: string) {

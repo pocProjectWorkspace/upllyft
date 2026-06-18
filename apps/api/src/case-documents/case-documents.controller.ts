@@ -96,6 +96,42 @@ export class CaseDocumentsController {
     return this.documentsService.revokeShare(caseId, dto.shareId, req.user.id);
   }
 
+  // ─── REPORT APPROVAL (Phase 3) ────────────────────────
+
+  @Post(':documentId/submit')
+  @CaseAccess('edit')
+  async submitReport(@Param('caseId') caseId: string, @Param('documentId') documentId: string, @Req() req: any) {
+    return this.documentsService.submitReportForApproval(caseId, documentId, req.user.id);
+  }
+
+  @Post(':documentId/approve')
+  @CaseAccess('manage')
+  async approveReport(@Param('caseId') caseId: string, @Param('documentId') documentId: string, @Req() req: any) {
+    return this.documentsService.approveReport(caseId, documentId, req.user.id);
+  }
+
+  @Post(':documentId/reject')
+  @CaseAccess('manage')
+  async rejectReport(
+    @Param('caseId') caseId: string,
+    @Param('documentId') documentId: string,
+    @Body() body: { reason: string },
+    @Req() req: any,
+  ) {
+    return this.documentsService.rejectReport(caseId, documentId, req.user.id, body?.reason || '');
+  }
+
+  @Post(':documentId/parent-version')
+  @CaseAccess('edit')
+  async createParentVersion(
+    @Param('caseId') caseId: string,
+    @Param('documentId') documentId: string,
+    @Body() body: { title: string; content?: string; fileUrl?: string },
+    @Req() req: any,
+  ) {
+    return this.documentsService.createParentVersion(caseId, documentId, req.user.id, body);
+  }
+
   // ─── AI REPORT GENERATION ─────────────────────────────
 
   @Post('generate-report')
