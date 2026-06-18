@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import {
@@ -29,6 +29,19 @@ export class ClinicService {
     }
 
     async updateClinic(adminId: string, data: any) {
+        // Phase 0 (UAE): a clinic cannot be made public until its compliance
+        // review is ACTIVE.
+        if (data?.isPublic === true) {
+            const clinic = await this.prisma.clinic.findUnique({
+                where: { adminId },
+                select: { complianceStatus: true },
+            });
+            if (clinic && clinic.complianceStatus !== 'ACTIVE') {
+                throw new ForbiddenException(
+                    'Clinic cannot be made public until compliance review is ACTIVE.',
+                );
+            }
+        }
         return this.prisma.clinic.update({
             where: { adminId },
             data,

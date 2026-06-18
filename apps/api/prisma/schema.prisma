@@ -1667,6 +1667,10 @@ model TherapistProfile {
   licenceNumber            String?
   licenceExpiry            DateTime?
   credentialStatus         CredentialStatus            @default(PENDING)
+  // --- UAE Phase 0: authority + clinical scope ---
+  licenseAuthority         LicenseAuthority?
+  canDiagnose              Boolean                     @default(false)
+  scopeOfPractice          String[]                    @default([])
   clinicId                 String?
   createdAt                DateTime                    @default(now())
   updatedAt                DateTime                    @updatedAt
@@ -3040,6 +3044,32 @@ model CaseConsent {
   @@map("case_consents")
 }
 
+// ─── UAE CLINIC PHASE 0 ENUMS ────────────────────────────
+
+enum LicenseAuthority {
+  DHA // Dubai Health Authority
+  DOH // Department of Health – Abu Dhabi
+  MOHAP // Ministry of Health and Prevention (other emirates)
+  OTHER
+}
+
+enum Emirate {
+  ABU_DHABI
+  DUBAI
+  SHARJAH
+  AJMAN
+  UMM_AL_QUWAIN
+  RAS_AL_KHAIMAH
+  FUJAIRAH
+}
+
+enum FacilityComplianceStatus {
+  DRAFT
+  IN_REVIEW
+  ACTIVE
+  SUSPENDED
+}
+
 // ─── CASE MANAGEMENT ENUMS ───────────────────────────────
 
 enum ClinicStatus {
@@ -3414,6 +3444,15 @@ model Clinic {
   totalReviews    Int                @default(0)
   specializations String[]           @default([])
   isPublic        Boolean            @default(true)
+  // --- UAE regulatory context (Phase 0) ---
+  licenseAuthority     LicenseAuthority?
+  emirate              Emirate?
+  complianceStatus     FacilityComplianceStatus @default(DRAFT)
+  complianceReviewedAt DateTime?
+  complianceReviewedBy String?
+  // --- EHR integration (engagement-layer posture) ---
+  ehrSystemName        String?
+  nabidhFacilityCode   String?
   organizationId  String?
   organization   Organization?      @relation("OrganizationClinics", fields: [organizationId], references: [id])
   adminId        String             @unique

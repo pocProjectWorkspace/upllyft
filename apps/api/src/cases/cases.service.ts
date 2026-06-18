@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CaseStatus, CaseTherapistRole, Prisma } from '@prisma/client';
+import { CaseStatus, CaseTherapistRole, CredentialStatus, Prisma } from '@prisma/client';
 import {
   CreateCaseDto,
   UpdateCaseStatusDto,
@@ -109,6 +109,26 @@ export class CasesService {
   /**
    * Create a new case. The requesting therapist becomes the primary therapist.
    */
+  /**
+   * Phase 0 (UAE): a therapist may only be assigned to a case when their
+   * licence is VERIFIED and not expired.
+   */
+  private assertTherapistAssignable(profile: {
+    credentialStatus: CredentialStatus;
+    licenceExpiry: Date | null;
+  }) {
+    if (profile.credentialStatus !== CredentialStatus.VERIFIED) {
+      throw new ForbiddenException(
+        'Therapist licence is not verified — they cannot be assigned to a case.',
+      );
+    }
+    if (profile.licenceExpiry && profile.licenceExpiry.getTime() < Date.now()) {
+      throw new ForbiddenException(
+        'Therapist licence has expired — they cannot be assigned to a case.',
+      );
+    }
+  }
+
   async createCase(therapistUserId: string, dto: CreateCaseDto) {
     // Verify therapist profile exists
     const therapistProfile = await this.prisma.therapistProfile.findUnique({
@@ -116,6 +136,27 @@ export class CasesService {
     });
     if (!therapistProfile) {
       throw new BadRequestException('Therapist profile not found');
+    }
+
+    // Phase 0 (UAE): licence/scope + facility compliance enforcement
+    this.assertTherapistAssignable(therapistProfile);
+
+    if (dto.diagnosis && !therapistProfile.canDiagnose) {
+      throw new ForbiddenException(
+        'Only clinicians authorised to diagnose may record a diagnosis on a case.',
+      );
+    }
+
+    if (therapistProfile.clinicId) {
+      const clinic = await this.prisma.clinic.findUnique({
+        where: { id: therapistProfile.clinicId },
+        select: { complianceStatus: true },
+      });
+      if (clinic && clinic.complianceStatus !== 'ACTIVE') {
+        throw new ForbiddenException(
+          'This clinic is not active for case creation until compliance review is complete.',
+        );
+      }
     }
 
     // Verify child exists
@@ -392,6 +433,9 @@ export class CasesService {
       where: { id: dto.therapistId },
     });
     if (!therapistProfile) throw new NotFoundException('Therapist not found');
+
+    // Phase 0 (UAE): only verified, non-expired licences may be assigned
+    this.assertTherapistAssignable(therapistProfile);
 
     // Check not already assigned
     const existing = await this.prisma.caseTherapist.findUnique({

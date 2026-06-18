@@ -48,6 +48,7 @@ import { BillingModule } from './billing/billing.module';
 
 // Tasks
 import { EngagementMetricsTask } from './tasks/engagement-metrics.task';
+import { CredentialExpiryTask } from './tasks/credential-expiry.task';
 
 import { ProvidersModule } from './providers/providers.module';
 import { QuestionsModule } from './questions/questions.module';
@@ -207,6 +208,7 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     ConfigService,
     PrismaService,
     EngagementMetricsTask, // Task needs access to PrismaService and PostsService
+    CredentialExpiryTask, // Phase 0 (UAE): daily licence-expiry derivation
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
