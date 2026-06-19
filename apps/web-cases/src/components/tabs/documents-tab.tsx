@@ -9,6 +9,14 @@ import {
   useGenerateReport,
 } from '@/hooks/use-cases';
 import { documentTypeLabels, formatDate } from '@/lib/utils';
+import { useReportApproval } from '@/hooks/use-clinic-ops';
+
+const REPORT_STATUS_COLOR: Record<string, string> = {
+  DRAFT: 'gray',
+  PENDING_APPROVAL: 'yellow',
+  APPROVED: 'green',
+  REJECTED: 'red',
+};
 import {
   Button,
   Card,
@@ -58,6 +66,7 @@ export function DocumentsTab({ caseId }: DocumentsTabProps) {
   const shareDocument = useShareDocument();
   const revokeShare = useRevokeDocumentShare();
   const generateReport = useGenerateReport();
+  const approval = useReportApproval(caseId);
 
   const [showCreate, setShowCreate] = useState(false);
   const [showShareDocId, setShowShareDocId] = useState<string | null>(null);
@@ -365,6 +374,35 @@ export function DocumentsTab({ caseId }: DocumentsTabProps) {
                             Shared ({shares.length})
                           </Badge>
                         )}
+                        {doc.status && (
+                          <Badge color={(REPORT_STATUS_COLOR[doc.status as string] || 'gray') as any}>
+                            {String(doc.status).replace('_', ' ')}
+                          </Badge>
+                        )}
+                      </div>
+                      {/* Report approval actions (Phase 3) */}
+                      <div className="flex flex-wrap items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                        {(doc.status === 'DRAFT' || doc.status === 'REJECTED') && (
+                          <Button size="sm" variant="outline" disabled={approval.submit.isPending} onClick={() => approval.submit.mutate(docId)}>
+                            Submit for approval
+                          </Button>
+                        )}
+                        {doc.status === 'PENDING_APPROVAL' && (
+                          <>
+                            <Button size="sm" variant="outline" className="text-green-700 border-green-200" disabled={approval.approve.isPending} onClick={() => approval.approve.mutate(docId)}>
+                              Approve
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-red-700 border-red-200" disabled={approval.reject.isPending} onClick={() => { const reason = window.prompt('Rejection reason'); if (reason) approval.reject.mutate({ docId, reason }); }}>
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        {doc.status === 'APPROVED' && (
+                          <Button size="sm" variant="ghost" disabled={approval.parentVersion.isPending} onClick={() => { const t = window.prompt('Parent-friendly report title', `${title} (plain language)`); if (t) approval.parentVersion.mutate({ docId, data: { title: t, content } }); }}>
+                            Create parent version
+                          </Button>
+                        )}
+                        {doc.rejectionReason && <span className="text-xs text-red-500">Rejected: {String(doc.rejectionReason)}</span>}
                       </div>
                     </div>
                   </div>
