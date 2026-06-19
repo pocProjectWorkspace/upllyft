@@ -17,6 +17,19 @@ export class CreateCaseConsentDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // Phase 1 (UAE): actionable, versioned consent
+  @IsOptional()
+  @IsString()
+  purpose?: string;
+
+  @IsOptional()
+  @IsString()
+  recipient?: string;
+
+  @IsOptional()
+  @IsString()
+  consentVersionId?: string;
 }
 
 export class ListConsentsQueryDto {

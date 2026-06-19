@@ -13,6 +13,7 @@ import {
   History,
   ArrowLeft,
   CreditCard,
+  Fingerprint,
 } from 'lucide-react';
 import { caseStatusColors, caseStatusLabels } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ const clinicalItems = [
 ];
 
 const adminItems = [
+  { segment: 'identity', label: 'Identity & Guardians', icon: Fingerprint },
   { segment: 'documents', label: 'Documents', icon: FileText },
   { segment: 'payer', label: 'Payer & Pre-auth', icon: CreditCard },
   { segment: 'billing', label: 'Billing', icon: DollarSign },

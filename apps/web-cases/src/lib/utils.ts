@@ -50,6 +50,10 @@ export const consentTypeLabels: Record<string, string> = {
   ASSESSMENT: 'Assessment',
   RECORDING: 'Recording',
   RESEARCH: 'Research',
+  TELEHEALTH: 'Telehealth',
+  REPORT_SHARING: 'Report Sharing',
+  COMMUNICATION: 'Communication',
+  DATA_PROCESSING: 'Data Processing',
 };
 
 export const documentTypeLabels: Record<string, string> = {

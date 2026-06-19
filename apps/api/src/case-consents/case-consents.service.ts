@@ -62,6 +62,9 @@ export class CaseConsentsService {
         grantedById: userId,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         notes: dto.notes,
+        purpose: dto.purpose,
+        recipient: dto.recipient,
+        consentVersionId: dto.consentVersionId,
       },
       include: {
         grantedBy: { select: { id: true, name: true, email: true } },
