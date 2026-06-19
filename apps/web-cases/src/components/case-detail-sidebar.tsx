@@ -12,6 +12,7 @@ import {
   BookOpen,
   History,
   ArrowLeft,
+  CreditCard,
 } from 'lucide-react';
 import { caseStatusColors, caseStatusLabels } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ const clinicalItems = [
 
 const adminItems = [
   { segment: 'documents', label: 'Documents', icon: FileText },
+  { segment: 'payer', label: 'Payer & Pre-auth', icon: CreditCard },
   { segment: 'billing', label: 'Billing', icon: DollarSign },
   { segment: 'consents', label: 'Consents', icon: Shield },
   { segment: 'audit', label: 'Audit Log', icon: History },

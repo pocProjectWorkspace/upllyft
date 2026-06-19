@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { BookingShell } from '@/components/booking-shell';
 import { InlineCalendar } from '@/components/inline-calendar';
+import { BookingReadinessPanel } from '@/components/booking-readiness-panel';
 import {
   useBooking,
   useCancelBooking,
@@ -376,6 +377,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
         </Card>
+
+        {/* Reception pre-visit readiness — clinic bookings only */}
+        {(booking as any)?.clinicId && <BookingReadinessPanel bookingId={id} />}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Session Details */}
