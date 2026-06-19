@@ -80,6 +80,7 @@ import { CaseConsentsModule } from './case-consents/case-consents.module';
 import { ClinicIntakeModule } from './clinic-intake/clinic-intake.module';
 import { PayerModule } from './payer/payer.module';
 import { ClinicOrchestrationModule } from './clinic-orchestration/clinic-orchestration.module';
+import { ClinicSafetyModule } from './clinic-safety/clinic-safety.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { WorksheetsModule } from './worksheets/worksheets.module';
 import { MiraModule } from './mira/mira.module';
@@ -173,6 +174,7 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     ClinicIntakeModule,
     PayerModule,
     ClinicOrchestrationModule,
+    ClinicSafetyModule,
 
     // Notifications (controller + gateway)
     NotificationModule,

@@ -167,6 +167,11 @@ model User {
   sessionAddendums     SessionAddendum[] @relation("SessionAddendumAuthor")
   ehrExports           EhrExport[]       @relation("EhrExporter")
 
+  // UAE clinic Phase 4 relations
+  raisedIncidents       CaseIncident[]  @relation("IncidentRaiser")
+  ownedIncidents        CaseIncident[]  @relation("IncidentOwner")
+  externalSharesCreated ExternalShare[] @relation("ExternalShareCreator")
+
   // Verified contributor
   isVerifiedContributor Boolean   @default(false)
   verifiedContributorAt DateTime?
@@ -2711,6 +2716,14 @@ model Case {
   openedAt           DateTime         @default(now())
   dischargedAt       DateTime?
   dischargeReason    String?
+  // --- UAE Phase 4: discharge split + archive/retention/reactivation ---
+  clinicalDischargeReason String?
+  adminDischargeReason    String?
+  dischargeSummaryDocId   String?
+  archivedAt              DateTime?
+  retentionUntil          DateTime?
+  reactivatedAt           DateTime?
+  reactivatedFromId       String?
   organizationId     String?
   organization       Organization?    @relation(fields: [organizationId], references: [id])
   clinicId           String?
@@ -2728,6 +2741,8 @@ model Case {
   triageReviews        TriageReview[]
   mdtReviews           MdtReview[]
   reviews              CaseReview[]
+  incidents            CaseIncident[]
+  externalShares       ExternalShare[]
   treatmentPlans       TreatmentPlan[]
   sharedItems          CaseShare[]
   internalNotes        CaseInternalNote[]
@@ -3459,6 +3474,56 @@ model EhrExport {
   @@map("ehr_exports")
 }
 
+// ─── UAE CLINIC PHASE 4: SAFETY / INCIDENT / DISCHARGE ──────────────────────
+
+model CaseIncident {
+  id               String           @id @default(cuid())
+  caseId           String?
+  case             Case?            @relation(fields: [caseId], references: [id])
+  childId          String?
+  raisedById       String
+  raisedBy         User             @relation("IncidentRaiser", fields: [raisedById], references: [id])
+  raisedFromModule String?
+  category         IncidentCategory
+  urgency          IncidentUrgency  @default(ROUTINE)
+  status           IncidentStatus   @default(OPEN)
+  ownerId          String?
+  owner            User?            @relation("IncidentOwner", fields: [ownerId], references: [id])
+  description      String
+  clinicalDecision String?
+  actionPlan       String?
+  closedAt         DateTime?
+  closedById       String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([caseId])
+  @@index([status])
+  @@index([urgency])
+  @@map("case_incidents")
+}
+
+model ExternalShare {
+  id             String                @id @default(cuid())
+  caseId         String?
+  case           Case?                 @relation(fields: [caseId], references: [id])
+  recipientName  String
+  recipientType  ExternalRecipientType
+  consentId      String
+  token          String                @unique
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  accessCount    Int                   @default(0)
+  lastAccessedAt DateTime?
+  createdById    String
+  createdBy      User                  @relation("ExternalShareCreator", fields: [createdById], references: [id])
+  createdAt      DateTime              @default(now())
+
+  @@index([caseId])
+  @@index([token])
+  @@map("external_shares")
+}
+
 // ─── UAE CLINIC PHASE 0 ENUMS ────────────────────────────
 
 enum LicenseAuthority {
@@ -3671,6 +3736,41 @@ enum EhrExportStatus {
   EXPORTED
   RECONCILED
   FAILED
+}
+
+// ─── UAE CLINIC PHASE 4 ENUMS (safety / discharge) ───────
+
+enum IncidentCategory {
+  MEDICAL_INSTABILITY
+  MENTAL_HEALTH_RISK
+  SAFEGUARDING
+  SEVERE_BEHAVIOUR
+  ABUSE_NEGLECT
+  OUT_OF_SCOPE
+  OTHER
+}
+
+enum IncidentUrgency {
+  EMERGENCY
+  URGENT
+  ROUTINE
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_REVIEW
+  ACTION_TAKEN
+  CLOSED
+}
+
+enum ExternalRecipientType {
+  SCHOOL
+  PHYSICIAN
+  SPECIALIST
+  HOSPITAL
+  INSURER
+  OTHER_PROVIDER
+  PARENT
 }
 
 // ─── CASE MANAGEMENT ENUMS ───────────────────────────────
