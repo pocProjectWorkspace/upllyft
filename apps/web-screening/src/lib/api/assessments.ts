@@ -317,7 +317,20 @@ export async function revokeShare(id: string, therapistId: string): Promise<void
 export async function searchTherapists(search?: string): Promise<TherapistOption[]> {
   const params = search ? { search } : {};
   const res = await apiClient.get('/marketplace/therapists', { params });
-  return res.data?.therapists || res.data || [];
+  const raw: any[] = res.data?.therapists || res.data || [];
+  const flat = raw.map((t) => ({
+    id: t.id,
+    name: t.user?.name ?? t.name ?? '',
+    email: t.user?.email ?? t.email ?? '',
+    image: t.user?.image ?? t.image ?? null,
+    specializations: t.specializations,
+    overallRating: t.overallRating,
+  }));
+  const q = search?.trim().toLowerCase();
+  if (!q) return flat;
+  return flat.filter(
+    (t) => t.name.toLowerCase().includes(q) || t.email.toLowerCase().includes(q),
+  );
 }
 
 export async function getUserProfile(): Promise<{ children: Child[] }> {
