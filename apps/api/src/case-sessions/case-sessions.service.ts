@@ -258,6 +258,23 @@ export class CaseSessionsService {
       },
     });
 
+    // Phase 2 (UAE): consume a pre-authorised session if an active pre-auth
+    // exists on the case. Best-effort — never blocks signing the clinical note.
+    const activePreAuth = await this.prisma.preAuthorization.findFirst({
+      where: {
+        caseId,
+        status: 'APPROVED',
+        OR: [{ validUntil: null }, { validUntil: { gt: new Date() } }],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (activePreAuth) {
+      await this.prisma.preAuthorization.update({
+        where: { id: activePreAuth.id },
+        data: { usedSessions: { increment: 1 } },
+      });
+    }
+
     this.eventEmitter.emit('session.signed', {
       sessionId,
       caseId,

@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-violet: #6B3FA0;
+  --color-brand-teal: #00B5AD;
+  --color-brand-gold: #E8A838;
+  --color-brand-midnight: #0D0D1A;
+  --color-brand-cloud: #F4F2FF;
+  --color-brand-mist: #E8E4F4;
+
+  --color-persona-parent: #FF7B54;
+  --color-persona-therapist: #4ECDC4;
+  --color-persona-school: #45B7D1;
+  --color-persona-partner: #96CEB4;
+
+  --font-display: var(--font-playfair);
+  --font-body: var(--font-dm-sans);
+}
+
+body {
+  font-family: var(--font-body), system-ui, sans-serif;
+  color: #1a1a2e;
+  background: #ffffff;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display), serif;
+}

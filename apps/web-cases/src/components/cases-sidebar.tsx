@@ -14,6 +14,7 @@ import {
   TrendingUp,
   CalendarDays,
   FileText,
+  Inbox,
 } from 'lucide-react';
 
 const statusItems = [
@@ -72,6 +73,17 @@ export function CasesSidebar() {
         >
           <Plus className="h-4 w-4" />
           New Case
+        </button>
+      </div>
+
+      {/* Leads */}
+      <div className="px-3 pt-3">
+        <button
+          onClick={() => router.push('/leads')}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+        >
+          <Inbox className="h-4 w-4 flex-shrink-0 text-gray-500" />
+          <span className="flex-1 text-left">Leads</span>
         </button>
       </div>
 

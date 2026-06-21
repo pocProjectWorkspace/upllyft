@@ -12,21 +12,35 @@ import {
   BookOpen,
   History,
   ArrowLeft,
+  CreditCard,
+  Fingerprint,
+  Stethoscope,
+  ClipboardCheck,
+  Users2,
+  ShieldAlert,
+  LogOut,
 } from 'lucide-react';
 import { caseStatusColors, caseStatusLabels } from '@/lib/utils';
 
 const clinicalItems = [
   { segment: '', label: 'Overview', icon: LayoutDashboard },
+  { segment: 'triage', label: 'Triage', icon: Stethoscope },
   { segment: 'sessions', label: 'Sessions', icon: CalendarDays },
   { segment: 'goals', label: 'Goals & IEPs', icon: Target },
   { segment: 'milestones', label: 'Milestones', icon: TrendingUp },
+  { segment: 'mdt', label: 'MDT Reviews', icon: Users2 },
+  { segment: 'reviews', label: 'Reviews', icon: ClipboardCheck },
   { segment: 'worksheets', label: 'Worksheets', icon: BookOpen },
 ];
 
 const adminItems = [
+  { segment: 'identity', label: 'Identity & Guardians', icon: Fingerprint },
   { segment: 'documents', label: 'Documents', icon: FileText },
+  { segment: 'payer', label: 'Payer & Pre-auth', icon: CreditCard },
   { segment: 'billing', label: 'Billing', icon: DollarSign },
   { segment: 'consents', label: 'Consents', icon: Shield },
+  { segment: 'incidents', label: 'Incidents', icon: ShieldAlert },
+  { segment: 'discharge', label: 'Discharge', icon: LogOut },
   { segment: 'audit', label: 'Audit Log', icon: History },
 ];
 

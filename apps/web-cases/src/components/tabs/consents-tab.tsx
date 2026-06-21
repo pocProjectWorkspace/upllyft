@@ -53,6 +53,8 @@ export function ConsentsTab({ caseId }: ConsentsTabProps) {
     type: 'TREATMENT',
     validUntil: '',
     notes: '',
+    purpose: '',
+    recipient: '',
   });
 
   const consents: any[] = Array.isArray(consentsData)
@@ -85,10 +87,12 @@ export function ConsentsTab({ caseId }: ConsentsTabProps) {
           type: newConsent.type,
           validUntil: newConsent.validUntil || undefined,
           notes: newConsent.notes.trim() || undefined,
+          purpose: newConsent.purpose.trim() || undefined,
+          recipient: newConsent.recipient.trim() || undefined,
         },
       });
       setShowCreate(false);
-      setNewConsent({ type: 'TREATMENT', validUntil: '', notes: '' });
+      setNewConsent({ type: 'TREATMENT', validUntil: '', notes: '', purpose: '', recipient: '' });
     } catch {
       // Error handled by hook
     }
@@ -230,6 +234,24 @@ export function ConsentsTab({ caseId }: ConsentsTabProps) {
                 </Select>
               </div>
               <div>
+                <Label>Purpose (optional)</Label>
+                <Input
+                  value={newConsent.purpose}
+                  onChange={(e) => setNewConsent({ ...newConsent, purpose: e.target.value })}
+                  placeholder="Why the data is used"
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <Label>Recipient (optional)</Label>
+                <Input
+                  value={newConsent.recipient}
+                  onChange={(e) => setNewConsent({ ...newConsent, recipient: e.target.value })}
+                  placeholder="Who is authorised, e.g. School: GEMS"
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
                 <Label>Valid Until (optional)</Label>
                 <Input
                   type="date"
@@ -323,6 +345,13 @@ export function ConsentsTab({ caseId }: ConsentsTabProps) {
                     {createdAt && ` \u00B7 ${formatDate(createdAt)}`}
                     {validUntil && ` \u00B7 Expires ${formatDate(validUntil)}`}
                   </p>
+                  {(consent.purpose || consent.recipient) && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      {consent.purpose && <span>Purpose: {consent.purpose}</span>}
+                      {consent.purpose && consent.recipient && ' \u00B7 '}
+                      {consent.recipient && <span>Recipient: {consent.recipient}</span>}
+                    </p>
+                  )}
                   {notes && (
                     <p className="text-sm text-gray-600 mt-1">{notes}</p>
                   )}

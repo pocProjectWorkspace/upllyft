@@ -18,10 +18,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 const TOTAL_STEPS = 6;
 
 const COUNTRIES = [
-  { code: 'IN', label: 'India', flag: '\uD83C\uDDEE\uD83C\uDDF3', description: 'Browse individual therapists and book sessions directly' },
-  { code: 'AE', label: 'United Arab Emirates', flag: '\uD83C\uDDE6\uD83C\uDDEA', description: 'Browse clinics and book through verified centers' },
-  { code: 'SA', label: 'Saudi Arabia', flag: '\uD83C\uDDF8\uD83C\uDDE6', description: 'Connect with verified schools and wellbeing partners' },
+  { code: 'IN', label: 'India', description: 'Browse individual therapists and book sessions directly' },
+  { code: 'AE', label: 'United Arab Emirates', description: 'Browse clinics and book through verified centers' },
+  { code: 'SA', label: 'Saudi Arabia', description: 'Connect with verified schools and wellbeing partners' },
 ] as const;
+
+function CountryFlag({ code, className }: { code: string; className?: string }) {
+  const lower = code.toLowerCase();
+  return (
+    <img
+      src={`https://flagcdn.com/h40/${lower}.png`}
+      srcSet={`https://flagcdn.com/h80/${lower}.png 2x`}
+      alt={`${code} flag`}
+      className={className}
+    />
+  );
+}
 
 // Inline outline icons for the "What brings you here" step.
 // These replace earlier emoji-style icons with clean line-art SVGs.
@@ -601,7 +613,7 @@ export default function OnboardingPage() {
                         }`}
                       >
                         <div className="flex items-center gap-4">
-                          <span className="text-3xl flex-shrink-0">{c.flag}</span>
+                          <CountryFlag code={c.code} className="h-7 w-auto rounded-sm shadow-sm flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className={`font-semibold ${selected ? 'text-teal-700' : 'text-gray-900'}`}>
                               {c.label}
@@ -676,13 +688,14 @@ export default function OnboardingPage() {
                             <button
                               key={c.code}
                               onClick={() => setSelectedPreferredRegion(c.code)}
-                              className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                              className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors inline-flex items-center justify-center gap-2 ${
                                 selectedPreferredRegion === c.code
                                   ? 'bg-teal-100 text-teal-700 border border-teal-300'
                                   : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                               }`}
                             >
-                              {c.flag} {c.label}
+                              <CountryFlag code={c.code} className="h-4 w-auto rounded-sm" />
+                              {c.label}
                             </button>
                           ))}
                         </div>

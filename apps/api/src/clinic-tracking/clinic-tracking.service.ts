@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { TrackingStatus } from '@prisma/client';
+import { TrackingStatus, FinancialClearanceStatus } from '@prisma/client';
 import { UpdateTrackingStatusDto } from './dto/clinic-tracking.dto';
 
 @Injectable()
@@ -161,6 +166,19 @@ export class ClinicTrackingService {
 
     if (!booking) {
       throw new NotFoundException('Booking not found');
+    }
+
+    // Phase 2 (UAE): block clinic encounter start until financially cleared.
+    // Clinic bookings only — consumer/marketplace bookings are unaffected.
+    if (
+      booking.clinicId &&
+      dto.status === TrackingStatus.IN_SESSION &&
+      (booking.financialClearance === FinancialClearanceStatus.PENDING ||
+        booking.financialClearance === FinancialClearanceStatus.BLOCKED)
+    ) {
+      throw new ForbiddenException(
+        `Encounter cannot start: financial clearance is ${booking.financialClearance}. Clear payment/pre-authorisation or record an approved exception.`,
+      );
     }
 
     const now = new Date();

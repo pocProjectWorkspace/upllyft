@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, ConsentType } from '@prisma/client';
@@ -10,6 +11,28 @@ import { CreateCaseConsentDto, ListConsentsQueryDto } from './dto/case-consents.
 @Injectable()
 export class CaseConsentsService {
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * Phase 1 (UAE): consent as an access gate. Throws unless an active,
+   * in-validity, non-revoked consent of one of the given types exists on the
+   * case. Use before serving/sharing PHI, starting telehealth, etc.
+   */
+  async assertActiveConsent(caseId: string, types: ConsentType[]) {
+    const active = await this.prisma.caseConsent.findFirst({
+      where: {
+        caseId,
+        type: { in: types },
+        revokedAt: null,
+        OR: [{ validUntil: null }, { validUntil: { gt: new Date() } }],
+      },
+    });
+    if (!active) {
+      throw new ForbiddenException(
+        `An active consent (${types.join(' or ')}) is required for this action.`,
+      );
+    }
+    return active;
+  }
 
   async createConsent(caseId: string, userId: string, dto: CreateCaseConsentDto) {
     const caseRecord = await this.prisma.case.findUnique({ where: { id: caseId } });
@@ -39,6 +62,9 @@ export class CaseConsentsService {
         grantedById: userId,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         notes: dto.notes,
+        purpose: dto.purpose,
+        recipient: dto.recipient,
+        consentVersionId: dto.consentVersionId,
       },
       include: {
         grantedBy: { select: { id: true, name: true, email: true } },

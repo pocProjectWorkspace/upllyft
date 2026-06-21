@@ -48,6 +48,9 @@ import { BillingModule } from './billing/billing.module';
 
 // Tasks
 import { EngagementMetricsTask } from './tasks/engagement-metrics.task';
+import { CredentialExpiryTask } from './tasks/credential-expiry.task';
+import { PreAuthExpiryTask } from './tasks/preauth-expiry.task';
+import { ReviewSchedulerTask } from './tasks/review-scheduler.task';
 
 import { ProvidersModule } from './providers/providers.module';
 import { QuestionsModule } from './questions/questions.module';
@@ -74,6 +77,10 @@ import { CaseDocumentsModule } from './case-documents/case-documents.module';
 import { CaseBillingModule } from './case-billing/case-billing.module';
 import { CaseAuditModule } from './case-audit/case-audit.module';
 import { CaseConsentsModule } from './case-consents/case-consents.module';
+import { ClinicIntakeModule } from './clinic-intake/clinic-intake.module';
+import { PayerModule } from './payer/payer.module';
+import { ClinicOrchestrationModule } from './clinic-orchestration/clinic-orchestration.module';
+import { ClinicSafetyModule } from './clinic-safety/clinic-safety.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { WorksheetsModule } from './worksheets/worksheets.module';
 import { MiraModule } from './mira/mira.module';
@@ -164,6 +171,10 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     CaseBillingModule,
     CaseAuditModule,
     CaseConsentsModule,
+    ClinicIntakeModule,
+    PayerModule,
+    ClinicOrchestrationModule,
+    ClinicSafetyModule,
 
     // Notifications (controller + gateway)
     NotificationModule,
@@ -207,6 +218,9 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     ConfigService,
     PrismaService,
     EngagementMetricsTask, // Task needs access to PrismaService and PostsService
+    CredentialExpiryTask, // Phase 0 (UAE): daily licence-expiry derivation
+    PreAuthExpiryTask, // Phase 2 (UAE): daily pre-authorisation expiry/exhaustion
+    ReviewSchedulerTask, // Phase 3 (UAE): daily review-trigger engine
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

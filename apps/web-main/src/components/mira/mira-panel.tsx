@@ -204,6 +204,13 @@ export function MiraPanel() {
                   <>
                     {messages.map((msg, idx) => {
                       const isLatest = idx === messages.length - 1;
+                      const isEmptyAssistant =
+                        msg.role === 'assistant' &&
+                        !msg.content &&
+                        !msg.cards &&
+                        !msg.choices &&
+                        !msg.actions;
+                      if (isEmptyAssistant) return null;
                       const showAvatar =
                         msg.role === 'assistant' &&
                         (idx === 0 || messages[idx - 1]?.role !== 'assistant');
@@ -217,7 +224,15 @@ export function MiraPanel() {
                         />
                       );
                     })}
-                    {isLoading && <TypingIndicator />}
+                    {isLoading &&
+                      (() => {
+                        const last = messages[messages.length - 1];
+                        const awaitingFirstChunk =
+                          !last ||
+                          last.role === 'user' ||
+                          (last.role === 'assistant' && !last.content);
+                        return awaitingFirstChunk ? <TypingIndicator /> : null;
+                      })()}
                   </>
                 )}
                 <div ref={chatEndRef} />

@@ -12,6 +12,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@upllyft/ui", "@upllyft/api-client", "@upllyft/types"],
+  experimental: {
+    proxyTimeout: 120_000,
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

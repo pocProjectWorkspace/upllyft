@@ -4,7 +4,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma, CaseDocumentType } from '@prisma/client';
+import { Prisma, CaseDocumentType, ConsentType } from '@prisma/client';
+import { CaseConsentsService } from '../case-consents/case-consents.service';
 import {
   CreateCaseDocumentDto,
   ShareDocumentDto,
@@ -13,7 +14,10 @@ import {
 
 @Injectable()
 export class CaseDocumentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private consents: CaseConsentsService,
+  ) {}
 
   async createDocument(caseId: string, userId: string, dto: CreateCaseDocumentDto) {
     const caseRecord = await this.prisma.case.findUnique({ where: { id: caseId } });
@@ -86,18 +90,31 @@ export class CaseDocumentsService {
   }
 
   async shareDocument(caseId: string, userId: string, dto: ShareDocumentDto) {
+    // Phase 1 (UAE): consent-gated sharing — a document/report may only be
+    // shared when an active SHARING or REPORT_SHARING consent exists.
+    await this.consents.assertActiveConsent(caseId, [
+      ConsentType.SHARING,
+      ConsentType.REPORT_SHARING,
+    ]);
+
     // Validate shared-with user exists
     const targetUser = await this.prisma.user.findUnique({
       where: { id: dto.sharedWithUserId },
     });
     if (!targetUser) throw new NotFoundException('User to share with not found');
 
-    // If document specified, validate it
+    // If document specified, validate it — and (Phase 3) only allow sharing an
+    // APPROVED report. Draft/pending/rejected reports cannot be released.
     if (dto.documentId) {
       const doc = await this.prisma.caseDocument.findFirst({
         where: { id: dto.documentId, caseId },
       });
       if (!doc) throw new NotFoundException('Document not found');
+      if (doc.status !== 'APPROVED') {
+        throw new BadRequestException(
+          `Report cannot be shared until it is APPROVED (current status: ${doc.status}).`,
+        );
+      }
     }
 
     // Check for existing active share
@@ -130,6 +147,69 @@ export class CaseDocumentsService {
     });
 
     return share;
+  }
+
+  // ── Phase 3 (UAE): report approval gate ──
+  private async getDoc(caseId: string, docId: string) {
+    const doc = await this.prisma.caseDocument.findFirst({ where: { id: docId, caseId } });
+    if (!doc) throw new NotFoundException('Document not found');
+    return doc;
+  }
+
+  async submitReportForApproval(caseId: string, docId: string, userId: string) {
+    await this.getDoc(caseId, docId);
+    const updated = await this.prisma.caseDocument.update({
+      where: { id: docId },
+      data: { status: 'PENDING_APPROVAL' },
+    });
+    await this.auditLog(caseId, userId, 'REPORT_SUBMITTED', 'CaseDocument', docId);
+    return updated;
+  }
+
+  async approveReport(caseId: string, docId: string, userId: string) {
+    await this.getDoc(caseId, docId);
+    const updated = await this.prisma.caseDocument.update({
+      where: { id: docId },
+      data: { status: 'APPROVED', approvedById: userId, approvedAt: new Date(), rejectionReason: null },
+    });
+    await this.auditLog(caseId, userId, 'REPORT_APPROVED', 'CaseDocument', docId);
+    return updated;
+  }
+
+  async rejectReport(caseId: string, docId: string, userId: string, reason: string) {
+    await this.getDoc(caseId, docId);
+    const updated = await this.prisma.caseDocument.update({
+      where: { id: docId },
+      data: { status: 'REJECTED', rejectionReason: reason },
+    });
+    await this.auditLog(caseId, userId, 'REPORT_REJECTED', 'CaseDocument', docId, { reason });
+    return updated;
+  }
+
+  /** Create a parent-friendly version linked to the professional source report. */
+  async createParentVersion(
+    caseId: string,
+    docId: string,
+    userId: string,
+    dto: { title: string; content?: string; fileUrl?: string },
+  ) {
+    const source = await this.getDoc(caseId, docId);
+    const parent = await this.prisma.caseDocument.create({
+      data: {
+        caseId,
+        type: source.type,
+        title: dto.title,
+        content: dto.content,
+        fileUrl: dto.fileUrl,
+        createdById: userId,
+        audience: 'PARENT',
+      },
+    });
+    await this.prisma.caseDocument.update({
+      where: { id: docId },
+      data: { parentVersionId: parent.id },
+    });
+    return parent;
   }
 
   async revokeShare(caseId: string, shareId: string, userId: string) {
