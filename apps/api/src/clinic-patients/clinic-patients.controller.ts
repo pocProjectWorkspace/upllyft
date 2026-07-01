@@ -28,7 +28,7 @@ export class ClinicPatientsController {
   constructor(private readonly clinicPatientsService: ClinicPatientsService) { }
 
   @Post()
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.THERAPIST)
   async createWalkinPatient(@Body() dto: CreateWalkinPatientDto, @Req() req: any) {
     return this.clinicPatientsService.createWalkinPatient(dto, req.user.id, req.user.clinicId);
   }
@@ -58,7 +58,7 @@ export class ClinicPatientsController {
   }
 
   @Post(':childId/assign')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.THERAPIST)
   async assignTherapist(
     @Param('childId') childId: string,
     @Body() dto: AssignTherapistDto,
