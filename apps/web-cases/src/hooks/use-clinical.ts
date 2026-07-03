@@ -136,6 +136,19 @@ export function useGenerateRecordReport() {
   });
 }
 
+export function useGenerateInsights() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ caseId, recordId }: { caseId: string; recordId: string }) =>
+      clinicalApi.generateRecordInsights(caseId, recordId),
+    onSuccess: (_, { caseId, recordId }) => {
+      qc.invalidateQueries({ queryKey: keys.record(caseId, recordId) });
+      toast({ title: 'Insights generated', description: 'AI insights ready for review.' });
+    },
+    onError: () => toast({ title: 'Failed to generate insights', variant: 'destructive' }),
+  });
+}
+
 export function useDeleteClinicalRecord() {
   const qc = useQueryClient();
   return useMutation({

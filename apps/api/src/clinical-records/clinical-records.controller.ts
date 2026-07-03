@@ -15,6 +15,7 @@ import { CaseAccessGuard, CaseAccess } from '../cases/guards/case-access.guard';
 import { ClinicalWriteGuard } from './guards/clinical-write.guard';
 import { ClinicalRecordsService } from './clinical-records.service';
 import { ClinicalRecordReportService } from './clinical-record-report.service';
+import { ClinicalInsightsService } from './clinical-insights.service';
 import {
   CreateClinicalRecordDto,
   UpdateClinicalRecordDto,
@@ -28,6 +29,7 @@ export class ClinicalRecordsController {
   constructor(
     private recordsService: ClinicalRecordsService,
     private reportService: ClinicalRecordReportService,
+    private insightsService: ClinicalInsightsService,
   ) {}
 
   /** Header values pre-populated from the child profile + intake + author. */
@@ -107,6 +109,17 @@ export class ClinicalRecordsController {
       dto?.audience ?? 'PROFESSIONAL',
       dto?.additionalContext,
     );
+  }
+
+  @Post(':recordId/insights')
+  @CaseAccess('edit')
+  @UseGuards(ClinicalWriteGuard)
+  async generateInsights(
+    @Param('caseId') caseId: string,
+    @Param('recordId') recordId: string,
+    @Req() req: any,
+  ) {
+    return this.insightsService.generate(caseId, recordId, req.user.id);
   }
 
   @Delete(':recordId')

@@ -5,6 +5,7 @@ import type {
   ClinicalTemplateSchema,
   ClinicalAnswers,
   ClinicalPrefill,
+  ClinicalInsights,
 } from '@upllyft/types';
 
 export type {
@@ -13,6 +14,7 @@ export type {
   ClinicalTemplateSchema,
   ClinicalAnswers,
   ClinicalPrefill,
+  ClinicalInsights,
 } from '@upllyft/types';
 
 export type ClinicalRecordStatus = 'DRAFT' | 'SIGNED' | 'AMENDED';
@@ -55,6 +57,9 @@ export interface ClinicalRecord {
   signedAt?: string | null;
   signatureName?: string | null;
   reportDocumentId?: string | null;
+  insights?: ClinicalInsights | null;
+  insightsModel?: string | null;
+  insightsGeneratedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   template?: { id: string; code: string; name: string; schema?: ClinicalTemplateSchema };
@@ -155,5 +160,15 @@ export async function generateRecordReport(
 
 export async function deleteRecord(caseId: string, recordId: string): Promise<{ success: boolean }> {
   const res = await apiClient.delete(`/cases/${caseId}/clinical-records/${recordId}`);
+  return res.data;
+}
+
+export async function generateRecordInsights(
+  caseId: string,
+  recordId: string,
+): Promise<{ insights: ClinicalInsights; insightsModel: string; insightsGeneratedAt: string }> {
+  const res = await apiClient.post(
+    `/cases/${caseId}/clinical-records/${recordId}/insights`,
+  );
   return res.data;
 }

@@ -147,6 +147,24 @@ export interface ClinicalTemplate {
 /** Captured field values, keyed by `ClinicalField.id`. */
 export type ClinicalAnswers = Record<string, unknown>;
 
+/**
+ * AI-generated clinical insights (Anthropic Claude) surfaced to the therapist
+ * from a captured assessment. Stored on the ClinicalRecord.
+ */
+export interface ClinicalInsights {
+  summary: string;
+  keyFindings: string[];
+  strengths: string[];
+  concerns: string[];
+  /** Safeguarding / urgent flags — empty when none. */
+  riskFlags: string[];
+  recommendations: string[];
+  suggestedGoals: { domain: string; goal: string }[];
+  parentGuidance: string[];
+  /** Model disclosure — insights are AI-assisted and need clinician review. */
+  disclaimer?: string;
+}
+
 // ─── Pre-population (profile + intake → header fields) ───────────────────────
 
 /**

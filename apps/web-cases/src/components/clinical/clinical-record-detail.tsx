@@ -10,6 +10,7 @@ import {
 } from '@upllyft/types';
 import type { ClinicalRecord } from '@/lib/api/clinical';
 import { useGenerateRecordReport } from '@/hooks/use-clinical';
+import { InsightsPanel } from './insights-panel';
 import { formatDate } from '@/lib/utils';
 
 interface Props {
@@ -84,6 +85,16 @@ export function ClinicalRecordDetail({ caseId, record, schema }: Props) {
             </Button>
           )}
         </div>
+      </div>
+
+      <div className="mb-5">
+        <InsightsPanel
+          caseId={caseId}
+          recordId={record.id}
+          insights={record.insights}
+          generatedAt={record.insightsGeneratedAt}
+          model={record.insightsModel}
+        />
       </div>
 
       <div className="space-y-4">

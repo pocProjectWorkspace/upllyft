@@ -3577,6 +3577,10 @@ model ClinicalRecord {
   signatureName   String?
   // Link to a generated report document (CaseDocument), when produced.
   reportDocumentId String?
+  // AI-generated clinical insights for the therapist (Anthropic Claude).
+  insights            Json?
+  insightsModel       String?
+  insightsGeneratedAt DateTime?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
