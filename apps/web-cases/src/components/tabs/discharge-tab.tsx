@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCase } from '@/hooks/use-cases';
 import { useDischarge } from '@/hooks/use-clinic-ops';
 import { caseStatusColors, caseStatusLabels, formatDate } from '@/lib/utils';
 import { Button, Card, Badge, Label, Textarea, Input } from '@upllyft/ui';
-import { LogOut, Archive, RotateCcw } from 'lucide-react';
+import { LogOut, Archive, RotateCcw, FileText } from 'lucide-react';
 
 export function DischargeTab({ caseId }: { caseId: string }) {
+  const router = useRouter();
   const { data: caseData } = useCase(caseId);
   const status = (caseData as any)?.status as string | undefined;
   const { discharge, archive, reactivate } = useDischarge(caseId);
@@ -23,7 +25,19 @@ export function DischargeTab({ caseId }: { caseId: string }) {
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Discharge &amp; Retention</h2>
-        {status && <Badge color={(caseStatusColors[status] || 'gray') as any}>{caseStatusLabels[status] || status}</Badge>}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() =>
+              router.push(
+                `/${caseId}/assessments/new?discipline=UNIVERSAL&activity=DISCHARGE`,
+              )
+            }
+          >
+            <FileText className="h-4 w-4 mr-1" /> Structured discharge summary
+          </Button>
+          {status && <Badge color={(caseStatusColors[status] || 'gray') as any}>{caseStatusLabels[status] || status}</Badge>}
+        </div>
       </div>
 
       {!isDischarged ? (

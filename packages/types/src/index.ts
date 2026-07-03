@@ -7,3 +7,4 @@ export * from './community';
 export * from './organization';
 export * from './api';
 export * from './region';
+export * from './clinical-template';

@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   NotFoundException,
+  SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -15,9 +16,15 @@ export type CaseAccessLevel = 'view' | 'edit' | 'manage';
 /**
  * Decorator to set required access level on route handlers.
  * Usage: @CaseAccess('edit')
+ *
+ * NOTE: uses Nest's SetMetadata (stores on the handler function) so
+ * `reflector.get(CASE_ACCESS_KEY, context.getHandler())` can read it. The
+ * previous `Reflect.metadata` form stored metadata at (prototype, propertyKey)
+ * where the Nest Reflector never looked, so the level silently defaulted to
+ * 'view' on every case endpoint.
  */
 export const CaseAccess = (level: CaseAccessLevel) =>
-  Reflect.metadata(CASE_ACCESS_KEY, level);
+  SetMetadata(CASE_ACCESS_KEY, level);
 
 /**
  * Guard that checks if the current user has access to the case

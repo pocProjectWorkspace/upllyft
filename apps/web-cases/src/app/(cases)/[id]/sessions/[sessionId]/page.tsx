@@ -3,6 +3,7 @@
 import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/hooks/use-cases';
+import { TemplatedNoteView } from '@/components/clinical/templated-note-view';
 import {
   Card,
   Badge,
@@ -54,7 +55,8 @@ export default function SessionDetailPage({
     );
   }
 
-  const sn = (session.structuredNotes ?? {}) as Record<string, string>;
+  const sn = (session.structuredNotes ?? {}) as Record<string, any>;
+  const isTemplated = !!sn.templateCode;
   const noteStatus = session.noteStatus ?? 'DRAFT';
   const isSigned = noteStatus === 'SIGNED';
   const goalProgress = session.goalProgress ?? [];
@@ -137,7 +139,13 @@ export default function SessionDetailPage({
         </div>
       </Card>
 
+      {/* Template-driven note */}
+      {isTemplated && (
+        <TemplatedNoteView templateId={sn.templateId} answers={sn.answers} />
+      )}
+
       {/* SOAP Sections */}
+      {!isTemplated && (
       <div className="space-y-4">
         {sn.subjective && (
           <SoapReadSection letter="S" title="Subjective" content={sn.subjective} />
@@ -215,6 +223,7 @@ export default function SessionDetailPage({
           <SoapReadSection letter="A" title="Assessment" content={sn.response} />
         )}
       </div>
+      )}
 
       {/* Raw Notes */}
       {session.rawNotes && (

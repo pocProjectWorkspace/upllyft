@@ -4,6 +4,7 @@ import { use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/hooks/use-cases';
 import { SessionNoteForm } from '@/components/create-session-form';
+import { TemplatedSessionForm } from '@/components/clinical/templated-session-form';
 import { Skeleton } from '@upllyft/ui';
 
 export default function EditSessionPage({
@@ -42,6 +43,13 @@ export default function EditSessionPage({
 
   if (session.noteStatus === 'SIGNED') {
     return null; // Will redirect via useEffect
+  }
+
+  // Template-driven notes (structuredNotes carries a templateCode) render via the
+  // dynamic template form; everything else uses the classic SOAP form.
+  const isTemplated = !!(session.structuredNotes as any)?.templateCode;
+  if (isTemplated) {
+    return <TemplatedSessionForm caseId={caseId} sessionId={sessionId} initialData={session} />;
   }
 
   return (

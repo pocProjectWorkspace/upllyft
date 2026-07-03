@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useReviews, useCreateReview, useCompleteReview } from '@/hooks/use-clinic-ops';
 import type { ReviewTriggerType } from '@/lib/api/clinic-ops';
 import { formatDate } from '@/lib/utils';
@@ -9,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@upllyft/ui';
-import { Plus, ClipboardCheck } from 'lucide-react';
+import { Plus, ClipboardCheck, FileText } from 'lucide-react';
 
 const STATUS_COLOR: Record<string, string> = { DUE: 'yellow', IN_PROGRESS: 'blue', COMPLETED: 'green' };
 const TRIGGERS: Record<ReviewTriggerType, string> = {
@@ -19,6 +20,7 @@ const TRIGGERS: Record<ReviewTriggerType, string> = {
 
 export function ReviewsTab({ caseId }: { caseId: string }) {
   const { data: reviews, isLoading } = useReviews(caseId);
+  const router = useRouter();
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -26,7 +28,19 @@ export function ReviewsTab({ caseId }: { caseId: string }) {
           <h2 className="text-xl font-semibold text-gray-900">Reviews</h2>
           <p className="text-sm text-gray-500">Care reviews due from plan dates, authorisation expiry, goals and clinical flags.</p>
         </div>
-        <NewReviewDialog caseId={caseId} />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() =>
+              router.push(
+                `/${caseId}/assessments/new?discipline=UNIVERSAL&activity=PROGRESS_REVIEW`,
+              )
+            }
+          >
+            <FileText className="h-4 w-4 mr-1" /> Structured progress review
+          </Button>
+          <NewReviewDialog caseId={caseId} />
+        </div>
       </div>
 
       {isLoading ? (

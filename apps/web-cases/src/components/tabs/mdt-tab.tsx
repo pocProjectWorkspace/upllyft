@@ -1,18 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useMdt, useCreateMdt, useCompleteMdt } from '@/hooks/use-clinic-ops';
 import { formatDate } from '@/lib/utils';
 import {
   Button, Card, Badge, Input, Label, Textarea, Skeleton,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
 } from '@upllyft/ui';
-import { Plus, Users2, CheckCircle2 } from 'lucide-react';
+import { Plus, Users2, CheckCircle2, FileText } from 'lucide-react';
 
 const MDT_COLOR: Record<string, string> = { SCHEDULED: 'yellow', COMPLETED: 'green', CANCELLED: 'gray' };
 
 export function MdtTab({ caseId }: { caseId: string }) {
   const { data: reviews, isLoading } = useMdt(caseId);
+  const router = useRouter();
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -20,7 +22,19 @@ export function MdtTab({ caseId }: { caseId: string }) {
           <h2 className="text-xl font-semibold text-gray-900">MDT Reviews</h2>
           <p className="text-sm text-gray-500">Multidisciplinary team reviews with attendance &amp; approval logs.</p>
         </div>
-        <ScheduleMdtDialog caseId={caseId} />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() =>
+              router.push(
+                `/${caseId}/assessments/new?discipline=MULTIDISCIPLINARY&activity=MDT_REVIEW`,
+              )
+            }
+          >
+            <FileText className="h-4 w-4 mr-1" /> Structured MDT report
+          </Button>
+          <ScheduleMdtDialog caseId={caseId} />
+        </div>
       </div>
 
       {isLoading ? (

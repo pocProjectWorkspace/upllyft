@@ -118,6 +118,7 @@ model User {
 
   // Case management relations
   caseInternalNotes     CaseInternalNote[] @relation("CaseInternalNotes")
+  clinicalRecords       ClinicalRecord[]   @relation("ClinicalRecordAuthor")
   createdIEPs           IEP[]              @relation("CreatedIEPs")
   createdIEPTemplates   IEPTemplate[]      @relation("CreatedIEPTemplates")
   caseDocuments         CaseDocument[]     @relation("CaseDocuments")
@@ -1452,9 +1453,10 @@ model Organization {
   therapistLinks       TherapistOrganizationLink[]
 
   // Case management relations
-  cases        Case[]
-  iepTemplates IEPTemplate[]
-  clinics      Clinic[]      @relation("OrganizationClinics")
+  cases             Case[]
+  iepTemplates      IEPTemplate[]
+  clinicalTemplates ClinicalTemplate[] @relation("OrgClinicalTemplates")
+  clinics           Clinic[]           @relation("OrganizationClinics")
 
   @@index([slug])
 }
@@ -2749,6 +2751,7 @@ model Case {
   worksheets           Worksheet[]           @relation("CaseWorksheets")
   worksheetAssignments WorksheetAssignment[] @relation("CaseWorksheetAssignments")
   conversations        Conversation[]
+  clinicalRecords      ClinicalRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3522,6 +3525,95 @@ model ExternalShare {
   @@index([caseId])
   @@index([token])
   @@map("external_shares")
+}
+
+// ─── CLINICAL TEMPLATE ENGINE ────────────────────────────
+// Digital equivalents of the clinic paper forms (session notes, assessment
+// reports, MDT reviews, discharge summaries, …). A ClinicalTemplate holds a
+// versioned JSON `schema` (sections → fields); a ClinicalRecord is a filled
+// instance on a case, storing captured `answers` as JSON.
+
+model ClinicalTemplate {
+  id             String                @id @default(cuid())
+  code           String // stable code, e.g. "SLP_ASSESSMENT"
+  name           String
+  description    String?
+  discipline     TherapyDiscipline
+  activityType   ClinicalActivityType
+  version        Int                   @default(1)
+  schema         Json // ClinicalTemplateSchema (sections + fields)
+  isGlobal       Boolean               @default(true)
+  organizationId String?
+  organization   Organization?         @relation("OrgClinicalTemplates", fields: [organizationId], references: [id])
+  isActive       Boolean               @default(true)
+  records        ClinicalRecord[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@unique([code, version, organizationId])
+  @@index([discipline, activityType])
+  @@index([organizationId])
+  @@index([isActive])
+  @@map("clinical_templates")
+}
+
+model ClinicalRecord {
+  id              String               @id @default(cuid())
+  caseId          String
+  case            Case                 @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  templateId      String
+  template        ClinicalTemplate     @relation(fields: [templateId], references: [id])
+  // Snapshot of the template identity at capture time (templates may version).
+  templateCode    String
+  templateVersion Int                  @default(1)
+  discipline      TherapyDiscipline
+  activityType    ClinicalActivityType
+  therapistId     String
+  therapist       User                 @relation("ClinicalRecordAuthor", fields: [therapistId], references: [id])
+  title           String
+  answers         Json // ClinicalAnswers — captured field values keyed by field id
+  status          ClinicalRecordStatus @default(DRAFT)
+  signedAt        DateTime?
+  signatureName   String?
+  // Link to a generated report document (CaseDocument), when produced.
+  reportDocumentId String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([caseId])
+  @@index([caseId, activityType])
+  @@index([templateId])
+  @@index([status])
+  @@map("clinical_records")
+}
+
+enum TherapyDiscipline {
+  SPEECH
+  OCCUPATIONAL
+  BEHAVIOUR_ABA
+  PSYCHOLOGY
+  SPECIAL_EDUCATION
+  PHYSIOTHERAPY
+  MEDICAL
+  MULTIDISCIPLINARY
+  UNIVERSAL
+}
+
+enum ClinicalActivityType {
+  INTAKE
+  SESSION_NOTE
+  ASSESSMENT
+  CONSULTATION
+  MDT_REVIEW
+  GOAL_PLAN
+  PROGRESS_REVIEW
+  DISCHARGE
+}
+
+enum ClinicalRecordStatus {
+  DRAFT
+  SIGNED
+  AMENDED
 }
 
 // ─── UAE CLINIC PHASE 0 ENUMS ────────────────────────────

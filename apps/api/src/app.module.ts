@@ -74,6 +74,8 @@ import { CaseSessionsModule } from './case-sessions/case-sessions.module';
 import { IEPsModule } from './ieps/ieps.module';
 import { MilestonePlansModule } from './milestone-plans/milestone-plans.module';
 import { CaseDocumentsModule } from './case-documents/case-documents.module';
+import { ClinicalTemplatesModule } from './clinical-templates/clinical-templates.module';
+import { ClinicalRecordsModule } from './clinical-records/clinical-records.module';
 import { CaseBillingModule } from './case-billing/case-billing.module';
 import { CaseAuditModule } from './case-audit/case-audit.module';
 import { CaseConsentsModule } from './case-consents/case-consents.module';
@@ -168,6 +170,8 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     IEPsModule,
     MilestonePlansModule,
     CaseDocumentsModule,
+    ClinicalTemplatesModule,
+    ClinicalRecordsModule,
     CaseBillingModule,
     CaseAuditModule,
     CaseConsentsModule,
