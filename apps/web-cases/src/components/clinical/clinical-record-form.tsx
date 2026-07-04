@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Card, Badge } from '@upllyft/ui';
+import { Button, Badge } from '@upllyft/ui';
 import {
   ArrowLeft,
   Save,
@@ -13,7 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { ClinicalTemplateSchema } from '@upllyft/types';
-import { DynamicField } from './dynamic-field';
+import { DynamicForm } from './dynamic-form';
 import type { ClinicalRecord } from '@/lib/api/clinical';
 import {
   useUpdateClinicalRecord,
@@ -122,27 +122,12 @@ export function ClinicalRecordForm({ caseId, record, schema }: ClinicalRecordFor
       </div>
 
       {/* Sections */}
-      <div className="space-y-5">
-        {schema.sections?.map((section) => (
-          <Card key={section.id} className="p-5">
-            <h2 className="text-base font-semibold text-gray-900 mb-1">{section.title}</h2>
-            {section.description && (
-              <p className="text-sm text-gray-500 mb-3">{section.description}</p>
-            )}
-            <div className="space-y-4 mt-3">
-              {section.fields.map((field) => (
-                <DynamicField
-                  key={field.id}
-                  field={field}
-                  value={answers[field.id]}
-                  onChange={(v) => setField(field.id, v)}
-                  readOnly={isSigned}
-                />
-              ))}
-            </div>
-          </Card>
-        ))}
-      </div>
+      <DynamicForm
+        sections={schema.sections ?? []}
+        answers={answers}
+        onChange={setField}
+        readOnly={isSigned}
+      />
 
       {/* Sticky action bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-end gap-2 z-10">

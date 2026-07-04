@@ -98,17 +98,23 @@ export function ClinicalRecordDetail({ caseId, record, schema }: Props) {
       </div>
 
       <div className="space-y-4">
-        {schema.sections?.map((section) => {
+        {schema.sections?.map((section, i) => {
           const visible = section.fields.filter((f) => hasValue(answers[f.id]));
           if (!visible.length) return null;
+          const { badge, title } = parseTitle(section.title, i);
           return (
-            <Card key={section.id} className="p-5">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">{section.title}</h2>
-              <dl className="space-y-3">
+            <Card key={section.id} className="p-6 border-gray-100">
+              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">
+                <span className="h-8 w-8 shrink-0 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 text-white flex items-center justify-center text-sm font-bold shadow-sm">
+                  {badge}
+                </span>
+                <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+              </div>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 {visible.map((field) => (
-                  <div key={field.id}>
-                    <dt className="text-xs font-medium text-gray-500">{field.label}</dt>
-                    <dd className="text-sm text-gray-800 mt-0.5 whitespace-pre-wrap">
+                  <div key={field.id} className={FULL_WIDTH_READ.has(field.type) ? 'md:col-span-2' : ''}>
+                    <dt className="text-xs font-medium text-gray-400 uppercase tracking-wide">{field.label}</dt>
+                    <dd className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">
                       {renderValue(field, answers[field.id])}
                     </dd>
                   </div>
@@ -120,6 +126,14 @@ export function ClinicalRecordDetail({ caseId, record, schema }: Props) {
       </div>
     </div>
   );
+}
+
+const FULL_WIDTH_READ = new Set(['longtext', 'table', 'smartgoal', 'checklist', 'consent', 'multiselect']);
+
+function parseTitle(title: string, index: number) {
+  const m = title.match(/^([A-Za-z0-9]+)\.\s*(.*)$/);
+  if (m) return { badge: m[1].toUpperCase(), title: m[2] };
+  return { badge: String.fromCharCode(65 + index), title };
 }
 
 function hasValue(v: unknown): boolean {

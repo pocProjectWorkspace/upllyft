@@ -13,7 +13,7 @@ import {
   THERAPY_DISCIPLINE_LABELS,
   type TherapyDiscipline,
 } from '@upllyft/types';
-import { DynamicField } from './dynamic-field';
+import { DynamicForm } from './dynamic-form';
 import { buildInitialAnswers } from './prefill';
 import {
   useTemplateCatalog,
@@ -256,19 +256,12 @@ export function TemplatedSessionForm({ caseId, sessionId, initialData }: Props) 
       </Card>
 
       {/* Template sections */}
-      <div className="space-y-5">
-        {template?.schema.sections?.map((section) => (
-          <Card key={section.id} className="p-5">
-            <h2 className="text-base font-semibold text-gray-900 mb-3">{section.title}</h2>
-            <div className="space-y-4">
-              {section.fields.map((field) => (
-                <DynamicField key={field.id} field={field} value={answers[field.id]}
-                  onChange={(v) => setField(field.id, v)} readOnly={isSigned} />
-              ))}
-            </div>
-          </Card>
-        ))}
-      </div>
+      <DynamicForm
+        sections={template?.schema.sections ?? []}
+        answers={answers}
+        onChange={setField}
+        readOnly={isSigned}
+      />
 
       {/* Action bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-end gap-2 z-10">
