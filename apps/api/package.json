@@ -26,6 +26,8 @@
     "prisma:studio": "prisma studio --schema=../../packages/database/prisma/schema.prisma",
     "db:seed:cases": "tsx prisma/seeds/seed-dr-meena-cases.ts",
     "db:seed:clinical": "tsx prisma/seeds/seed-clinical-templates.ts",
+    "db:seed:demo": "tsx prisma/seeds/seed-demo.ts",
+    "db:seed:org": "tsx prisma/seeds/seed-org.ts",
     "db:seed:all": "pnpm db:seed && pnpm db:seed:events && pnpm db:seed:qa && pnpm db:seed:crisis"
   },
   "dependencies": {
