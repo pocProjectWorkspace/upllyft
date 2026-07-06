@@ -20,7 +20,7 @@ export class BillingService {
             this.logger.warn('STRIPE_SECRET_KEY is not defined. using placeholder to prevent startup crash.');
         }
         this.stripe = new Stripe(stripeSecret || 'sk_test_placeholder', {
-            apiVersion: '2026-01-28.clover',
+            apiVersion: '2026-01-28.clover' as any,
         });
     }
 

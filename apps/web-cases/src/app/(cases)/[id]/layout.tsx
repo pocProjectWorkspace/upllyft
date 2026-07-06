@@ -4,6 +4,7 @@ import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCase, useUpdateCaseStatus } from '@/hooks/use-cases';
 import { CaseDetailSidebar } from '@/components/case-detail-sidebar';
+import { JourneyStepper } from '@/components/journey-stepper';
 import { caseStatusColors, caseStatusLabels } from '@/lib/utils';
 import {
   Button,
@@ -94,6 +95,9 @@ export default function CaseDetailLayout({
               </div>
               <p className="text-xs text-gray-400 font-mono">{caseNumber}</p>
             </div>
+          </div>
+          <div className="hidden md:block flex-1 px-6 min-w-0">
+            <JourneyStepper caseId={id} journeyStage={(caseData as any)?.journeyStage} />
           </div>
           <div className="flex items-center gap-3">
             <Select value={status} onValueChange={handleStatusChange}>

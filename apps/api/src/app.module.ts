@@ -71,6 +71,10 @@ import { TherapistModule } from './marketplace/therapist/therapist.module';
 import { BannerAdsModule } from './banner-ads/banner-ads.module';
 import { CasesModule } from './cases/cases.module';
 import { CaseSessionsModule } from './case-sessions/case-sessions.module';
+import { CarePlansModule } from './care-plans/care-plans.module';
+import { CaseTriageModule } from './case-triage/case-triage.module';
+import { AssessmentReviewsModule } from './assessment-reviews/assessment-reviews.module';
+import { CaseEscalationModule } from './case-escalation/case-escalation.module';
 import { IEPsModule } from './ieps/ieps.module';
 import { MilestonePlansModule } from './milestone-plans/milestone-plans.module';
 import { CaseDocumentsModule } from './case-documents/case-documents.module';
@@ -167,6 +171,10 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     // Case management
     CasesModule,
     CaseSessionsModule,
+    CarePlansModule,
+    CaseTriageModule,
+    AssessmentReviewsModule,
+    CaseEscalationModule,
     IEPsModule,
     MilestonePlansModule,
     CaseDocumentsModule,

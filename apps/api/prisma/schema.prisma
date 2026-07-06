@@ -2711,6 +2711,7 @@ model Case {
   primaryTherapistId String
   primaryTherapist   TherapistProfile @relation("PrimaryTherapistCases", fields: [primaryTherapistId], references: [id])
   status             CaseStatus       @default(ACTIVE)
+  journeyStage       JourneyStage     @default(INTAKE)
   diagnosis          String?
   referralSource     String?
   notes              String?
@@ -2746,6 +2747,9 @@ model Case {
   incidents            CaseIncident[]
   externalShares       ExternalShare[]
   treatmentPlans       TreatmentPlan[]
+  carePlans            CarePlan[]
+  intake               CaseIntake?
+  assessmentReviews    AssessmentReview[]
   sharedItems          CaseShare[]
   internalNotes        CaseInternalNote[]
   worksheets           Worksheet[]           @relation("CaseWorksheets")
@@ -2949,6 +2953,9 @@ model CaseSession {
   attendanceStatus AttendanceStatus @default(PRESENT)
   sessionType      String?
   location         String?
+  discipline       TherapyDiscipline?
+  carePlanId       String?
+  carePlan         CarePlan?          @relation(fields: [carePlanId], references: [id])
 
   rawNotes        String?
   aiSummary       String?
@@ -2977,6 +2984,7 @@ model CaseSession {
   @@index([caseId])
   @@index([therapistId])
   @@index([scheduledAt])
+  @@index([carePlanId])
   @@map("case_sessions")
 }
 
@@ -3081,6 +3089,156 @@ model TreatmentPlan {
   @@index([caseId])
   @@index([status])
   @@map("treatment_plans")
+}
+
+// ─── CARE PLAN (Consultation → recurring session series) ─────────────────
+// The keystone the source template lacked: a clinician-authored plan that
+// auto-generates a dated recurring CaseSession series. Distinct from the thin
+// TreatmentPlan (review-cadence only). See "Care Journey" handoff, Stage 3.
+
+model CarePlan {
+  id                   String                @id @default(cuid())
+  caseId               String
+  case                 Case                  @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  // Origin: the ClinicalRecord(CONSULTATION) that produced this plan (scalar, like other links in this schema)
+  consultationRecordId String?
+  recommendation       CarePlanRecommendation @default(THERAPY)
+  disciplines          TherapyDiscipline[]
+  // Assigned lead therapist (User id, matching CaseSession.therapist) — scalar to avoid a User back-relation
+  primaryTherapistId   String?
+  // Recurring schedule inputs
+  startDate            DateTime
+  timeOfDay            String                // "16:00"
+  daysOfWeek           Int[]                 // 0=Sun … 6=Sat
+  sessionCount         Int
+  // Commercials
+  packageName          String?
+  unitPrice            Int                   @default(0) // whole currency units (₹)
+  currency             String                @default("INR")
+  totalAmount          Int                   @default(0)
+  paymentStatus        CarePlanPaymentStatus @default(PENDING)
+  // Branch data for non-booking recommendations
+  reviewInWeeks        Int?                  // recommendation = NONE (monitor)
+  externalReferralTarget String?             // recommendation = REFERRAL
+  // Lifecycle
+  status               CarePlanStatus        @default(DRAFT)
+  parentAcceptedAt     DateTime?
+  lockedAt             DateTime?
+  createdById          String
+  sessions             CaseSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId])
+  @@index([status])
+  @@map("care_plans")
+}
+
+// Configurable defaults per recommendation type (pricing + day/count pattern).
+// Seeded from handoff defaults; editable so clinics can tune without code changes.
+model CarePlanPricingDefault {
+  id                 String                 @id @default(cuid())
+  recommendation     CarePlanRecommendation @unique
+  label              String
+  unitPrice          Int                    @default(0)
+  currency           String                 @default("INR")
+  defaultCount       Int                    @default(1)
+  defaultDaysPerWeek Int                    @default(1)
+  defaultDays        Int[]                  // suggested weekday numbers
+  packageType        String?
+  active             Boolean                @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("care_plan_pricing_defaults")
+}
+
+// ─── ASSESSMENT REVIEWS (Care Journey Stage 5) ───────────────────────────
+// Formal single/MDT assessment run through 3 phases: Plan → Execution → MDT
+// report. Ties per-discipline execution (each an AssessmentDiscipline linking
+// to a ClinicalRecord) to a consolidated, consent-gated report. Replaces the
+// prototype's localStorage. See handoff Stage 5.
+model AssessmentReview {
+  id                   String                @id @default(cuid())
+  caseId               String
+  case                 Case                  @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type                 AssessmentReviewType  @default(SINGLE)
+  phase                AssessmentPhase       @default(PLAN)
+  title                String?
+  // Plan phase
+  scopeApproved        Boolean               @default(false)
+  dayMode              String?               // single | multi
+  questionnaireSent    Boolean               @default(false)
+  schoolInputRequested Boolean               @default(false)
+  paymentStatus        CarePlanPaymentStatus @default(PENDING)
+  // Report phase
+  meetingAt            DateTime?
+  syncMode             String?               // sync | async
+  reportText           String?
+  approval             String?               // approved | changes | rejected
+  reportDocumentId     String?
+  recipients           Json?                 // { parent, school, doctor }
+  sharedAt             DateTime?
+  createdById          String
+  disciplines          AssessmentDiscipline[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId])
+  @@index([phase])
+  @@map("assessment_reviews")
+}
+
+model AssessmentDiscipline {
+  id                 String                @id @default(cuid())
+  assessmentReviewId String
+  assessmentReview   AssessmentReview      @relation(fields: [assessmentReviewId], references: [id], onDelete: Cascade)
+  discipline         TherapyDiscipline
+  status             AssessmentExecStatus  @default(NOT_STARTED)
+  assignee           String?
+  clinicalRecordId   String?
+  reportTitle        String?
+  flagged            Boolean               @default(false) // added mid-scope via "flag a concern"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assessmentReviewId, discipline])
+  @@index([assessmentReviewId])
+  @@map("assessment_disciplines")
+}
+
+// ─── CLIENT INTAKE (Care Journey Stage 1) ────────────────────────────────
+// One stateful intake record per case (DRAFT → SUMMARISED). Captures Sections
+// A–F once; consent toggles here are written through to CaseConsent so no
+// downstream stage re-captures consent. See handoff Stage 1.
+model CaseIntake {
+  id                String      @id @default(cuid())
+  caseId            String      @unique
+  case              Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  state             IntakeState @default(DRAFT)
+  data              Json        @default("{}") // Sections A–F payload
+  // Extracted highlights for downstream context (Triage left-rail etc.)
+  presentingConcern String?
+  referralQuestions String[]
+  parentGoals       String[]
+  urgencyFlag       String?
+  aiSummary         String?
+  // Section E consent toggles (source of truth mirrored into CaseConsent)
+  consentAssessment Boolean     @default(false)
+  consentTherapy    Boolean     @default(false)
+  consentSharing    Boolean     @default(false)
+  consentAi         Boolean     @default(false)
+  recordedBy        String?
+  summarisedAt      DateTime?
+  createdById       String
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("case_intakes")
 }
 
 // ─── CASE BILLING ────────────────────────────────────────
@@ -3363,6 +3521,10 @@ model TriageReview {
   notes                    String?
   pathwayTemplateId        String?
   pathwayTemplate          PathwayTemplate? @relation(fields: [pathwayTemplateId], references: [id])
+  // --- Care Journey Stage 5: structured decision spine ---
+  pathway                  TriagePathway?
+  decisionData             Json?            // care team, first-appointment, notify payload
+  confirmedAt              DateTime?
   acknowledgedByGuardianAt DateTime?
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
@@ -3495,6 +3657,15 @@ model CaseIncident {
   description      String
   clinicalDecision String?
   actionPlan       String?
+  // --- Care Journey Stage 6: referral / escalation flow ---
+  riskLabel        String?  // free-text concern label (e.g. from Triage handoff)
+  referralTarget   String?  // external recipient (doctor, hospital, school…)
+  reviewerNote     String?
+  reviewerApproved Boolean  @default(false)
+  consentObtained  Boolean  @default(false)
+  shareScope       Json?    // minimum-necessary sharing checklist
+  followUpOutcome  String?  // yes | no | pending
+  sentAt           DateTime?
   closedAt         DateTime?
   closedById       String?
   createdAt        DateTime         @default(now())
@@ -3766,6 +3937,15 @@ enum TriageDecision {
   OUT_OF_SCOPE
 }
 
+enum TriagePathway {
+  CONSULTATION_ONLY
+  SINGLE_ASSESSMENT
+  MDT_ASSESSMENT
+  THERAPY_TRIAL
+  PARENT_COUNSELLING
+  EXTERNAL_REFERRAL
+}
+
 enum RiskLevel {
   NONE
   LOW
@@ -3856,6 +4036,8 @@ enum IncidentStatus {
   OPEN
   IN_REVIEW
   ACTION_TAKEN
+  REFERRAL_SENT
+  CONTINUED
   CLOSED
 }
 
@@ -3884,6 +4066,63 @@ enum CaseStatus {
   DISCHARGED
   TRANSFERRED
   ARCHIVED
+}
+
+// Linear progress through the Care Journey spine (drives the journey stepper).
+// Escalation is an orthogonal branch tracked on CaseIncident, not a stage here.
+enum JourneyStage {
+  INTAKE
+  TRIAGE
+  CONSULTATION
+  IN_THERAPY
+  IN_ASSESSMENT
+  DISCHARGED
+}
+
+enum CarePlanRecommendation {
+  NONE // monitor only
+  SINGLE_ASSESSMENT
+  MDT_ASSESSMENT
+  THERAPY
+  COACHING
+  REFERRAL
+}
+
+enum CarePlanPaymentStatus {
+  PAID
+  PENDING
+  PREAUTH
+}
+
+enum CarePlanStatus {
+  DRAFT
+  LOCKED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum IntakeState {
+  DRAFT
+  SUMMARISED
+}
+
+enum AssessmentReviewType {
+  SINGLE
+  MDT
+}
+
+enum AssessmentPhase {
+  PLAN
+  EXEC
+  REPORT
+  SHARED
+}
+
+enum AssessmentExecStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
 }
 
 enum CaseTherapistRole {

@@ -20,18 +20,23 @@ import {
   Users2,
   ShieldAlert,
   LogOut,
+  Route,
 } from 'lucide-react';
 import { caseStatusColors, caseStatusLabels } from '@/lib/utils';
 
+// Journey order: Intake → Triage → Consultation → Sessions → Assessment Reviews → Escalation
 const clinicalItems = [
   { segment: '', label: 'Overview', icon: LayoutDashboard },
+  { segment: 'intake', label: 'Client Intake', icon: ClipboardList },
   { segment: 'triage', label: 'Triage', icon: Stethoscope },
+  { segment: 'consultation', label: 'Consultation', icon: Route },
   { segment: 'sessions', label: 'Sessions', icon: CalendarDays },
   { segment: 'assessments', label: 'Assessments', icon: ClipboardList },
+  { segment: 'reviews', label: 'Assessment Reviews', icon: ClipboardCheck },
+  { segment: 'escalation', label: 'Referral / Escalation', icon: ShieldAlert },
+  { segment: 'mdt', label: 'MDT Reviews', icon: Users2 },
   { segment: 'goals', label: 'Goals & IEPs', icon: Target },
   { segment: 'milestones', label: 'Milestones', icon: TrendingUp },
-  { segment: 'mdt', label: 'MDT Reviews', icon: Users2 },
-  { segment: 'reviews', label: 'Reviews', icon: ClipboardCheck },
   { segment: 'worksheets', label: 'Worksheets', icon: BookOpen },
 ];
 
