@@ -2,7 +2,21 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Sparkles, Minus, Plus, CalendarDays, Lock } from 'lucide-react';
+import {
+  Check,
+  Sparkles,
+  Minus,
+  Plus,
+  CalendarDays,
+  Lock,
+  Eye,
+  ClipboardList,
+  Users,
+  Target,
+  Handshake,
+  ArrowUpRight,
+  type LucideIcon,
+} from 'lucide-react';
 import { useCase } from '@/hooks/use-cases';
 import {
   usePricingDefaults,
@@ -31,13 +45,13 @@ const RATINGS: { key: string; label: string; color: string }[] = [
   { key: 'emerging', label: 'Emerging', color: '#E0912E' },
   { key: 'concern', label: 'Concern', color: '#E1483C' },
 ];
-const RECS: { key: CarePlanRecommendation; emoji: string; label: string }[] = [
-  { key: 'NONE', emoji: '👁', label: 'No action — monitor' },
-  { key: 'SINGLE_ASSESSMENT', emoji: '📋', label: 'Single-discipline assessment' },
-  { key: 'MDT_ASSESSMENT', emoji: '👥', label: 'MDT assessment' },
-  { key: 'THERAPY', emoji: '🎯', label: 'Therapy block' },
-  { key: 'COACHING', emoji: '🤝', label: 'Parent coaching' },
-  { key: 'REFERRAL', emoji: '↗', label: 'Medical / school referral' },
+const RECS: { key: CarePlanRecommendation; icon: LucideIcon; label: string }[] = [
+  { key: 'NONE', icon: Eye, label: 'No action — monitor' },
+  { key: 'SINGLE_ASSESSMENT', icon: ClipboardList, label: 'Single-discipline assessment' },
+  { key: 'MDT_ASSESSMENT', icon: Users, label: 'MDT assessment' },
+  { key: 'THERAPY', icon: Target, label: 'Therapy block' },
+  { key: 'COACHING', icon: Handshake, label: 'Parent coaching' },
+  { key: 'REFERRAL', icon: ArrowUpRight, label: 'Medical / school referral' },
 ];
 const BOOKABLE: CarePlanRecommendation[] = ['THERAPY', 'SINGLE_ASSESSMENT', 'MDT_ASSESSMENT', 'COACHING'];
 const PLAN_DISCIPLINES: TherapyDiscipline[] = ['SPEECH', 'OCCUPATIONAL', 'BEHAVIOUR_ABA', 'PSYCHOLOGY'];
@@ -250,7 +264,7 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <span className="text-lg">{r.emoji}</span>
+                  <r.icon className={`h-5 w-5 ${active ? 'text-teal-600' : 'text-gray-400'}`} />
                   <p className="text-sm font-medium text-gray-900 mt-1">{r.label}</p>
                 </button>
               );

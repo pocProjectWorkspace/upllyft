@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Sparkles, Check, ArrowRight } from 'lucide-react';
+import { FileText, Sparkles, Check, ArrowRight, AlertCircle } from 'lucide-react';
 import { useCase } from '@/hooks/use-cases';
 import { useIntake, useSaveIntakeDraft, useSummariseIntake } from '@/hooks/use-case-intake';
 import type { SaveCaseIntakeInput } from '@/lib/api/case-intake';
@@ -26,19 +26,29 @@ const CONSENTS: { key: keyof SaveCaseIntakeInput; label: string }[] = [
   { key: 'consentAi', label: 'Consent for AI-assisted drafting' },
 ];
 
-// Free-text fields captured into `data` (Sections A/C/D/F)
-const FIELDS: { section: string; id: string; label: string; area?: boolean }[] = [
-  { section: 'A · Client & family', id: 'clientName', label: 'Client full name' },
-  { section: 'A · Client & family', id: 'dobAge', label: 'Date of birth / age' },
-  { section: 'A · Client & family', id: 'gender', label: 'Gender' },
-  { section: 'A · Client & family', id: 'languages', label: 'Primary language(s)' },
-  { section: 'A · Client & family', id: 'parent', label: 'Parent / caregiver' },
-  { section: 'A · Client & family', id: 'school', label: 'School / organisation' },
-  { section: 'C · Developmental & medical', id: 'pregnancyBirth', label: 'Pregnancy / birth history', area: true },
-  { section: 'C · Developmental & medical', id: 'medicalDiagnoses', label: 'Medical diagnoses / conditions' },
-  { section: 'C · Developmental & medical', id: 'hearingVision', label: 'Hearing / vision status' },
-  { section: 'D · Family, education & routine', id: 'familyComposition', label: 'Family composition' },
-  { section: 'D · Family, education & routine', id: 'schoolHistory', label: 'School / nursery history' },
+// Ordered sections A–F (matches Intake.dc.html scroll-spy order).
+const SECTIONS = [
+  { id: 'A', label: 'Client & family', title: 'A · Client & family details' },
+  { id: 'B', label: 'Referral', title: 'B · Referral & presenting concerns' },
+  { id: 'C', label: 'Developmental', title: 'C · Developmental & medical history' },
+  { id: 'D', label: 'Family & routine', title: 'D · Family, education & routine' },
+  { id: 'E', label: 'Consent', title: 'E · Consent & data-sharing controls' },
+  { id: 'F', label: 'Sign-off', title: 'F · Sign-off' },
+] as const;
+
+// Free-text fields captured into `data`, grouped by section (A / C / D).
+const FIELDS: { section: 'A' | 'C' | 'D'; id: string; label: string; area?: boolean }[] = [
+  { section: 'A', id: 'clientName', label: 'Client full name' },
+  { section: 'A', id: 'dobAge', label: 'Date of birth / age' },
+  { section: 'A', id: 'gender', label: 'Gender' },
+  { section: 'A', id: 'languages', label: 'Primary language(s)' },
+  { section: 'A', id: 'parent', label: 'Parent / caregiver' },
+  { section: 'A', id: 'school', label: 'School / organisation' },
+  { section: 'C', id: 'pregnancyBirth', label: 'Pregnancy / birth history', area: true },
+  { section: 'C', id: 'medicalDiagnoses', label: 'Medical diagnoses / conditions' },
+  { section: 'C', id: 'hearingVision', label: 'Hearing / vision status' },
+  { section: 'D', id: 'familyComposition', label: 'Family composition' },
+  { section: 'D', id: 'schoolHistory', label: 'School / nursery history' },
 ];
 
 export function IntakeTab({ caseId }: { caseId: string }) {
@@ -61,6 +71,7 @@ export function IntakeTab({ caseId }: { caseId: string }) {
     consentAi: true,
   });
   const [recordedBy, setRecordedBy] = useState('');
+  const [activeSec, setActiveSec] = useState<string>('A');
 
   // Hydrate from server record
   useEffect(() => {
@@ -79,6 +90,29 @@ export function IntakeTab({ caseId }: { caseId: string }) {
     setRecordedBy(intake.recordedBy ?? '');
   }, [intake]);
 
+  const showForm = !!(editing || (intake && intake.state === 'DRAFT'));
+  const showSummary = !!(intake && intake.state === 'SUMMARISED' && !editing);
+  const isEmpty = !intake && !editing;
+
+  // Scroll-spy: highlight the section nearest the top of the viewport.
+  useEffect(() => {
+    if (!showForm) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActiveSec(visible[0].target.id.replace('sec-', ''));
+      },
+      { rootMargin: '-120px 0px -60% 0px', threshold: 0 },
+    );
+    SECTIONS.forEach((s) => {
+      const el = document.getElementById(`sec-${s.id}`);
+      if (el) obs.observe(el);
+    });
+    return () => obs.disconnect();
+  }, [showForm]);
+
   const payload = (): SaveCaseIntakeInput => ({
     data,
     presentingConcern: presentingConcern || undefined,
@@ -89,17 +123,46 @@ export function IntakeTab({ caseId }: { caseId: string }) {
     ...(consents as any),
   });
 
-  const sections = useMemo(
-    () => Array.from(new Set(FIELDS.map((f) => f.section))),
-    [],
-  );
+  // Required-field gating for "Complete intake" (Sections A, B, E).
+  const missing = useMemo(() => {
+    const m: string[] = [];
+    if (!presentingConcern.trim()) m.push('Primary concern (B)');
+    if (!(data['dobAge'] ?? '').trim()) m.push('Date of birth (A)');
+    if (!Object.values(consents).some(Boolean)) m.push('At least one consent (E)');
+    return m;
+  }, [presentingConcern, data, consents]);
+  const canComplete = missing.length === 0;
 
   const toggle = (list: string[], setList: (v: string[]) => void, v: string) =>
     setList(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
-  const showForm = editing || (intake && intake.state === 'DRAFT');
-  const showSummary = intake && intake.state === 'SUMMARISED' && !editing;
-  const isEmpty = !intake && !editing;
+  const jump = (id: string) =>
+    document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const renderFields = (section: 'A' | 'C' | 'D') => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {FIELDS.filter((f) => f.section === section).map((f) =>
+        f.area ? (
+          <textarea
+            key={f.id}
+            placeholder={f.label}
+            value={data[f.id] ?? ''}
+            onChange={(e) => setData((d) => ({ ...d, [f.id]: e.target.value }))}
+            className="sm:col-span-2 min-h-[72px] rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
+        ) : (
+          <div key={f.id}>
+            <label className="text-[11px] text-gray-500">{f.label}</label>
+            <input
+              value={data[f.id] ?? ''}
+              onChange={(e) => setData((d) => ({ ...d, [f.id]: e.target.value }))}
+              className="mt-1 w-full h-9 rounded-lg border border-gray-200 px-3 text-sm"
+            />
+          </div>
+        ),
+      )}
+    </div>
+  );
 
   if (isLoading) {
     return <div className="h-64 rounded-2xl bg-gray-50 animate-pulse" />;
@@ -173,99 +236,104 @@ export function IntakeTab({ caseId }: { caseId: string }) {
         </h1>
       </header>
 
-      {/* A / C / D free-text sections */}
-      {sections.map((sec) => (
-        <Section key={sec} title={sec}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {FIELDS.filter((f) => f.section === sec).map((f) =>
-              f.area ? (
-                <textarea
-                  key={f.id}
-                  placeholder={f.label}
-                  value={data[f.id] ?? ''}
-                  onChange={(e) => setData((d) => ({ ...d, [f.id]: e.target.value }))}
-                  className="sm:col-span-2 min-h-[72px] rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                />
-              ) : (
-                <div key={f.id}>
-                  <label className="text-[11px] text-gray-500">{f.label}</label>
+      {/* Sticky section nav (scroll-spy) */}
+      <nav className="sticky top-16 z-10 -mx-4 px-4 py-2 bg-white/95 backdrop-blur border-b border-gray-100 flex gap-1 overflow-x-auto">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => jump(s.id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+              activeSec === s.id ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <span className="font-semibold">{s.id}</span> · {s.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Sections A–F in order */}
+      {SECTIONS.map((s) => (
+        <Section key={s.id} id={`sec-${s.id}`} title={s.title}>
+          {s.id === 'A' && renderFields('A')}
+
+          {s.id === 'B' && (
+            <>
+              <label className="text-[11px] text-gray-500">Primary concern (parent&apos;s words)</label>
+              <textarea
+                value={presentingConcern}
+                onChange={(e) => setPresentingConcern(e.target.value)}
+                className="mt-1 mb-3 w-full min-h-[72px] rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              />
+              <label className="text-[11px] text-gray-500">Referral question</label>
+              <div className="flex flex-wrap gap-2 mt-1 mb-3">
+                {REFERRAL_OPTIONS.map((o) => (
+                  <ChipToggle key={o} active={referralQuestions.includes(o)} onClick={() => toggle(referralQuestions, setReferralQuestions, o)}>
+                    {o}
+                  </ChipToggle>
+                ))}
+              </div>
+              <label className="text-[11px] text-gray-500">Urgency / risk flag</label>
+              <input
+                value={urgencyFlag}
+                onChange={(e) => setUrgencyFlag(e.target.value)}
+                placeholder="e.g. Low — no red flags"
+                className="mt-1 w-full h-9 rounded-lg border border-gray-200 px-3 text-sm"
+              />
+            </>
+          )}
+
+          {s.id === 'C' && renderFields('C')}
+
+          {s.id === 'D' && (
+            <>
+              {renderFields('D')}
+              <label className="text-[11px] text-gray-500 block mt-4 mb-1">Parent goals</label>
+              <div className="flex flex-wrap gap-2">
+                {GOAL_OPTIONS.map((o) => (
+                  <ChipToggle key={o} active={parentGoals.includes(o)} onClick={() => toggle(parentGoals, setParentGoals, o)}>
+                    {o}
+                  </ChipToggle>
+                ))}
+              </div>
+            </>
+          )}
+
+          {s.id === 'E' && (
+            <div className="space-y-2">
+              {CONSENTS.map((c) => (
+                <label key={c.key as string} className="flex items-center gap-2 text-sm text-gray-700">
                   <input
-                    value={data[f.id] ?? ''}
-                    onChange={(e) => setData((d) => ({ ...d, [f.id]: e.target.value }))}
-                    className="mt-1 w-full h-9 rounded-lg border border-gray-200 px-3 text-sm"
+                    type="checkbox"
+                    checked={!!consents[c.key as string]}
+                    onChange={(e) => setConsents((st) => ({ ...st, [c.key as string]: e.target.checked }))}
+                    className="h-4 w-4 rounded border-gray-300 text-teal-600"
                   />
-                </div>
-              ),
-            )}
-          </div>
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          )}
+
+          {s.id === 'F' && (
+            <>
+              <label className="text-[11px] text-gray-500">Recorded by</label>
+              <input
+                value={recordedBy}
+                onChange={(e) => setRecordedBy(e.target.value)}
+                className="mt-1 w-full sm:w-64 h-9 rounded-lg border border-gray-200 px-3 text-sm"
+              />
+            </>
+          )}
         </Section>
       ))}
 
-      {/* B · Referral & presenting concerns */}
-      <Section title="B · Referral & presenting concerns">
-        <label className="text-[11px] text-gray-500">Primary concern (parent&apos;s words)</label>
-        <textarea
-          value={presentingConcern}
-          onChange={(e) => setPresentingConcern(e.target.value)}
-          className="mt-1 mb-3 w-full min-h-[72px] rounded-lg border border-gray-200 px-3 py-2 text-sm"
-        />
-        <label className="text-[11px] text-gray-500">Referral question</label>
-        <div className="flex flex-wrap gap-2 mt-1 mb-3">
-          {REFERRAL_OPTIONS.map((o) => (
-            <ChipToggle key={o} active={referralQuestions.includes(o)} onClick={() => toggle(referralQuestions, setReferralQuestions, o)}>
-              {o}
-            </ChipToggle>
-          ))}
-        </div>
-        <label className="text-[11px] text-gray-500">Urgency / risk flag</label>
-        <input
-          value={urgencyFlag}
-          onChange={(e) => setUrgencyFlag(e.target.value)}
-          placeholder="e.g. Low — no red flags"
-          className="mt-1 w-full h-9 rounded-lg border border-gray-200 px-3 text-sm"
-        />
-      </Section>
-
-      {/* D goals */}
-      <Section title="D · Parent goals">
-        <div className="flex flex-wrap gap-2">
-          {GOAL_OPTIONS.map((o) => (
-            <ChipToggle key={o} active={parentGoals.includes(o)} onClick={() => toggle(parentGoals, setParentGoals, o)}>
-              {o}
-            </ChipToggle>
-          ))}
-        </div>
-      </Section>
-
-      {/* E consent */}
-      <Section title="E · Consent & data-sharing controls">
-        <div className="space-y-2">
-          {CONSENTS.map((c) => (
-            <label key={c.key as string} className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={!!consents[c.key as string]}
-                onChange={(e) => setConsents((s) => ({ ...s, [c.key as string]: e.target.checked }))}
-                className="h-4 w-4 rounded border-gray-300 text-teal-600"
-              />
-              {c.label}
-            </label>
-          ))}
-        </div>
-      </Section>
-
-      {/* F sign-off */}
-      <Section title="F · Sign-off">
-        <label className="text-[11px] text-gray-500">Recorded by</label>
-        <input
-          value={recordedBy}
-          onChange={(e) => setRecordedBy(e.target.value)}
-          className="mt-1 w-full sm:w-64 h-9 rounded-lg border border-gray-200 px-3 text-sm"
-        />
-      </Section>
-
       {/* Footer actions */}
       <div className="sticky bottom-0 -mx-4 px-4 py-3 bg-white/90 backdrop-blur border-t border-gray-100 flex items-center justify-end gap-3">
+        {!canComplete && (
+          <span className="mr-auto inline-flex items-center gap-1.5 text-[11px] text-amber-600">
+            <AlertCircle className="h-3.5 w-3.5" /> Needed to complete: {missing.join(', ')}
+          </span>
+        )}
         <button
           onClick={() => saveDraft.mutate(payload())}
           disabled={saveDraft.isPending}
@@ -275,7 +343,8 @@ export function IntakeTab({ caseId }: { caseId: string }) {
         </button>
         <button
           onClick={() => summarise.mutate(payload(), { onSuccess: () => setEditing(false) })}
-          disabled={summarise.isPending || !presentingConcern}
+          disabled={summarise.isPending || !canComplete}
+          title={canComplete ? undefined : `Complete: ${missing.join(', ')}`}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-40"
         >
           <Check className="h-4 w-4" />
@@ -286,9 +355,9 @@ export function IntakeTab({ caseId }: { caseId: string }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-gray-100 bg-white p-5">
+    <section id={id} className="scroll-mt-28 rounded-2xl border border-gray-100 bg-white p-5">
       <h2 className="text-sm font-semibold text-gray-900 mb-3">{title}</h2>
       {children}
     </section>

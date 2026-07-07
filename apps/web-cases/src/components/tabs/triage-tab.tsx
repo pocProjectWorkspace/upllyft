@@ -2,7 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, ArrowRight, AlertTriangle, Sparkles } from 'lucide-react';
+import {
+  Check,
+  ArrowRight,
+  AlertTriangle,
+  Sparkles,
+  CheckCircle2,
+  HelpCircle,
+  ArrowUpRight,
+  MessageCircle,
+  ClipboardList,
+  Users,
+  Target,
+  Handshake,
+  type LucideIcon,
+} from 'lucide-react';
 import { useCase } from '@/hooks/use-cases';
 import { useIntake } from '@/hooks/use-case-intake';
 import { useTriageCandidates, useConfirmTriage } from '@/hooks/use-case-triage';
@@ -19,20 +33,20 @@ const DECISION_MAP: Record<DecisionKey, TriageDecision> = {
   urgent: 'URGENT_REFERRAL',
   oos: 'OUT_OF_SCOPE',
 };
-const DECISIONS: { key: DecisionKey; emoji: string; label: string; desc: string; color: string }[] = [
-  { key: 'accept', emoji: '✓', label: 'Accept for service', desc: 'Suitable — proceed to pathway & allocation', color: '#0EA48B' },
-  { key: 'moreinfo', emoji: '?', label: 'Needs more info', desc: 'Hold — request missing details', color: '#E0912E' },
-  { key: 'urgent', emoji: '!', label: 'Urgent referral', desc: 'Red flags — escalate immediately', color: '#E1483C' },
-  { key: 'oos', emoji: '→', label: 'Out of scope', desc: 'Refer to an external service', color: '#7A8783' },
+const DECISIONS: { key: DecisionKey; icon: LucideIcon; label: string; desc: string; color: string }[] = [
+  { key: 'accept', icon: CheckCircle2, label: 'Accept for service', desc: 'Suitable — proceed to pathway & allocation', color: '#0EA48B' },
+  { key: 'moreinfo', icon: HelpCircle, label: 'Needs more info', desc: 'Hold — request missing details', color: '#E0912E' },
+  { key: 'urgent', icon: AlertTriangle, label: 'Urgent referral', desc: 'Red flags — escalate immediately', color: '#E1483C' },
+  { key: 'oos', icon: ArrowUpRight, label: 'Out of scope', desc: 'Refer to an external service', color: '#7A8783' },
 ];
 
-const PATHWAYS: { key: TriagePathway; emoji: string; label: string; desc: string }[] = [
-  { key: 'CONSULTATION_ONLY', emoji: '💬', label: 'Consultation only', desc: 'Single advisory session' },
-  { key: 'SINGLE_ASSESSMENT', emoji: '📋', label: 'Single-discipline assessment', desc: 'One discipline evaluates' },
-  { key: 'MDT_ASSESSMENT', emoji: '👥', label: 'MDT assessment', desc: 'Multiple disciplines together' },
-  { key: 'THERAPY_TRIAL', emoji: '🎯', label: 'Therapy trial', desc: 'Trial block before commitment' },
-  { key: 'PARENT_COUNSELLING', emoji: '🤝', label: 'Parent counselling', desc: 'Guidance for caregivers' },
-  { key: 'EXTERNAL_REFERRAL', emoji: '↗', label: 'External referral', desc: 'Route outside Upllyft' },
+const PATHWAYS: { key: TriagePathway; icon: LucideIcon; label: string; desc: string }[] = [
+  { key: 'CONSULTATION_ONLY', icon: MessageCircle, label: 'Consultation only', desc: 'Single advisory session' },
+  { key: 'SINGLE_ASSESSMENT', icon: ClipboardList, label: 'Single-discipline assessment', desc: 'One discipline evaluates' },
+  { key: 'MDT_ASSESSMENT', icon: Users, label: 'MDT assessment', desc: 'Multiple disciplines together' },
+  { key: 'THERAPY_TRIAL', icon: Target, label: 'Therapy trial', desc: 'Trial block before commitment' },
+  { key: 'PARENT_COUNSELLING', icon: Handshake, label: 'Parent counselling', desc: 'Guidance for caregivers' },
+  { key: 'EXTERNAL_REFERRAL', icon: ArrowUpRight, label: 'External referral', desc: 'Route outside Upllyft' },
 ];
 const APPT_TYPE: Record<TriagePathway, string> = {
   CONSULTATION_ONLY: 'Initial consultation',
@@ -67,7 +81,7 @@ export function TriageTab({ caseId }: { caseId: string }) {
   const [secondaries, setSecondaries] = useState<string[]>([]);
   const [schedAt, setSchedAt] = useState('');
   const [duration, setDuration] = useState(60);
-  const [location, setLocation] = useState('Clinic — Room 3');
+  const [location, setLocation] = useState('Clinic');
   const [channel, setChannel] = useState('app');
   const [requireAck, setRequireAck] = useState(true);
   const [flags, setFlags] = useState<Record<string, boolean>>({});
@@ -191,7 +205,7 @@ export function TriageTab({ caseId }: { caseId: string }) {
                   className="text-left p-3 rounded-xl border transition-colors"
                   style={active ? { borderColor: d.color, boxShadow: `inset 0 0 0 1px ${d.color}`, background: `${d.color}0d` } : { borderColor: '#E5E7EB' }}
                 >
-                  <span className="text-lg" style={{ color: d.color }}>{d.emoji}</span>
+                  <d.icon className="h-5 w-5" style={{ color: d.color }} />
                   <p className="text-sm font-semibold text-gray-900 mt-1">{d.label}</p>
                   <p className="text-xs text-gray-500">{d.desc}</p>
                 </button>
@@ -225,7 +239,7 @@ export function TriageTab({ caseId }: { caseId: string }) {
                       onClick={() => setPathway(p.key)}
                       className={`text-left p-3 rounded-xl border transition-colors ${active ? 'border-teal-500 bg-teal-50 ring-1 ring-teal-500' : 'border-gray-200 hover:border-gray-300'}`}
                     >
-                      <span className="text-lg">{p.emoji}</span>
+                      <p.icon className={`h-5 w-5 ${active ? 'text-teal-600' : 'text-gray-400'}`} />
                       <p className="text-sm font-medium text-gray-900 mt-1">{p.label}</p>
                       <p className="text-xs text-gray-500">{p.desc}</p>
                     </button>
@@ -320,7 +334,7 @@ export function TriageTab({ caseId }: { caseId: string }) {
                 <div>
                   <label className="text-[11px] text-gray-500">Location</label>
                   <select value={location} onChange={(e) => setLocation(e.target.value)} className="mt-1 w-full h-9 rounded-lg border border-gray-200 px-2 text-sm bg-white">
-                    <option>Clinic — Room 3</option>
+                    <option>Clinic</option>
                     <option>Home visit</option>
                     <option>Teletherapy</option>
                   </select>

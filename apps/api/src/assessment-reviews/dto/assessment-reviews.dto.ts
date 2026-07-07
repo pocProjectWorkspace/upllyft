@@ -40,6 +40,10 @@ export class UpdateAssessmentReviewDto {
   title?: string;
 
   @IsOptional()
+  @IsString()
+  scopeText?: string;
+
+  @IsOptional()
   @IsBoolean()
   scopeApproved?: boolean;
 

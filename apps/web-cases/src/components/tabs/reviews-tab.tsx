@@ -212,7 +212,14 @@ function PlanPhase({ caseId, review, onNext }: { caseId: string; review: Assessm
             return <span key={d.id} className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: m.bg, color: m.color }}>{m.label}</span>;
           })}
         </div>
-        <Toggle label="Scope approved" checked={review.scopeApproved} onChange={(v) => set({ scopeApproved: v })} />
+        <label className="text-[11px] text-gray-500">Assessment scope</label>
+        <textarea
+          defaultValue={review.scopeText ?? ''}
+          onBlur={(e) => set({ scopeText: e.target.value })}
+          placeholder="Objective, disciplines and sequence — approved by clinical lead…"
+          className="mt-1 mb-3 w-full min-h-[64px] rounded-lg border border-gray-200 px-3 py-2 text-sm"
+        />
+        <Toggle label="Clinical lead approves scope" checked={review.scopeApproved} onChange={(v) => set({ scopeApproved: v })} />
       </Section>
       <Section title="Parent preparation">
         <Toggle label="Pre-assessment questionnaire sent" checked={review.questionnaireSent} onChange={(v) => set({ questionnaireSent: v })} />

@@ -90,6 +90,7 @@ export class AssessmentReviewsService {
       data: {
         ...(dto.phase !== undefined && { phase: dto.phase }),
         ...(dto.title !== undefined && { title: dto.title }),
+        ...(dto.scopeText !== undefined && { scopeText: dto.scopeText }),
         ...(dto.scopeApproved !== undefined && { scopeApproved: dto.scopeApproved }),
         ...(dto.dayMode !== undefined && { dayMode: dto.dayMode }),
         ...(dto.questionnaireSent !== undefined && { questionnaireSent: dto.questionnaireSent }),
