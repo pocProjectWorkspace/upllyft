@@ -17,7 +17,6 @@ import {
   Stethoscope,
   ClipboardCheck,
   ClipboardList,
-  Users2,
   ShieldAlert,
   LogOut,
   Route,
@@ -26,15 +25,15 @@ import { caseStatusColors, caseStatusLabels } from '@/lib/utils';
 
 // Journey order (Handoff v2): Intake → Triage → Consultation → Assessment Reviews
 // → Referral/Escalation → Sessions → Goals & IEPs. Consultation is reached
-// inside the flow from Triage. Assessment creation lives under Assessment
-// Reviews (the standalone "Assessments" entry was removed — UAT #16).
+// inside the flow from Triage. Assessment creation + MDT reviews both live
+// under Assessment Reviews (the standalone "Assessments" and "MDT Reviews"
+// entries were removed — UAT #16).
 const clinicalItems = [
   { segment: '', label: 'Overview', icon: LayoutDashboard },
   { segment: 'intake', label: 'Client Intake', icon: ClipboardList },
   { segment: 'triage', label: 'Triage', icon: Stethoscope },
   { segment: 'consultation', label: 'Consultation', icon: Route },
   { segment: 'reviews', label: 'Assessment Reviews', icon: ClipboardCheck },
-  { segment: 'mdt', label: 'MDT Reviews', icon: Users2 },
   { segment: 'escalation', label: 'Referral / Escalation', icon: ShieldAlert },
   { segment: 'sessions', label: 'Sessions', icon: CalendarDays },
   { segment: 'goals', label: 'Goals & IEPs', icon: Target },

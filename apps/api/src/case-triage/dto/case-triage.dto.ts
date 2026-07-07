@@ -86,4 +86,19 @@ export class ConfirmTriageDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // "Needs more info" — the missing items requested from parent/referrer.
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  infoRequested?: string[];
+
+  // "Out of scope" — external referral target + documented reason.
+  @IsOptional()
+  @IsString()
+  referralTarget?: string;
+
+  @IsOptional()
+  @IsString()
+  referralReason?: string;
 }

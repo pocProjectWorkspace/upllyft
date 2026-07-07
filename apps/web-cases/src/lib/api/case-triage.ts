@@ -43,6 +43,9 @@ export interface ConfirmTriageInput {
   riskFlags?: Record<string, boolean>;
   aiSummary?: string;
   notes?: string;
+  infoRequested?: string[];
+  referralTarget?: string;
+  referralReason?: string;
 }
 
 const base = (caseId: string) => `/cases/${caseId}/triage-spine`;

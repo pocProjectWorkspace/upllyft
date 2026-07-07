@@ -4,6 +4,8 @@ import {
   JourneyStage,
   TriageStatus,
   TriageDecision,
+  TriagePathway,
+  CaseStatus,
   CaseTherapistRole,
   Prisma,
 } from '@prisma/client';
@@ -112,6 +114,10 @@ export class CaseTriageService {
       appointment: dto.appointment ?? null,
       notify: dto.notify ?? null,
       riskFlags: dto.riskFlags ?? {},
+      // "Needs more info" / "Out of scope" sub-choices
+      infoRequested: dto.infoRequested ?? [],
+      referralTarget: dto.referralTarget ?? null,
+      referralReason: dto.referralReason ?? null,
     } as Prisma.InputJsonValue;
 
     const data = {
@@ -131,20 +137,34 @@ export class CaseTriageService {
           data: { caseId, reviewedById: userId, ...data },
         });
 
-    // Assign care team (only for accept/proceed decisions)
+    // Case status + journey routing per decision (UAT #8, #11).
     if (dto.decision === TriageDecision.PROCEED) {
       await this.assignTeam(caseId, dto.primaryTherapistId, dto.secondaryTherapistIds ?? []);
       await this.maybeBookFirstAppointment(caseId, dto);
+      // Advance the journey stage from the chosen pathway (only from early stages).
       if (
         caseRecord.journeyStage === JourneyStage.INTAKE ||
         caseRecord.journeyStage === JourneyStage.TRIAGE
       ) {
         await this.prisma.case.update({
           where: { id: caseId },
-          data: { journeyStage: JourneyStage.CONSULTATION },
+          data: { journeyStage: this.pathwayStage(dto.pathway) },
         });
       }
+    } else if (dto.decision === TriageDecision.REQUEST_MORE_INFO) {
+      // Hold the case awaiting the requested information.
+      await this.prisma.case.update({
+        where: { id: caseId },
+        data: { status: CaseStatus.ON_HOLD },
+      });
+    } else if (dto.decision === TriageDecision.OUT_OF_SCOPE) {
+      // External referral generated — this pathway is closed (referred out).
+      await this.prisma.case.update({
+        where: { id: caseId },
+        data: { status: CaseStatus.TRANSFERRED },
+      });
     }
+    // URGENT_REFERRAL: escalation is raised via the Escalation module; status unchanged here.
 
     await this.prisma.caseAuditLog.create({
       data: {
@@ -158,6 +178,22 @@ export class CaseTriageService {
     });
 
     return triage;
+  }
+
+  /** Journey stage a confirmed (accepted) pathway routes the case into. */
+  private pathwayStage(pathway?: TriagePathway): JourneyStage {
+    switch (pathway) {
+      case TriagePathway.SINGLE_ASSESSMENT:
+      case TriagePathway.MDT_ASSESSMENT:
+        return JourneyStage.IN_ASSESSMENT;
+      case TriagePathway.THERAPY_TRIAL:
+      case TriagePathway.PARENT_COUNSELLING:
+        return JourneyStage.IN_THERAPY;
+      case TriagePathway.CONSULTATION_ONLY:
+      case TriagePathway.EXTERNAL_REFERRAL:
+      default:
+        return JourneyStage.CONSULTATION;
+    }
   }
 
   private async assignTeam(
