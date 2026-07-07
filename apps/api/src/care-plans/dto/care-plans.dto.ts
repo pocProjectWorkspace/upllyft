@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsInt,
   IsArray,
+  IsObject,
   IsDateString,
   ArrayNotEmpty,
   Min,
@@ -47,6 +48,11 @@ export class CreateCarePlanDto {
   @Min(0, { each: true })
   @Max(6, { each: true })
   daysOfWeek: number[]; // 0=Sun … 6=Sat
+
+  // Per-weekday time overrides, e.g. { "1": "16:00", "3": "15:00" }.
+  @IsOptional()
+  @IsObject()
+  daySchedule?: Record<string, string>;
 
   @IsInt()
   @Min(0)

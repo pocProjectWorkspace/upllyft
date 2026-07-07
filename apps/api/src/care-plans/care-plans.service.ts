@@ -35,18 +35,25 @@ export class CarePlansService {
     daysOfWeek: number[],
     timeOfDay: string,
     count: number,
+    daySchedule?: Record<string, string> | null,
   ): Date[] {
     if (!daysOfWeek?.length || count < 1) return [];
-    const [hh, mm] = (timeOfDay || '00:00').split(':').map((n) => parseInt(n, 10));
+    const parse = (t: string): [number, number] => {
+      const [hh, mm] = (t || '00:00').split(':').map((n) => parseInt(n, 10));
+      return [hh || 0, mm || 0];
+    };
     const days = new Set(daysOfWeek);
     const dates: Date[] = [];
     const cursor = new Date(startDate);
     cursor.setHours(0, 0, 0, 0);
     let guard = 0;
     while (dates.length < count && guard < 1000) {
-      if (days.has(cursor.getDay())) {
+      const wd = cursor.getDay();
+      if (days.has(wd)) {
+        // Per-weekday time when set, else the plan default (UAT #14).
+        const [hh, mm] = parse(daySchedule?.[String(wd)] ?? timeOfDay);
         const d = new Date(cursor);
-        d.setHours(hh || 0, mm || 0, 0, 0);
+        d.setHours(hh, mm, 0, 0);
         dates.push(d);
       }
       cursor.setDate(cursor.getDate() + 1);
@@ -108,6 +115,9 @@ export class CarePlansService {
         startDate: new Date(dto.startDate),
         timeOfDay: dto.timeOfDay,
         daysOfWeek: dto.daysOfWeek ?? [],
+        ...(dto.daySchedule !== undefined && {
+          daySchedule: dto.daySchedule as Prisma.InputJsonValue,
+        }),
         sessionCount: dto.sessionCount ?? 0,
         packageName: dto.packageName,
         unitPrice,
@@ -181,6 +191,7 @@ export class CarePlansService {
         plan.daysOfWeek,
         plan.timeOfDay,
         plan.sessionCount,
+        plan.daySchedule as Record<string, string> | null,
       );
       if (dates.length) {
         await this.prisma.caseSession.createMany({

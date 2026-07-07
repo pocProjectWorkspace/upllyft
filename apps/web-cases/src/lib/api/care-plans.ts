@@ -42,6 +42,7 @@ export interface CarePlan {
   startDate: string;
   timeOfDay: string;
   daysOfWeek: number[];
+  daySchedule?: Record<string, string> | null;
   sessionCount: number;
   packageName?: string | null;
   unitPrice: number;
@@ -67,6 +68,7 @@ export interface CreateCarePlanInput {
   startDate: string;
   timeOfDay: string;
   daysOfWeek: number[];
+  daySchedule?: Record<string, string>;
   sessionCount: number;
   packageName?: string;
   unitPrice?: number;
