@@ -163,6 +163,21 @@ export function useSessions(caseId: string, params?: any) {
   });
 }
 
+export function useCreateSessionBlock(caseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: casesApi.CreateSessionBlockInput) =>
+      casesApi.createSessionBlock(caseId, data),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: keys.sessions(caseId) });
+      qc.invalidateQueries({ queryKey: keys.detail(caseId) });
+      toast({ title: `${res.created} session${res.created === 1 ? '' : 's'} booked` });
+    },
+    onError: (e: any) =>
+      toast({ title: e?.response?.data?.message ?? 'Could not book sessions', variant: 'destructive' }),
+  });
+}
+
 export function useSession(caseId: string, sessionId: string) {
   return useQuery({
     queryKey: keys.session(caseId, sessionId),

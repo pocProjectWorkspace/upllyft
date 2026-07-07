@@ -336,7 +336,45 @@ function ReportPhase({ caseId, review }: { caseId: string; review: AssessmentRev
   const hasSharingConsent = (consents ?? []).some((c: any) => c.type === 'REPORT_SHARING' && !c.revokedAt);
 
   const [recipients, setRecipients] = useState({ parent: true, school: false, doctor: false });
+  const [declared, setDeclared] = useState(false);
   const approved = review.approval === 'approved';
+
+  // B3 — once shared, the report is a read-only record (no inputs).
+  if (review.phase === 'SHARED') {
+    return (
+      <div className="space-y-4">
+        <div className="inline-flex items-center gap-2 text-sm font-medium text-teal-700">
+          <Check className="h-4 w-4" /> Report shared
+        </div>
+        <Section title="Consolidated report">
+          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+            {review.reportText || 'No report text recorded.'}
+          </p>
+        </Section>
+        <Section title="Disciplines">
+          <div className="flex flex-wrap gap-1.5">
+            {review.disciplines.map((d) => {
+              const m = disciplineMeta(d.discipline);
+              return (
+                <span key={d.id} className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: m.bg, color: m.color }}>
+                  {m.label}
+                </span>
+              );
+            })}
+          </div>
+        </Section>
+        {review.recipients && (
+          <Section title="Shared with">
+            <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+              {review.recipients.parent && <span className="px-2 py-1 rounded-full bg-gray-100">Parent / caregiver</span>}
+              {review.recipients.school && <span className="px-2 py-1 rounded-full bg-gray-100">School</span>}
+              {review.recipients.doctor && <span className="px-2 py-1 rounded-full bg-gray-100">Referring doctor</span>}
+            </div>
+          </Section>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -377,20 +415,24 @@ function ReportPhase({ caseId, review }: { caseId: string; review: AssessmentRev
           <Toggle label="School" checked={recipients.school} disabled={!hasSharingConsent} onChange={(v) => setRecipients((r) => ({ ...r, school: v }))} />
           <Toggle label="Referring doctor" checked={recipients.doctor} disabled={!hasSharingConsent} onChange={(v) => setRecipients((r) => ({ ...r, doctor: v }))} />
         </div>
-        {review.phase === 'SHARED' ? (
-          <div className="inline-flex items-center gap-2 text-sm font-medium text-teal-700">
-            <Check className="h-4 w-4" /> Report shared
-          </div>
-        ) : (
-          <button
-            onClick={() => share.mutate({ id: review.id, recipients })}
-            disabled={!approved || !recipients.parent || share.isPending}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold disabled:opacity-40"
-          >
-            <Share2 className="h-4 w-4" /> {share.isPending ? 'Sharing…' : 'Share report'}
-          </button>
-        )}
+        <label className="flex items-start gap-2 text-xs text-gray-700 mb-3">
+          <input
+            type="checkbox"
+            checked={declared}
+            onChange={(e) => setDeclared(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-teal-600"
+          />
+          I declare this report is clinically accurate and complete, and consent to share it with the selected recipients.
+        </label>
+        <button
+          onClick={() => share.mutate({ id: review.id, recipients })}
+          disabled={!approved || !declared || !recipients.parent || share.isPending}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold disabled:opacity-40"
+        >
+          <Share2 className="h-4 w-4" /> {share.isPending ? 'Sharing…' : 'Share report'}
+        </button>
         {!approved && <p className="text-[11px] text-gray-400 mt-2">Report must be approved before sharing.</p>}
+        {approved && !declared && <p className="text-[11px] text-gray-400 mt-2">Tick the declaration to enable sharing.</p>}
       </Section>
     </div>
   );
