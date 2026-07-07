@@ -125,6 +125,12 @@ export class CarePlansService {
         paymentStatus: dto.paymentStatus ?? 'PENDING',
         reviewInWeeks: dto.reviewInWeeks,
         externalReferralTarget: dto.externalReferralTarget,
+        iepId: dto.iepId,
+        mode: dto.mode,
+        sessionDurationMin: dto.sessionDurationMin,
+        parentHomeProgram: dto.parentHomeProgram,
+        expectedOutcomes: dto.expectedOutcomes,
+        reviewDate: dto.reviewDate ? new Date(dto.reviewDate) : undefined,
         status: 'DRAFT',
       },
     });

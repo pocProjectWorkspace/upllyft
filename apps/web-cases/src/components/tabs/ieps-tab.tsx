@@ -18,6 +18,7 @@ import {
 } from '@/hooks/use-cases';
 import { formatDate, iepStatusColors, iepStatusLabels } from '@/lib/utils';
 import type { IEP, IEPGoal, IEPTemplate, GoalBankItem } from '@/lib/api/cases';
+import { IepCarePlanSection } from './iep-care-plan';
 import {
   Button,
   Input,
@@ -691,6 +692,9 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
             </p>
           </Card>
         )}
+
+        {/* Care plan(s) — Goals & IEPs §7 */}
+        <IepCarePlanSection caseId={caseId} iepId={selectedIepId} reviewDate={selectedIEP.reviewDate} />
 
         {/* Meeting Notes */}
         <Card className="p-4 border border-gray-100">

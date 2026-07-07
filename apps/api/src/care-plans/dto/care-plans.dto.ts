@@ -81,6 +81,31 @@ export class CreateCarePlanDto {
   @IsOptional()
   @IsString()
   externalReferralTarget?: string;
+
+  // Goals & IEPs care-plan creator (§7)
+  @IsOptional()
+  @IsString()
+  iepId?: string;
+
+  @IsOptional()
+  @IsString()
+  mode?: string;
+
+  @IsOptional()
+  @IsInt()
+  sessionDurationMin?: number;
+
+  @IsOptional()
+  @IsString()
+  parentHomeProgram?: string;
+
+  @IsOptional()
+  @IsString()
+  expectedOutcomes?: string;
+
+  @IsOptional()
+  @IsDateString()
+  reviewDate?: string;
 }
 
 export class UpdateCarePlanDto {

@@ -3122,6 +3122,13 @@ model CarePlan {
   // Branch data for non-booking recommendations
   reviewInWeeks        Int?                  // recommendation = NONE (monitor)
   externalReferralTarget String?             // recommendation = REFERRAL
+  // Goals & IEPs care-plan creator (Care Journey §7)
+  iepId                String?               // plan booked from an IEP
+  mode                 String?               // In-person | Teletherapy | Hybrid
+  sessionDurationMin   Int?                  // 30 | 45 | 60
+  parentHomeProgram    String?
+  expectedOutcomes     String?
+  reviewDate           DateTime?
   // Lifecycle
   status               CarePlanStatus        @default(DRAFT)
   parentAcceptedAt     DateTime?

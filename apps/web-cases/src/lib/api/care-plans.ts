@@ -52,6 +52,12 @@ export interface CarePlan {
   reviewInWeeks?: number | null;
   externalReferralTarget?: string | null;
   status: CarePlanStatus;
+  iepId?: string | null;
+  mode?: string | null;
+  sessionDurationMin?: number | null;
+  parentHomeProgram?: string | null;
+  expectedOutcomes?: string | null;
+  reviewDate?: string | null;
   parentAcceptedAt?: string | null;
   lockedAt?: string | null;
   createdAt: string;
@@ -75,6 +81,12 @@ export interface CreateCarePlanInput {
   paymentStatus?: CarePlanPaymentStatus;
   reviewInWeeks?: number;
   externalReferralTarget?: string;
+  iepId?: string;
+  mode?: string;
+  sessionDurationMin?: number;
+  parentHomeProgram?: string;
+  expectedOutcomes?: string;
+  reviewDate?: string;
 }
 
 const base = (caseId: string) => `/cases/${caseId}/care-plans`;
