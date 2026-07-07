@@ -3102,6 +3102,7 @@ model CarePlan {
   case                 Case                  @relation(fields: [caseId], references: [id], onDelete: Cascade)
   // Origin: the ClinicalRecord(CONSULTATION) that produced this plan (scalar, like other links in this schema)
   consultationRecordId String?
+  consultationNotes    String?               // detailed consultation notes captured before the recommendation
   recommendation       CarePlanRecommendation @default(THERAPY)
   disciplines          TherapyDiscipline[]
   // Assigned lead therapist (User id, matching CaseSession.therapist) — scalar to avoid a User back-relation

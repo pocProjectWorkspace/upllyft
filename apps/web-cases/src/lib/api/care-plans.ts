@@ -60,6 +60,7 @@ export interface CarePlan {
 
 export interface CreateCarePlanInput {
   consultationRecordId?: string;
+  consultationNotes?: string;
   recommendation: CarePlanRecommendation;
   disciplines?: TherapyDiscipline[];
   primaryTherapistId?: string;

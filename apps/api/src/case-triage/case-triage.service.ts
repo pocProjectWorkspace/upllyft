@@ -7,6 +7,9 @@ import {
   TriagePathway,
   CaseStatus,
   CaseTherapistRole,
+  TherapyDiscipline,
+  AssessmentReviewType,
+  AssessmentPhase,
   Prisma,
 } from '@prisma/client';
 import { ConfirmTriageDto } from './dto/case-triage.dto';
@@ -151,6 +154,14 @@ export class CaseTriageService {
           data: { journeyStage: this.pathwayStage(dto.pathway) },
         });
       }
+      // Single/MDT assessment pathways create the Assessment Review the case
+      // routes into (UAT #12).
+      if (
+        dto.pathway === TriagePathway.SINGLE_ASSESSMENT ||
+        dto.pathway === TriagePathway.MDT_ASSESSMENT
+      ) {
+        await this.ensureAssessmentReview(caseId, userId, dto);
+      }
     } else if (dto.decision === TriageDecision.REQUEST_MORE_INFO) {
       // Hold the case awaiting the requested information.
       await this.prisma.case.update({
@@ -178,6 +189,70 @@ export class CaseTriageService {
     });
 
     return triage;
+  }
+
+  /**
+   * Create the Assessment Review that a single/MDT triage routes into (UAT #12).
+   * Idempotent: only creates one if the case has none yet. Disciplines are
+   * derived from the assigned care team where their specialisation is known.
+   */
+  private async ensureAssessmentReview(caseId: string, userId: string, dto: ConfirmTriageDto) {
+    const existing = await this.prisma.assessmentReview.findFirst({ where: { caseId } });
+    if (existing) return;
+
+    const disciplines = await this.deriveDisciplines([
+      dto.primaryTherapistId,
+      ...(dto.secondaryTherapistIds ?? []),
+    ]);
+    const isMdt = dto.pathway === TriagePathway.MDT_ASSESSMENT;
+
+    await this.prisma.assessmentReview.create({
+      data: {
+        caseId,
+        createdById: userId,
+        type: isMdt ? AssessmentReviewType.MDT : AssessmentReviewType.SINGLE,
+        phase: AssessmentPhase.PLAN,
+        title: isMdt ? 'MDT developmental assessment' : 'Assessment',
+        ...(disciplines.length
+          ? { disciplines: { create: disciplines.map((d) => ({ discipline: d })) } }
+          : {}),
+      },
+    });
+  }
+
+  /** Best-effort map of assigned therapists' specialisations → TherapyDiscipline. */
+  private async deriveDisciplines(profileIds: (string | undefined)[]): Promise<TherapyDiscipline[]> {
+    const ids = profileIds.filter((x): x is string => !!x);
+    if (!ids.length) return [];
+    const profiles = await this.prisma.therapistProfile.findMany({
+      where: { id: { in: ids } },
+      select: { specializations: true, title: true },
+    });
+    const set = new Set<TherapyDiscipline>();
+    for (const p of profiles) {
+      for (const s of [...(p.specializations ?? []), p.title ?? '']) {
+        const d = this.mapDiscipline(s);
+        if (d) {
+          set.add(d);
+          break;
+        }
+      }
+    }
+    return [...set];
+  }
+
+  private mapDiscipline(s: string): TherapyDiscipline | null {
+    const v = (s ?? '').toLowerCase();
+    if (!v) return null;
+    if (v.includes('speech') || v.includes('language')) return TherapyDiscipline.SPEECH;
+    if (v.includes('occupational')) return TherapyDiscipline.OCCUPATIONAL;
+    if (v.includes('behav') || v.includes('aba')) return TherapyDiscipline.BEHAVIOUR_ABA;
+    if (v.includes('psycho')) return TherapyDiscipline.PSYCHOLOGY;
+    if (v.includes('special ed')) return TherapyDiscipline.SPECIAL_EDUCATION;
+    if (v.includes('physio')) return TherapyDiscipline.PHYSIOTHERAPY;
+    if (v.includes('medic') || v.includes('paediat') || v.includes('pediat'))
+      return TherapyDiscipline.MEDICAL;
+    return null;
   }
 
   /** Journey stage a confirmed (accepted) pathway routes the case into. */

@@ -101,6 +101,7 @@ export class CarePlansService {
         caseId,
         createdById: userId,
         consultationRecordId: dto.consultationRecordId,
+        consultationNotes: dto.consultationNotes,
         recommendation: dto.recommendation,
         disciplines: dto.disciplines ?? [],
         primaryTherapistId: dto.primaryTherapistId,

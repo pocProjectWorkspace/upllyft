@@ -20,6 +20,10 @@ export class CreateCarePlanDto {
   @IsString()
   consultationRecordId?: string;
 
+  @IsOptional()
+  @IsString()
+  consultationNotes?: string;
+
   @IsEnum(CarePlanRecommendation)
   recommendation: CarePlanRecommendation;
 

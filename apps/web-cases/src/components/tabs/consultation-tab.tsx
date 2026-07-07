@@ -54,7 +54,14 @@ const RECS: { key: CarePlanRecommendation; icon: LucideIcon; label: string }[] =
   { key: 'REFERRAL', icon: ArrowUpRight, label: 'Medical / school referral' },
 ];
 const BOOKABLE: CarePlanRecommendation[] = ['THERAPY', 'SINGLE_ASSESSMENT', 'MDT_ASSESSMENT', 'COACHING'];
-const PLAN_DISCIPLINES: TherapyDiscipline[] = ['SPEECH', 'OCCUPATIONAL', 'BEHAVIOUR_ABA', 'PSYCHOLOGY'];
+const PLAN_DISCIPLINES: TherapyDiscipline[] = [
+  'SPEECH',
+  'OCCUPATIONAL',
+  'PSYCHOLOGY',
+  'BEHAVIOUR_ABA',
+  'SPECIAL_EDUCATION',
+  'PHYSIOTHERAPY',
+];
 const TIMES = ['09:00', '10:00', '16:00', '17:00'];
 const PAYMENTS: { key: CarePlanPaymentStatus; label: string }[] = [
   { key: 'PAID', label: 'Paid' },
@@ -75,6 +82,7 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
 
   // ── Wizard state ──
   const [obs, setObs] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState('');
   const [rec, setRec] = useState<CarePlanRecommendation | ''>('');
   const [disciplines, setDisciplines] = useState<TherapyDiscipline[]>(['SPEECH']);
   const [count, setCount] = useState(12);
@@ -142,6 +150,7 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
       packageName: packageName || undefined,
       unitPrice: needsBooking ? unitPrice : 0,
       paymentStatus: pay,
+      consultationNotes: notes || undefined,
       reviewInWeeks: rec === 'NONE' && reviewInWeeks ? reviewInWeeks : undefined,
       externalReferralTarget: rec === 'REFERRAL' ? referralTarget || undefined : undefined,
     });
@@ -216,7 +225,7 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
         </header>
 
         {/* Step 1 — Observations */}
-        <Section n={1} title="Clinical observations" done={ratedCount > 0}>
+        <Section n={1} title="Consultation & observations" done={ratedCount > 0}>
           <p className="text-sm text-gray-500 mb-3">Rate each domain from today&apos;s observation.</p>
           <div className="space-y-2">
             {DOMAINS.map((dom) => (
@@ -247,6 +256,13 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
           {ratedCount > 0 && (
             <p className="text-xs text-gray-400 mt-3">{ratedCount} domains rated</p>
           )}
+          <label className="text-[11px] text-gray-500 block mt-4 mb-1">Consultation notes</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Detailed consultation notes — parent expectations, meeting notes, and observations beyond the domain ratings…"
+            className="w-full min-h-[88px] rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
         </Section>
 
         {/* Step 2 — Recommendation */}
