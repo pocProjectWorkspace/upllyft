@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsInt,
   IsArray,
+  IsObject,
   IsDateString,
   ArrayNotEmpty,
   Min,
@@ -19,6 +20,10 @@ export class CreateCarePlanDto {
   @IsOptional()
   @IsString()
   consultationRecordId?: string;
+
+  @IsOptional()
+  @IsString()
+  consultationNotes?: string;
 
   @IsEnum(CarePlanRecommendation)
   recommendation: CarePlanRecommendation;
@@ -43,6 +48,11 @@ export class CreateCarePlanDto {
   @Min(0, { each: true })
   @Max(6, { each: true })
   daysOfWeek: number[]; // 0=Sun … 6=Sat
+
+  // Per-weekday time overrides, e.g. { "1": "16:00", "3": "15:00" }.
+  @IsOptional()
+  @IsObject()
+  daySchedule?: Record<string, string>;
 
   @IsInt()
   @Min(0)
@@ -71,6 +81,31 @@ export class CreateCarePlanDto {
   @IsOptional()
   @IsString()
   externalReferralTarget?: string;
+
+  // Goals & IEPs care-plan creator (§7)
+  @IsOptional()
+  @IsString()
+  iepId?: string;
+
+  @IsOptional()
+  @IsString()
+  mode?: string;
+
+  @IsOptional()
+  @IsInt()
+  sessionDurationMin?: number;
+
+  @IsOptional()
+  @IsString()
+  parentHomeProgram?: string;
+
+  @IsOptional()
+  @IsString()
+  expectedOutcomes?: string;
+
+  @IsOptional()
+  @IsDateString()
+  reviewDate?: string;
 }
 
 export class UpdateCarePlanDto {

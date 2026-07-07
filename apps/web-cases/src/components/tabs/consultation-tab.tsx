@@ -2,7 +2,21 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Sparkles, Minus, Plus, CalendarDays, Lock } from 'lucide-react';
+import {
+  Check,
+  Sparkles,
+  Minus,
+  Plus,
+  CalendarDays,
+  Lock,
+  Eye,
+  ClipboardList,
+  Users,
+  Target,
+  Handshake,
+  ArrowUpRight,
+  type LucideIcon,
+} from 'lucide-react';
 import { useCase } from '@/hooks/use-cases';
 import {
   usePricingDefaults,
@@ -31,17 +45,24 @@ const RATINGS: { key: string; label: string; color: string }[] = [
   { key: 'emerging', label: 'Emerging', color: '#E0912E' },
   { key: 'concern', label: 'Concern', color: '#E1483C' },
 ];
-const RECS: { key: CarePlanRecommendation; emoji: string; label: string }[] = [
-  { key: 'NONE', emoji: '👁', label: 'No action — monitor' },
-  { key: 'SINGLE_ASSESSMENT', emoji: '📋', label: 'Single-discipline assessment' },
-  { key: 'MDT_ASSESSMENT', emoji: '👥', label: 'MDT assessment' },
-  { key: 'THERAPY', emoji: '🎯', label: 'Therapy block' },
-  { key: 'COACHING', emoji: '🤝', label: 'Parent coaching' },
-  { key: 'REFERRAL', emoji: '↗', label: 'Medical / school referral' },
+const RECS: { key: CarePlanRecommendation; icon: LucideIcon; label: string }[] = [
+  { key: 'NONE', icon: Eye, label: 'No action — monitor' },
+  { key: 'SINGLE_ASSESSMENT', icon: ClipboardList, label: 'Single-discipline assessment' },
+  { key: 'MDT_ASSESSMENT', icon: Users, label: 'MDT assessment' },
+  { key: 'THERAPY', icon: Target, label: 'Therapy block' },
+  { key: 'COACHING', icon: Handshake, label: 'Parent coaching' },
+  { key: 'REFERRAL', icon: ArrowUpRight, label: 'Medical / school referral' },
 ];
 const BOOKABLE: CarePlanRecommendation[] = ['THERAPY', 'SINGLE_ASSESSMENT', 'MDT_ASSESSMENT', 'COACHING'];
-const PLAN_DISCIPLINES: TherapyDiscipline[] = ['SPEECH', 'OCCUPATIONAL', 'BEHAVIOUR_ABA', 'PSYCHOLOGY'];
-const TIMES = ['09:00', '10:00', '16:00', '17:00'];
+const PLAN_DISCIPLINES: TherapyDiscipline[] = [
+  'SPEECH',
+  'OCCUPATIONAL',
+  'PSYCHOLOGY',
+  'BEHAVIOUR_ABA',
+  'SPECIAL_EDUCATION',
+  'PHYSIOTHERAPY',
+];
+const DEFAULT_TIME = '16:00';
 const PAYMENTS: { key: CarePlanPaymentStatus; label: string }[] = [
   { key: 'PAID', label: 'Paid' },
   { key: 'PENDING', label: 'Pending' },
@@ -61,12 +82,13 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
 
   // ── Wizard state ──
   const [obs, setObs] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState('');
   const [rec, setRec] = useState<CarePlanRecommendation | ''>('');
   const [disciplines, setDisciplines] = useState<TherapyDiscipline[]>(['SPEECH']);
   const [count, setCount] = useState(12);
   const [days, setDays] = useState<number[]>([1, 4]);
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState('16:00');
+  const [dayTimes, setDayTimes] = useState<Record<number, string>>({});
   const [unitPrice, setUnitPrice] = useState(1800);
   const [packageName, setPackageName] = useState('');
   const [pay, setPay] = useState<CarePlanPaymentStatus>('PENDING');
@@ -94,10 +116,22 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
     else if (!disciplines.length) setDisciplines(['SPEECH']);
   }
 
-  const schedule = useMemo(
-    () => generateScheduleLocal(startDate, days, time, count),
-    [startDate, days, time, count],
+  // Per-weekday time overrides (UAT #14) — { weekday → "HH:mm" }, default 16:00.
+  const daySchedule = useMemo(
+    () =>
+      Object.fromEntries(
+        [...days].sort((a, b) => a - b).map((d) => [String(d), dayTimes[d] ?? DEFAULT_TIME]),
+      ) as Record<string, string>,
+    [days, dayTimes],
   );
+  const schedule = useMemo(
+    () => generateScheduleLocal(startDate, days, DEFAULT_TIME, count, daySchedule),
+    [startDate, days, count, daySchedule],
+  );
+  const setDayTime = (d: number, v: string) => {
+    setDayTimes((prev) => ({ ...prev, [d]: v }));
+    setPlanLocked(false);
+  };
   const total = unitPrice * count;
   const weeks = days.length ? Math.ceil(count / days.length) : 0;
 
@@ -122,12 +156,14 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
       recommendation: rec as CarePlanRecommendation,
       disciplines,
       startDate: new Date(startDate).toISOString(),
-      timeOfDay: time,
+      timeOfDay: dayTimes[days[0]] ?? DEFAULT_TIME,
       daysOfWeek: needsBooking ? days : [],
+      daySchedule: needsBooking ? daySchedule : undefined,
       sessionCount: needsBooking ? count : 0,
       packageName: packageName || undefined,
       unitPrice: needsBooking ? unitPrice : 0,
       paymentStatus: pay,
+      consultationNotes: notes || undefined,
       reviewInWeeks: rec === 'NONE' && reviewInWeeks ? reviewInWeeks : undefined,
       externalReferralTarget: rec === 'REFERRAL' ? referralTarget || undefined : undefined,
     });
@@ -202,7 +238,7 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
         </header>
 
         {/* Step 1 — Observations */}
-        <Section n={1} title="Clinical observations" done={ratedCount > 0}>
+        <Section n={1} title="Consultation & observations" done={ratedCount > 0}>
           <p className="text-sm text-gray-500 mb-3">Rate each domain from today&apos;s observation.</p>
           <div className="space-y-2">
             {DOMAINS.map((dom) => (
@@ -233,6 +269,13 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
           {ratedCount > 0 && (
             <p className="text-xs text-gray-400 mt-3">{ratedCount} domains rated</p>
           )}
+          <label className="text-[11px] text-gray-500 block mt-4 mb-1">Consultation notes</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Detailed consultation notes — parent expectations, meeting notes, and observations beyond the domain ratings…"
+            className="w-full min-h-[88px] rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
         </Section>
 
         {/* Step 2 — Recommendation */}
@@ -250,7 +293,7 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <span className="text-lg">{r.emoji}</span>
+                  <r.icon className={`h-5 w-5 ${active ? 'text-teal-600' : 'text-gray-400'}`} />
                   <p className="text-sm font-medium text-gray-900 mt-1">{r.label}</p>
                 </button>
               );
@@ -346,20 +389,30 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
                 />
               </div>
 
-              {/* Time */}
-              <div>
+              {/* Time per selected weekday */}
+              <div className="sm:col-span-2">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Time
+                  Time per day
                 </label>
-                <select
-                  value={time}
-                  onChange={(e) => { setTime(e.target.value); setPlanLocked(false); }}
-                  className="mt-2 w-full h-9 rounded-lg border border-gray-200 px-3 text-sm bg-white"
-                >
-                  {TIMES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+                {days.length === 0 ? (
+                  <p className="mt-2 text-xs text-gray-400">Select one or more days above to set times.</p>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[...days].sort((a, b) => a - b).map((d) => (
+                      <div key={d} className="flex items-center gap-2 rounded-lg border border-gray-200 px-2.5 py-1.5">
+                        <span className="text-xs font-medium text-gray-600 w-9">
+                          {WEEKDAYS.find((w) => w.num === d)?.short ?? d}
+                        </span>
+                        <input
+                          type="time"
+                          value={dayTimes[d] ?? DEFAULT_TIME}
+                          onChange={(e) => setDayTime(d, e.target.value)}
+                          className="h-8 rounded-md border border-gray-200 px-2 text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -384,7 +437,9 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
                   <div key={i} className="text-xs bg-white rounded-lg border border-gray-100 px-2.5 py-1.5">
                     <span className="text-gray-400 mr-1">{i + 1}.</span>
                     <span className="text-gray-700">{fmtDate(d)}</span>
-                    <span className="text-gray-400 ml-1">{time}</span>
+                    <span className="text-gray-400 ml-1">
+                      {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
                 ))}
               </div>

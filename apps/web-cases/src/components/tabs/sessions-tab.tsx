@@ -4,9 +4,9 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@upllyft/api-client';
 import { Skeleton, Button } from '@upllyft/ui';
-import { Plus, CalendarDays, Sparkles, Loader2 } from 'lucide-react';
-import { useSessions, useGenerateAiSummary } from '@/hooks/use-cases';
-import { disciplineMeta } from '@/lib/disciplines';
+import { Plus, CalendarDays, Sparkles, Loader2, X } from 'lucide-react';
+import { useSessions, useGenerateAiSummary, useCreateSessionBlock } from '@/hooks/use-cases';
+import { DISCIPLINES, disciplineMeta } from '@/lib/disciplines';
 import type { TherapyDiscipline } from '@/lib/api/care-plans';
 
 interface SessionsTabProps {
@@ -14,6 +14,13 @@ interface SessionsTabProps {
 }
 
 type SchedStatus = 'completed' | 'next' | 'scheduled';
+
+// Recurring-block frequency → weekday set (Mon-based), matching the care-plan pattern.
+const FREQ: { key: string; label: string; days: number[] }[] = [
+  { key: '1x', label: '1×/week', days: [1] },
+  { key: '2x', label: '2×/week', days: [1, 4] },
+  { key: '3x', label: '3×/week', days: [1, 3, 5] },
+];
 
 const initials = (name?: string) =>
   (name || '?')
@@ -32,6 +39,39 @@ export function SessionsTab({ caseId }: SessionsTabProps) {
 
   const [filterDisc, setFilterDisc] = useState<TherapyDiscipline | 'ALL'>('ALL');
   const [filterTherapist, setFilterTherapist] = useState<string | 'ALL' | 'MINE'>('ALL');
+
+  // "+ Add session" modal (single or recurring block)
+  const block = useCreateSessionBlock(caseId);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [bkType, setBkType] = useState<'single' | 'recurring'>('recurring');
+  const [bkDisc, setBkDisc] = useState<TherapyDiscipline>('SPEECH');
+  const [bkFreq, setBkFreq] = useState('2x');
+  const [bkCount, setBkCount] = useState(8);
+  const [bkStart, setBkStart] = useState(() => new Date().toISOString().slice(0, 10));
+  const [bkTime, setBkTime] = useState('16:00');
+  const [bkAt, setBkAt] = useState('');
+
+  function submitBlock() {
+    const days = FREQ.find((f) => f.key === bkFreq)?.days ?? [1];
+    const payload =
+      bkType === 'single'
+        ? {
+            bookingType: 'single' as const,
+            discipline: bkDisc,
+            sessionType: 'Session',
+            scheduledAt: bkAt ? new Date(bkAt).toISOString() : undefined,
+          }
+        : {
+            bookingType: 'recurring' as const,
+            discipline: bkDisc,
+            sessionType: 'Session',
+            startDate: new Date(bkStart).toISOString(),
+            time: bkTime,
+            daysOfWeek: days,
+            count: bkCount,
+          };
+    block.mutate(payload, { onSuccess: () => setModalOpen(false) });
+  }
 
   const raw: any[] = Array.isArray(sessionsData)
     ? sessionsData
@@ -114,7 +154,7 @@ export function SessionsTab({ caseId }: SessionsTabProps) {
         <Button
           variant="primary"
           className="bg-teal-600 hover:bg-teal-700"
-          onClick={() => router.push(`/${caseId}/sessions/new`)}
+          onClick={() => setModalOpen(true)}
         >
           <Plus className="h-4 w-4 mr-2" /> Add session
         </Button>
@@ -246,6 +286,119 @@ export function SessionsTab({ caseId }: SessionsTabProps) {
             })}
           </div>
         </>
+      )}
+
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setModalOpen(false)}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-900">Add session</h3>
+              <button onClick={() => setModalOpen(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <label className="text-[11px] text-gray-500">Booking type</label>
+            <div className="flex gap-2 mt-1 mb-3">
+              {([['single', 'Single session'], ['recurring', 'Recurring block']] as const).map(([k, l]) => (
+                <button
+                  key={k}
+                  onClick={() => setBkType(k)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${bkType === k ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-600'}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            <label className="text-[11px] text-gray-500">Therapy type</label>
+            <select
+              value={bkDisc}
+              onChange={(e) => setBkDisc(e.target.value as TherapyDiscipline)}
+              className="mt-1 mb-3 w-full h-9 rounded-lg border border-gray-200 px-3 text-sm bg-white"
+            >
+              {DISCIPLINES.map((d) => (
+                <option key={d.key} value={d.key}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+
+            {bkType === 'single' ? (
+              <div className="mb-4">
+                <label className="text-[11px] text-gray-500">Date &amp; time</label>
+                <input
+                  type="datetime-local"
+                  value={bkAt}
+                  onChange={(e) => setBkAt(e.target.value)}
+                  className="mt-1 w-full h-9 rounded-lg border border-gray-200 px-3 text-sm"
+                />
+              </div>
+            ) : (
+              <>
+                <label className="text-[11px] text-gray-500">Frequency</label>
+                <div className="flex gap-2 mt-1 mb-3">
+                  {FREQ.map((f) => (
+                    <button
+                      key={f.key}
+                      onClick={() => setBkFreq(f.key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${bkFreq === f.key ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600'}`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div>
+                    <label className="text-[11px] text-gray-500">Sessions</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={24}
+                      value={bkCount}
+                      onChange={(e) => setBkCount(Math.max(1, Math.min(24, Number(e.target.value) || 1)))}
+                      className="mt-1 w-full h-9 rounded-lg border border-gray-200 px-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500">Start date</label>
+                    <input
+                      type="date"
+                      value={bkStart}
+                      onChange={(e) => setBkStart(e.target.value)}
+                      className="mt-1 w-full h-9 rounded-lg border border-gray-200 px-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500">Time</label>
+                    <input
+                      type="time"
+                      value={bkTime}
+                      onChange={(e) => setBkTime(e.target.value)}
+                      className="mt-1 w-full h-9 rounded-lg border border-gray-200 px-2 text-sm"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700">
+                Cancel
+              </button>
+              <button
+                onClick={submitBlock}
+                disabled={block.isPending || (bkType === 'single' && !bkAt)}
+                className="px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold disabled:opacity-40"
+              >
+                {block.isPending ? 'Booking…' : 'Book'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

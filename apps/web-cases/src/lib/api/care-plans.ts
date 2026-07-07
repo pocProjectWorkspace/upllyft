@@ -42,6 +42,7 @@ export interface CarePlan {
   startDate: string;
   timeOfDay: string;
   daysOfWeek: number[];
+  daySchedule?: Record<string, string> | null;
   sessionCount: number;
   packageName?: string | null;
   unitPrice: number;
@@ -51,6 +52,12 @@ export interface CarePlan {
   reviewInWeeks?: number | null;
   externalReferralTarget?: string | null;
   status: CarePlanStatus;
+  iepId?: string | null;
+  mode?: string | null;
+  sessionDurationMin?: number | null;
+  parentHomeProgram?: string | null;
+  expectedOutcomes?: string | null;
+  reviewDate?: string | null;
   parentAcceptedAt?: string | null;
   lockedAt?: string | null;
   createdAt: string;
@@ -60,18 +67,26 @@ export interface CarePlan {
 
 export interface CreateCarePlanInput {
   consultationRecordId?: string;
+  consultationNotes?: string;
   recommendation: CarePlanRecommendation;
   disciplines?: TherapyDiscipline[];
   primaryTherapistId?: string;
   startDate: string;
   timeOfDay: string;
   daysOfWeek: number[];
+  daySchedule?: Record<string, string>;
   sessionCount: number;
   packageName?: string;
   unitPrice?: number;
   paymentStatus?: CarePlanPaymentStatus;
   reviewInWeeks?: number;
   externalReferralTarget?: string;
+  iepId?: string;
+  mode?: string;
+  sessionDurationMin?: number;
+  parentHomeProgram?: string;
+  expectedOutcomes?: string;
+  reviewDate?: string;
 }
 
 const base = (caseId: string) => `/cases/${caseId}/care-plans`;

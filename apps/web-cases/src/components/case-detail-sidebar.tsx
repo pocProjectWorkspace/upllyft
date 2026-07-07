@@ -17,24 +17,25 @@ import {
   Stethoscope,
   ClipboardCheck,
   ClipboardList,
-  Users2,
   ShieldAlert,
   LogOut,
   Route,
 } from 'lucide-react';
 import { caseStatusColors, caseStatusLabels } from '@/lib/utils';
 
-// Journey order: Intake → Triage → Consultation → Sessions → Assessment Reviews → Escalation
+// Journey order (Handoff v2): Intake → Triage → Consultation → Assessment Reviews
+// → Referral/Escalation → Sessions → Goals & IEPs. Consultation is reached
+// inside the flow from Triage. Assessment creation + MDT reviews both live
+// under Assessment Reviews (the standalone "Assessments" and "MDT Reviews"
+// entries were removed — UAT #16).
 const clinicalItems = [
   { segment: '', label: 'Overview', icon: LayoutDashboard },
   { segment: 'intake', label: 'Client Intake', icon: ClipboardList },
   { segment: 'triage', label: 'Triage', icon: Stethoscope },
   { segment: 'consultation', label: 'Consultation', icon: Route },
-  { segment: 'sessions', label: 'Sessions', icon: CalendarDays },
-  { segment: 'assessments', label: 'Assessments', icon: ClipboardList },
   { segment: 'reviews', label: 'Assessment Reviews', icon: ClipboardCheck },
   { segment: 'escalation', label: 'Referral / Escalation', icon: ShieldAlert },
-  { segment: 'mdt', label: 'MDT Reviews', icon: Users2 },
+  { segment: 'sessions', label: 'Sessions', icon: CalendarDays },
   { segment: 'goals', label: 'Goals & IEPs', icon: Target },
   { segment: 'milestones', label: 'Milestones', icon: TrendingUp },
   { segment: 'worksheets', label: 'Worksheets', icon: BookOpen },

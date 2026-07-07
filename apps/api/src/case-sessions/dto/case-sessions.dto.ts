@@ -3,6 +3,8 @@ import {
   IsOptional,
   IsEnum,
   IsNumber,
+  IsInt,
+  IsIn,
   IsDateString,
   IsArray,
   ValidateNested,
@@ -11,7 +13,52 @@ import {
   Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { AttendanceStatus, SessionNoteFormat } from '@prisma/client';
+import { AttendanceStatus, SessionNoteFormat, TherapyDiscipline } from '@prisma/client';
+
+// "+ Add session" — book a single session or a recurring block, any discipline.
+export class CreateSessionBlockDto {
+  @IsIn(['single', 'recurring'])
+  bookingType: 'single' | 'recurring';
+
+  @IsOptional()
+  @IsEnum(TherapyDiscipline)
+  discipline?: TherapyDiscipline;
+
+  @IsOptional()
+  @IsString()
+  sessionType?: string;
+
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  // single
+  @IsOptional()
+  @IsDateString()
+  scheduledAt?: string;
+
+  // recurring
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  time?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  daysOfWeek?: number[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(24)
+  count?: number;
+}
 
 export class CreateCaseSessionDto {
   @IsDateString()

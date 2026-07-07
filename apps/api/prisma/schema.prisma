@@ -3102,14 +3102,16 @@ model CarePlan {
   case                 Case                  @relation(fields: [caseId], references: [id], onDelete: Cascade)
   // Origin: the ClinicalRecord(CONSULTATION) that produced this plan (scalar, like other links in this schema)
   consultationRecordId String?
+  consultationNotes    String?               // detailed consultation notes captured before the recommendation
   recommendation       CarePlanRecommendation @default(THERAPY)
   disciplines          TherapyDiscipline[]
   // Assigned lead therapist (User id, matching CaseSession.therapist) — scalar to avoid a User back-relation
   primaryTherapistId   String?
   // Recurring schedule inputs
   startDate            DateTime
-  timeOfDay            String                // "16:00"
+  timeOfDay            String                // "16:00" — default/fallback time
   daysOfWeek           Int[]                 // 0=Sun … 6=Sat
+  daySchedule          Json?                 // per-weekday time overrides, e.g. { "1": "16:00", "3": "15:00" }
   sessionCount         Int
   // Commercials
   packageName          String?
@@ -3120,6 +3122,13 @@ model CarePlan {
   // Branch data for non-booking recommendations
   reviewInWeeks        Int?                  // recommendation = NONE (monitor)
   externalReferralTarget String?             // recommendation = REFERRAL
+  // Goals & IEPs care-plan creator (Care Journey §7)
+  iepId                String?               // plan booked from an IEP
+  mode                 String?               // In-person | Teletherapy | Hybrid
+  sessionDurationMin   Int?                  // 30 | 45 | 60
+  parentHomeProgram    String?
+  expectedOutcomes     String?
+  reviewDate           DateTime?
   // Lifecycle
   status               CarePlanStatus        @default(DRAFT)
   parentAcceptedAt     DateTime?
@@ -3168,6 +3177,7 @@ model AssessmentReview {
   phase                AssessmentPhase       @default(PLAN)
   title                String?
   // Plan phase
+  scopeText            String?               // free-text assessment scope (objective, disciplines, sequence)
   scopeApproved        Boolean               @default(false)
   dayMode              String?               // single | multi
   questionnaireSent    Boolean               @default(false)

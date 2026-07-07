@@ -10,6 +10,7 @@ import { AuditService } from '../audit/audit.service';
 import { Prisma } from '@prisma/client';
 import {
   CreateCaseSessionDto,
+  CreateSessionBlockDto,
   UpdateCaseSessionDto,
   LogGoalProgressDto,
   BulkLogGoalProgressDto,
@@ -18,6 +19,63 @@ import {
 
 @Injectable()
 export class CaseSessionsService {
+  /**
+   * "+ Add session" — book a single session or a recurring block for any
+   * discipline. Uses createMany (like the care-plan generator), so it books
+   * the schedule directly for the current therapist.
+   */
+  async createBlock(caseId: string, therapistUserId: string, dto: CreateSessionBlockDto) {
+    const caseRecord = await this.prisma.case.findUnique({ where: { id: caseId } });
+    if (!caseRecord) throw new NotFoundException('Case not found');
+
+    const dates =
+      dto.bookingType === 'single'
+        ? dto.scheduledAt
+          ? [new Date(dto.scheduledAt)]
+          : []
+        : this.generateBlockDates(dto.startDate, dto.daysOfWeek ?? [], dto.time ?? '16:00', dto.count ?? 1);
+    if (!dates.length) throw new BadRequestException('No valid session dates for this booking');
+
+    await this.prisma.caseSession.createMany({
+      data: dates.map((d) => ({
+        caseId,
+        therapistId: therapistUserId,
+        scheduledAt: d,
+        discipline: dto.discipline ?? undefined,
+        sessionType: dto.sessionType ?? undefined,
+        location: dto.location ?? undefined,
+        noteStatus: 'DRAFT' as const,
+      })),
+    });
+    return { created: dates.length };
+  }
+
+  /** Day-walk generator (mirrors the care-plan scheduler). */
+  private generateBlockDates(
+    startDate: string | undefined,
+    daysOfWeek: number[],
+    time: string,
+    count: number,
+  ): Date[] {
+    if (!startDate || !daysOfWeek.length || count < 1) return [];
+    const [hh, mm] = (time || '16:00').split(':').map((n) => parseInt(n, 10));
+    const days = new Set(daysOfWeek);
+    const out: Date[] = [];
+    const cursor = new Date(startDate);
+    cursor.setHours(0, 0, 0, 0);
+    let guard = 0;
+    while (out.length < count && guard < 1000) {
+      if (days.has(cursor.getDay())) {
+        const d = new Date(cursor);
+        d.setHours(hh || 0, mm || 0, 0, 0);
+        out.push(d);
+      }
+      cursor.setDate(cursor.getDate() + 1);
+      guard++;
+    }
+    return out;
+  }
+
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,

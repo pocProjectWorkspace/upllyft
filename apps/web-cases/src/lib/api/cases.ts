@@ -669,6 +669,26 @@ export async function createSession(caseId: string, data: CreateSessionInput): P
   return res.data;
 }
 
+export interface CreateSessionBlockInput {
+  bookingType: 'single' | 'recurring';
+  discipline?: string;
+  sessionType?: string;
+  location?: string;
+  scheduledAt?: string; // single
+  startDate?: string; // recurring
+  time?: string; // recurring
+  daysOfWeek?: number[]; // recurring
+  count?: number; // recurring
+}
+
+export async function createSessionBlock(
+  caseId: string,
+  data: CreateSessionBlockInput,
+): Promise<{ created: number }> {
+  const res = await apiClient.post(`/cases/${caseId}/sessions/block`, data);
+  return res.data;
+}
+
 export async function updateSession(caseId: string, sessionId: string, data: UpdateSessionInput): Promise<CaseSession> {
   const res = await apiClient.patch(`/cases/${caseId}/sessions/${sessionId}`, data);
   return res.data;

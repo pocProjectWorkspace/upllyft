@@ -21,6 +21,7 @@ export interface AssessmentReview {
   type: AssessmentReviewType;
   phase: AssessmentPhase;
   title?: string | null;
+  scopeText?: string | null;
   scopeApproved: boolean;
   dayMode?: string | null;
   questionnaireSent: boolean;

@@ -2,7 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, ArrowRight, AlertTriangle, Sparkles } from 'lucide-react';
+import {
+  Check,
+  ArrowRight,
+  AlertTriangle,
+  Sparkles,
+  CheckCircle2,
+  HelpCircle,
+  ArrowUpRight,
+  MessageCircle,
+  ClipboardList,
+  Users,
+  Target,
+  Handshake,
+  type LucideIcon,
+} from 'lucide-react';
 import { useCase } from '@/hooks/use-cases';
 import { useIntake } from '@/hooks/use-case-intake';
 import { useTriageCandidates, useConfirmTriage } from '@/hooks/use-case-triage';
@@ -19,20 +33,20 @@ const DECISION_MAP: Record<DecisionKey, TriageDecision> = {
   urgent: 'URGENT_REFERRAL',
   oos: 'OUT_OF_SCOPE',
 };
-const DECISIONS: { key: DecisionKey; emoji: string; label: string; desc: string; color: string }[] = [
-  { key: 'accept', emoji: '✓', label: 'Accept for service', desc: 'Suitable — proceed to pathway & allocation', color: '#0EA48B' },
-  { key: 'moreinfo', emoji: '?', label: 'Needs more info', desc: 'Hold — request missing details', color: '#E0912E' },
-  { key: 'urgent', emoji: '!', label: 'Urgent referral', desc: 'Red flags — escalate immediately', color: '#E1483C' },
-  { key: 'oos', emoji: '→', label: 'Out of scope', desc: 'Refer to an external service', color: '#7A8783' },
+const DECISIONS: { key: DecisionKey; icon: LucideIcon; label: string; desc: string; color: string }[] = [
+  { key: 'accept', icon: CheckCircle2, label: 'Accept for service', desc: 'Suitable — proceed to pathway & allocation', color: '#0EA48B' },
+  { key: 'moreinfo', icon: HelpCircle, label: 'Needs more info', desc: 'Hold — request missing details', color: '#E0912E' },
+  { key: 'urgent', icon: AlertTriangle, label: 'Urgent referral', desc: 'Red flags — escalate immediately', color: '#E1483C' },
+  { key: 'oos', icon: ArrowUpRight, label: 'Out of scope', desc: 'Refer to an external service', color: '#7A8783' },
 ];
 
-const PATHWAYS: { key: TriagePathway; emoji: string; label: string; desc: string }[] = [
-  { key: 'CONSULTATION_ONLY', emoji: '💬', label: 'Consultation only', desc: 'Single advisory session' },
-  { key: 'SINGLE_ASSESSMENT', emoji: '📋', label: 'Single-discipline assessment', desc: 'One discipline evaluates' },
-  { key: 'MDT_ASSESSMENT', emoji: '👥', label: 'MDT assessment', desc: 'Multiple disciplines together' },
-  { key: 'THERAPY_TRIAL', emoji: '🎯', label: 'Therapy trial', desc: 'Trial block before commitment' },
-  { key: 'PARENT_COUNSELLING', emoji: '🤝', label: 'Parent counselling', desc: 'Guidance for caregivers' },
-  { key: 'EXTERNAL_REFERRAL', emoji: '↗', label: 'External referral', desc: 'Route outside Upllyft' },
+const PATHWAYS: { key: TriagePathway; icon: LucideIcon; label: string; desc: string }[] = [
+  { key: 'CONSULTATION_ONLY', icon: MessageCircle, label: 'Consultation only', desc: 'Single advisory session' },
+  { key: 'SINGLE_ASSESSMENT', icon: ClipboardList, label: 'Single-discipline assessment', desc: 'One discipline evaluates' },
+  { key: 'MDT_ASSESSMENT', icon: Users, label: 'MDT assessment', desc: 'Multiple disciplines together' },
+  { key: 'THERAPY_TRIAL', icon: Target, label: 'Therapy trial', desc: 'Trial block before commitment' },
+  { key: 'PARENT_COUNSELLING', icon: Handshake, label: 'Parent counselling', desc: 'Guidance for caregivers' },
+  { key: 'EXTERNAL_REFERRAL', icon: ArrowUpRight, label: 'External referral', desc: 'Route outside Upllyft' },
 ];
 const APPT_TYPE: Record<TriagePathway, string> = {
   CONSULTATION_ONLY: 'Initial consultation',
@@ -51,6 +65,34 @@ const RISK_FLAGS = [
   'Medical instability',
 ];
 
+// "Needs more info" — missing items to request from the parent / referrer.
+const INFO_ITEMS = [
+  'Previous assessment reports',
+  'Medical / diagnosis letter',
+  'School observation',
+  'Hearing / vision screening',
+  'Completed consent forms',
+  'Developmental history',
+];
+
+// "Out of scope" — external referral targets.
+const OOS_TARGETS = [
+  'Developmental paediatrician',
+  'ENT / audiology',
+  'Government early-intervention centre',
+  'Other clinic',
+];
+
+// Pathway-aware success CTA (label + case sub-route) after an accepted triage.
+const SUCCESS_ROUTE: Record<TriagePathway, { label: string; seg: string }> = {
+  CONSULTATION_ONLY: { label: 'Continue to Consultation', seg: 'consultation' },
+  SINGLE_ASSESSMENT: { label: 'Go to Assessment Reviews', seg: 'reviews' },
+  MDT_ASSESSMENT: { label: 'Go to Assessment Reviews', seg: 'reviews' },
+  THERAPY_TRIAL: { label: 'Go to Sessions', seg: 'sessions' },
+  PARENT_COUNSELLING: { label: 'Go to Sessions', seg: 'sessions' },
+  EXTERNAL_REFERRAL: { label: 'Raise referral', seg: 'escalation' },
+};
+
 const initials = (n?: string) =>
   (n || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 
@@ -67,10 +109,13 @@ export function TriageTab({ caseId }: { caseId: string }) {
   const [secondaries, setSecondaries] = useState<string[]>([]);
   const [schedAt, setSchedAt] = useState('');
   const [duration, setDuration] = useState(60);
-  const [location, setLocation] = useState('Clinic — Room 3');
+  const [location, setLocation] = useState('Clinic');
   const [channel, setChannel] = useState('app');
   const [requireAck, setRequireAck] = useState(true);
   const [flags, setFlags] = useState<Record<string, boolean>>({});
+  const [infoItems, setInfoItems] = useState<Record<string, boolean>>({});
+  const [referralTarget, setReferralTarget] = useState('');
+  const [referralReason, setReferralReason] = useState('');
   const [success, setSuccess] = useState(false);
 
   const anyFlag = Object.values(flags).some(Boolean);
@@ -108,9 +153,35 @@ export function TriageTab({ caseId }: { caseId: string }) {
     else router.push(`/${caseId}`);
   }
 
+  // "Needs more info" — record the request and hold the case (status → On hold).
+  async function handleMoreInfo() {
+    await confirm.mutateAsync({
+      decision: DECISION_MAP.moreinfo,
+      riskLevel: anyFlag ? 'HIGH' : 'NONE',
+      riskFlags: flags,
+      aiSummary: intake?.aiSummary ?? undefined,
+      infoRequested: Object.keys(infoItems).filter((k) => infoItems[k]),
+    });
+    router.push(`/${caseId}`);
+  }
+
+  // "Out of scope" — generate an external referral and close this pathway.
+  async function handleOos() {
+    await confirm.mutateAsync({
+      decision: DECISION_MAP.oos,
+      riskLevel: anyFlag ? 'HIGH' : 'NONE',
+      riskFlags: flags,
+      aiSummary: intake?.aiSummary ?? undefined,
+      referralTarget,
+      referralReason: referralReason || undefined,
+    });
+    router.push(`/${caseId}`);
+  }
+
   const childName = (caseData as any)?.child?.firstName ?? 'client';
 
   if (success) {
+    const dest = (pathway && SUCCESS_ROUTE[pathway]) || { label: 'Go to case overview', seg: '' };
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <div className="h-16 w-16 rounded-full bg-teal-100 flex items-center justify-center mb-4">
@@ -118,13 +189,13 @@ export function TriageTab({ caseId }: { caseId: string }) {
         </div>
         <h2 className="text-xl font-semibold text-gray-900">Triage confirmed</h2>
         <p className="text-gray-500 mt-1 max-w-md">
-          Care team assigned and first appointment booked. {childName} is ready for consultation.
+          Care team assigned and the first step is booked. {childName}&apos;s next step: {apptType.toLowerCase()}.
         </p>
         <button
-          onClick={() => router.push(`/${caseId}/consultation`)}
+          onClick={() => router.push(dest.seg ? `/${caseId}/${dest.seg}` : `/${caseId}`)}
           className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700"
         >
-          Continue to Consultation <ArrowRight className="h-4 w-4" />
+          {dest.label} <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     );
@@ -191,7 +262,7 @@ export function TriageTab({ caseId }: { caseId: string }) {
                   className="text-left p-3 rounded-xl border transition-colors"
                   style={active ? { borderColor: d.color, boxShadow: `inset 0 0 0 1px ${d.color}`, background: `${d.color}0d` } : { borderColor: '#E5E7EB' }}
                 >
-                  <span className="text-lg" style={{ color: d.color }}>{d.emoji}</span>
+                  <d.icon className="h-5 w-5" style={{ color: d.color }} />
                   <p className="text-sm font-semibold text-gray-900 mt-1">{d.label}</p>
                   <p className="text-xs text-gray-500">{d.desc}</p>
                 </button>
@@ -210,6 +281,68 @@ export function TriageTab({ caseId }: { caseId: string }) {
               </a>
             </div>
           )}
+
+          {decision === 'moreinfo' && (
+            <div className="mt-4 rounded-xl bg-amber-50 border border-amber-100 p-4">
+              <p className="text-sm font-semibold text-amber-900 mb-1">Request more information</p>
+              <p className="text-xs text-amber-700 mb-3">
+                Select what&apos;s missing — a request is sent to the parent / referrer and the case is held in <span className="font-semibold">Awaiting info</span>.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-3">
+                {INFO_ITEMS.map((item) => (
+                  <label key={item} className="flex items-center gap-2 text-xs text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={!!infoItems[item]}
+                      onChange={(e) => setInfoItems((s) => ({ ...s, [item]: e.target.checked }))}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-amber-600"
+                    />
+                    {item}
+                  </label>
+                ))}
+              </div>
+              <button
+                onClick={handleMoreInfo}
+                disabled={confirm.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 disabled:opacity-40"
+              >
+                {confirm.isPending ? 'Sending…' : 'Send request & hold case'}
+              </button>
+            </div>
+          )}
+
+          {decision === 'oos' && (
+            <div className="mt-4 rounded-xl bg-gray-50 border border-gray-200 p-4">
+              <p className="text-sm font-semibold text-gray-900 mb-1">Out of scope — external referral</p>
+              <p className="text-xs text-gray-500 mb-3">
+                Generate a referral to an external service and close the case with a documented reason.
+              </p>
+              <label className="text-[11px] text-gray-500">Refer to</label>
+              <select
+                value={referralTarget}
+                onChange={(e) => setReferralTarget(e.target.value)}
+                className="mt-1 mb-3 w-full h-9 rounded-lg border border-gray-200 px-3 text-sm bg-white"
+              >
+                <option value="">Select a service…</option>
+                {OOS_TARGETS.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+              <textarea
+                value={referralReason}
+                onChange={(e) => setReferralReason(e.target.value)}
+                placeholder="Reason for referral (documented on the case)…"
+                className="w-full min-h-[56px] rounded-lg border border-gray-200 px-3 py-2 text-sm mb-3"
+              />
+              <button
+                onClick={handleOos}
+                disabled={!referralTarget || confirm.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-black disabled:opacity-40"
+              >
+                {confirm.isPending ? 'Generating…' : 'Generate referral & close'}
+              </button>
+            </div>
+          )}
         </Section>
 
         {/* Accept branch — steps 2–5 */}
@@ -225,7 +358,7 @@ export function TriageTab({ caseId }: { caseId: string }) {
                       onClick={() => setPathway(p.key)}
                       className={`text-left p-3 rounded-xl border transition-colors ${active ? 'border-teal-500 bg-teal-50 ring-1 ring-teal-500' : 'border-gray-200 hover:border-gray-300'}`}
                     >
-                      <span className="text-lg">{p.emoji}</span>
+                      <p.icon className={`h-5 w-5 ${active ? 'text-teal-600' : 'text-gray-400'}`} />
                       <p className="text-sm font-medium text-gray-900 mt-1">{p.label}</p>
                       <p className="text-xs text-gray-500">{p.desc}</p>
                     </button>
@@ -320,7 +453,7 @@ export function TriageTab({ caseId }: { caseId: string }) {
                 <div>
                   <label className="text-[11px] text-gray-500">Location</label>
                   <select value={location} onChange={(e) => setLocation(e.target.value)} className="mt-1 w-full h-9 rounded-lg border border-gray-200 px-2 text-sm bg-white">
-                    <option>Clinic — Room 3</option>
+                    <option>Clinic</option>
                     <option>Home visit</option>
                     <option>Teletherapy</option>
                   </select>
@@ -344,19 +477,21 @@ export function TriageTab({ caseId }: { caseId: string }) {
           </>
         )}
 
-        {/* Confirm bar */}
-        <div className="sticky bottom-0 -mx-4 px-4 py-3 bg-white/90 backdrop-blur border-t border-gray-100 flex items-center justify-between">
-          <p className="text-xs text-gray-500">
-            {canConfirm ? 'Ready to confirm.' : 'Complete the decision above to continue.'}
-          </p>
-          <button
-            onClick={handleConfirm}
-            disabled={!canConfirm || confirm.isPending}
-            className="px-5 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-40"
-          >
-            {confirm.isPending ? 'Confirming…' : isAccept ? 'Confirm triage & create tasks' : 'Record decision'}
-          </button>
-        </div>
+        {/* Confirm bar — accept/urgent use this; more-info & out-of-scope have their own CTAs */}
+        {decision !== 'moreinfo' && decision !== 'oos' && (
+          <div className="sticky bottom-0 -mx-4 px-4 py-3 bg-white/90 backdrop-blur border-t border-gray-100 flex items-center justify-between">
+            <p className="text-xs text-gray-500">
+              {canConfirm ? 'Ready to confirm.' : 'Complete the decision above to continue.'}
+            </p>
+            <button
+              onClick={handleConfirm}
+              disabled={!canConfirm || confirm.isPending}
+              className="px-5 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-40"
+            >
+              {confirm.isPending ? 'Confirming…' : isAccept ? 'Confirm triage & create tasks' : 'Record decision'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

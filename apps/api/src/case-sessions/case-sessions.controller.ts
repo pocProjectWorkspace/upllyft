@@ -17,6 +17,7 @@ import { CaseAiService } from './case-ai.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateCaseSessionDto,
+  CreateSessionBlockDto,
   UpdateCaseSessionDto,
   LogGoalProgressDto,
   BulkLogGoalProgressDto,
@@ -42,6 +43,16 @@ export class CaseSessionsController {
     @Req() req: any,
   ) {
     return this.sessionsService.createSession(caseId, req.user.id, dto);
+  }
+
+  @Post('block')
+  @CaseAccess('edit')
+  async createSessionBlock(
+    @Param('caseId') caseId: string,
+    @Body() dto: CreateSessionBlockDto,
+    @Req() req: any,
+  ) {
+    return this.sessionsService.createBlock(caseId, req.user.id, dto);
   }
 
   @Get()
