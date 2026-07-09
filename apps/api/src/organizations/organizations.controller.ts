@@ -24,6 +24,13 @@ export class OrganizationsController {
         return this.organizationsService.findAll();
     }
 
+    // Must stay above @Get(':slug') — otherwise 'my' is captured as a slug.
+    @Get('my')
+    @UseGuards(JwtAuthGuard)
+    findMine(@Request() req: any) {
+        return this.organizationsService.findMine(req.user.id);
+    }
+
     @Get('invitations/my')
     @UseGuards(JwtAuthGuard)
     getMyInvitations(@Request() req: any) {
@@ -50,6 +57,16 @@ export class OrganizationsController {
     @Get(':slug')
     findOne(@Param('slug') slug: string) {
         return this.organizationsService.findOne(slug);
+    }
+
+    @Get(':slug/stats')
+    getStats(@Param('slug') slug: string) {
+        return this.organizationsService.getStats(slug);
+    }
+
+    @Get(':slug/events')
+    findEvents(@Param('slug') slug: string) {
+        return this.organizationsService.findEvents(slug);
     }
 
     @Post(':slug/join')

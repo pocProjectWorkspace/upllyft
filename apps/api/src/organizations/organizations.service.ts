@@ -765,7 +765,7 @@ export class OrganizationsService {
         return { success: true, message: 'Invitation cancelled' };
     }
 
-    async updateSettings(slug: string, userId: string, dto: { name?: string; description?: string; website?: string; logo?: string; banner?: string }) {
+    async updateSettings(slug: string, userId: string, dto: { name?: string; description?: string; website?: string; logo?: string; banner?: string; primaryColor?: string; secondaryColor?: string; accentColor?: string }) {
         const org = await this.findOne(slug);
 
         const member = await this.prisma.organizationMember.findUnique({
@@ -789,9 +789,94 @@ export class OrganizationsService {
         if (dto.logo !== undefined) updateData.logo = dto.logo;
         if (dto.banner !== undefined) updateData.banner = dto.banner;
 
+        // An empty string clears the colour, so the UI falls back to the theme default.
+        if (dto.primaryColor !== undefined) updateData.primaryColor = dto.primaryColor || null;
+        if (dto.secondaryColor !== undefined) updateData.secondaryColor = dto.secondaryColor || null;
+        if (dto.accentColor !== undefined) updateData.accentColor = dto.accentColor || null;
+
         return this.prisma.organization.update({
             where: { id: org.id },
             data: updateData,
+        });
+    }
+
+    /** Organizations the current user belongs to, with their role in each. */
+    async findMine(userId: string) {
+        const memberships = await this.prisma.organizationMember.findMany({
+            where: { userId, status: 'ACTIVE' },
+            include: {
+                organization: {
+                    select: { id: true, name: true, slug: true, logo: true, primaryColor: true },
+                },
+            },
+            orderBy: { createdAt: 'asc' },
+        });
+
+        return memberships.map((m) => ({
+            role: m.role,
+            status: m.status,
+            joinedAt: m.joinedAt,
+            organization: m.organization,
+        }));
+    }
+
+    /** Headline counts for the org dashboard. */
+    async getStats(slug: string) {
+        const org = await this.prisma.organization.findUnique({
+            where: { slug },
+            select: { id: true, name: true, slug: true, logo: true, banner: true },
+        });
+        if (!org) throw new NotFoundException('Organization not found');
+
+        const [memberCount, communityCount, upcomingEventCount] = await Promise.all([
+            this.prisma.organizationMember.count({
+                where: { organizationId: org.id, status: 'ACTIVE' },
+            }),
+            this.prisma.community.count({
+                where: { organizationId: org.id, isActive: true },
+            }),
+            // Mirrors findEvents(): org-owned events plus those owned by its communities.
+            this.prisma.event.count({
+                where: {
+                    isActive: true,
+                    isCancelled: false,
+                    startDate: { gte: new Date() },
+                    OR: [
+                        { organizationId: org.id },
+                        { community: { organizationId: org.id } },
+                    ],
+                },
+            }),
+        ]);
+
+        return { org, memberCount, communityCount, upcomingEventCount };
+    }
+
+    /**
+     * Events belonging to the org — both directly attached and those owned by one
+     * of the org's communities.
+     */
+    async findEvents(slug: string) {
+        const org = await this.prisma.organization.findUnique({
+            where: { slug },
+            select: { id: true },
+        });
+        if (!org) throw new NotFoundException('Organization not found');
+
+        return this.prisma.event.findMany({
+            where: {
+                isActive: true,
+                OR: [
+                    { organizationId: org.id },
+                    { community: { organizationId: org.id } },
+                ],
+            },
+            include: {
+                community: { select: { id: true, name: true, slug: true } },
+                creator: { select: { id: true, name: true, image: true } },
+                _count: { select: { interests: true } },
+            },
+            orderBy: { startDate: 'asc' },
         });
     }
 

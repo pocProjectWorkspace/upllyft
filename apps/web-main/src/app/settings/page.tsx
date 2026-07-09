@@ -3,7 +3,8 @@
 import { apiClient, useRequireAuth } from '@upllyft/api-client';
 import { AppHeader, Card, Switch, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { getMyOrganizations, type MyOrgMembership } from '@/lib/api/organizations';
 
 export default function SettingsPage() {
   const { user, isLoading: authLoading, isAuthenticated, isReady, logout } = useRequireAuth();
@@ -25,6 +26,16 @@ export default function SettingsPage() {
 
   // Download data state
   const [downloading, setDownloading] = useState(false);
+
+  // Organizations this user belongs to — surfaces the org workspace entry point.
+  const [myOrgs, setMyOrgs] = useState<MyOrgMembership[]>([]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    getMyOrganizations()
+      .then(setMyOrgs)
+      .catch(() => setMyOrgs([]));
+  }, [isAuthenticated]);
 
   if (!isReady) {
     return (
@@ -237,6 +248,44 @@ export default function SettingsPage() {
                 </form>
               )}
             </Card>
+
+            {myOrgs.length > 0 && (
+              <Card className="p-6">
+                <h2 className="text-base font-semibold text-gray-900 mb-2">Organization</h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  {myOrgs.some((m) => m.role === 'ADMIN')
+                    ? 'Manage members, communities, events and branding'
+                    : 'Organizations you belong to'}
+                </p>
+                <div className="space-y-2">
+                  {myOrgs.map(({ organization: org, role }) => (
+                    <a
+                      key={org.id}
+                      href={`/org/${org.slug}`}
+                      className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-teal-300 hover:bg-teal-50/40 transition-colors"
+                    >
+                      {org.logo ? (
+                        <img src={org.logo} alt={org.name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                      ) : (
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"
+                          style={{ backgroundColor: org.primaryColor || '#0d9488' }}
+                        >
+                          {org.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{org.name}</p>
+                        <p className="text-xs text-gray-500">{role === 'ADMIN' ? 'Org Admin' : 'Member'}</p>
+                      </div>
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </a>
+                  ))}
+                </div>
+              </Card>
+            )}
 
             <Card className="p-6">
               <h2 className="text-base font-semibold text-gray-900 mb-2">Billing</h2>

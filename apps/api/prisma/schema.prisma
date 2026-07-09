@@ -1439,6 +1439,9 @@ model Organization {
   banner               String?
   website              String?
   region               String?
+  primaryColor         String?
+  secondaryColor       String?
+  accentColor          String?
   createdAt            DateTime                    @default(now())
   updatedAt            DateTime                    @updatedAt
   commissionPercentage Float?

@@ -10,6 +10,9 @@ export interface OrgDetails {
   logo?: string;
   banner?: string;
   website?: string;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
+  accentColor?: string | null;
   isVerified: boolean;
 }
 
@@ -17,6 +20,41 @@ export interface OrgStats {
   org: OrgDetails;
   memberCount: number;
   communityCount: number;
+  upcomingEventCount: number;
+}
+
+export interface MyOrgMembership {
+  role: 'ADMIN' | 'MEMBER';
+  status: string;
+  joinedAt: string | null;
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    logo?: string | null;
+    primaryColor?: string | null;
+  };
+}
+
+export interface OrgEvent {
+  id: string;
+  title: string;
+  description: string;
+  coverImage?: string | null;
+  eventType: string;
+  format: 'VIRTUAL' | 'IN_PERSON' | 'HYBRID';
+  startDate: string;
+  endDate?: string | null;
+  venue?: string | null;
+  city?: string | null;
+  location?: string | null;
+  meetingLink?: string | null;
+  status: string;
+  isCancelled: boolean;
+  attendeeCount: number;
+  maxAttendees?: number | null;
+  community?: { id: string; name: string; slug: string } | null;
+  _count?: { interests: number };
 }
 
 export interface OrgMember {
@@ -74,6 +112,17 @@ export async function getOrganization(slug: string): Promise<OrgDetails> {
 
 export async function getOrganizationStats(slug: string): Promise<OrgStats> {
   const { data } = await apiClient.get<OrgStats>(`/organizations/${slug}/stats`);
+  return data;
+}
+
+/** Organizations the signed-in user belongs to, with their role in each. */
+export async function getMyOrganizations(): Promise<MyOrgMembership[]> {
+  const { data } = await apiClient.get<MyOrgMembership[]>('/organizations/my');
+  return data;
+}
+
+export async function getOrgEvents(slug: string): Promise<OrgEvent[]> {
+  const { data } = await apiClient.get<OrgEvent[]>(`/organizations/${slug}/events`);
   return data;
 }
 
@@ -225,6 +274,9 @@ export async function updateOrgSettings(
     website: string;
     logo: string;
     banner: string;
+    primaryColor: string;
+    secondaryColor: string;
+    accentColor: string;
   }>,
 ): Promise<OrgDetails> {
   const { data } = await apiClient.patch<OrgDetails>(

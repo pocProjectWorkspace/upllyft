@@ -5,6 +5,7 @@ import { useRouter, usePathname, useParams } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getOrganization, type OrgDetails } from '@/lib/api/organizations';
 import { OrgProtect } from '@/components/org/org-protect';
+import { orgThemeVars } from '@/components/org/org-theme';
 
 const navItems = (slug: string) => [
   {
@@ -74,7 +75,7 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
 
   return (
     <OrgProtect>
-      <div className="min-h-screen flex bg-gray-50/50">
+      <div className="min-h-screen flex bg-gray-50/50" style={orgThemeVars(org)}>
         {/* Sidebar */}
         <aside className="hidden md:flex w-64 bg-white border-r border-gray-100 flex-col fixed inset-y-0 left-0 z-40">
           <div className="p-4 border-b border-gray-100">
@@ -86,8 +87,11 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
                   className="w-8 h-8 rounded-lg object-cover"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center">
-                  <span className="text-teal-700 font-bold text-sm">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--org-primary-soft)' }}
+                >
+                  <span className="font-bold text-sm" style={{ color: 'var(--org-primary)' }}>
                     {org?.name?.charAt(0) || 'O'}
                   </span>
                 </div>
@@ -108,10 +112,13 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
                   key={item.href}
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-teal-50 text-teal-700'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    isActive ? '' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
+                  style={
+                    isActive
+                      ? { backgroundColor: 'var(--org-primary-soft)', color: 'var(--org-primary)' }
+                      : undefined
+                  }
                 >
                   <span className="flex-shrink-0">{item.icon}</span>
                   <span>{item.label}</span>
@@ -141,8 +148,13 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
               {org?.logo ? (
                 <img src={org.logo} alt={org.name} className="w-6 h-6 rounded object-cover" />
               ) : (
-                <div className="w-6 h-6 rounded bg-teal-100 flex items-center justify-center">
-                  <span className="text-teal-700 font-bold text-xs">{org?.name?.charAt(0) || 'O'}</span>
+                <div
+                  className="w-6 h-6 rounded flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--org-primary-soft)' }}
+                >
+                  <span className="font-bold text-xs" style={{ color: 'var(--org-primary)' }}>
+                    {org?.name?.charAt(0) || 'O'}
+                  </span>
                 </div>
               )}
               <span className="font-semibold text-gray-900 text-sm truncate">{org?.name || 'Organization'}</span>

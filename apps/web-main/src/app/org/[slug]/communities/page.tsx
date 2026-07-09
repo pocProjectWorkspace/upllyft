@@ -25,7 +25,8 @@ export default function OrgCommunitiesPage() {
         <h1 className="text-xl font-bold text-gray-900">Communities</h1>
         <a
           href={`/org/${slug}/communities/create`}
-          className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl px-4 py-2 text-sm font-medium hover:from-teal-600 hover:to-teal-700 shadow-md"
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium shadow-md hover:opacity-90 transition-opacity"
+          style={{ background: 'var(--org-gradient)', color: 'var(--org-on-primary)' }}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -52,8 +53,13 @@ export default function OrgCommunitiesPage() {
           {communities.map((community) => (
             <div key={community.id} className="bg-white rounded-2xl border border-gray-200 p-5">
               <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-teal-700 font-bold text-sm">{community.name.charAt(0)}</span>
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: 'var(--org-primary-soft)' }}
+                >
+                  <span className="font-bold text-sm" style={{ color: 'var(--org-primary)' }}>
+                    {community.name.charAt(0)}
+                  </span>
                 </div>
                 <div className="min-w-0">
                   <h3 className="font-semibold text-gray-900 truncate">{community.name}</h3>

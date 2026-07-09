@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useToast } from '@upllyft/ui';
 import { getOrganization, updateOrgSettings } from '@/lib/api/organizations';
+import { ORG_COLOR_DEFAULTS, contrastOn } from '@/components/org/org-theme';
 
 export default function OrgSettingsPage() {
   const params = useParams();
@@ -20,6 +21,9 @@ export default function OrgSettingsPage() {
     website: '',
     logo: '',
     banner: '',
+    primaryColor: ORG_COLOR_DEFAULTS.primary,
+    secondaryColor: ORG_COLOR_DEFAULTS.secondary,
+    accentColor: ORG_COLOR_DEFAULTS.accent,
   });
 
   const [logoPreview, setLogoPreview] = useState('');
@@ -36,6 +40,9 @@ export default function OrgSettingsPage() {
           website: org.website || '',
           logo: org.logo || '',
           banner: org.banner || '',
+          primaryColor: org.primaryColor || ORG_COLOR_DEFAULTS.primary,
+          secondaryColor: org.secondaryColor || ORG_COLOR_DEFAULTS.secondary,
+          accentColor: org.accentColor || ORG_COLOR_DEFAULTS.accent,
         });
         setLogoPreview(org.logo || '');
         setBannerPreview(org.banner || '');
@@ -53,6 +60,9 @@ export default function OrgSettingsPage() {
         name: form.name,
         description: form.description,
         website: form.website,
+        primaryColor: form.primaryColor,
+        secondaryColor: form.secondaryColor,
+        accentColor: form.accentColor,
       });
       toast({ title: 'Success', description: 'Settings updated' });
     } catch (err: any) {
@@ -228,6 +238,125 @@ export default function OrgSettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Brand colours */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+        <div>
+          <h2 className="font-semibold text-gray-900">Brand Colours</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Applied across your organization&apos;s pages — headers, buttons and highlights.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <ColorField
+            label="Primary"
+            hint="Buttons, links, active nav"
+            value={form.primaryColor}
+            onChange={(v) => setForm({ ...form, primaryColor: v })}
+          />
+          <ColorField
+            label="Secondary"
+            hint="Gradient end, headers"
+            value={form.secondaryColor}
+            onChange={(v) => setForm({ ...form, secondaryColor: v })}
+          />
+          <ColorField
+            label="Accent"
+            hint="Badges, highlights"
+            value={form.accentColor}
+            onChange={(v) => setForm({ ...form, accentColor: v })}
+          />
+        </div>
+
+        {/* Live preview */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Preview</label>
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <div
+              className="h-20 w-full"
+              style={{ background: `linear-gradient(to right, ${form.primaryColor}, ${form.secondaryColor})` }}
+            />
+            <div className="p-4 flex items-center gap-3 flex-wrap">
+              <button
+                type="button"
+                className="rounded-xl px-4 py-2 text-sm font-medium shadow-sm"
+                style={{
+                  background: `linear-gradient(to right, ${form.primaryColor}, ${form.secondaryColor})`,
+                  color: contrastOn(form.primaryColor),
+                }}
+              >
+                Primary Button
+              </button>
+              <span
+                className="rounded-full px-3 py-1 text-xs font-semibold"
+                style={{ backgroundColor: form.accentColor, color: contrastOn(form.accentColor) }}
+              >
+                Accent Badge
+              </span>
+              <a href="#" className="text-sm font-medium" style={{ color: form.primaryColor }}>
+                A themed link
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() =>
+            setForm({
+              ...form,
+              primaryColor: ORG_COLOR_DEFAULTS.primary,
+              secondaryColor: ORG_COLOR_DEFAULTS.secondary,
+              accentColor: ORG_COLOR_DEFAULTS.accent,
+            })
+          }
+          className="text-sm text-gray-500 hover:text-gray-700 underline"
+        >
+          Reset to Upllyft defaults
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ColorField({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const isValidHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={isValidHex ? value : '#000000'}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={`${label} colour picker`}
+          className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer bg-white p-0.5"
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={`${label} colour hex value`}
+          placeholder="#0d9488"
+          className={`flex-1 min-w-0 px-3 py-2 border rounded-xl text-sm font-mono focus:outline-none focus:ring-2 ${
+            isValidHex
+              ? 'border-gray-200 focus:ring-teal-500'
+              : 'border-red-300 focus:ring-red-400'
+          }`}
+        />
+      </div>
+      <p className="text-xs text-gray-400">{isValidHex ? hint : 'Enter a hex colour, e.g. #0d9488'}</p>
     </div>
   );
 }
