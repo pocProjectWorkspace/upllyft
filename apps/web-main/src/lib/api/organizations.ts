@@ -54,6 +54,7 @@ export interface OrgEvent {
   attendeeCount: number;
   maxAttendees?: number | null;
   community?: { id: string; name: string; slug: string } | null;
+  creator?: { id: string; name: string | null; image?: string | null } | null;
   _count?: { interests: number };
 }
 

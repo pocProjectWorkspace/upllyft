@@ -8,7 +8,7 @@
  * Idempotent: communities upsert by slug; events are tagged `demo-seed` and the
  * previous batch is cleared before reseeding, so dates stay relative to "now".
  */
-import { CommunityRole, EventCategory, EventFormat, PrismaClient } from '@prisma/client';
+import { CommunityRole, EventCategory, EventFormat, InterestStatus, PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -16,7 +16,8 @@ const prisma = new PrismaClient();
 
 const ORG_SLUG = 'upllyft-demo-clinic';
 const ORG_ADMIN_EMAIL = 'orgadmin@upllyft.demo';
-const THERAPIST_EMAIL = 'therapist@upllyft.demo';
+const THERAPIST_1 = 'therapist@upllyft.demo'; // Dr. Sarah Thomas — speech & language
+const THERAPIST_2 = 'therapist2@upllyft.demo'; // Ms. Leila Haddad — OT & sensory
 const SEED_TAG = 'demo-seed';
 
 const BRAND = {
@@ -33,6 +34,7 @@ const daysFromNow = (d: number, atHour = 10) => {
   return date;
 };
 
+/** `staff` are seeded as community MODERATORs; the org admin owns every community. */
 const COMMUNITIES = [
   {
     slug: 'demo-clinic-speech-language',
@@ -41,6 +43,7 @@ const COMMUNITIES = [
     type: 'condition',
     condition: 'Speech Delay',
     tags: ['speech', 'language', 'aac'],
+    staff: [THERAPIST_1],
   },
   {
     slug: 'demo-clinic-sensory-ot',
@@ -49,6 +52,7 @@ const COMMUNITIES = [
     type: 'condition',
     condition: 'Sensory Processing',
     tags: ['occupational-therapy', 'sensory'],
+    staff: [THERAPIST_1, THERAPIST_2],
   },
   {
     slug: 'demo-clinic-parent-lounge',
@@ -58,6 +62,7 @@ const COMMUNITIES = [
     condition: null,
     isPrivate: true,
     tags: ['parents', 'peer-support'],
+    staff: [], // parents only — deliberately no clinicians
   },
   {
     slug: 'demo-clinic-clinician-room',
@@ -67,14 +72,35 @@ const COMMUNITIES = [
     condition: null,
     isPrivate: true,
     tags: ['clinicians', 'cpd'],
+    staff: [THERAPIST_1, THERAPIST_2],
   },
 ];
+
+interface SeedEvent {
+  title: string;
+  description: string;
+  eventType: EventCategory;
+  format: EventFormat;
+  startDate: Date;
+  endDate: Date;
+  /** Community-owned unless orgLevel — an Event may have one owner, never both. */
+  community?: string;
+  orgLevel?: boolean;
+  venue?: string;
+  city?: string;
+  meetingLink?: string;
+  maxAttendees?: number;
+  /** Event creator. Defaults to the org admin. */
+  host?: string;
+  /** Seeded as EventInterest rows so cards show a real attendee count. */
+  attendees?: string[];
+}
 
 /**
  * Spread across roughly one month: two finished, one running right now,
  * the rest upcoming over the next three weeks.
  */
-const EVENTS = [
+const EVENTS: SeedEvent[] = [
   {
     title: 'Introduction to AAC Devices',
     description: 'A hands-on walkthrough of augmentative and alternative communication tools for non-verbal children.',
@@ -84,6 +110,8 @@ const EVENTS = [
     endDate: daysFromNow(-14, 12),
     community: 'demo-clinic-speech-language',
     meetingLink: 'https://meet.upllyft.demo/aac-intro',
+    host: THERAPIST_1,
+    attendees: [THERAPIST_2],
   },
   {
     title: 'Sensory Diet Workshop',
@@ -95,6 +123,8 @@ const EVENTS = [
     community: 'demo-clinic-sensory-ot',
     venue: 'Upllyft Demo Clinic, Studio 2',
     city: 'Dubai',
+    host: THERAPIST_2,
+    attendees: [THERAPIST_1],
   },
   {
     // Live right now — started 45 min ago, runs for another 75.
@@ -106,6 +136,8 @@ const EVENTS = [
     endDate: hoursFromNow(1.25),
     community: 'demo-clinic-parent-lounge',
     meetingLink: 'https://meet.upllyft.demo/drop-in',
+    host: THERAPIST_1,
+    attendees: [THERAPIST_2],
   },
   {
     title: 'Early Signs of Autism — Awareness Session',
@@ -118,6 +150,7 @@ const EVENTS = [
     venue: 'Upllyft Demo Clinic, Main Hall',
     city: 'Dubai',
     meetingLink: 'https://meet.upllyft.demo/autism-awareness',
+    attendees: [THERAPIST_1, THERAPIST_2],
   },
   {
     title: 'Social Skills Playgroup',
@@ -130,6 +163,8 @@ const EVENTS = [
     venue: 'Upllyft Demo Clinic, Play Room',
     city: 'Dubai',
     maxAttendees: 12,
+    host: THERAPIST_1,
+    attendees: [THERAPIST_2],
   },
   {
     title: 'Speech Milestones: 2 to 5 Years',
@@ -140,6 +175,7 @@ const EVENTS = [
     endDate: daysFromNow(9, 20),
     community: 'demo-clinic-speech-language',
     meetingLink: 'https://meet.upllyft.demo/speech-milestones',
+    host: THERAPIST_1,
   },
   {
     title: 'Team Case Conference',
@@ -150,6 +186,7 @@ const EVENTS = [
     endDate: daysFromNow(12, 10),
     community: 'demo-clinic-clinician-room',
     meetingLink: 'https://meet.upllyft.demo/case-conference',
+    attendees: [THERAPIST_1, THERAPIST_2],
   },
   {
     title: 'Music Therapy Taster',
@@ -162,6 +199,8 @@ const EVENTS = [
     venue: 'Upllyft Demo Clinic, Studio 1',
     city: 'Dubai',
     maxAttendees: 15,
+    host: THERAPIST_2,
+    attendees: [THERAPIST_1],
   },
 ];
 
@@ -173,11 +212,19 @@ async function main() {
     throw new Error(`Organization "${ORG_SLUG}" not found — run seed-org.ts first.`);
   }
 
-  const [admin, therapist] = await Promise.all([
-    prisma.user.findUnique({ where: { email: ORG_ADMIN_EMAIL } }),
-    prisma.user.findUnique({ where: { email: THERAPIST_EMAIL } }),
-  ]);
+  const people = await prisma.user.findMany({
+    where: { email: { in: [ORG_ADMIN_EMAIL, THERAPIST_1, THERAPIST_2] } },
+    select: { id: true, email: true, name: true },
+  });
+  const userIdByEmail = new Map(people.map((u) => [u.email, u.id]));
+
+  const admin = people.find((u) => u.email === ORG_ADMIN_EMAIL);
   if (!admin) throw new Error(`Org admin "${ORG_ADMIN_EMAIL}" not found — run seed-org.ts first.`);
+  for (const email of [THERAPIST_1, THERAPIST_2]) {
+    if (!userIdByEmail.has(email)) {
+      throw new Error(`Therapist "${email}" not found — run seed-org.ts first.`);
+    }
+  }
 
   // ── brand colours ──
   await prisma.organization.update({ where: { id: org.id }, data: BRAND });
@@ -210,13 +257,14 @@ async function main() {
     });
     communityIdBySlug.set(c.slug, community.id);
 
-    // Org admin owns every community; the therapist joins the clinical ones.
+    // Org admin owns every community; declared staff moderate it.
     const memberships: { userId: string; role: CommunityRole }[] = [
       { userId: admin.id, role: CommunityRole.ADMIN },
+      ...c.staff.map((email) => ({
+        userId: userIdByEmail.get(email)!,
+        role: CommunityRole.MODERATOR,
+      })),
     ];
-    if (therapist && c.slug !== 'demo-clinic-parent-lounge') {
-      memberships.push({ userId: therapist.id, role: CommunityRole.MODERATOR });
-    }
 
     for (const m of memberships) {
       await prisma.communityMember.upsert({
@@ -249,7 +297,9 @@ async function main() {
   if (removed) console.log(`  · cleared ${removed} previously seeded events.`);
 
   for (const e of EVENTS) {
-    await prisma.event.create({
+    const attendees = e.attendees ?? [];
+
+    const event = await prisma.event.create({
       data: {
         title: e.title,
         description: e.description,
@@ -257,7 +307,7 @@ async function main() {
         format: e.format,
         startDate: e.startDate,
         endDate: e.endDate,
-        createdBy: admin.id,
+        createdBy: userIdByEmail.get(e.host ?? '') ?? admin.id,
         // An event belongs to a community OR directly to the org, never both.
         ...(e.orgLevel
           ? { organizationId: org.id }
@@ -273,8 +323,15 @@ async function main() {
         tags: [SEED_TAG],
         status: 'PUBLISHED',
         isPublic: true,
+        attendeeCount: attendees.length,
       },
     });
+
+    for (const email of attendees) {
+      await prisma.eventInterest.create({
+        data: { eventId: event.id, userId: userIdByEmail.get(email)!, status: InterestStatus.GOING },
+      });
+    }
   }
 
   const now = Date.now();
@@ -282,10 +339,18 @@ async function main() {
   const upcoming = EVENTS.filter((e) => e.startDate.getTime() > now).length;
   const past = EVENTS.length - live - upcoming;
 
+  const interests = EVENTS.reduce((n, e) => n + (e.attendees?.length ?? 0), 0);
+
   console.log('\n──────────────────────────────────────────────');
   console.log(`Org content ready for ${org.name}`);
   console.log(`  Communities : ${COMMUNITIES.length}`);
   console.log(`  Events      : ${EVENTS.length}  (${past} past · ${live} live · ${upcoming} upcoming)`);
+  console.log(`  Attendees   : ${interests} EventInterest rows`);
+  for (const email of [THERAPIST_1, THERAPIST_2]) {
+    const mods = COMMUNITIES.filter((c) => c.staff.includes(email)).length;
+    const hosting = EVENTS.filter((e) => e.host === email).length;
+    console.log(`  ${email.padEnd(24)} moderates ${mods} communities · hosts ${hosting} events`);
+  }
   console.log('──────────────────────────────────────────────');
 }
 
