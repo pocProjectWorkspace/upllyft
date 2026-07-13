@@ -12,7 +12,7 @@ import { UpdateTrackingStatusDto } from './dto/clinic-tracking.dto';
 export class ClinicTrackingService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async getTodayAppointments(date?: string, clinicId?: string) {
+  async getTodayAppointments(date: string | undefined, clinicId: string | null) {
     const targetDate = date ? new Date(date) : new Date();
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -155,7 +155,7 @@ export class ClinicTrackingService {
     });
   }
 
-  async updateTrackingStatus(bookingId: string, dto: UpdateTrackingStatusDto, clinicId?: string) {
+  async updateTrackingStatus(bookingId: string, dto: UpdateTrackingStatusDto, clinicId: string | null) {
     const booking = await this.prisma.booking.findFirst({
       where: {
         id: bookingId,
@@ -354,7 +354,7 @@ export class ClinicTrackingService {
     return age;
   }
 
-  async createWalkinBooking(dto: import('./dto/clinic-tracking.dto').CreateWalkinBookingDto, clinicId?: string) {
+  async createWalkinBooking(dto: import('./dto/clinic-tracking.dto').CreateWalkinBookingDto, clinicId: string | null) {
     const durationMins = dto.durationMins ?? 60;
     const startDateTime = new Date(dto.scheduledAt);
     const endDateTime = new Date(startDateTime.getTime() + durationMins * 60 * 1000);

@@ -14,6 +14,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorators';
 import { Role } from '@prisma/client';
 import { ClinicTrackingService } from './clinic-tracking.service';
+import { resolveClinicScope } from '../common/tenant-scope';
 import {
   TrackingQueryDto,
   UpdateTrackingStatusDto,
@@ -28,13 +29,13 @@ export class ClinicTrackingController {
 
   @Get('today')
   async getTodayAppointments(@Query() query: TrackingQueryDto, @Req() req: any) {
-    return this.clinicTrackingService.getTodayAppointments(query.date, req.user.clinicId);
+    return this.clinicTrackingService.getTodayAppointments(query.date, resolveClinicScope(req.user));
   }
 
   @Post('book')
   @Roles(Role.ADMIN)
   async createWalkinBooking(@Body() dto: CreateWalkinBookingDto, @Req() req: any) {
-    return this.clinicTrackingService.createWalkinBooking(dto, req.user.clinicId);
+    return this.clinicTrackingService.createWalkinBooking(dto, resolveClinicScope(req.user));
   }
 
   @Patch(':bookingId')
@@ -43,6 +44,6 @@ export class ClinicTrackingController {
     @Body() dto: UpdateTrackingStatusDto,
     @Req() req: any,
   ) {
-    return this.clinicTrackingService.updateTrackingStatus(bookingId, dto, req.user.clinicId);
+    return this.clinicTrackingService.updateTrackingStatus(bookingId, dto, resolveClinicScope(req.user));
   }
 }

@@ -18,12 +18,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
+    // clinicId/organizationId are signed into the token by AuthService.generateTokens.
+    // They MUST be propagated: tenant-scoped services read req.user.clinicId, and a
+    // missing value silently degrades those queries to unscoped (cross-tenant) reads.
     return {
       id: payload.sub,
       userId: payload.sub,
       email: payload.email,
       role: payload.role,
       verificationStatus: payload.verificationStatus,
+      clinicId: payload.clinicId ?? null,
+      organizationId: payload.organizationId ?? null,
     };
   }
 }

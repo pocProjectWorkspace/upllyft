@@ -14,6 +14,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorators';
 import { Role } from '@prisma/client';
 import { ClinicPatientsService } from './clinic-patients.service';
+import { resolveClinicScope } from '../common/tenant-scope';
 import {
   ListPatientsQueryDto,
   UpdatePatientStatusDto,
@@ -30,22 +31,22 @@ export class ClinicPatientsController {
   @Post()
   @Roles(Role.ADMIN, Role.THERAPIST)
   async createWalkinPatient(@Body() dto: CreateWalkinPatientDto, @Req() req: any) {
-    return this.clinicPatientsService.createWalkinPatient(dto, req.user.id, req.user.clinicId);
+    return this.clinicPatientsService.createWalkinPatient(dto, req.user.id, resolveClinicScope(req.user));
   }
 
   @Get()
   async listPatients(@Query() query: ListPatientsQueryDto, @Req() req: any) {
-    return this.clinicPatientsService.listPatients(query, req.user.clinicId);
+    return this.clinicPatientsService.listPatients(query, resolveClinicScope(req.user));
   }
 
   @Get('therapists')
   async getTherapistsList(@Req() req: any) {
-    return this.clinicPatientsService.getTherapistsList(req.user.clinicId);
+    return this.clinicPatientsService.getTherapistsList(resolveClinicScope(req.user));
   }
 
   @Get(':childId')
   async getPatientDetail(@Param('childId') childId: string, @Req() req: any) {
-    return this.clinicPatientsService.getPatientDetail(childId, req.user.clinicId);
+    return this.clinicPatientsService.getPatientDetail(childId, resolveClinicScope(req.user));
   }
 
   @Patch(':childId')
@@ -54,7 +55,7 @@ export class ClinicPatientsController {
     @Body() dto: UpdatePatientStatusDto,
     @Req() req: any,
   ) {
-    return this.clinicPatientsService.updatePatientStatus(childId, dto, req.user.clinicId);
+    return this.clinicPatientsService.updatePatientStatus(childId, dto, resolveClinicScope(req.user));
   }
 
   @Post(':childId/assign')
@@ -64,6 +65,6 @@ export class ClinicPatientsController {
     @Body() dto: AssignTherapistDto,
     @Req() req: any,
   ) {
-    return this.clinicPatientsService.assignTherapist(childId, dto, req.user.clinicId);
+    return this.clinicPatientsService.assignTherapist(childId, dto, resolveClinicScope(req.user));
   }
 }

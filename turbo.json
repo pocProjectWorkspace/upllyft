@@ -18,6 +18,11 @@
     },
     "dev": {
       "cache": false
+    },
+    "lint": {},
+    "type-check": {},
+    "clean": {
+      "cache": false
     }
   }
 }

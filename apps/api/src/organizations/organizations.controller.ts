@@ -60,8 +60,9 @@ export class OrganizationsController {
     }
 
     @Get(':slug/stats')
-    getStats(@Param('slug') slug: string) {
-        return this.organizationsService.getStats(slug);
+    @UseGuards(JwtAuthGuard)
+    getStats(@Param('slug') slug: string, @Request() req: any) {
+        return this.organizationsService.getStats(slug, req.user.id);
     }
 
     @Get(':slug/events')
@@ -70,15 +71,16 @@ export class OrganizationsController {
     }
 
     @Post(':slug/join')
-    // @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard)
     join(@Param('slug') slug: string, @Request() req: any) {
-        const userId = req.user?.id || 'mock-user-id';
-        return this.organizationsService.join(slug, userId);
+        return this.organizationsService.join(slug, req.user.id);
     }
 
+    // Returns member PII (name + email). Members only — never public.
     @Get(':slug/members')
-    getMembers(@Param('slug') slug: string) {
-        return this.organizationsService.getMembers(slug);
+    @UseGuards(JwtAuthGuard)
+    getMembers(@Param('slug') slug: string, @Request() req: any) {
+        return this.organizationsService.getMembers(slug, req.user.id);
     }
 
     @Get(':slug/communities')
@@ -103,15 +105,14 @@ export class OrganizationsController {
     }
 
     @Put(':slug/members/:memberId')
-    // @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard)
     updateMemberStatus(
         @Param('slug') slug: string,
         @Param('memberId') memberId: string,
         @Body('status') status: any,
         @Request() req: any
     ) {
-        const adminId = req.user?.id || 'mock-user-id';
-        return this.organizationsService.updateMemberStatus(slug, memberId, status, adminId);
+        return this.organizationsService.updateMemberStatus(slug, memberId, status, req.user.id);
     }
 
     @Post(':slug/members')

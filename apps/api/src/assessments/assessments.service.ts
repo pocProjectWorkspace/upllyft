@@ -742,7 +742,11 @@ export class AssessmentsService {
 
     /**
      * Get screening history for a child (longitudinal trend data).
-     * Access: child's parent, or THERAPIST/ADMIN role.
+     *
+     * Access is RELATIONSHIP-scoped, not role-scoped: holding the THERAPIST or
+     * EDUCATOR role is not by itself a relationship to a child. A professional
+     * reaches a child's history only via an active AssessmentShare the guardian
+     * granted, or by being assigned to a live case for that child.
      */
     async getScreeningHistory(childId: string, userId: string, userRole: string) {
         const child = await this.prisma.child.findUnique({
@@ -754,13 +758,7 @@ export class AssessmentsService {
             throw new NotFoundException('Child not found');
         }
 
-        const isParent = child.profile.userId === userId;
-        const isProfessionalOrAdmin =
-            userRole === 'THERAPIST' || userRole === 'EDUCATOR' || userRole === 'ADMIN';
-
-        if (!isParent && !isProfessionalOrAdmin) {
-            throw new ForbiddenException('You do not have access to this child');
-        }
+        await this.assertCanReadChildScreening(child.profile.userId, childId, userId, userRole);
 
         const assessments = await this.prisma.assessment.findMany({
             where: {
@@ -795,6 +793,65 @@ export class AssessmentsService {
                 };
             }),
         };
+    }
+
+    /**
+     * Resolve whether `userId` may read screening data for `childId`.
+     *
+     * Allowed:
+     *  - the child's guardian (owner of the child profile)
+     *  - platform admins
+     *  - a professional the guardian actively shared an assessment with
+     *  - a therapist assigned to a live (non-archived) case for this child
+     *
+     * NOTE: ADMIN retains blanket access, consistent with CaseAccessGuard. That
+     * is itself tenant-unaware and is closed when Facility/ChildAffiliation lands
+     * (docs/tenancy-and-multi-setting-model.md, Phase D).
+     */
+    private async assertCanReadChildScreening(
+        childOwnerUserId: string,
+        childId: string,
+        userId: string,
+        userRole: string,
+    ): Promise<void> {
+        if (childOwnerUserId === userId) return;
+        if (userRole === 'ADMIN' || userRole === 'SUPERADMIN') return;
+
+        const sharedWithUser = await this.prisma.assessmentShare.findFirst({
+            where: {
+                sharedWith: userId,
+                isActive: true,
+                assessment: { childId },
+            },
+            select: { id: true },
+        });
+        if (sharedWithUser) return;
+
+        const therapistProfile = await this.prisma.therapistProfile.findUnique({
+            where: { userId },
+            select: { id: true },
+        });
+
+        if (therapistProfile) {
+            const assignedCase = await this.prisma.case.findFirst({
+                where: {
+                    childId,
+                    status: { not: 'ARCHIVED' },
+                    OR: [
+                        { primaryTherapistId: therapistProfile.id },
+                        {
+                            therapists: {
+                                some: { therapistId: therapistProfile.id, removedAt: null },
+                            },
+                        },
+                    ],
+                },
+                select: { id: true },
+            });
+            if (assignedCase) return;
+        }
+
+        throw new ForbiddenException('You do not have access to this child');
     }
 
     /**
