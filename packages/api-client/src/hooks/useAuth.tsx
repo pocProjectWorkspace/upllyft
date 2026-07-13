@@ -19,7 +19,7 @@ import {
 } from '../client';
 import * as authApi from '../auth';
 
-interface AuthContextValue {
+export interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
