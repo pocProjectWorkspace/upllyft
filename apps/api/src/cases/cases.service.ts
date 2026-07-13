@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { facilityCan, type FacilityType } from '../common/facility-capabilities';
 import { CaseStatus, CaseTherapistRole, CredentialStatus, Prisma } from '@prisma/client';
 import {
   CreateCaseDto,
@@ -147,14 +148,30 @@ export class CasesService {
       );
     }
 
-    if (therapistProfile.clinicId) {
-      const clinic = await this.prisma.clinic.findUnique({
-        where: { id: therapistProfile.clinicId },
-        select: { complianceStatus: true },
-      });
-      if (clinic && clinic.complianceStatus !== 'ACTIVE') {
+    // Phase D2: resolve the clinician's facility through FacilityMember, and gate on
+    // BOTH compliance and capability.
+    //
+    // The capability check is the load-bearing one: a NURSERY may never open a case,
+    // and this enforces that from the capability map rather than from an
+    // `if (type === 'NURSERY')` branch that someone can forget to add on the next
+    // endpoint. See packages/types/src/facility.ts.
+    const membership = await this.prisma.facilityMember.findFirst({
+      where: { userId: therapistProfile.userId, status: 'ACTIVE' },
+      select: { facility: { select: { type: true, name: true, complianceStatus: true } } },
+    });
+
+    if (membership) {
+      const { type, name, complianceStatus } = membership.facility;
+
+      if (!facilityCan(type as FacilityType, 'canCreateCase')) {
         throw new ForbiddenException(
-          'This clinic is not active for case creation until compliance review is complete.',
+          `${name} is a ${type.toLowerCase()} and cannot open clinical cases. Refer the child to a clinic instead.`,
+        );
+      }
+
+      if (complianceStatus !== 'ACTIVE') {
+        throw new ForbiddenException(
+          'This facility is not active for case creation until compliance review is complete.',
         );
       }
     }

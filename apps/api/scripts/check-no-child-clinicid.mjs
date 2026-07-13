@@ -37,10 +37,9 @@ const BASELINE = new Map([
   ],
   [
     'clinic-patients/clinic-patients.service.ts',
-    'MIGRATED for Child reads; still uses TherapistProfile.clinicId in getTherapistsList (Phase D2)',
+    'MIGRATED (D + D2) — the remaining `clinicId` is the inbound scope param name only',
   ],
-  ['cases/cases.service.ts', 'TherapistProfile.clinicId -> compliance gate (Phase D2)'],
-  ['auth/auth.service.ts', 'mints the clinicId claim (TherapistProfile/Clinic, not Child)'],
+  ['auth/auth.service.ts', 'mints the clinicId claim; resolves it from FacilityMember (D2)'],
   ['auth/strategies/jwt.strategy.ts', 'propagates the clinicId claim'],
   ['admin/admin.service.ts', 'platform admin: clinic CRUD + data export'],
   ['clinic/clinic.service.ts', 'Clinic entity CRUD'],

@@ -115,6 +115,7 @@ model User {
   userProfile             UserProfile?             @relation("UserProfile")
   adminOfClinic           Clinic?                  @relation("ClinicAdmin")
   facilityMemberships     FacilityMember[]         @relation("FacilityMemberships")
+  childConsents           ChildConsent[]           @relation("ChildConsents")
   bannerAds               BannerAd[]
 
   // Case management relations
@@ -1369,6 +1370,7 @@ model Child {
   clinicId                              String?
   clinic                                Clinic?                   @relation(fields: [clinicId], references: [id])
   affiliations                          ChildAffiliation[]
+  consents                              ChildConsent[]
   assessments                           Assessment[]
   conditions                            ChildCondition[]
   cases                                 Case[]
@@ -3374,6 +3376,7 @@ model Guardian {
   email                 String?
   accessLevel           GuardianAccessLevel  @default(VIEW_ONLY)
   consentsGranted       CaseConsent[]        @relation("ConsentGuardian")
+  childConsents         ChildConsent[]       @relation("ChildConsentGuardian")
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
@@ -3382,31 +3385,37 @@ model Guardian {
 }
 
 model ConsentTemplate {
-  id        String           @id @default(cuid())
-  clinicId  String?
-  clinic    Clinic?          @relation("ClinicConsentTemplates", fields: [clinicId], references: [id])
-  type      ConsentType
-  name      String
-  isActive  Boolean          @default(true)
-  versions  ConsentVersion[]
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id         String           @id @default(cuid())
+  clinicId   String?
+  clinic     Clinic?          @relation("ClinicConsentTemplates", fields: [clinicId], references: [id])
+  /// Phase E: consent packs are per-FACILITY. A nursery needs its own — collected
+  /// in bulk at enrolment, not per-case like a clinic's. Additive alongside clinicId.
+  facilityId String?
+  facility   Facility?        @relation("FacilityConsentTemplates", fields: [facilityId], references: [id])
+  type       ConsentType
+  name       String
+  isActive   Boolean          @default(true)
+  versions   ConsentVersion[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 
   @@index([clinicId])
+  @@index([facilityId])
   @@index([type])
   @@map("consent_templates")
 }
 
 model ConsentVersion {
-  id          String          @id @default(cuid())
-  templateId  String
-  template    ConsentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  version     Int
-  purpose     String
-  bodyUrl     String?
-  bodyHash    String?
-  publishedAt DateTime        @default(now())
-  consents    CaseConsent[]
+  id            String          @id @default(cuid())
+  templateId    String
+  template      ConsentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version       Int
+  purpose       String
+  bodyUrl       String?
+  bodyHash      String?
+  publishedAt   DateTime        @default(now())
+  consents      CaseConsent[]
+  childConsents ChildConsent[]  @relation("ChildConsentVersion")
 
   @@unique([templateId, version])
   @@map("consent_versions")
@@ -4651,9 +4660,11 @@ model Facility {
   /// prove the 1:1 mapping held. Null for facilities created natively (nurseries).
   migratedFromClinicId String? @unique
 
-  members      FacilityMember[]
-  rooms        Room[]
-  affiliations ChildAffiliation[]
+  members          FacilityMember[]
+  rooms            Room[]
+  affiliations     ChildAffiliation[]
+  consents         ChildConsent[]
+  consentTemplates ConsentTemplate[]  @relation("FacilityConsentTemplates")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4707,6 +4718,65 @@ model FacilityMember {
   @@map("facility_members")
 }
 
+/// Consent, generalised from Case to CHILD + FACILITY (Phase E).
+///
+/// `CaseConsent` already had the right shape — versioned, guardian-granted,
+/// purpose-bound, revocable. It was merely keyed to a Case, which a nursery will
+/// never have: a nursery observes an enrolled child, it does not open cases.
+///
+/// The grant reads: *this guardian permits THIS FACILITY to do THIS, for THIS
+/// purpose, until THIS date, revocably.* That is what makes consent an access
+/// GATE rather than a stored form — and it is the thing a nursery's procurement
+/// review will actually scrutinise.
+///
+/// Additive: `CaseConsent` remains until its readers migrate. Rows are backfilled
+/// 1:1 with `migratedFromCaseConsentId` recording provenance.
+model ChildConsent {
+  id      String @id @default(cuid())
+  childId String
+  child   Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  // WHO granted it. A guardian must hold `hasAuthorityToConsent`; grantedBy is
+  // retained for audit even when the guardian record is the authority.
+  guardianId  String?
+  guardian    Guardian? @relation("ChildConsentGuardian", fields: [guardianId], references: [id])
+  grantedById String
+  grantedBy   User      @relation("ChildConsents", fields: [grantedById], references: [id])
+
+  // TO WHOM. A facility-scoped grant is the nursery/clinic case; caseId is kept so
+  // clinical consents can still point at the case they were captured on.
+  facilityId    String?
+  facility      Facility?         @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  affiliationId String?
+  affiliation   ChildAffiliation? @relation(fields: [affiliationId], references: [id], onDelete: SetNull)
+  caseId        String?
+
+  type      ConsentType
+  purpose   String?
+  recipient String?
+  scope     Json?
+
+  consentVersionId String?
+  consentVersion   ConsentVersion? @relation("ChildConsentVersion", fields: [consentVersionId], references: [id])
+
+  validFrom  DateTime  @default(now())
+  validUntil DateTime?
+  revokedAt  DateTime?
+  notes      String?
+
+  /// Provenance for the CaseConsent -> ChildConsent backfill; proves the 1:1 held.
+  migratedFromCaseConsentId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([childId, type])
+  @@index([facilityId])
+  @@index([affiliationId])
+  @@index([guardianId])
+  @@map("child_consents")
+}
+
 /// THE load-bearing model. Replaces the single nullable `Child.clinicId`.
 ///
 /// A child holds N affiliations CONCURRENTLY — enrolled at a nursery while a
@@ -4732,6 +4802,8 @@ model ChildAffiliation {
   room        Room?           @relation(fields: [roomId], references: [id], onDelete: SetNull)
   keyworkerId String?
   keyworker   FacilityMember? @relation("AffiliationKeyworker", fields: [keyworkerId], references: [id], onDelete: SetNull)
+
+  consents ChildConsent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
