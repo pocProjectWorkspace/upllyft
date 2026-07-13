@@ -140,16 +140,7 @@ export class AuthService {
       });
     }
 
-    let clinicId: string | null = null;
-    let organizationId: string | null = null;
-
-    if (user.role === 'ADMIN') {
-      clinicId = fullProfile.adminOfClinic?.id || null;
-      organizationId = (fullProfile.adminOfClinic as any)?.organizationId || null;
-    } else if (user.role === 'THERAPIST') {
-      clinicId = fullProfile.therapistProfile?.clinicId || null;
-      organizationId = (fullProfile.therapistProfile as any)?.clinic?.organizationId || null;
-    }
+    const { clinicId, organizationId } = await this.resolveTenantClaims(user.id, user.role);
 
     const tokens = this.generateTokens({
       id: user.id,
@@ -301,6 +292,44 @@ export class AuthService {
     });
   }
 
+  /**
+   * Resolve the tenant claims stamped into a user's token.
+   *
+   * MUST be used by every path that mints an access token (login AND refresh).
+   * These claims are what tenant-scoped services scope their queries by; a token
+   * missing them is rejected by `resolveClinicScope` (fail-closed). Refresh used
+   * to re-sign a payload without them, so a user's clinicId silently vanished on
+   * the first 15-minute refresh — re-login "fixed" it only until the next refresh.
+   */
+  private async resolveTenantClaims(
+    userId: string,
+    role: Role,
+  ): Promise<{ clinicId: string | null; organizationId: string | null }> {
+    if (role === 'ADMIN') {
+      const clinic = await this.prisma.clinic.findUnique({
+        where: { adminId: userId },
+        select: { id: true, organizationId: true },
+      });
+      return {
+        clinicId: clinic?.id ?? null,
+        organizationId: clinic?.organizationId ?? null,
+      };
+    }
+
+    if (role === 'THERAPIST' || role === 'EDUCATOR') {
+      const profile = await this.prisma.therapistProfile.findUnique({
+        where: { userId },
+        select: { clinicId: true, clinic: { select: { organizationId: true } } },
+      });
+      return {
+        clinicId: profile?.clinicId ?? null,
+        organizationId: profile?.clinic?.organizationId ?? null,
+      };
+    }
+
+    return { clinicId: null, organizationId: null };
+  }
+
   async refreshToken(refreshTokenDto: { refreshToken: string }) {
     try {
       // Verify the refresh token
@@ -318,6 +347,14 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
+      // Re-derive tenant claims from the DB rather than copying the old payload:
+      // a token minted before these claims existed has none to copy, and clinic
+      // membership can change between refreshes.
+      const { clinicId, organizationId } = await this.resolveTenantClaims(
+        user.id,
+        user.role,
+      );
+
       // Generate new access token (must include role + verificationStatus to match login tokens)
       const accessToken = this.jwtService.sign(
         {
@@ -325,6 +362,8 @@ export class AuthService {
           email: user.email,
           role: user.role,
           verificationStatus: user.verificationStatus,
+          ...(clinicId && { clinicId }),
+          ...(organizationId && { organizationId }),
         },
         {
           secret: this.configService.get<string>('JWT_SECRET'),

@@ -1,11 +1,35 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { childInFacility, sessionInFacility } from '../common/child-scope';
 
+/**
+ * Cross-child analytics for a clinic.
+ *
+ * EVERY query here MUST be scoped by `facilityId`. A null facilityId means
+ * platform-wide and is only ever produced by `resolveClinicScope` for a
+ * SUPERADMIN — never as a fallback. See docs/tenancy-and-multi-setting-model.md.
+ */
 @Injectable()
 export class ClinicOutcomesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getClinicSummary() {
+  /**
+   * Scope a Child-rooted query. `null` = SUPERADMIN, platform-wide.
+   *
+   * Phase D: scoped by AFFILIATION, not the deprecated `Child.clinicId`. The
+   * backfill preserved ids (Facility.id = Clinic.id), so the clinicId claim on the
+   * JWT IS the facilityId — which is why this reads as a facility scope now.
+   */
+  private childScope(facilityId: string | null) {
+    return childInFacility(facilityId);
+  }
+
+  /** Scope a CaseSession-rooted query (session → case → child). */
+  private sessionScope(facilityId: string | null) {
+    return sessionInFacility(facilityId);
+  }
+
+  async getClinicSummary(facilityId: string | null) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -18,13 +42,16 @@ export class ClinicOutcomesService {
       screeningImprovement,
     ] = await Promise.all([
       // Active patients
-      this.prisma.child.count({ where: { clinicStatus: 'ACTIVE' } }),
+      this.prisma.child.count({
+        where: { clinicStatus: 'ACTIVE', ...this.childScope(facilityId) },
+      }),
 
       // Sessions this month (attended)
       this.prisma.caseSession.count({
         where: {
           scheduledAt: { gte: startOfMonth },
           attendanceStatus: 'PRESENT',
+          ...this.sessionScope(facilityId),
         },
       }),
 
@@ -33,14 +60,15 @@ export class ClinicOutcomesService {
         where: {
           scheduledAt: { gte: startOfLastMonth, lt: startOfMonth },
           attendanceStatus: 'PRESENT',
+          ...this.sessionScope(facilityId),
         },
       }),
 
       // All goal progress from latest sessions
-      this.getAggregateGoalProgress(),
+      this.getAggregateGoalProgress(facilityId),
 
       // Average screening improvement
-      this.getAverageScreeningImprovement(),
+      this.getAverageScreeningImprovement(facilityId),
     ]);
 
     return {
@@ -52,13 +80,13 @@ export class ClinicOutcomesService {
     };
   }
 
-  async getGoalProgress() {
+  async getGoalProgress(facilityId: string | null) {
     // Get all IEP goals with their session progress
     const goals = await this.prisma.iEPGoal.findMany({
       where: {
         iep: {
           status: { in: ['ACTIVE', 'APPROVED'] },
-          case: { status: 'ACTIVE' },
+          case: { status: 'ACTIVE', child: this.childScope(facilityId) },
         },
       },
       select: {
@@ -117,10 +145,10 @@ export class ClinicOutcomesService {
     return { breakdown, byDomain };
   }
 
-  async getScreeningTrends() {
+  async getScreeningTrends(facilityId: string | null) {
     // Get all children with multiple completed screenings
     const children = await this.prisma.child.findMany({
-      where: { clinicStatus: 'ACTIVE' },
+      where: { clinicStatus: 'ACTIVE', ...this.childScope(facilityId) },
       select: {
         id: true,
         assessments: {
@@ -185,8 +213,9 @@ export class ClinicOutcomesService {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
     therapistId?: string;
+    facilityId: string | null;
   }) {
-    const where: any = { clinicStatus: 'ACTIVE' };
+    const where: any = { clinicStatus: 'ACTIVE', ...this.childScope(opts.facilityId) };
 
     if (opts.therapistId) {
       where.cases = {
@@ -324,9 +353,11 @@ export class ClinicOutcomesService {
     return results;
   }
 
-  async getPatientOutcomeDetail(childId: string) {
-    const child = await this.prisma.child.findUnique({
-      where: { id: childId },
+  async getPatientOutcomeDetail(childId: string, facilityId: string | null) {
+    // findFirst (not findUnique) so the clinic scope is part of the lookup: a child
+    // outside the caller's clinic must 404, not 403 — a 403 would confirm the id exists.
+    const child = await this.prisma.child.findFirst({
+      where: { id: childId, ...this.childScope(facilityId) },
       include: {
         cases: {
           where: { status: { not: 'ARCHIVED' } },
@@ -518,12 +549,12 @@ export class ClinicOutcomesService {
     return 'regression';
   }
 
-  private async getAggregateGoalProgress() {
+  private async getAggregateGoalProgress(facilityId: string | null) {
     const goals = await this.prisma.iEPGoal.findMany({
       where: {
         iep: {
           status: { in: ['ACTIVE', 'APPROVED'] },
-          case: { status: 'ACTIVE' },
+          case: { status: 'ACTIVE', child: this.childScope(facilityId) },
         },
       },
       select: {
@@ -555,9 +586,9 @@ export class ClinicOutcomesService {
     return breakdown;
   }
 
-  private async getAverageScreeningImprovement(): Promise<number> {
+  private async getAverageScreeningImprovement(facilityId: string | null): Promise<number> {
     const children = await this.prisma.child.findMany({
-      where: { clinicStatus: 'ACTIVE' },
+      where: { clinicStatus: 'ACTIVE', ...this.childScope(facilityId) },
       select: {
         assessments: {
           where: { status: 'COMPLETED' },

@@ -114,6 +114,7 @@ model User {
   therapistProfile        TherapistProfile?        @relation("TherapistProfile")
   userProfile             UserProfile?             @relation("UserProfile")
   adminOfClinic           Clinic?                  @relation("ClinicAdmin")
+  facilityMemberships     FacilityMember[]         @relation("FacilityMemberships")
   bannerAds               BannerAd[]
 
   // Case management relations
@@ -1314,7 +1315,7 @@ model UserProfile {
 }
 
 model Child {
-  id                                    String                   @id @default(cuid())
+  id                                    String                    @id @default(cuid())
   profileId                             String
   firstName                             String
   nickname                              String?
@@ -1322,10 +1323,10 @@ model Child {
   gender                                String
   schoolType                            String?
   grade                                 String?
-  hasCondition                          Boolean                  @default(false)
+  hasCondition                          Boolean                   @default(false)
   diagnosisStatus                       String?
-  createdAt                             DateTime                 @default(now())
-  updatedAt                             DateTime                 @updatedAt
+  createdAt                             DateTime                  @default(now())
+  updatedAt                             DateTime                  @updatedAt
   address                               String?
   attendancePattern                     String?
   birthComplications                    String?
@@ -1360,16 +1361,20 @@ model Child {
   takingMedications                     Boolean?
   teacherConcerns                       String?
   visionHearingIssues                   String?
-  clinicStatus                          ClinicStatus             @default(INTAKE)
-  walkinCreatedByAdmin                  Boolean                  @default(false)
+  clinicStatus                          ClinicStatus              @default(INTAKE)
+  walkinCreatedByAdmin                  Boolean                   @default(false)
+  /// @deprecated Phase B — superseded by `affiliations`. A single nullable FK
+  /// cannot express a child who is enrolled at a nursery AND a patient at a
+  /// clinic. Do NOT add new reads of this field; it is dropped in Phase F.
   clinicId                              String?
-  clinic                                Clinic?                  @relation(fields: [clinicId], references: [id])
+  clinic                                Clinic?                   @relation(fields: [clinicId], references: [id])
+  affiliations                          ChildAffiliation[]
   assessments                           Assessment[]
   conditions                            ChildCondition[]
   cases                                 Case[]
   miraConversations                     MiraConversation[]
-  worksheets                            Worksheet[]              @relation("ChildWorksheets")
-  worksheetAssignments                  WorksheetAssignment[]    @relation("ChildWorksheetAssignments")
+  worksheets                            Worksheet[]               @relation("ChildWorksheets")
+  worksheetAssignments                  WorksheetAssignment[]     @relation("ChildWorksheetAssignments")
   worksheetCompletions                  WorksheetCompletion[]
   worksheetEffectiveness                WorksheetEffectiveness[]
   // --- UAE Phase 1: identity (emiratesId/passportNumber stored ENCRYPTED at app layer) ---
@@ -1377,15 +1382,15 @@ model Child {
   emiratesIdExpiry                      DateTime?
   passportNumber                        String?
   identityType                          IdentityDocType?
-  identityVerified                      Boolean                  @default(false)
+  identityVerified                      Boolean                   @default(false)
   identityVerifiedAt                    DateTime?
   identityVerifiedBy                    String?
   guardians                             Guardian[]
   identityDocuments                     PatientIdentityDocument[]
   preVisitTasks                         PreVisitTask[]
   insurancePolicies                     InsurancePolicy[]
-  convertedFromLead                     Lead?                    @relation("LeadConversion")
-  profile                               UserProfile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  convertedFromLead                     Lead?                     @relation("LeadConversion")
+  profile                               UserProfile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
   @@index([dateOfBirth])
@@ -1461,7 +1466,15 @@ model Organization {
   clinicalTemplates ClinicalTemplate[] @relation("OrgClinicalTemplates")
   clinics           Clinic[]           @relation("OrganizationClinics")
 
+  // --- Multi-setting tenancy (Phase B) ---
+  // `Organization` is the ACCOUNT (who signs, who is billed). `kind` is the
+  // discriminator it has always lacked — clinic group vs nursery group vs NGO
+  // were previously indistinguishable.
+  kind       OrgKind    @default(CLINIC_GROUP)
+  facilities Facility[]
+
   @@index([slug])
+  @@index([kind])
 }
 
 model OrganizationMember {
@@ -1761,28 +1774,28 @@ model TherapistOrganizationLink {
 }
 
 model SessionType {
-  id             String            @id @default(cuid())
-  name           String
-  description    String?
-  duration       Int
-  defaultPrice   Float
-  currency       String            @default("USD")
-  organizationId String?
-  therapistId    String?
-  isActive       Boolean           @default(true)
+  id                String            @id @default(cuid())
+  name              String
+  description       String?
+  duration          Int
+  defaultPrice      Float
+  currency          String            @default("USD")
+  organizationId    String?
+  therapistId       String?
+  isActive          Boolean           @default(true)
   // --- UAE Phase 2: service modality + payer config ---
-  modality          SessionModality @default(IN_PERSON)
+  modality          SessionModality   @default(IN_PERSON)
   serviceCode       String?
   payerRoute        PayerType?
-  requiresPreAuth   Boolean         @default(false)
-  insuranceEligible Boolean         @default(false)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  packages       BookingPackage[]
-  bookings       Booking[]
-  sessionPricing SessionPricing[]
-  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  therapist      TherapistProfile? @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  requiresPreAuth   Boolean           @default(false)
+  insuranceEligible Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  packages          BookingPackage[]
+  bookings          Booking[]
+  sessionPricing    SessionPricing[]
+  organization      Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  therapist         TherapistProfile? @relation(fields: [therapistId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([therapistId])
@@ -2707,21 +2720,21 @@ model AdAnalytics {
 // ─── CASE MANAGEMENT ─────────────────────────────────────
 
 model Case {
-  id                 String           @id @default(cuid())
-  caseNumber         String           @unique
-  childId            String
-  child              Child            @relation(fields: [childId], references: [id])
-  primaryTherapistId String
-  primaryTherapist   TherapistProfile @relation("PrimaryTherapistCases", fields: [primaryTherapistId], references: [id])
-  status             CaseStatus       @default(ACTIVE)
-  journeyStage       JourneyStage     @default(INTAKE)
-  diagnosis          String?
-  referralSource     String?
-  notes              String?
-  pathwayTemplateId  String?
-  openedAt           DateTime         @default(now())
-  dischargedAt       DateTime?
-  dischargeReason    String?
+  id                      String           @id @default(cuid())
+  caseNumber              String           @unique
+  childId                 String
+  child                   Child            @relation(fields: [childId], references: [id])
+  primaryTherapistId      String
+  primaryTherapist        TherapistProfile @relation("PrimaryTherapistCases", fields: [primaryTherapistId], references: [id])
+  status                  CaseStatus       @default(ACTIVE)
+  journeyStage            JourneyStage     @default(INTAKE)
+  diagnosis               String?
+  referralSource          String?
+  notes                   String?
+  pathwayTemplateId       String?
+  openedAt                DateTime         @default(now())
+  dischargedAt            DateTime?
+  dischargeReason         String?
   // --- UAE Phase 4: discharge split + archive/retention/reactivation ---
   clinicalDischargeReason String?
   adminDischargeReason    String?
@@ -2730,10 +2743,10 @@ model Case {
   retentionUntil          DateTime?
   reactivatedAt           DateTime?
   reactivatedFromId       String?
-  organizationId     String?
-  organization       Organization?    @relation(fields: [organizationId], references: [id])
-  clinicId           String?
-  clinic             Clinic?          @relation("ClinicCases", fields: [clinicId], references: [id])
+  organizationId          String?
+  organization            Organization?    @relation(fields: [organizationId], references: [id])
+  clinicId                String?
+  clinic                  Clinic?          @relation("ClinicCases", fields: [clinicId], references: [id])
 
   therapists           CaseTherapist[]
   ieps                 IEP[]
@@ -2867,9 +2880,9 @@ model IEPGoal {
   linkedScreeningIndicators Json?
   order                     Int        @default(0)
   // --- UAE Phase 3: measurability ---
-  frequency          String?
-  baselineValue      Float?
-  reviewIntervalDays Int?
+  frequency                 String?
+  baselineValue             Float?
+  reviewIntervalDays        Int?
 
   sessionProgress SessionGoalProgress[]
 
@@ -2944,16 +2957,16 @@ model Milestone {
 // ─── SESSION NOTES ───────────────────────────────────────
 
 model CaseSession {
-  id               String           @id @default(cuid())
+  id               String             @id @default(cuid())
   caseId           String
-  case             Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  case             Case               @relation(fields: [caseId], references: [id], onDelete: Cascade)
   therapistId      String
-  therapist        User             @relation("CaseSessionTherapist", fields: [therapistId], references: [id])
-  bookingId        String?          @unique
-  booking          Booking?         @relation(fields: [bookingId], references: [id])
+  therapist        User               @relation("CaseSessionTherapist", fields: [therapistId], references: [id])
+  bookingId        String?            @unique
+  booking          Booking?           @relation(fields: [bookingId], references: [id])
   scheduledAt      DateTime
   actualDuration   Int?
-  attendanceStatus AttendanceStatus @default(PRESENT)
+  attendanceStatus AttendanceStatus   @default(PRESENT)
   sessionType      String?
   location         String?
   discipline       TherapyDiscipline?
@@ -2975,9 +2988,9 @@ model CaseSession {
   ehrRef          String?
   exportedToEhrAt DateTime?
 
-  goalProgress SessionGoalProgress[]
-  billing      CaseBilling?
-  invoice      Invoice?
+  goalProgress        SessionGoalProgress[]
+  billing             CaseBilling?
+  invoice             Invoice?
   telehealthEncounter TelehealthEncounter?
   addendums           SessionAddendum[]
 
@@ -3068,16 +3081,16 @@ model CaseShare {
 // ─── TREATMENT PLANS ─────────────────────────────────────
 
 model TreatmentPlan {
-  id          String              @id @default(cuid())
-  caseId      String
-  case        Case                @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  status      TreatmentPlanStatus @default(DRAFT)
-  version     Int                 @default(1)
-  content     Json
-  createdById String
-  createdBy   User                @relation("CreatedTreatmentPlans", fields: [createdById], references: [id])
-  approvedAt  DateTime?
-  expiresAt   DateTime?
+  id                 String              @id @default(cuid())
+  caseId             String
+  case               Case                @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  status             TreatmentPlanStatus @default(DRAFT)
+  version            Int                 @default(1)
+  content            Json
+  createdById        String
+  createdBy          User                @relation("CreatedTreatmentPlans", fields: [createdById], references: [id])
+  approvedAt         DateTime?
+  expiresAt          DateTime?
   // --- UAE Phase 3: activation + review cadence ---
   frequency          String?
   sessionsPlanned    Int?
@@ -3100,44 +3113,44 @@ model TreatmentPlan {
 // TreatmentPlan (review-cadence only). See "Care Journey" handoff, Stage 3.
 
 model CarePlan {
-  id                   String                @id @default(cuid())
-  caseId               String
-  case                 Case                  @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  id                     String                 @id @default(cuid())
+  caseId                 String
+  case                   Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
   // Origin: the ClinicalRecord(CONSULTATION) that produced this plan (scalar, like other links in this schema)
-  consultationRecordId String?
-  consultationNotes    String?               // detailed consultation notes captured before the recommendation
-  recommendation       CarePlanRecommendation @default(THERAPY)
-  disciplines          TherapyDiscipline[]
+  consultationRecordId   String?
+  consultationNotes      String? // detailed consultation notes captured before the recommendation
+  recommendation         CarePlanRecommendation @default(THERAPY)
+  disciplines            TherapyDiscipline[]
   // Assigned lead therapist (User id, matching CaseSession.therapist) — scalar to avoid a User back-relation
-  primaryTherapistId   String?
+  primaryTherapistId     String?
   // Recurring schedule inputs
-  startDate            DateTime
-  timeOfDay            String                // "16:00" — default/fallback time
-  daysOfWeek           Int[]                 // 0=Sun … 6=Sat
-  daySchedule          Json?                 // per-weekday time overrides, e.g. { "1": "16:00", "3": "15:00" }
-  sessionCount         Int
+  startDate              DateTime
+  timeOfDay              String // "16:00" — default/fallback time
+  daysOfWeek             Int[] // 0=Sun … 6=Sat
+  daySchedule            Json? // per-weekday time overrides, e.g. { "1": "16:00", "3": "15:00" }
+  sessionCount           Int
   // Commercials
-  packageName          String?
-  unitPrice            Int                   @default(0) // whole currency units (₹)
-  currency             String                @default("INR")
-  totalAmount          Int                   @default(0)
-  paymentStatus        CarePlanPaymentStatus @default(PENDING)
+  packageName            String?
+  unitPrice              Int                    @default(0) // whole currency units (₹)
+  currency               String                 @default("INR")
+  totalAmount            Int                    @default(0)
+  paymentStatus          CarePlanPaymentStatus  @default(PENDING)
   // Branch data for non-booking recommendations
-  reviewInWeeks        Int?                  // recommendation = NONE (monitor)
-  externalReferralTarget String?             // recommendation = REFERRAL
+  reviewInWeeks          Int? // recommendation = NONE (monitor)
+  externalReferralTarget String? // recommendation = REFERRAL
   // Goals & IEPs care-plan creator (Care Journey §7)
-  iepId                String?               // plan booked from an IEP
-  mode                 String?               // In-person | Teletherapy | Hybrid
-  sessionDurationMin   Int?                  // 30 | 45 | 60
-  parentHomeProgram    String?
-  expectedOutcomes     String?
-  reviewDate           DateTime?
+  iepId                  String? // plan booked from an IEP
+  mode                   String? // In-person | Teletherapy | Hybrid
+  sessionDurationMin     Int? // 30 | 45 | 60
+  parentHomeProgram      String?
+  expectedOutcomes       String?
+  reviewDate             DateTime?
   // Lifecycle
-  status               CarePlanStatus        @default(DRAFT)
-  parentAcceptedAt     DateTime?
-  lockedAt             DateTime?
-  createdById          String
-  sessions             CaseSession[]
+  status                 CarePlanStatus         @default(DRAFT)
+  parentAcceptedAt       DateTime?
+  lockedAt               DateTime?
+  createdById            String
+  sessions               CaseSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3157,7 +3170,7 @@ model CarePlanPricingDefault {
   currency           String                 @default("INR")
   defaultCount       Int                    @default(1)
   defaultDaysPerWeek Int                    @default(1)
-  defaultDays        Int[]                  // suggested weekday numbers
+  defaultDays        Int[] // suggested weekday numbers
   packageType        String?
   active             Boolean                @default(true)
 
@@ -3173,26 +3186,26 @@ model CarePlanPricingDefault {
 // to a ClinicalRecord) to a consolidated, consent-gated report. Replaces the
 // prototype's localStorage. See handoff Stage 5.
 model AssessmentReview {
-  id                   String                @id @default(cuid())
+  id                   String                 @id @default(cuid())
   caseId               String
-  case                 Case                  @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  type                 AssessmentReviewType  @default(SINGLE)
-  phase                AssessmentPhase       @default(PLAN)
+  case                 Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type                 AssessmentReviewType   @default(SINGLE)
+  phase                AssessmentPhase        @default(PLAN)
   title                String?
   // Plan phase
-  scopeText            String?               // free-text assessment scope (objective, disciplines, sequence)
-  scopeApproved        Boolean               @default(false)
-  dayMode              String?               // single | multi
-  questionnaireSent    Boolean               @default(false)
-  schoolInputRequested Boolean               @default(false)
-  paymentStatus        CarePlanPaymentStatus @default(PENDING)
+  scopeText            String? // free-text assessment scope (objective, disciplines, sequence)
+  scopeApproved        Boolean                @default(false)
+  dayMode              String? // single | multi
+  questionnaireSent    Boolean                @default(false)
+  schoolInputRequested Boolean                @default(false)
+  paymentStatus        CarePlanPaymentStatus  @default(PENDING)
   // Report phase
   meetingAt            DateTime?
-  syncMode             String?               // sync | async
+  syncMode             String? // sync | async
   reportText           String?
-  approval             String?               // approved | changes | rejected
+  approval             String? // approved | changes | rejected
   reportDocumentId     String?
-  recipients           Json?                 // { parent, school, doctor }
+  recipients           Json? // { parent, school, doctor }
   sharedAt             DateTime?
   createdById          String
   disciplines          AssessmentDiscipline[]
@@ -3206,15 +3219,15 @@ model AssessmentReview {
 }
 
 model AssessmentDiscipline {
-  id                 String                @id @default(cuid())
+  id                 String               @id @default(cuid())
   assessmentReviewId String
-  assessmentReview   AssessmentReview      @relation(fields: [assessmentReviewId], references: [id], onDelete: Cascade)
+  assessmentReview   AssessmentReview     @relation(fields: [assessmentReviewId], references: [id], onDelete: Cascade)
   discipline         TherapyDiscipline
-  status             AssessmentExecStatus  @default(NOT_STARTED)
+  status             AssessmentExecStatus @default(NOT_STARTED)
   assignee           String?
   clinicalRecordId   String?
   reportTitle        String?
-  flagged            Boolean               @default(false) // added mid-scope via "flag a concern"
+  flagged            Boolean              @default(false) // added mid-scope via "flag a concern"
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3257,18 +3270,18 @@ model CaseIntake {
 // ─── CASE BILLING ────────────────────────────────────────
 
 model CaseBilling {
-  id          String        @id @default(cuid())
-  caseId      String
-  case        Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  sessionId   String?       @unique
-  session     CaseSession?  @relation(fields: [sessionId], references: [id])
-  serviceCode String?
-  amount      Float
-  status      BillingStatus @default(PENDING)
-  paidAt      DateTime?
-  invoiceUrl  String?
+  id                 String        @id @default(cuid())
+  caseId             String
+  case               Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sessionId          String?       @unique
+  session            CaseSession?  @relation(fields: [sessionId], references: [id])
+  serviceCode        String?
+  amount             Float
+  status             BillingStatus @default(PENDING)
+  paidAt             DateTime?
+  invoiceUrl         String?
   // --- UAE Phase 2: payer-aware billing ---
-  payerType          PayerType @default(SELF_PAY)
+  payerType          PayerType     @default(SELF_PAY)
   insurancePolicyId  String?
   preAuthorizationId String?
 
@@ -3303,16 +3316,16 @@ model CaseAuditLog {
 // ─── CONSENT MANAGEMENT ──────────────────────────────────
 
 model CaseConsent {
-  id          String      @id @default(cuid())
-  caseId      String
-  case        Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  type        ConsentType
-  grantedById String
-  grantedBy   User        @relation("CaseConsents", fields: [grantedById], references: [id])
-  validFrom   DateTime    @default(now())
-  validUntil  DateTime?
-  revokedAt   DateTime?
-  notes       String?
+  id                  String          @id @default(cuid())
+  caseId              String
+  case                Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type                ConsentType
+  grantedById         String
+  grantedBy           User            @relation("CaseConsents", fields: [grantedById], references: [id])
+  validFrom           DateTime        @default(now())
+  validUntil          DateTime?
+  revokedAt           DateTime?
+  notes               String?
   // --- UAE Phase 1: actionable, versioned consent ---
   consentVersionId    String?
   consentVersion      ConsentVersion? @relation(fields: [consentVersionId], references: [id])
@@ -3536,7 +3549,7 @@ model TriageReview {
   pathwayTemplate          PathwayTemplate? @relation(fields: [pathwayTemplateId], references: [id])
   // --- Care Journey Stage 5: structured decision spine ---
   pathway                  TriagePathway?
-  decisionData             Json?            // care team, first-appointment, notify payload
+  decisionData             Json? // care team, first-appointment, notify payload
   confirmedAt              DateTime?
   acknowledgedByGuardianAt DateTime?
   createdAt                DateTime         @default(now())
@@ -3671,13 +3684,13 @@ model CaseIncident {
   clinicalDecision String?
   actionPlan       String?
   // --- Care Journey Stage 6: referral / escalation flow ---
-  riskLabel        String?  // free-text concern label (e.g. from Triage handoff)
-  referralTarget   String?  // external recipient (doctor, hospital, school…)
+  riskLabel        String? // free-text concern label (e.g. from Triage handoff)
+  referralTarget   String? // external recipient (doctor, hospital, school…)
   reviewerNote     String?
-  reviewerApproved Boolean  @default(false)
-  consentObtained  Boolean  @default(false)
-  shareScope       Json?    // minimum-necessary sharing checklist
-  followUpOutcome  String?  // yes | no | pending
+  reviewerApproved Boolean          @default(false)
+  consentObtained  Boolean          @default(false)
+  shareScope       Json? // minimum-necessary sharing checklist
+  followUpOutcome  String? // yes | no | pending
   sentAt           DateTime?
   closedAt         DateTime?
   closedById       String?
@@ -3718,21 +3731,21 @@ model ExternalShare {
 // instance on a case, storing captured `answers` as JSON.
 
 model ClinicalTemplate {
-  id             String                @id @default(cuid())
+  id             String               @id @default(cuid())
   code           String // stable code, e.g. "SLP_ASSESSMENT"
   name           String
   description    String?
   discipline     TherapyDiscipline
   activityType   ClinicalActivityType
-  version        Int                   @default(1)
+  version        Int                  @default(1)
   schema         Json // ClinicalTemplateSchema (sections + fields)
-  isGlobal       Boolean               @default(true)
+  isGlobal       Boolean              @default(true)
   organizationId String?
-  organization   Organization?         @relation("OrgClinicalTemplates", fields: [organizationId], references: [id])
-  isActive       Boolean               @default(true)
+  organization   Organization?        @relation("OrgClinicalTemplates", fields: [organizationId], references: [id])
+  isActive       Boolean              @default(true)
   records        ClinicalRecord[]
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   @@unique([code, version, organizationId])
   @@index([discipline, activityType])
@@ -3742,31 +3755,31 @@ model ClinicalTemplate {
 }
 
 model ClinicalRecord {
-  id              String               @id @default(cuid())
-  caseId          String
-  case            Case                 @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  templateId      String
-  template        ClinicalTemplate     @relation(fields: [templateId], references: [id])
+  id                  String               @id @default(cuid())
+  caseId              String
+  case                Case                 @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  templateId          String
+  template            ClinicalTemplate     @relation(fields: [templateId], references: [id])
   // Snapshot of the template identity at capture time (templates may version).
-  templateCode    String
-  templateVersion Int                  @default(1)
-  discipline      TherapyDiscipline
-  activityType    ClinicalActivityType
-  therapistId     String
-  therapist       User                 @relation("ClinicalRecordAuthor", fields: [therapistId], references: [id])
-  title           String
-  answers         Json // ClinicalAnswers — captured field values keyed by field id
-  status          ClinicalRecordStatus @default(DRAFT)
-  signedAt        DateTime?
-  signatureName   String?
+  templateCode        String
+  templateVersion     Int                  @default(1)
+  discipline          TherapyDiscipline
+  activityType        ClinicalActivityType
+  therapistId         String
+  therapist           User                 @relation("ClinicalRecordAuthor", fields: [therapistId], references: [id])
+  title               String
+  answers             Json // ClinicalAnswers — captured field values keyed by field id
+  status              ClinicalRecordStatus @default(DRAFT)
+  signedAt            DateTime?
+  signatureName       String?
   // Link to a generated report document (CaseDocument), when produced.
-  reportDocumentId String?
+  reportDocumentId    String?
   // AI-generated clinical insights for the therapist (Anthropic Claude).
   insights            Json?
   insightsModel       String?
   insightsGeneratedAt DateTime?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@index([caseId])
   @@index([caseId, activityType])
@@ -3806,10 +3819,17 @@ enum ClinicalRecordStatus {
 
 // ─── UAE CLINIC PHASE 0 ENUMS ────────────────────────────
 
+/// Health regulators AND education regulators. A facility's authority must match
+/// its FacilityType (see FACILITY_CAPABILITIES in @upllyft/types): a nursery is
+/// licensed by KHDA/ADEK/MOE, never by DHA. This is why a nursery cannot simply
+/// be a Clinic — the clinic compliance gate would have to be loosened to admit it.
 enum LicenseAuthority {
-  DHA // Dubai Health Authority
-  DOH // Department of Health – Abu Dhabi
-  MOHAP // Ministry of Health and Prevention (other emirates)
+  DHA // Dubai Health Authority                              (health)
+  DOH // Department of Health – Abu Dhabi                    (health)
+  MOHAP // Ministry of Health and Prevention (other emirates)  (health)
+  KHDA // Knowledge & Human Development Authority, Dubai     (education)
+  ADEK // Dept. of Education & Knowledge, Abu Dhabi          (education)
+  MOE // Ministry of Education                              (education)
   OTHER
 }
 
@@ -4380,29 +4400,29 @@ model Credential {
 }
 
 model Invoice {
-  id              String        @id @default(cuid())
-  sessionId       String        @unique
-  session         CaseSession   @relation(fields: [sessionId], references: [id])
-  bookingId       String?       @unique
-  booking         Booking?      @relation(fields: [bookingId], references: [id])
-  patientId       String
-  patient         User          @relation("InvoicePatient", fields: [patientId], references: [id])
-  therapistId     String
-  therapist       User          @relation("InvoiceTherapist", fields: [therapistId], references: [id])
-  amount          Decimal
-  currency        String        @default("AED")
-  status          InvoiceStatus @default(DRAFT)
-  stripePaymentId String?
-  clinicName      String?
-  issuedAt        DateTime?
-  paidAt          DateTime?
-  dueDate         DateTime?
-  notes           String?
+  id                String        @id @default(cuid())
+  sessionId         String        @unique
+  session           CaseSession   @relation(fields: [sessionId], references: [id])
+  bookingId         String?       @unique
+  booking           Booking?      @relation(fields: [bookingId], references: [id])
+  patientId         String
+  patient           User          @relation("InvoicePatient", fields: [patientId], references: [id])
+  therapistId       String
+  therapist         User          @relation("InvoiceTherapist", fields: [therapistId], references: [id])
+  amount            Decimal
+  currency          String        @default("AED")
+  status            InvoiceStatus @default(DRAFT)
+  stripePaymentId   String?
+  clinicName        String?
+  issuedAt          DateTime?
+  paidAt            DateTime?
+  dueDate           DateTime?
+  notes             String?
   // --- UAE Phase 2: payer-aware invoicing ---
-  payerType         PayerType @default(SELF_PAY)
+  payerType         PayerType     @default(SELF_PAY)
   insurancePolicyId String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   clinicId String?
   clinic   Clinic? @relation("ClinicInvoices", fields: [clinicId], references: [id])
@@ -4484,24 +4504,24 @@ model AuditLog {
 // ─── CLINIC (UAE Multi-tenant Foundation) ─────────────────────────────────
 
 model Clinic {
-  id             String             @id @default(cuid())
-  name           String
-  logoUrl        String?
-  bannerUrl      String?
-  primaryColor   String?
-  secondaryColor String?
-  accentColor    String?
-  address        String?
-  licenseNo      String?
-  phone          String?
-  email           String?
-  country         String?
-  description     String?
-  website         String?
-  rating          Float?             @default(0)
-  totalReviews    Int                @default(0)
-  specializations String[]           @default([])
-  isPublic        Boolean            @default(true)
+  id                   String                   @id @default(cuid())
+  name                 String
+  logoUrl              String?
+  bannerUrl            String?
+  primaryColor         String?
+  secondaryColor       String?
+  accentColor          String?
+  address              String?
+  licenseNo            String?
+  phone                String?
+  email                String?
+  country              String?
+  description          String?
+  website              String?
+  rating               Float?                   @default(0)
+  totalReviews         Int                      @default(0)
+  specializations      String[]                 @default([])
+  isPublic             Boolean                  @default(true)
   // --- UAE regulatory context (Phase 0) ---
   licenseAuthority     LicenseAuthority?
   emirate              Emirate?
@@ -4511,23 +4531,217 @@ model Clinic {
   // --- EHR integration (engagement-layer posture) ---
   ehrSystemName        String?
   nabidhFacilityCode   String?
-  organizationId  String?
-  organization   Organization?      @relation("OrganizationClinics", fields: [organizationId], references: [id])
-  adminId        String             @unique
-  admin          User               @relation("ClinicAdmin", fields: [adminId], references: [id])
-  therapists     TherapistProfile[] @relation("ClinicTherapists")
-  bookings       Booking[]          @relation("ClinicBookings")
-  cases          Case[]             @relation("ClinicCases")
-  children       Child[]
-  invoices       Invoice[]          @relation("ClinicInvoices")
-  consentTemplates ConsentTemplate[] @relation("ClinicConsentTemplates")
-  leads            Lead[]             @relation("ClinicLeads")
-  pathwayTemplates PathwayTemplate[]  @relation("ClinicPathways")
-  ehrExports       EhrExport[]        @relation("ClinicEhrExports")
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  organizationId       String?
+  organization         Organization?            @relation("OrganizationClinics", fields: [organizationId], references: [id])
+  adminId              String                   @unique
+  admin                User                     @relation("ClinicAdmin", fields: [adminId], references: [id])
+  therapists           TherapistProfile[]       @relation("ClinicTherapists")
+  bookings             Booking[]                @relation("ClinicBookings")
+  cases                Case[]                   @relation("ClinicCases")
+  children             Child[]
+  invoices             Invoice[]                @relation("ClinicInvoices")
+  consentTemplates     ConsentTemplate[]        @relation("ClinicConsentTemplates")
+  leads                Lead[]                   @relation("ClinicLeads")
+  pathwayTemplates     PathwayTemplate[]        @relation("ClinicPathways")
+  ehrExports           EhrExport[]              @relation("ClinicEhrExports")
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
 
   @@index([adminId])
   @@index([organizationId])
   @@map("clinics")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MULTI-SETTING TENANCY  (docs/tenancy-and-multi-setting-model.md — Phase B)
+//
+// One child record; every party holds a scoped, consented, time-bounded LENS
+// onto it. B2C and B2B are two go-to-market motions over one model, not two
+// architectures — the parent is simply the widest lens (the guardian).
+//
+// ADDITIVE. Nothing reads these yet. `Clinic` remains the live model until the
+// readers are migrated (Phase D); each Clinic is backfilled to a Facility with
+// the SAME id, so foreign keys can be repointed later without rewriting ids.
+//
+// The root problem being fixed: `Child.clinicId` is a single nullable FK, so a
+// child enrolled at a nursery AND referred to a clinic cannot be both — which
+// is precisely the referral loop the nursery proposition depends on.
+// `ChildAffiliation` replaces it. Everything else follows from that.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum OrgKind {
+  CLINIC_GROUP
+  NURSERY_GROUP
+  SCHOOL_GROUP
+  NGO
+  PLATFORM
+}
+
+enum FacilityType {
+  CLINIC // treats: cases, clinical notes, diagnosis
+  NURSERY // observes: no case, no note, no diagnosis — ever
+  SCHOOL
+}
+
+enum AffiliationType {
+  PATIENT // clinical relationship
+  ENROLLED // educational relationship
+}
+
+enum AffiliationStatus {
+  PENDING_CONSENT // facility added the child; guardian has not yet consented
+  ACTIVE
+  ENDED
+}
+
+/// What a facility may see about an affiliated child. Ordered least → most.
+/// An affiliation may never exceed its FacilityType's ceiling (`maxDataScope`).
+/// A NURSERY defaults to OBSERVATIONS_ONLY — that is HOW we guarantee a nursery
+/// never sees a diagnosis: structurally, not by remembering to check.
+enum DataScope {
+  OBSERVATIONS_ONLY // own observations + own screenings
+  SCREENING_SHARED // + screenings the guardian shared back
+  CLINICAL_SUMMARY // + strategies/recommendations, NEVER the diagnosis
+  FULL_CLINICAL // clinic default
+}
+
+enum FacilityRole {
+  OWNER
+  ADMIN
+  CLINICAL_LEAD
+  THERAPIST
+  INCLUSION_LEAD // nursery SENCO — owns flag → conversation → referral
+  KEYWORKER // nursery room staff — observes
+  RECEPTION
+  BILLING
+}
+
+/// A typed site where children are seen. Generalises `Clinic`.
+/// Unlike Clinic: `organizationId` is REQUIRED (every facility belongs to an
+/// account) and there is no `adminId @unique` — administration comes from
+/// FacilityMember, so a group may run many sites and a person may administer
+/// several. Both were hard blockers on modelling a nursery chain.
+model Facility {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  type FacilityType
+  name String
+  slug String       @unique
+
+  // Regulatory context. `licenseAuthority` must be type-appropriate — enforced
+  // in the service layer, not the DB (Postgres cannot express the cross-column
+  // constraint against an enum cleanly).
+  licenseNo            String?
+  licenseAuthority     LicenseAuthority?
+  emirate              Emirate?
+  complianceStatus     FacilityComplianceStatus @default(DRAFT)
+  complianceReviewedAt DateTime?
+  complianceReviewedBy String?
+
+  // Presentation
+  logoUrl      String?
+  primaryColor String?
+  address      String?
+  phone        String?
+  email        String?
+
+  /// Set during the Clinic→Facility backfill; lets Phase D reconcile and lets us
+  /// prove the 1:1 mapping held. Null for facilities created natively (nurseries).
+  migratedFromClinicId String? @unique
+
+  members      FacilityMember[]
+  rooms        Room[]
+  affiliations ChildAffiliation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([complianceStatus])
+  @@map("facilities")
+}
+
+/// A room / class group within a nursery or school. The cohort primitive —
+/// gives us a roster with NO new tenancy concept.
+model Room {
+  id         String   @id @default(cuid())
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  name         String // "Butterflies"
+  ageBandLabel String? // "2–3 years"
+
+  affiliations ChildAffiliation[]
+  staff        FacilityMember[]   @relation("RoomStaff")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([facilityId, name])
+  @@index([facilityId])
+  @@map("rooms")
+}
+
+/// Staff ↔ facility. Replaces `Clinic.adminId @unique` and `TherapistProfile.clinicId`.
+model FacilityMember {
+  id         String       @id @default(cuid())
+  facilityId String
+  facility   Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User         @relation("FacilityMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  role       FacilityRole
+  status     MemberStatus @default(ACTIVE)
+
+  rooms        Room[]             @relation("RoomStaff")
+  keyworkerFor ChildAffiliation[] @relation("AffiliationKeyworker")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, facilityId])
+  @@index([facilityId, role])
+  @@index([userId])
+  @@map("facility_members")
+}
+
+/// THE load-bearing model. Replaces the single nullable `Child.clinicId`.
+///
+/// A child holds N affiliations CONCURRENTLY — enrolled at a nursery while a
+/// patient at a clinic is the normal case, not an edge case. Every access
+/// decision routes through here, which is what makes the unsafe query the hard
+/// one to write.
+model ChildAffiliation {
+  id         String   @id @default(cuid())
+  childId    String
+  child      Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  type      AffiliationType
+  status    AffiliationStatus @default(PENDING_CONSENT)
+  dataScope DataScope         @default(OBSERVATIONS_ONLY)
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  // Nursery cohort placement (null for clinics)
+  roomId      String?
+  room        Room?           @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  keyworkerId String?
+  keyworker   FacilityMember? @relation("AffiliationKeyworker", fields: [keyworkerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // A child may hold many affiliations, but only one per facility per start date.
+  // (Re-enrolment after ENDED gets a new startedAt.)
+  @@unique([childId, facilityId, startedAt])
+  @@index([childId])
+  @@index([facilityId, status])
+  @@index([roomId])
+  @@index([keyworkerId])
+  @@map("child_affiliations")
 }

@@ -8,3 +8,4 @@ export * from './organization';
 export * from './api';
 export * from './region';
 export * from './clinical-template';
+export * from './facility';

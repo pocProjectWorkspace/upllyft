@@ -8,6 +8,7 @@ import {
   CreateWalkinPatientDto,
 } from './dto/clinic-patients.dto';
 import { NotificationService, NotificationType } from '../notification/notification.service';
+import { childInFacility, attachChildToFacility } from '../common/child-scope';
 
 @Injectable()
 export class ClinicPatientsService {
@@ -18,7 +19,7 @@ export class ClinicPatientsService {
     private readonly notificationService: NotificationService,
   ) { }
 
-  async listPatients(query: ListPatientsQueryDto, clinicId: string) {
+  async listPatients(query: ListPatientsQueryDto, clinicId: string | null) {
     const {
       search,
       status,
@@ -31,10 +32,8 @@ export class ClinicPatientsService {
       sortOrder = 'desc',
     } = query;
 
-    const where: Prisma.ChildWhereInput = {};
-    if (clinicId) {
-      where.clinicId = clinicId;
-    }
+    // Phase D: scoped by affiliation, not Child.clinicId.
+    const where: Prisma.ChildWhereInput = { ...childInFacility(clinicId) };
 
     if (status && status.length > 0) {
       where.clinicStatus = { in: status };
@@ -199,11 +198,11 @@ export class ClinicPatientsService {
     };
   }
 
-  async getPatientDetail(childId: string, clinicId?: string) {
+  async getPatientDetail(childId: string, clinicId: string | null) {
     const child = await this.prisma.child.findFirst({
       where: {
         id: childId,
-        ...(clinicId ? { clinicId } : {}),
+        ...childInFacility(clinicId),
       },
       include: {
         profile: {
@@ -364,11 +363,11 @@ export class ClinicPatientsService {
     };
   }
 
-  async updatePatientStatus(childId: string, dto: UpdatePatientStatusDto, clinicId?: string) {
+  async updatePatientStatus(childId: string, dto: UpdatePatientStatusDto, clinicId: string | null) {
     const child = await this.prisma.child.findFirst({
       where: {
         id: childId,
-        ...(clinicId ? { clinicId } : {}),
+        ...childInFacility(clinicId),
       }
     });
     if (!child) {
@@ -382,11 +381,11 @@ export class ClinicPatientsService {
     });
   }
 
-  async assignTherapist(childId: string, dto: AssignTherapistDto, clinicId?: string) {
+  async assignTherapist(childId: string, dto: AssignTherapistDto, clinicId: string | null) {
     const child = await this.prisma.child.findFirst({
       where: {
         id: childId,
-        ...(clinicId ? { clinicId } : {}),
+        ...childInFacility(clinicId),
       }
     });
     if (!child) {
@@ -585,7 +584,7 @@ export class ClinicPatientsService {
     }
   }
 
-  async createWalkinPatient(dto: CreateWalkinPatientDto, adminId: string, clinicId?: string) {
+  async createWalkinPatient(dto: CreateWalkinPatientDto, adminId: string, clinicId: string | null) {
     // Check if a user with this email already exists
     if (dto.guardianEmail) {
       const existing = await this.prisma.user.findUnique({
@@ -635,6 +634,20 @@ export class ClinicPatientsService {
       },
     });
 
+    // Attach to the creating clinic. This was previously MISSING: the walk-in was
+    // created with no clinic at all, which was invisible while patient lists were
+    // unscoped — but under fail-closed scoping the admin would add a patient and
+    // watch it vanish from their own list. Dual-writes clinicId + affiliation.
+    if (clinicId) {
+      await attachChildToFacility(this.prisma, child.id, clinicId, { type: 'PATIENT' });
+    } else {
+      // SUPERADMIN with no clinic context — nothing to attach to. Log it: an
+      // unattached child is invisible to every clinic surface.
+      this.logger.warn(
+        `Walk-in child ${child.id} created without a clinic — it will not appear in any clinic patient list.`,
+      );
+    }
+
     // Notify admin confirmation (fire-and-forget)
     this.notificationService.createNotification({
       userId: adminId,
@@ -661,7 +674,7 @@ export class ClinicPatientsService {
     };
   }
 
-  async getTherapistsList(clinicId?: string) {
+  async getTherapistsList(clinicId: string | null) {
     const profiles = await this.prisma.therapistProfile.findMany({
       where: {
         isActive: true,

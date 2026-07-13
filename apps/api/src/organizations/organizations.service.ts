@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { Organization, OrganizationMember, OrganizationRole, OrganizationStatus, Prisma } from '@prisma/client';
@@ -228,6 +228,28 @@ export class OrganizationsService {
         return org;
     }
 
+    /**
+     * Assert `userId` belongs to this org (any role) before serving org-internal
+     * data. Platform admins pass through. Use for anything that exposes member
+     * PII or internal counts — org *profile* data stays public.
+     */
+    private async assertMember(organizationId: string, userId: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { role: true },
+        });
+        if (user?.role === 'ADMIN' || user?.role === 'SUPERADMIN') return;
+
+        const member = await this.prisma.organizationMember.findUnique({
+            where: { userId_organizationId: { userId, organizationId } },
+            select: { status: true },
+        });
+
+        if (!member || member.status !== 'ACTIVE') {
+            throw new ForbiddenException('You are not a member of this organization');
+        }
+    }
+
     async findAll() {
         return this.prisma.organization.findMany({
             include: {
@@ -279,8 +301,9 @@ export class OrganizationsService {
         });
     }
 
-    async getMembers(slug: string) {
+    async getMembers(slug: string, userId: string) {
         const org = await this.findOne(slug);
+        await this.assertMember(org.id, userId);
         return this.prisma.organizationMember.findMany({
             where: { organizationId: org.id },
             include: {
@@ -821,12 +844,14 @@ export class OrganizationsService {
     }
 
     /** Headline counts for the org dashboard. */
-    async getStats(slug: string) {
+    async getStats(slug: string, userId: string) {
         const org = await this.prisma.organization.findUnique({
             where: { slug },
             select: { id: true, name: true, slug: true, logo: true, banner: true },
         });
         if (!org) throw new NotFoundException('Organization not found');
+
+        await this.assertMember(org.id, userId);
 
         const [memberCount, communityCount, upcomingEventCount] = await Promise.all([
             this.prisma.organizationMember.count({

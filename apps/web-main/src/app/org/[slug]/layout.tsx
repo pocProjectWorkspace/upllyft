@@ -74,7 +74,7 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
   const items = navItems(slug);
 
   return (
-    <OrgProtect>
+    <OrgProtect slug={slug}>
       <div className="min-h-screen flex bg-gray-50/50" style={orgThemeVars(org)}>
         {/* Sidebar */}
         <aside className="hidden md:flex w-64 bg-white border-r border-gray-100 flex-col fixed inset-y-0 left-0 z-40">
