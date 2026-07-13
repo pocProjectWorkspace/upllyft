@@ -13,6 +13,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { ConfirmTriageDto } from './dto/case-triage.dto';
+import { therapistInFacility } from '../common/child-scope';
 
 const CASELOAD_CAPACITY = 20; // configurable target caseload per therapist
 
@@ -53,7 +54,9 @@ export class CaseTriageService {
     const therapists = await this.prisma.therapistProfile.findMany({
       where: {
         isActive: true,
-        ...(caseRecord.clinicId ? { clinicId: caseRecord.clinicId } : {}),
+        // Phase D2: allocation candidates are staff AT the case's facility, resolved
+        // through FacilityMember rather than the deprecated TherapistProfile.clinicId.
+        ...therapistInFacility(caseRecord.clinicId),
       },
       include: {
         user: { select: { id: true, name: true, image: true } },

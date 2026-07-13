@@ -305,25 +305,37 @@ export class AuthService {
     userId: string,
     role: Role,
   ): Promise<{ clinicId: string | null; organizationId: string | null }> {
-    if (role === 'ADMIN') {
-      const clinic = await this.prisma.clinic.findUnique({
-        where: { adminId: userId },
-        select: { id: true, organizationId: true },
-      });
-      return {
-        clinicId: clinic?.id ?? null,
-        organizationId: clinic?.organizationId ?? null,
-      };
+    // Phase D2: one lookup, role-agnostic. Membership of a facility is what grants
+    // a tenant scope — previously this forked on role (Clinic.adminId for ADMIN,
+    // TherapistProfile.clinicId for THERAPIST), which meant every new staff role
+    // needed another branch here and silently got a null scope until someone added
+    // one.
+    //
+    // Facility.id === Clinic.id (the backfill preserved ids), so the claim is still
+    // named clinicId and every downstream consumer keeps working. Rename to
+    // facilityId once Clinic is dropped.
+    //
+    // SUPERADMIN is platform-wide and must carry NO facility claim. They may well
+    // hold a FacilityMember row (the backfill made clinic admins OWNERs), and a
+    // role-agnostic lookup would happily stamp that facility into their token —
+    // silently scoping a platform admin to one clinic for any consumer that reads
+    // `req.user.clinicId` directly rather than going through resolveClinicScope.
+    if (role === 'SUPERADMIN') {
+      return { clinicId: null, organizationId: null };
     }
 
-    if (role === 'THERAPIST' || role === 'EDUCATOR') {
-      const profile = await this.prisma.therapistProfile.findUnique({
-        where: { userId },
-        select: { clinicId: true, clinic: { select: { organizationId: true } } },
-      });
+    const membership = await this.prisma.facilityMember.findFirst({
+      where: { userId, status: 'ACTIVE' },
+      select: { facilityId: true, facility: { select: { organizationId: true } } },
+      // A user may staff several sites of a group; the token carries one. Stable
+      // pick until the token models multi-facility scope.
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (membership) {
       return {
-        clinicId: profile?.clinicId ?? null,
-        organizationId: profile?.clinic?.organizationId ?? null,
+        clinicId: membership.facilityId,
+        organizationId: membership.facility.organizationId,
       };
     }
 

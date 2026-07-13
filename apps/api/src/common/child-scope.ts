@@ -27,6 +27,27 @@ export function childInFacility(facilityId: string | null): Prisma.ChildWhereInp
   };
 }
 
+/**
+ * Therapists who are staff at this facility — via FacilityMember, not the
+ * deprecated `TherapistProfile.clinicId`.
+ *
+ * `TherapistProfile.clinicId` is a single FK for the same reason `Child.clinicId`
+ * was: it cannot express a clinician working across two sites of a group, which
+ * `FacilityMember` handles natively.
+ */
+export function therapistInFacility(
+  facilityId: string | null,
+): Prisma.TherapistProfileWhereInput {
+  if (!facilityId) return {};
+  return {
+    user: {
+      facilityMemberships: {
+        some: { facilityId, status: 'ACTIVE' },
+      },
+    },
+  };
+}
+
 /** Same predicate, for a query rooted at CaseSession (session → case → child). */
 export function sessionInFacility(facilityId: string | null): Prisma.CaseSessionWhereInput {
   if (!facilityId) return {};

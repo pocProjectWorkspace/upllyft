@@ -8,7 +8,11 @@ import {
   CreateWalkinPatientDto,
 } from './dto/clinic-patients.dto';
 import { NotificationService, NotificationType } from '../notification/notification.service';
-import { childInFacility, attachChildToFacility } from '../common/child-scope';
+import {
+  childInFacility,
+  attachChildToFacility,
+  therapistInFacility,
+} from '../common/child-scope';
 
 @Injectable()
 export class ClinicPatientsService {
@@ -678,7 +682,8 @@ export class ClinicPatientsService {
     const profiles = await this.prisma.therapistProfile.findMany({
       where: {
         isActive: true,
-        ...(clinicId ? { clinicId } : {}),
+        // Phase D2: scoped by facility membership, not TherapistProfile.clinicId.
+        ...therapistInFacility(clinicId),
       },
       include: {
         user: {
