@@ -165,3 +165,90 @@ export function assertScopeWithinCeiling(type: FacilityType, scope: DataScope): 
     );
   }
 }
+
+export interface GrantConsentInput {
+  childId: string;
+  facilityId: string;
+  type: ConsentType;
+  purpose: string;
+  /** The USER whose agreement this records. MUST be the guardian, never staff. */
+  grantedByUserId: string;
+  /** Staff member who captured it, when consent was taken in person. Audit only. */
+  recordedByUserId?: string;
+  validUntil?: Date | null;
+  caseId?: string | null;
+}
+
+/**
+ * Record that a guardian granted consent.
+ *
+ * ATTRIBUTION IS THE WHOLE POINT. `grantedByUserId` must be the guardian — the
+ * person whose agreement this is. The intake write-through previously recorded
+ * `grantedById: <the staff member typing the form>`, so the record asserted that the
+ * therapist consented on the family's behalf. Staff CAPTURE consent; they do not
+ * GIVE it. That distinction is the difference between a consent record and a
+ * fiction.
+ *
+ * Resolves the child's Guardian row where one exists (the model that actually holds
+ * `hasAuthorityToConsent`) and links the live affiliation.
+ *
+ * Idempotent: an existing active grant of the same (child, facility, type) is
+ * returned rather than duplicated.
+ */
+export async function grantConsent(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  input: GrantConsentInput,
+) {
+  const existing = await prisma.childConsent.findFirst({
+    where: activeConsentWhere(input.childId, input.facilityId, input.type),
+    select: { id: true },
+  });
+  if (existing) return existing;
+
+  const guardian = await prisma.guardian.findFirst({
+    where: {
+      childId: input.childId,
+      userId: input.grantedByUserId,
+      hasAuthorityToConsent: true,
+    },
+    select: { id: true },
+  });
+
+  const affiliation = await prisma.childAffiliation.findFirst({
+    where: { childId: input.childId, facilityId: input.facilityId, endedAt: null },
+    select: { id: true },
+  });
+
+  return prisma.childConsent.create({
+    data: {
+      childId: input.childId,
+      facilityId: input.facilityId,
+      affiliationId: affiliation?.id ?? null,
+      caseId: input.caseId ?? null,
+      guardianId: guardian?.id ?? null,
+      grantedById: input.grantedByUserId,
+      type: input.type,
+      purpose: input.purpose,
+      validUntil: input.validUntil ?? null,
+      notes: input.recordedByUserId
+        ? `Captured by staff user ${input.recordedByUserId}`
+        : null,
+    },
+    select: { id: true },
+  });
+}
+
+/** Revoke every active grant of this type. Revocation must bite immediately. */
+export async function revokeConsent(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  childId: string,
+  facilityId: string,
+  type: ConsentType,
+): Promise<number> {
+  const now = new Date();
+  const res = await prisma.childConsent.updateMany({
+    where: { childId, facilityId, type, revokedAt: null },
+    data: { revokedAt: now },
+  });
+  return res.count;
+}

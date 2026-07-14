@@ -14,6 +14,7 @@ import {
   therapistInFacility,
 } from '../common/child-scope';
 import { assertTherapistAssignable } from '../common/credentials';
+import { assertChildAccess } from '../common/consent';
 
 @Injectable()
 export class ClinicPatientsService {
@@ -139,6 +140,12 @@ export class ClinicPatientsService {
               domainScores: true,
             },
           },
+          // Surface consent state on the roster so a facility can CHASE a missing
+          // consent rather than just hitting a wall when it opens the record.
+          consents: {
+            where: { revokedAt: null, ...(clinicId ? { facilityId: clinicId } : {}) },
+            select: { type: true },
+          },
         },
         orderBy,
         skip: (page - 1) * limit,
@@ -187,6 +194,8 @@ export class ClinicPatientsService {
           : null,
         activeCaseCount: activeCases.length,
         lastActivity,
+        // false => the record is locked until a guardian consents. Chase it.
+        consentGranted: child.consents.some((c) => c.type === 'ASSESSMENT'),
         latestScreening: lastAssessment
           ? {
             status: lastAssessment.status,
@@ -203,7 +212,27 @@ export class ClinicPatientsService {
     };
   }
 
+  /**
+   * Opening a child's record requires the guardian's consent.
+   *
+   * The gate binds HERE, on detail, rather than on the roster list. A facility may
+   * see who is affiliated to it — it enrolled them, and it needs to know who is
+   * awaiting consent in order to chase it. It may NOT open the record until a
+   * guardian has agreed. That is the line: knowing a child exists is not the same as
+   * reading their developmental history.
+   *
+   * Grants come from the guardian (POST /child-consent/grant), from intake Section E,
+   * or from an e-signed form. Never seeded on a family's behalf.
+   */
   async getPatientDetail(childId: string, clinicId: string | null) {
+    await assertChildAccess(this.prisma, {
+      childId,
+      facilityId: clinicId,
+      capability: 'canObserve',
+      requiredScope: 'CLINICAL_SUMMARY',
+      consentType: 'ASSESSMENT',
+    });
+
     const child = await this.prisma.child.findFirst({
       where: {
         id: childId,

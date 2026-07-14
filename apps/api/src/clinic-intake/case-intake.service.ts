@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConsentType, IntakeState, JourneyStage, Prisma } from '@prisma/client';
 import { SaveCaseIntakeDto } from './dto/case-intake.dto';
+import { grantConsent } from '../common/consent';
 
 // Section E toggle → canonical ConsentType (write-through target)
 const CONSENT_MAP: { flag: keyof SaveCaseIntakeDto; type: ConsentType }[] = [
@@ -104,22 +105,68 @@ export class CaseIntakeService {
     });
   }
 
+  /**
+   * Section-E toggles -> real consent records.
+   *
+   * Two things were wrong here and both mattered.
+   *
+   * 1. ATTRIBUTION. `grantedById: userId` recorded the STAFF MEMBER typing the form
+   *    as the person who consented. Staff CAPTURE consent; the guardian GIVES it.
+   *    The grant is now attributed to the child's guardian, with the staff member
+   *    kept as `recordedBy` for audit. A consent record naming the wrong person is
+   *    not a consent record.
+   *
+   * 2. It only wrote `CaseConsent`, which is keyed to a Case — so it produced
+   *    nothing the facility-scoped gate can read, and nothing a nursery could ever
+   *    produce. Now dual-writes `ChildConsent` (child + facility), which is what
+   *    `resolveChildAccess` actually checks.
+   */
   private async writeConsentThrough(caseId: string, userId: string, dto: SaveCaseIntakeDto) {
+    const caseRecord = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      select: {
+        clinicId: true,
+        childId: true,
+        child: { select: { profile: { select: { userId: true } } } },
+      },
+    });
+    if (!caseRecord) return;
+
+    // The guardian is the person whose agreement this is.
+    const guardianUserId = caseRecord.child?.profile?.userId;
+
     for (const { flag, type } of CONSENT_MAP) {
       const granted = dto[flag] as boolean | undefined;
       if (!granted) continue;
+
       const existing = await this.prisma.caseConsent.findFirst({
         where: { caseId, type, revokedAt: null },
       });
-      if (existing) continue;
-      await this.prisma.caseConsent.create({
-        data: {
-          caseId,
+      if (!existing) {
+        await this.prisma.caseConsent.create({
+          data: {
+            caseId,
+            type,
+            // The guardian's agreement — not the recorder's.
+            grantedById: guardianUserId ?? userId,
+            purpose: 'Captured at client intake (Section E)',
+            notes: `Recorded by staff user ${userId}`,
+          },
+        });
+      }
+
+      // The record the facility-scoped gate actually reads.
+      if (guardianUserId && caseRecord.clinicId) {
+        await grantConsent(this.prisma, {
+          childId: caseRecord.childId,
+          facilityId: caseRecord.clinicId, // Facility.id = Clinic.id
           type,
-          grantedById: userId,
           purpose: 'Captured at client intake (Section E)',
-        },
-      });
+          grantedByUserId: guardianUserId,
+          recordedByUserId: userId,
+          caseId,
+        });
+      }
     }
   }
 

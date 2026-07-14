@@ -50,6 +50,10 @@ const BASELINE = new Map([
   ['clinic-orchestration/clinic-orchestration.controller.ts', 'passes clinic scope through'],
   ['clinic-orchestration/dto/orchestration.dto.ts', 'DTO field'],
   ['clinic-intake/consent-template.service.ts', 'ConsentTemplate.clinicId'],
+  [
+    'clinic-intake/case-intake.service.ts',
+    'reads Case.clinicId as the FACILITY the intake consent is granted to (ids preserved)',
+  ],
   ['clinic-intake/consent-template.controller.ts', 'passes clinic scope through'],
   ['clinic-intake/dto/clinic-intake.dto.ts', 'DTO field'],
   ['payer/payer.service.ts', 'InsurancePolicy/PreAuth clinic scope'],
