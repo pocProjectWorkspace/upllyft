@@ -17,14 +17,26 @@ export interface QuestionResponse {
     answer: AnswerType;
 }
 
+/**
+ * INSUFFICIENT_DATA is not a fourth colour on the same scale — it means the question
+ * "how is this child doing in this domain?" was never actually answered, because the
+ * informant could not observe enough of it. It must never be treated as GREEN.
+ */
+export type DomainStatus = 'GREEN' | 'YELLOW' | 'RED' | 'INSUFFICIENT_DATA';
+
 export interface DomainScore {
     domainId: string;
     domainName: string;
+    /** Weighted mean over OBSERVED items only. Meaningless when status is INSUFFICIENT_DATA. */
     riskIndex: number;
-    status: 'GREEN' | 'YELLOW' | 'RED';
+    status: DomainStatus;
     tier2Required: boolean;
     tier2Reason?: 'RISK_INDEX' | 'RED_FLAG';
     redFlagViolations?: string[];
+    /** Share of the domain's available weight the informant could actually observe (0–1). */
+    coverage: number;
+    observedCount: number;
+    availableCount: number;
 }
 
 @Injectable()
@@ -48,6 +60,23 @@ export class ScoringService {
     private readonly TIER2_THRESHOLD = 0.46;
     private readonly GREEN_MAX = 0.29;
     private readonly YELLOW_MAX = 0.45;
+
+    /**
+     * How much of a domain an informant must actually have observed before we are
+     * willing to say anything about it at all.
+     *
+     * WHY THIS EXISTS: the risk index is a weighted MEAN over answered items, so a
+     * domain with nothing answered used to come out at 0 — which is GREEN, "your
+     * child is developing well in this area". Silence read as reassurance. That was
+     * survivable while only parents screened (a parent sees their child in every
+     * context, so they answer nearly everything). It is not survivable now an
+     * educator can screen, because a keyworker has real, permanent blind spots:
+     * sleep, mealtimes at home, family play. Without this rule, the domains a
+     * teacher cannot see would come back green.
+     */
+    private readonly MIN_COVERAGE = 0.6;
+    /** And a verdict on a domain from one or two items is not a verdict. */
+    private readonly MIN_OBSERVED_ITEMS = 2;
 
     /**
      * Determine if a question needs inverted scoring based on domain
@@ -75,7 +104,9 @@ export class ScoringService {
         domainId?: string,
     ): DomainScore {
         let totalWeightedScore = 0;
-        let totalWeight = 0;
+        let observedWeight = 0;
+        let availableWeight = 0;
+        let observedCount = 0;
         const redFlagViolations: string[] = [];
 
         for (const response of responses) {
@@ -84,13 +115,24 @@ export class ScoringService {
                 throw new Error(`Question ${response.questionId} not found`);
             }
 
+            availableWeight += question.weight;
+
+            // NOT_OBSERVED is not an answer — it is the absence of one. It contributes
+            // to NEITHER the numerator nor the denominator, and it can never raise a
+            // red flag. "I have no way of seeing this" is not evidence of concern, and
+            // scoring it as though it were is how you manufacture a worried teacher.
+            if (response.answer === AnswerType.NOT_OBSERVED) {
+                continue;
+            }
+
             // Use inverted scoring for sensory and problem-phrased questions
             const useInverted = domainId && this.needsInvertedScoring(domainId, question);
             const scoreMap = useInverted ? this.INVERTED_ANSWER_SCORES : this.ANSWER_SCORES;
             const answerValue = scoreMap[response.answer];
 
             totalWeightedScore += answerValue * question.weight;
-            totalWeight += question.weight;
+            observedWeight += question.weight;
+            observedCount += 1;
 
             // Check for red flag violations
             // For inverted scoring, YES is a problem, for normal scoring, NO is a problem
@@ -103,7 +145,34 @@ export class ScoringService {
             }
         }
 
-        const riskIndex = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
+        const coverage = availableWeight > 0 ? observedWeight / availableWeight : 0;
+        const riskIndex = observedWeight > 0 ? totalWeightedScore / observedWeight : 0;
+
+        // Did the informant see enough of this domain for the number to mean anything?
+        // If not we say so, rather than reporting a mean over the two items they
+        // happened to be able to answer — and CRUCIALLY rather than falling through to
+        // riskIndex 0, which reads as GREEN.
+        const insufficient =
+            observedCount < this.MIN_OBSERVED_ITEMS || coverage < this.MIN_COVERAGE;
+
+        if (insufficient) {
+            return {
+                domainId: '',
+                domainName: '',
+                riskIndex: Math.round(riskIndex * 100) / 100,
+                status: 'INSUFFICIENT_DATA',
+                // A red flag still counts even here: a keyworker who positively
+                // reports a red-flag item is telling us something real, and we are not
+                // going to discard it because they could not answer their colleagues'
+                // questions about bedtime.
+                tier2Required: redFlagViolations.length > 0,
+                tier2Reason: redFlagViolations.length > 0 ? 'RED_FLAG' : undefined,
+                redFlagViolations: redFlagViolations.length > 0 ? redFlagViolations : undefined,
+                coverage: Math.round(coverage * 100) / 100,
+                observedCount,
+                availableCount: responses.length,
+            };
+        }
 
         // Determine if Tier 2 is required
         let tier2Required = false;
@@ -118,7 +187,7 @@ export class ScoringService {
         }
 
         // Determine status color
-        let status: 'GREEN' | 'YELLOW' | 'RED';
+        let status: DomainStatus;
         if (riskIndex <= this.GREEN_MAX) {
             status = 'GREEN';
         } else if (riskIndex <= this.YELLOW_MAX) {
@@ -135,6 +204,9 @@ export class ScoringService {
             tier2Required,
             tier2Reason,
             redFlagViolations: redFlagViolations.length > 0 ? redFlagViolations : undefined,
+            coverage: Math.round(coverage * 100) / 100,
+            observedCount,
+            availableCount: responses.length,
         };
     }
 
@@ -142,7 +214,23 @@ export class ScoringService {
      * Calculate individual question score
      */
     calculateQuestionScore(answer: AnswerType, weight: number): number {
+        // NOT_OBSERVED has no score, because it is not an observation. It is persisted as
+        // 0 purely so the row can exist — the ANSWER column is the source of truth, and
+        // `calculateDomainScore` excludes these from the numerator AND the denominator.
+        //
+        // Anything that later aggregates `AssessmentResponse.score` MUST filter these out
+        // first, or it will read "not seen" as "doing fine".
+        if (answer === AnswerType.NOT_OBSERVED) return 0;
+
         const answerValue = this.ANSWER_SCORES[answer];
+
+        // An unmapped answer used to produce `undefined * weight` = NaN, which sailed
+        // straight through to Prisma and blew up on insert with an opaque error. Fail
+        // here, where the cause is legible, rather than three layers down.
+        if (answerValue === undefined) {
+            throw new Error(`No score mapping for answer "${answer}"`);
+        }
+
         return answerValue * weight;
     }
 
@@ -150,14 +238,18 @@ export class ScoringService {
      * Calculate overall assessment score (average of all domain risk indices)
      */
     calculateOverallScore(domainScores: DomainScore[]): number {
-        if (domainScores.length === 0) return 0;
+        // Average over SCORED domains only. Including an INSUFFICIENT_DATA domain would
+        // fold its riskIndex (often 0, because barely anything was observed) into the
+        // mean and pull the overall score toward "on track" — the same bug as the
+        // domain-level one, one level up: the less the informant could see, the
+        // healthier the child would look.
+        const scored = domainScores.filter((d) => d.status !== 'INSUFFICIENT_DATA');
 
-        const totalRiskIndex = domainScores.reduce(
-            (sum, domain) => sum + domain.riskIndex,
-            0,
-        );
+        if (scored.length === 0) return 0;
 
-        return Math.round((totalRiskIndex / domainScores.length) * 100) / 100;
+        const totalRiskIndex = scored.reduce((sum, domain) => sum + domain.riskIndex, 0);
+
+        return Math.round((totalRiskIndex / scored.length) * 100) / 100;
     }
 
     /**

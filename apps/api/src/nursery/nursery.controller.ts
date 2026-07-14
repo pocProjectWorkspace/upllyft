@@ -53,6 +53,16 @@ export class NurseryController {
     return this.nursery.updatePlacement(req.user, facilityId, affiliationId, dto);
   }
 
+  @Post(':affiliationId/request-screening-consent')
+  @ApiOperation({ summary: 'Ask the guardian for permission to run a developmental screening' })
+  requestScreeningConsent(
+    @Req() req: any,
+    @Param('facilityId') facilityId: string,
+    @Param('affiliationId') affiliationId: string,
+  ) {
+    return this.nursery.requestScreeningConsent(req.user, facilityId, affiliationId);
+  }
+
   @Post(':affiliationId/resend-claim')
   @ApiOperation({ summary: 'Re-send the guardian claim link (rotates the token)' })
   resendClaim(

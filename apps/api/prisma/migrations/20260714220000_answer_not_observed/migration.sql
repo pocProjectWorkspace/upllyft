@@ -1,0 +1,24 @@
+-- F4 — NOT_OBSERVED: "I had no opportunity to see this", as distinct from NOT_SURE
+-- ("I could see it, and I'm unsure").
+--
+-- WHY THIS MATTERS ENOUGH FOR ITS OWN VALUE: NOT_SURE scores 0.7 — worse than
+-- SOMETIMES (0.4). That is defensible for a parent, who observes their child in every
+-- context. It is not defensible for a keyworker, who structurally cannot observe
+-- bedtime, mealtimes at home, or family play. Scoring their unavoidable blind spots as
+-- near-concern would make every educator report run hot, and the parent-vs-educator
+-- disagreement that early identification depends on would become an artefact of who
+-- can see what rather than a signal about the child.
+--
+-- NOT_OBSERVED is excluded from the scoring numerator AND denominator, and never
+-- raises a red flag. See src/assessments/scoring.service.ts.
+--
+-- Hand-written and IDEMPOTENT (`prisma migrate` cannot run against this database).
+-- Purely additive: adds one enum value. Existing rows are untouched, and no existing
+-- code path can produce the new value until the API that offers it ships — so this is
+-- safe to apply BEFORE the code deploy, which is the required order.
+--
+-- NOTE: ALTER TYPE ... ADD VALUE cannot run inside a transaction block on PostgreSQL,
+-- so this file must not be wrapped in BEGIN/COMMIT. `IF NOT EXISTS` (PG 12+) makes the
+-- re-run a no-op rather than an error.
+
+ALTER TYPE "AnswerType" ADD VALUE IF NOT EXISTS 'NOT_OBSERVED';

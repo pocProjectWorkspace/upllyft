@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AssessmentsService } from './assessments.service';
+import { ConcordanceService } from './concordance.service';
 import { ReportGeneratorV2Service } from './report-generator-v2.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { SubmitTier1ResponsesDto } from './dto/submit-tier1.dto';
@@ -30,7 +31,21 @@ export class AssessmentsController {
     constructor(
         private readonly assessmentsService: AssessmentsService,
         private readonly reportGeneratorV2: ReportGeneratorV2Service,
+        private readonly concordanceService: ConcordanceService,
     ) { }
+
+    /**
+     * What the parent and the nursery each see, side by side.
+     *
+     * The disagreement is the signal — a difficulty visible only in a group, or only at
+     * home, is exactly what a single informant misses. Domains neither could observe are
+     * reported as silence, never as agreement.
+     */
+    @Get('concordance/:childId')
+    @ApiOperation({ summary: 'Compare a child’s parent-report and nursery-report screenings' })
+    async getConcordance(@Param('childId') childId: string, @Request() req) {
+        return this.concordanceService.getConcordance(childId, req.user);
+    }
 
     @Post()
     @ApiOperation({ summary: 'Create a new assessment for a child' })
@@ -41,10 +56,9 @@ export class AssessmentsController {
         @Body() createAssessmentDto: CreateAssessmentDto,
         @Request() req,
     ) {
-        return this.assessmentsService.createAssessment(
-            createAssessmentDto,
-            req.user.id,
-        );
+        // Pass the ACTOR, not a bare id: the service must know their platform role to
+        // resolve whether they are the guardian or an educator at the child's setting.
+        return this.assessmentsService.createAssessment(createAssessmentDto, req.user);
     }
 
     @Get(':id')

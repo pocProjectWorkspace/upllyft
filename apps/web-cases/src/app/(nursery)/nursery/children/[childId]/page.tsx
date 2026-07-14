@@ -1,10 +1,12 @@
 'use client';
 
 import { use } from 'react';
-import { Badge, Card, Skeleton } from '@upllyft/ui';
+import { Badge, Card, Skeleton, useToast } from '@upllyft/ui';
 import { Lock, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { useNursery } from '@/components/nursery/nursery-context';
-import { useRoster } from '@/hooks/use-nursery';
+import { useRoster, useRequestScreeningConsent } from '@/hooks/use-nursery';
+import { ConcordanceView } from '@/components/nursery/concordance-view';
+import type { RosterChild } from '@/lib/api/nursery';
 
 /**
  * A child, as a NURSERY sees them.
@@ -103,6 +105,10 @@ export default function NurseryChildPage({
             </div>
           </Card>
 
+          <ScreeningCard child={child} />
+
+          <ConcordanceView childId={child.childId} childName={child.firstName} />
+
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Observations</h2>
@@ -117,6 +123,69 @@ export default function NurseryChildPage({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Screening is a SEPARATE permission from observing.
+ *
+ * A nursery that may note observations still may not run a developmental screening — so
+ * this card either offers the screening, or offers to ask. It never quietly does the
+ * former on the strength of the latter's consent.
+ */
+function ScreeningCard({ child }: { child: RosterChild }) {
+  const { facilityId } = useNursery();
+  const request = useRequestScreeningConsent(facilityId ?? '');
+  const { toast } = useToast();
+
+  if (child.screeningConsentGranted) {
+    return (
+      <Card className="p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-gray-900">Developmental check</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              A short questionnaire about what you see day to day. About 15 minutes.
+            </p>
+          </div>
+          <a
+            href={`/nursery/children/${child.childId}/screening`}
+            className="shrink-0 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700"
+          >
+            Start
+          </a>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-6 border-dashed">
+      <h2 className="font-semibold text-gray-900">Developmental check</h2>
+      <p className="text-sm text-gray-600 mt-1">
+        {child.guardian?.name ?? 'Their parent'} has agreed you can record observations, but
+        a developmental screening is a separate permission — it produces a scored report
+        that can be shared with a doctor. You’ll need to ask them.
+      </p>
+      <button
+        onClick={async () => {
+          if (!child.affiliationId) return;
+          try {
+            const r = await request.mutateAsync(child.affiliationId);
+            toast({ title: `We’ve asked ${r.sentTo}` });
+          } catch (e: any) {
+            toast({
+              title: e?.response?.data?.message ?? 'Could not send the request',
+              variant: 'destructive',
+            });
+          }
+        }}
+        disabled={request.isPending}
+        className="mt-4 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+      >
+        {request.isPending ? 'Sending…' : 'Ask their parent'}
+      </button>
+    </Card>
   );
 }
 

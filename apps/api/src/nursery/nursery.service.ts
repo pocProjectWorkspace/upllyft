@@ -4,8 +4,11 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FacilityRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
+import { hasConsent } from '../common/consent';
 import { ClaimsService, CLAIM_TTL_DAYS, type GuardianDetails } from '../child-claims/claims.service';
 import { assertFacilityMember, type FacilityActor } from '../common/facility-scope';
 import { attachChildToFacility, childOnRoster } from '../common/child-scope';
@@ -29,6 +32,8 @@ export class NurseryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly claims: ClaimsService,
+    private readonly email: EmailService,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -64,10 +69,12 @@ export class NurseryService {
           },
           take: 1,
         },
+        // Both consents, not just the observation one. They are separate permissions
+        // and the roster must not conflate them: a nursery that may note observations
+        // still may not run a screening.
         consents: {
-          where: { facilityId, revokedAt: null, type: NURSERY_CONSENT_TYPE },
-          select: { id: true, createdAt: true },
-          take: 1,
+          where: { facilityId, revokedAt: null },
+          select: { id: true, type: true, createdAt: true },
         },
         guardians: {
           where: { isPrimaryContact: true },
@@ -88,7 +95,8 @@ export class NurseryService {
       const aff = c.affiliations[0];
       const claim = c.claims[0];
       const guardian = c.guardians[0];
-      const consentGranted = c.consents.length > 0;
+      const consentGranted = c.consents.some(x => x.type === NURSERY_CONSENT_TYPE);
+      const screeningConsentGranted = c.consents.some(x => x.type === 'ASSESSMENT');
 
       return {
         childId: c.id,
@@ -104,6 +112,8 @@ export class NurseryService {
         // false => the record is LOCKED. The nursery may see this row and nothing
         // behind it. This is the gate working, not a bug.
         consentGranted,
+        // A SEPARATE permission. Observing a child is not screening them.
+        screeningConsentGranted,
         guardian: guardian
           ? {
               name: guardian.fullName,
@@ -251,6 +261,106 @@ export class NurseryService {
     ]);
 
     return { ended: true };
+  }
+
+  /**
+   * Ask the guardian for permission to run a developmental screening.
+   *
+   * A SEPARATE ASK, DELIBERATELY. F3's consent lets the nursery note observations. A
+   * screening is a different thing: a structured questionnaire producing a scored,
+   * referable report about their child. Rolling it into the observation consent would
+   * be exactly the silent scope creep that consent exists to prevent — so the nursery
+   * has to ask, in as many words, and the guardian has to say yes.
+   *
+   * This does NOT create a consent. It sends an email. Only the guardian can grant.
+   */
+  async requestScreeningConsent(
+    actor: FacilityActor,
+    facilityId: string,
+    affiliationId: string,
+  ) {
+    await assertFacilityMember(this.prisma, actor, facilityId, ROSTER_ADMIN_ROLES);
+
+    const affiliation = await this.prisma.childAffiliation.findFirst({
+      where: { id: affiliationId, facilityId, endedAt: null },
+      select: {
+        id: true,
+        status: true,
+        childId: true,
+        child: {
+          select: {
+            firstName: true,
+            guardians: {
+              where: { isPrimaryContact: true },
+              select: { fullName: true, email: true, userId: true },
+              take: 1,
+            },
+          },
+        },
+        facility: { select: { name: true } },
+      },
+    });
+
+    if (!affiliation) throw new NotFoundException('This child is not on your roster.');
+
+    // You cannot ask for a second permission from someone who has not granted the
+    // first. An unclaimed child has no guardian on the platform to ask.
+    if (affiliation.status !== 'ACTIVE') {
+      throw new BadRequestException(
+        'This child’s guardian hasn’t confirmed them yet. They need to accept the invite first.',
+      );
+    }
+
+    const existing = await hasConsent(
+      this.prisma,
+      affiliation.childId,
+      facilityId,
+      'ASSESSMENT',
+    );
+    if (existing) {
+      throw new BadRequestException('This guardian has already agreed to screening.');
+    }
+
+    const guardian = affiliation.child.guardians[0];
+    if (!guardian?.email) {
+      throw new BadRequestException('We have no email address for this child’s guardian.');
+    }
+
+    const base = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const link = `${base}/children/${affiliation.childId}/permissions`;
+    const childName = affiliation.child.firstName;
+    const facilityName = affiliation.facility.name;
+
+    await this.email
+      .sendEmail({
+        to: guardian.email,
+        subject: `${facilityName} would like to run a developmental check for ${childName}`,
+        html: `
+          <p>Hello ${guardian.fullName},</p>
+          <p><strong>${facilityName}</strong> would like your permission to complete a developmental
+             screening for <strong>${childName}</strong>.</p>
+          <p>It's a questionnaire their keyworker fills in about what they see day to day — how
+             ${childName} is moving, playing, talking and getting on with other children. It takes
+             about 15 minutes and it is <strong>not a diagnosis</strong>. It's a way of noticing
+             early whether anything might be worth a closer look.</p>
+          <p>You'll see everything they record, and you can change your mind at any time.</p>
+          <p><a href="${link}">Review this request</a></p>
+          <p>It's completely fine to say no. ${childName}'s place and care are not affected either way.</p>
+        `,
+        text:
+          `${facilityName} would like permission to complete a developmental screening for ${childName}. ` +
+          `You'll see everything they record and can withdraw at any time. It's fine to say no. ` +
+          `Review: ${link}`,
+      })
+      .catch((e: any) => {
+        this.logger.error(`Screening-consent request to ${guardian.email} failed: ${e?.message}`);
+      });
+
+    this.logger.log(
+      `Screening consent requested for child ${affiliation.childId} at facility ${facilityId} by ${actor.id}`,
+    );
+
+    return { requested: true, sentTo: guardian.email };
   }
 
   /** Re-send the claim link — the commonest support request there will ever be. */
