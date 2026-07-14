@@ -2822,6 +2822,10 @@ model IEP {
   id                    String       @id @default(cuid())
   caseId                String
   case                  Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  /// The plan's name, as the clinician typed it. The UI has always collected this
+  /// and required it — but there was no column, so ValidationPipe's `whitelist`
+  /// silently stripped it and the IEP was created untitled. Silent data loss.
+  title                 String?
   version               Int          @default(1)
   status                IEPStatus    @default(DRAFT)
   templateId            String?

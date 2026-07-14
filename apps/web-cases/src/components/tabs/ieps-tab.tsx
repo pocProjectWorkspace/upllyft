@@ -406,7 +406,10 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </Button>
           <h3 className="font-semibold text-lg">
-            IEP v{selectedIEP.version ?? 1}
+            {selectedIEP.title || `IEP v${selectedIEP.version ?? 1}`}
+            {selectedIEP.title && (
+              <span className="ml-2 text-xs font-normal text-gray-500">v{selectedIEP.version ?? 1}</span>
+            )}
           </h3>
           <Badge color={STATUS_BADGE_COLORS[selectedIEP.status] ?? 'gray'}>
             {iepStatusLabels[selectedIEP.status] ?? selectedIEP.status}
@@ -1162,7 +1165,7 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">
-                      IEP v{iep.version ?? 1}
+                      {iep.title || `IEP v${iep.version ?? 1}`}
                     </span>
                     <Badge
                       color={STATUS_BADGE_COLORS[iep.status] ?? 'gray'}

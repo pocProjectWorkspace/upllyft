@@ -30,6 +30,7 @@ import {
   useCreateInternalNote,
   useAddCaseTherapist,
   useTransferCase,
+  useTransferCandidates,
 } from '@/hooks/use-cases';
 import {
   caseStatusColors,
@@ -105,6 +106,9 @@ export function OverviewTab({ caseId, caseData }: OverviewTabProps) {
   const [newNote, setNewNote] = useState('');
   const [showAddTherapist, setShowAddTherapist] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
+  // Only fetch colleagues when the dialog is actually open.
+  const { data: transferCandidates = [], isLoading: candidatesLoading } =
+    useTransferCandidates(caseId, showTransfer);
   const [transferId, setTransferId] = useState('');
   const [therapistForm, setTherapistForm] = useState({
     therapistId: '',
@@ -136,7 +140,9 @@ export function OverviewTab({ caseId, caseData }: OverviewTabProps) {
   const handleTransfer = () => {
     if (!transferId.trim()) return;
     transferCase.mutate(
-      { caseId, data: { newTherapistId: transferId.trim() } },
+      // Was `newTherapistId`; the API expects `newPrimaryTherapistId`, so this was
+      // dropped by validation and the transfer silently failed.
+      { caseId, data: { newPrimaryTherapistId: transferId.trim() } },
       {
         onSuccess: () => {
           setShowTransfer(false);
@@ -507,13 +513,52 @@ export function OverviewTab({ caseId, caseData }: OverviewTabProps) {
                       current primary will become a secondary therapist.
                     </p>
                     <div>
-                      <Label>New Primary Therapist ID</Label>
-                      <Input
-                        value={transferId}
-                        onChange={(e) => setTransferId(e.target.value)}
-                        placeholder="Enter therapist profile ID"
-                        className="mt-1.5"
-                      />
+                      <Label>New primary therapist</Label>
+                      {candidatesLoading ? (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Loading colleagues…
+                        </div>
+                      ) : transferCandidates.length === 0 ? (
+                        <p className="mt-2 text-sm text-gray-500">
+                          No other clinicians at this facility are available to take
+                          this case.
+                        </p>
+                      ) : (
+                        <div className="mt-1.5 max-h-64 space-y-1 overflow-y-auto rounded-md border p-1">
+                          {transferCandidates.map((t) => {
+                            const selected = transferId === t.id;
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                disabled={!t.assignable}
+                                onClick={() => setTransferId(t.id)}
+                                className={`flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm transition ${
+                                  selected
+                                    ? 'bg-teal-50 ring-1 ring-teal-500'
+                                    : t.assignable
+                                      ? 'hover:bg-gray-50'
+                                      : 'cursor-not-allowed opacity-50'
+                                }`}
+                              >
+                                <Avatar src={t.avatar ?? undefined} name={t.name} size="sm" />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate font-medium text-gray-900">
+                                    {t.name}
+                                  </span>
+                                  <span className="block truncate text-xs text-gray-500">
+                                    {t.blockedReason
+                                      ? t.blockedReason
+                                      : t.alreadyOnCase
+                                        ? 'Already on this case'
+                                        : t.title || t.specializations[0] || 'Clinician'}
+                                  </span>
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                     <DialogFooter>
                       <Button

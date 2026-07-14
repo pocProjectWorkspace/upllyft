@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { facilityCan, type FacilityType } from '../common/facility-capabilities';
 import { assertTherapistAssignable } from '../common/credentials';
+import { therapistInFacility } from '../common/child-scope';
 import { CaseStatus, CaseTherapistRole, CredentialStatus, Prisma } from '@prisma/client';
 import {
   CreateCaseDto,
@@ -538,6 +539,71 @@ export class CasesService {
   /**
    * Transfer primary therapist responsibility.
    */
+  /**
+   * Clinicians this case can be transferred to, or assigned.
+   *
+   * This did not exist, which is why the transfer dialog asked the user to type a
+   * raw "therapist profile ID" — a value that is not surfaced anywhere in the
+   * product. The tester could not find one because there was nowhere to find one.
+   *
+   * Returns colleagues at the same facility, excluding the current primary, and
+   * flags who is already on the case so the UI can group them.
+   */
+  async getTransferCandidates(caseId: string) {
+    const caseRecord = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      select: {
+        primaryTherapistId: true,
+        clinicId: true,
+        therapists: { where: { removedAt: null }, select: { therapistId: true } },
+      },
+    });
+    if (!caseRecord) throw new NotFoundException('Case not found');
+
+    const onCase = new Set(caseRecord.therapists.map((t) => t.therapistId));
+
+    const candidates = await this.prisma.therapistProfile.findMany({
+      where: {
+        isActive: true,
+        id: { not: caseRecord.primaryTherapistId ?? undefined },
+        // Same facility as the case. Facility.id = Clinic.id.
+        ...therapistInFacility(caseRecord.clinicId),
+      },
+      select: {
+        id: true,
+        title: true,
+        specializations: true,
+        credentialStatus: true,
+        licenceExpiry: true,
+        user: { select: { name: true, email: true, image: true } },
+      },
+      orderBy: { user: { name: 'asc' } },
+    });
+
+    const now = Date.now();
+    return candidates.map((c) => {
+      const expired = !!c.licenceExpiry && c.licenceExpiry.getTime() < now;
+      const assignable = c.credentialStatus === 'VERIFIED' && !expired;
+      return {
+        id: c.id,
+        name: c.user?.name ?? c.user?.email ?? 'Unknown',
+        email: c.user?.email,
+        avatar: c.user?.image,
+        title: c.title,
+        specializations: c.specializations,
+        alreadyOnCase: onCase.has(c.id),
+        // The UI should disable these and say why, rather than let the user pick
+        // someone the licence gate will refuse.
+        assignable,
+        blockedReason: assignable
+          ? null
+          : expired
+            ? 'Licence expired'
+            : 'Licence not verified',
+      };
+    });
+  }
+
   async transferCase(caseId: string, userId: string, dto: TransferCaseDto) {
     const caseRecord = await this.prisma.case.findUnique({
       where: { id: caseId },
@@ -545,13 +611,39 @@ export class CasesService {
     });
     if (!caseRecord) throw new NotFoundException('Case not found');
 
-    const newPrimary = caseRecord.therapists.find(
+    // The incoming primary must be a real, assignable clinician.
+    const incoming = await this.prisma.therapistProfile.findUnique({
+      where: { id: dto.newPrimaryTherapistId },
+      select: { id: true, credentialStatus: true, licenceExpiry: true },
+    });
+    if (!incoming) throw new NotFoundException('Therapist not found');
+    assertTherapistAssignable(incoming);
+
+    if (incoming.id === caseRecord.primaryTherapistId) {
+      throw new BadRequestException('That therapist is already the primary on this case.');
+    }
+
+    // A therapist who is not yet on the case is ADDED as part of the transfer.
+    //
+    // Previously this threw "New primary therapist must be already assigned to the
+    // case" — which made transfer impossible on a NEW case, because a new case has
+    // exactly one therapist (the primary) and you cannot transfer to yourself. The
+    // tester had to add a secondary first, through a different screen, with no
+    // indication that was required. Transferring a case to a colleague is one
+    // intention, so it is one action.
+    let newPrimary = caseRecord.therapists.find(
       (t) => t.therapistId === dto.newPrimaryTherapistId,
     );
+
     if (!newPrimary) {
-      throw new BadRequestException(
-        'New primary therapist must be already assigned to the case',
-      );
+      newPrimary = await this.prisma.caseTherapist.create({
+        data: {
+          caseId,
+          therapistId: dto.newPrimaryTherapistId,
+          role: CaseTherapistRole.SECONDARY, // promoted to PRIMARY in the transaction below
+          permissions: { canEdit: true, canViewNotes: true, canManageGoals: true },
+        },
+      });
     }
 
     const oldPrimaryId = caseRecord.primaryTherapistId;

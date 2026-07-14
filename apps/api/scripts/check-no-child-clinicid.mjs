@@ -39,6 +39,10 @@ const BASELINE = new Map([
     'clinic-patients/clinic-patients.service.ts',
     'MIGRATED (D + D2) — the remaining `clinicId` is the inbound scope param name only',
   ],
+  [
+    'cases/cases.service.ts',
+    'getTransferCandidates reads Case.clinicId as the FACILITY to scope colleagues to (ids preserved)',
+  ],
   ['auth/auth.service.ts', 'mints the clinicId claim; resolves it from FacilityMember (D2)'],
   ['auth/strategies/jwt.strategy.ts', 'propagates the clinicId claim'],
   ['admin/admin.service.ts', 'platform admin: clinic CRUD + data export'],

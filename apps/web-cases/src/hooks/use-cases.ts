@@ -114,6 +114,15 @@ export function useAddCaseTherapist() {
   });
 }
 
+/** Colleagues this case can be transferred to. */
+export function useTransferCandidates(caseId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...keys.detail(caseId), 'transfer-candidates'],
+    queryFn: () => casesApi.getTransferCandidates(caseId),
+    enabled: enabled && !!caseId,
+  });
+}
+
 export function useTransferCase() {
   const qc = useQueryClient();
   return useMutation({

@@ -24,6 +24,26 @@ export class IEPsService {
 
   // ─── IEP CRUD ──────────────────────────────────────────
 
+  /**
+   * The child's latest COMPLETED screening, for "generate IEP from screening".
+   * Returns null when the child has never completed one — the caller must say so
+   * rather than 400 with a validation error about a field the user never saw.
+   */
+  async getLatestScreeningForCase(caseId: string): Promise<string | null> {
+    const caseRecord = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      select: { childId: true },
+    });
+    if (!caseRecord) throw new NotFoundException('Case not found');
+
+    const latest = await this.prisma.assessment.findFirst({
+      where: { childId: caseRecord.childId, status: 'COMPLETED' },
+      orderBy: { completedAt: 'desc' },
+      select: { id: true },
+    });
+    return latest?.id ?? null;
+  }
+
   async createIEP(caseId: string, userId: string, dto: CreateIEPDto) {
     const caseRecord = await this.prisma.case.findUnique({ where: { id: caseId } });
     if (!caseRecord) throw new NotFoundException('Case not found');
@@ -48,6 +68,7 @@ export class IEPsService {
         caseId,
         version,
         createdById: userId,
+        title: dto.title,
         templateId: dto.templateId,
         reviewDate: dto.reviewDate ? new Date(dto.reviewDate) : undefined,
         accommodations: dto.accommodations,

@@ -472,11 +472,21 @@ export class ClinicPatientsService {
         return { caseId: existingCase.id, action: 'therapist_added', warning: 'therapist_already_assigned' };
       }
 
+      // Joining an EXISTING case: this therapist is a SECONDARY — the case already
+      // has a primary. Hardcoding PRIMARY here produced multiple PRIMARY rows on a
+      // single case (CaseAccessGuard derives isPrimary from Case.primaryTherapistId,
+      // not from this role, so the extra "PRIMARY" was a lie that granted nothing).
+      //
+      // permissions MUST be set. CaseAccessGuard falls through to
+      // `permissions.canEdit` for anyone who is not the case's primary — and an
+      // empty `{}` means canEdit === undefined === denied. That is why a therapist
+      // assigned through this path could open a case but not create an IEP.
       await this.prisma.caseTherapist.create({
         data: {
           caseId: existingCase.id,
           therapistId: therapistProfile.id,
-          role: 'PRIMARY',
+          role: 'SECONDARY',
+          permissions: { canEdit: true, canViewNotes: true, canManageGoals: true },
         },
       });
 
@@ -511,6 +521,9 @@ export class ClinicPatientsService {
           create: {
             therapistId: therapistProfile.id,
             role: 'PRIMARY',
+            // Same bug as above: without this the row is created with `{}` and the
+            // therapist cannot edit their own case.
+            permissions: { canEdit: true, canViewNotes: true, canManageGoals: true },
           },
         },
       },

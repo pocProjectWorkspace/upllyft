@@ -104,6 +104,12 @@ export class CasesController {
     return this.casesService.removeTherapist(caseId, therapistId, req.user.id);
   }
 
+  @Get(':caseId/transfer-candidates')
+  @CaseAccess('view')
+  async getTransferCandidates(@Param('caseId') caseId: string) {
+    return this.casesService.getTransferCandidates(caseId);
+  }
+
   @Post(':caseId/transfer')
   @UseGuards(CaseAccessGuard)
   @CaseAccess('manage')

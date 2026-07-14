@@ -139,6 +139,7 @@ export interface IEPGoal {
 export interface IEP {
   id: string;
   caseId: string;
+  title?: string | null;
   version: number;
   status: IEPStatus;
   templateId?: string;
@@ -341,8 +342,22 @@ export interface AddTherapistInput {
 }
 
 export interface TransferCaseInput {
-  newTherapistId: string;
+  // Was `newTherapistId` — the API expects `newPrimaryTherapistId`, so the field was
+  // silently dropped by validation and the transfer failed even with a correct id.
+  newPrimaryTherapistId: string;
   reason?: string;
+}
+
+export interface TransferCandidate {
+  id: string;
+  name: string;
+  email?: string;
+  avatar?: string | null;
+  title?: string | null;
+  specializations: string[];
+  alreadyOnCase: boolean;
+  assignable: boolean;
+  blockedReason: string | null;
 }
 
 export interface CreateInternalNoteInput {
@@ -397,6 +412,8 @@ export interface EnhanceNotesInput {
 }
 
 export interface CreateIEPInput {
+  /** Now actually persisted — there was no column, so this was silently dropped. */
+  title?: string;
   templateId?: string;
   reviewDate?: string;
   accommodations?: Record<string, unknown>;
@@ -637,6 +654,12 @@ export async function updateCaseTherapist(
 
 export async function transferCase(caseId: string, data: TransferCaseInput): Promise<Case> {
   const res = await apiClient.post(`/cases/${caseId}/transfer`, data);
+  return res.data;
+}
+
+/** Colleagues this case can be transferred to. Powers the picker. */
+export async function getTransferCandidates(caseId: string): Promise<TransferCandidate[]> {
+  const res = await apiClient.get(`/cases/${caseId}/transfer-candidates`);
   return res.data;
 }
 

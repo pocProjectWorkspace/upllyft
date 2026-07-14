@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Post,
   Get,
@@ -156,15 +157,29 @@ export class CaseIEPsController {
     @Body() dto: GenerateIEPDto,
     @Req() req: any,
   ) {
+    // `assessmentId` was REQUIRED while the UI posted `{}` — so this endpoint
+    // returned 400 every time and "Generate from screening" never once worked.
+    // Resolve the child's latest COMPLETED screening when none is given, which is
+    // what the button means.
+    const assessmentId =
+      dto.assessmentId ?? (await this.iepsService.getLatestScreeningForCase(caseId));
+
+    if (!assessmentId) {
+      throw new BadRequestException(
+        'This child has no completed screening yet, so an IEP cannot be generated from one. Complete a screening first, or create the IEP manually.',
+      );
+    }
+
     // Generate AI draft
     const generated = await this.iepAiService.generateIEPFromScreening(
       caseId,
-      dto.assessmentId,
+      assessmentId,
       dto.additionalContext,
     );
 
     // Create the IEP with generated goals
     const iep = await this.iepsService.createIEP(caseId, req.user.id, {
+      title: 'Generated from screening',
       templateId: dto.templateId,
       accommodations: generated.accommodations,
       servicesTracking: generated.suggestedServices,

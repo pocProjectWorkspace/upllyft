@@ -19,6 +19,10 @@ import { IEPStatus, GoalStatus } from '@prisma/client';
 export class CreateIEPDto {
   @IsOptional()
   @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
   templateId?: string;
 
   @IsOptional()
@@ -211,8 +215,15 @@ export class SearchGoalBankDto {
 // ─── AI DTOs ─────────────────────────────────────────────
 
 export class GenerateIEPDto {
+  /**
+   * Optional. The UI posted `{}` here and this was REQUIRED, so "Generate from
+   * screening" returned 400 every single time — the feature never worked. When
+   * omitted we use the child's latest COMPLETED screening, which is what the button
+   * means.
+   */
+  @IsOptional()
   @IsString()
-  assessmentId: string;
+  assessmentId?: string;
 
   @IsOptional()
   @IsString()
