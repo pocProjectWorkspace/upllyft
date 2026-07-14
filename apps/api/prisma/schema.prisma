@@ -160,6 +160,8 @@ model User {
   // UAE clinic Phase 1 relations
   uploadedIdentityDocs PatientIdentityDocument[] @relation("UploadedIdentityDocs")
   guardianProfiles     Guardian[]                @relation("GuardianUser")
+  claimedChildClaims   ChildClaim[]              @relation("ClaimedChildClaims")
+  createdChildClaims   ChildClaim[]              @relation("CreatedChildClaims")
 
   // UAE clinic Phase 3 relations
   assignedLeads        Lead[]            @relation("LeadAssignee")
@@ -1392,6 +1394,7 @@ model Child {
   preVisitTasks                         PreVisitTask[]
   insurancePolicies                     InsurancePolicy[]
   convertedFromLead                     Lead?                     @relation("LeadConversion")
+  claims                                ChildClaim[]              @relation("ChildClaims")
   profile                               UserProfile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
@@ -4668,6 +4671,7 @@ model Facility {
   rooms            Room[]
   affiliations     ChildAffiliation[]
   consents         ChildConsent[]
+  claims           ChildClaim[]
   consentTemplates ConsentTemplate[]  @relation("FacilityConsentTemplates")
 
   createdAt DateTime @default(now())
@@ -4808,6 +4812,7 @@ model ChildAffiliation {
   keyworker   FacilityMember? @relation("AffiliationKeyworker", fields: [keyworkerId], references: [id], onDelete: SetNull)
 
   consents ChildConsent[]
+  claims   ChildClaim[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4820,4 +4825,76 @@ model ChildAffiliation {
   @@index([roomId])
   @@index([keyworkerId])
   @@map("child_affiliations")
+}
+
+// ─── Parent claim (F3) ───────────────────────────────────────────────────────
+
+enum ChildClaimStatus {
+  PENDING /// invite sent; guardian has not acted
+  ACCEPTED /// guardian claimed the child (adopted the placeholder, or merged into their own)
+  DISPUTED /// guardian says this is not their child — the facility must be told
+  EXPIRED
+  REVOKED /// the facility withdrew it (child left before claiming, entered in error)
+}
+
+/// A nursery-created child, awaiting the guardian who can speak for them.
+///
+/// THE PROBLEM THIS SOLVES: most nursery children have no parent on Upllyft, but
+/// `Child.profileId` is a required FK to a parent's `UserProfile`. The walk-in
+/// precedent solved this by minting a `User` on the guardian's REAL email with no
+/// password — which left that guardian unable to register ("user already exists")
+/// AND unable to log in ("invalid credentials"), with only an undiscoverable
+/// password-reset as the way in. We do not repeat that.
+///
+/// Instead the placeholder child hangs off a SYNTHETIC shadow profile, and the
+/// guardian's real email lives HERE and on the `Guardian` row — never on a `User`.
+/// So the guardian's own email is still free when they come to sign up, and the
+/// account they end up with is one they knowingly created.
+///
+/// THE TOKEN IS THE CREDENTIAL. Only its SHA-256 is stored: a leaked database must
+/// not yield working claim links. It is single-use and expiring.
+model ChildClaim {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+
+  /// The child this claim is FOR. Points at the placeholder until the claim
+  /// resolves; on a merge it is repointed to the guardian's real child and the
+  /// placeholder is deleted, so this always names the surviving record.
+  childId String
+  child   Child  @relation("ChildClaims", fields: [childId], references: [id], onDelete: Cascade)
+
+  affiliationId String
+  affiliation   ChildAffiliation @relation(fields: [affiliationId], references: [id], onDelete: Cascade)
+
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  /// The guardian's REAL contact details. Deliberately NOT a User row — see above.
+  guardianEmail String
+  guardianName  String
+
+  status    ChildClaimStatus @default(PENDING)
+  expiresAt DateTime
+
+  claimedAt       DateTime?
+  claimedByUserId String?
+  claimedBy       User?     @relation("ClaimedChildClaims", fields: [claimedByUserId], references: [id], onDelete: SetNull)
+
+  /// Audit: the placeholder that was deleted when this claim merged into an
+  /// existing child. Plain string, not an FK — the row it names is gone.
+  mergedFromPlaceholderId String?
+
+  /// Why the guardian disputed it, in their words.
+  disputeReason String?
+
+  createdById String
+  createdBy   User   @relation("CreatedChildClaims", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([facilityId, status])
+  @@index([guardianEmail])
+  @@index([childId])
+  @@map("child_claims")
 }

@@ -93,14 +93,20 @@ export async function resolveChildAccess(
   // Platform-wide (SUPERADMIN). Deliberate, and the only unscoped path.
   if (req.facilityId === null) return { allowed: true };
 
+  // Fetch the affiliation WITHOUT filtering on status, then judge it. Filtering
+  // here would collapse two very different denials — "we have never heard of this
+  // child" and "you added this child and their guardian has not answered yet" —
+  // into one misleading message telling a nursery that a child on its own roster is
+  // not affiliated with it. The ACCESS DECISION is identical; the EXPLANATION is
+  // not, and the explanation is what a keyworker reads.
   const affiliation = await prisma.childAffiliation.findFirst({
     where: {
       childId: req.childId,
       facilityId: req.facilityId,
-      status: 'ACTIVE',
       endedAt: null,
     },
     select: {
+      status: true,
       dataScope: true,
       facility: { select: { type: true, name: true } },
     },
@@ -108,6 +114,16 @@ export async function resolveChildAccess(
 
   if (!affiliation) {
     return { allowed: false, reason: 'This child is not affiliated to your facility.' };
+  }
+
+  if (affiliation.status !== 'ACTIVE') {
+    return {
+      allowed: false,
+      reason:
+        affiliation.status === 'PENDING_CONSENT'
+          ? "This child's guardian has not yet granted access. You can see that they are enrolled, and nothing more."
+          : 'This child’s enrolment at your facility has ended.',
+    };
   }
 
   const type = affiliation.facility.type as FacilityType;
@@ -216,10 +232,10 @@ export async function grantConsent(
 
   const affiliation = await prisma.childAffiliation.findFirst({
     where: { childId: input.childId, facilityId: input.facilityId, endedAt: null },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
-  return prisma.childConsent.create({
+  const consent = await prisma.childConsent.create({
     data: {
       childId: input.childId,
       facilityId: input.facilityId,
@@ -236,6 +252,27 @@ export async function grantConsent(
     },
     select: { id: true },
   });
+
+  // The guardian's agreement is what ACTIVATES the affiliation.
+  //
+  // A facility-created child starts at PENDING_CONSENT: the nursery has added them
+  // to a roster, and nothing more. Without this, the guardian could grant consent
+  // and the affiliation would sit at PENDING_CONSENT forever — `resolveChildAccess`
+  // requires an ACTIVE affiliation, so the nursery would be locked out of a child
+  // whose parent had explicitly said yes. Consent is the gate; this is the gate
+  // opening.
+  //
+  // Note the direction: this can only ever move PENDING_CONSENT -> ACTIVE. It never
+  // resurrects an ENDED affiliation — a child who left the nursery does not
+  // re-enrol because an old consent was re-granted.
+  if (affiliation?.status === 'PENDING_CONSENT') {
+    await prisma.childAffiliation.update({
+      where: { id: affiliation.id },
+      data: { status: 'ACTIVE' },
+    });
+  }
+
+  return consent;
 }
 
 /** Revoke every active grant of this type. Revocation must bite immediately. */

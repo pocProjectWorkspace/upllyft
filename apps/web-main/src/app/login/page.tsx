@@ -3,6 +3,7 @@
 import { useAuth } from '@upllyft/api-client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { getSafeNext } from '@/lib/safe-next';
 import { useEffect, useState } from 'react';
 
 function MailIcon({ className }: { className?: string }) {
@@ -70,7 +71,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace('/');
+      router.replace(getSafeNext());
     }
   }, [isLoading, isAuthenticated, router]);
 
@@ -81,7 +82,9 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push('/');
+      // Back to wherever they were headed — e.g. the child-claim link that sent them
+      // here. Same-origin paths only; see getSafeNext.
+      router.push(getSafeNext());
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Invalid email or password');
     } finally {

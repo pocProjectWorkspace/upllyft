@@ -51,6 +51,22 @@ function parse(file) {
     if (!sm) throw new Error(`${type}.maxDataScope missing in ${file}`);
     entry.maxDataScope = sm[1];
 
+    // validAuthorities is written as a named const (HEALTH_AUTHORITIES /
+    // EDUCATION_AUTHORITIES) in both files, so resolve the alias to the literal
+    // list — comparing the alias NAMES would pass even if the two files defined
+    // those aliases differently, which is exactly the drift we are guarding.
+    const am = block.match(/validAuthorities:\s*([A-Z_]+)/);
+    if (!am) throw new Error(`${type}.validAuthorities missing in ${file}`);
+    const alias = am[1];
+    const dm = src.match(new RegExp(`const ${alias}\\s*=\\s*\\[([^\\]]*)\\]`));
+    if (!dm) throw new Error(`${alias} not defined in ${file}`);
+    entry.validAuthorities = dm[1]
+      .split(',')
+      .map(s => s.trim().replace(/['"]/g, ''))
+      .filter(Boolean)
+      .sort()
+      .join('|');
+
     out[type] = entry;
   }
   return out;
@@ -61,7 +77,7 @@ const types = parse(TYPES_FILE);
 
 const diffs = [];
 for (const type of TYPES) {
-  for (const key of [...CAPS, 'maxDataScope']) {
+  for (const key of [...CAPS, 'maxDataScope', 'validAuthorities']) {
     if (api[type][key] !== types[type][key]) {
       diffs.push(`  ${type}.${key}: api=${api[type][key]}  types=${types[type][key]}`);
     }
@@ -78,4 +94,4 @@ if (diffs.length) {
   process.exit(1);
 }
 
-console.log(`✔ capability maps agree (${TYPES.length} types × ${CAPS.length + 1} keys)`);
+console.log(`✔ capability maps agree (${TYPES.length} types × ${CAPS.length + 2} keys, incl. licence authorities)`);
