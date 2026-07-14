@@ -13,6 +13,7 @@ import {
   attachChildToFacility,
   therapistInFacility,
 } from '../common/child-scope';
+import { assertTherapistAssignable } from '../common/credentials';
 
 @Injectable()
 export class ClinicPatientsService {
@@ -407,6 +408,13 @@ export class ClinicPatientsService {
     if (therapistProfile.user.role !== 'THERAPIST' && therapistProfile.user.role !== 'EDUCATOR') {
       throw new NotFoundException('User is not a therapist');
     }
+
+    // The licence gate. This path creates cases and CaseTherapist rows exactly like
+    // cases.service.createCase — but only that one enforced it, so an unverified
+    // clinician could be put on a case through the admin route while the same action
+    // was refused through the therapist route. A gate enforced on one path is not a
+    // gate.
+    assertTherapistAssignable(therapistProfile);
 
     // Fetch parent userId for notifications
     const childWithProfile = await this.prisma.child.findUnique({

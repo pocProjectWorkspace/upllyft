@@ -5,9 +5,10 @@ import { ScoringService } from './scoring.service';
 import { ReportGeneratorService } from './report-generator.service';
 import { ReportGeneratorV2Service } from './report-generator-v2.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
-    imports: [PrismaModule],
+    imports: [PrismaModule, NotificationModule],
     controllers: [AssessmentsController],
     providers: [AssessmentsService, ScoringService, ReportGeneratorService, ReportGeneratorV2Service],
     exports: [AssessmentsService],

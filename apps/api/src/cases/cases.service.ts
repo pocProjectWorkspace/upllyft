@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { facilityCan, type FacilityType } from '../common/facility-capabilities';
+import { assertTherapistAssignable } from '../common/credentials';
 import { CaseStatus, CaseTherapistRole, CredentialStatus, Prisma } from '@prisma/client';
 import {
   CreateCaseDto,
@@ -110,26 +111,6 @@ export class CasesService {
   /**
    * Create a new case. The requesting therapist becomes the primary therapist.
    */
-  /**
-   * Phase 0 (UAE): a therapist may only be assigned to a case when their
-   * licence is VERIFIED and not expired.
-   */
-  private assertTherapistAssignable(profile: {
-    credentialStatus: CredentialStatus;
-    licenceExpiry: Date | null;
-  }) {
-    if (profile.credentialStatus !== CredentialStatus.VERIFIED) {
-      throw new ForbiddenException(
-        'Therapist licence is not verified — they cannot be assigned to a case.',
-      );
-    }
-    if (profile.licenceExpiry && profile.licenceExpiry.getTime() < Date.now()) {
-      throw new ForbiddenException(
-        'Therapist licence has expired — they cannot be assigned to a case.',
-      );
-    }
-  }
-
   async createCase(therapistUserId: string, dto: CreateCaseDto) {
     // Verify therapist profile exists
     const therapistProfile = await this.prisma.therapistProfile.findUnique({
@@ -140,7 +121,7 @@ export class CasesService {
     }
 
     // Phase 0 (UAE): licence/scope + facility compliance enforcement
-    this.assertTherapistAssignable(therapistProfile);
+    assertTherapistAssignable(therapistProfile);
 
     if (dto.diagnosis && !therapistProfile.canDiagnose) {
       throw new ForbiddenException(
@@ -452,7 +433,7 @@ export class CasesService {
     if (!therapistProfile) throw new NotFoundException('Therapist not found');
 
     // Phase 0 (UAE): only verified, non-expired licences may be assigned
-    this.assertTherapistAssignable(therapistProfile);
+    assertTherapistAssignable(therapistProfile);
 
     // Check not already assigned
     const existing = await this.prisma.caseTherapist.findUnique({

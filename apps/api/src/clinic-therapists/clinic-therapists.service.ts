@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { therapistInFacility } from '../common/child-scope';
 import {
   ListTherapistsQueryDto,
   TherapistScheduleQueryDto,
@@ -10,7 +11,7 @@ import {
 export class ClinicTherapistsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listTherapists(query: ListTherapistsQueryDto) {
+  async listTherapists(query: ListTherapistsQueryDto, facilityId: string | null) {
     const { search, specialty, availability, credentialStatus } = query;
 
     const today = new Date();
@@ -21,6 +22,8 @@ export class ClinicTherapistsService {
     const profiles = await this.prisma.therapistProfile.findMany({
       where: {
         isActive: true,
+        // Facility-scoped: this previously returned EVERY therapist on the platform.
+        ...therapistInFacility(facilityId),
         ...(credentialStatus ? { credentialStatus } : {}),
         ...(specialty
           ? { specializations: { has: specialty } }
@@ -152,9 +155,11 @@ export class ClinicTherapistsService {
     return filtered;
   }
 
-  async getTherapistDetail(therapistProfileId: string) {
-    const profile = await this.prisma.therapistProfile.findUnique({
-      where: { id: therapistProfileId },
+  async getTherapistDetail(therapistProfileId: string, facilityId: string | null) {
+    // findFirst + scope: a therapist outside the caller's facility must 404, not 403 —
+    // a 403 confirms the id exists.
+    const profile = await this.prisma.therapistProfile.findFirst({
+      where: { id: therapistProfileId, ...therapistInFacility(facilityId) },
       select: {
         id: true,
         bio: true,
@@ -312,9 +317,10 @@ export class ClinicTherapistsService {
   async getTherapistSchedule(
     therapistProfileId: string,
     query: TherapistScheduleQueryDto,
+    facilityId: string | null,
   ) {
-    const exists = await this.prisma.therapistProfile.findUnique({
-      where: { id: therapistProfileId },
+    const exists = await this.prisma.therapistProfile.findFirst({
+      where: { id: therapistProfileId, ...therapistInFacility(facilityId) },
       select: { id: true },
     });
     if (!exists) {
@@ -359,13 +365,16 @@ export class ClinicTherapistsService {
     }));
   }
 
-  async getConsolidatedSchedule(query: TherapistScheduleQueryDto) {
+  async getConsolidatedSchedule(query: TherapistScheduleQueryDto, facilityId: string | null) {
     const { startDate, endDate } = this.parseDateRange(query);
 
     const whereClause: any = {
       startDateTime: { gte: startDate },
       endDateTime: { lte: endDate },
       status: { notIn: ['CANCELLED_BY_PATIENT', 'CANCELLED_BY_THERAPIST'] },
+      // Only this facility's clinicians — the board previously showed every
+      // booking on the platform.
+      ...(facilityId ? { therapist: therapistInFacility(facilityId) } : {}),
     };
 
     if (query.therapistId) {
@@ -462,9 +471,12 @@ export class ClinicTherapistsService {
   async updateCredentials(
     therapistProfileId: string,
     dto: UpdateCredentialsDto,
+    facilityId: string | null,
   ) {
-    const exists = await this.prisma.therapistProfile.findUnique({
-      where: { id: therapistProfileId },
+    // Verifying a licence is what makes a therapist assignable to cases — a clinic
+    // must only be able to do that for its OWN staff.
+    const exists = await this.prisma.therapistProfile.findFirst({
+      where: { id: therapistProfileId, ...therapistInFacility(facilityId) },
       select: { id: true },
     });
     if (!exists) {

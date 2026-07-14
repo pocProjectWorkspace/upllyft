@@ -6,6 +6,7 @@ import {
     Logger,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { NotificationService, NotificationType } from '../notification/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ScoringService, DomainScore } from './scoring.service';
 import { ReportGeneratorService } from './report-generator.service';
@@ -26,6 +27,7 @@ export class AssessmentsService {
         private prisma: PrismaService,
         private scoringService: ScoringService,
         private reportGenerator: ReportGeneratorService,
+        private notificationService: NotificationService,
     ) { }
 
     /**
@@ -475,7 +477,38 @@ export class AssessmentsService {
             },
         });
 
-        // TODO: Send notification to therapist
+        // Tell the therapist. Without this the share is a row in a table nobody looks
+        // at: the referral simply never arrives. `dto.message` was accepted by the DTO
+        // and silently discarded — it is the parent's covering note, and it is the
+        // reason the professional opens the report at all.
+        const childName = assessment.child?.firstName ?? 'a child';
+        const parentNote = dto.message?.trim();
+
+        await this.notificationService
+            .createNotification({
+                userId: therapistUserId,
+                type: NotificationType.SYSTEM_ANNOUNCEMENT,
+                title: `A parent shared ${childName}'s screening with you`,
+                message: parentNote
+                    ? `"${parentNote}"`
+                    : `${childName}'s developmental screening report is ready for your review.`,
+                actionUrl: `/shared?assessment=${assessmentId}`,
+                relatedEntityId: assessmentId,
+                relatedEntityType: 'child',
+                priority: 'high',
+                metadata: {
+                    assessmentId,
+                    childName,
+                    accessLevel: share.accessLevel,
+                    parentMessage: parentNote ?? null,
+                },
+            })
+            // Fire-and-forget: a notification failure must not lose the share itself.
+            .catch((err) =>
+                this.logger.error(
+                    `Assessment ${assessmentId} shared, but notifying ${therapistUserId} failed: ${err?.message}`,
+                ),
+            );
 
         return share;
     }
