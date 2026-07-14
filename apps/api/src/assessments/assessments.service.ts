@@ -12,6 +12,9 @@ import { ScoringService, DomainScore } from './scoring.service';
 import { ReportGeneratorService } from './report-generator.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { SubmitTier1ResponsesDto, AnswerType } from './dto/submit-tier1.dto';
+import { resolveScreeningIdentity, type ScreeningActor } from './screening-access';
+import { resolveChildAccess } from '../common/consent';
+import { InformantType } from '@prisma/client';
 import { SubmitTier2ResponsesDto } from './dto/submit-tier2.dto';
 import { ShareAssessmentDto } from './dto/share-assessment.dto';
 import { AddAnnotationDto } from './dto/add-annotation.dto';
@@ -60,20 +63,11 @@ export class AssessmentsService {
     /**
      * Create a new assessment for a child
      */
-    async createAssessment(dto: CreateAssessmentDto, userId: string) {
-        // Verify child belongs to user
-        const child = await this.prisma.child.findUnique({
-            where: { id: dto.childId },
-            include: { profile: true },
-        });
-
-        if (!child) {
-            throw new NotFoundException('Child not found');
-        }
-
-        if (child.profile.userId !== userId) {
-            throw new ForbiddenException('You do not have access to this child');
-        }
+    async createAssessment(dto: CreateAssessmentDto, actor: ScreeningActor) {
+        // WHO is answering? The guardian route is unchanged; an educator route is added
+        // beside it, gated on capability -> affiliation -> ASSESSMENT consent -> scope.
+        // Everything that is neither fails closed. See screening-access.ts.
+        const identity = await resolveScreeningIdentity(this.prisma, dto.childId, actor);
 
         // Verify questionnaire exists
         this.loadQuestionnaire(dto.ageGroup);
@@ -87,6 +81,9 @@ export class AssessmentsService {
                 childId: dto.childId,
                 ageGroup: dto.ageGroup,
                 expiresAt,
+                informantType: identity.informantType,
+                respondentId: identity.respondentId,
+                facilityId: identity.facilityId,
             },
             include: {
                 child: {
@@ -140,11 +137,42 @@ export class AssessmentsService {
             (share) => share.sharedWith === userId,
         );
 
-        if (!isOwner && !isSharedWith) {
-            throw new ForbiddenException('You do not have access to this assessment');
+        // The person who actually answered it. Without this, an educator could not read
+        // back the screening they had just administered — including to finish it.
+        const isRespondent = assessment.respondentId === userId;
+
+        if (isOwner || isSharedWith || isRespondent) {
+            return assessment;
         }
 
-        return assessment;
+        // Staff at the setting where it was administered — a keyworker's colleague, or
+        // the inclusion lead who has to act on it.
+        //
+        // RE-CHECKED, NOT TRUSTED. We do not simply confirm the facility matches: we ask
+        // the consent gate again, right now. A guardian who revokes their consent must
+        // lose the nursery its access to the screening the nursery itself ran — otherwise
+        // revocation would be cosmetic for exactly the data that matters most.
+        if (assessment.facilityId) {
+            const staffs = await this.prisma.facilityMember.findFirst({
+                where: { userId, facilityId: assessment.facilityId, status: 'ACTIVE' },
+                select: { id: true },
+            });
+
+            if (staffs) {
+                const access = await resolveChildAccess(this.prisma, {
+                    childId: assessment.childId,
+                    facilityId: assessment.facilityId,
+                    capability: 'canScreen',
+                    requiredScope: 'OBSERVATIONS_ONLY',
+                    consentType: 'ASSESSMENT',
+                });
+
+                if (access.allowed) return assessment;
+                throw new ForbiddenException(access.reason ?? 'You do not have access to this assessment');
+            }
+        }
+
+        throw new ForbiddenException('You do not have access to this assessment');
     }
 
     /**
@@ -189,20 +217,59 @@ export class AssessmentsService {
         const assessment = await this.getAssessment(assessmentId, userId);
         const questionnaire = this.loadQuestionnaire(assessment.ageGroup);
 
-        // Extract only Tier 1 questions
+        // Extract only Tier 1 questions, and only the ones THIS informant can answer.
         const tier1Questions = questionnaire.domains.map((domain: any) => ({
             domainId: domain.id,
             domainName: domain.name,
             description: domain.description,
-            questions: domain.tier1,
+            questions: this.itemsFor(domain.tier1, assessment.informantType),
         }));
 
         return {
             ageGroup: questionnaire.ageGroup,
             displayName: questionnaire.displayName,
             estimatedTime: questionnaire.estimatedTime.tier1,
+            informantType: assessment.informantType,
             domains: tier1Questions,
         };
+    }
+
+    /**
+     * The items this informant is in a position to answer.
+     *
+     * A keyworker cannot answer "does your child brush their teeth" — they are not there
+     * at bedtime. Asking anyway produces either a NOT_OBSERVED (noise) or, worse, a
+     * guess that we then score as if it were an observation. `observableBy` is set on
+     * every item by prisma/seeds/tag-item-observability.ts.
+     *
+     * This is NOT the same mechanism as NOT_OBSERVED, and both are needed. This removes
+     * questions NOBODY at a nursery could ever answer. NOT_OBSERVED handles the ones a
+     * keyworker could normally answer but hasn't happened to see in THIS child.
+     *
+     * Untagged items default to visible: a missing tag must not silently delete a
+     * question from the parent's form.
+     */
+    private itemsFor(items: any[], informantType: InformantType): any[] {
+        // UNREVIEWED CLINICAL CONTENT NEVER REACHES A CHILD.
+        //
+        // Items carrying `clinicalReview: 'PENDING'` are drafted but not signed off by a
+        // clinician. Screening output drives referral conversations with real families, so
+        // a draft item must not be asked and must not be scored. They sit in the item bank
+        // to be reviewed, and a reviewer enables them by setting clinicalReview to
+        // 'APPROVED' — no code change required.
+        //
+        // Absence of the field means the item predates this and is in use.
+        const reviewed = (items ?? []).filter((q) => q.clinicalReview !== 'PENDING');
+
+        if (informantType === 'PARENT') {
+            return reviewed.filter(
+                (q) => !q.observableBy || q.observableBy.includes('PARENT'),
+            );
+        }
+
+        return reviewed.filter(
+            (q) => !q.observableBy || q.observableBy.includes('EDUCATOR'),
+        );
     }
 
     /**
@@ -228,7 +295,7 @@ export class AssessmentsService {
                 domainId: domain.id,
                 domainName: domain.name,
                 description: domain.description,
-                questions: domain.tier2,
+                questions: this.itemsFor(domain.tier2, assessment.informantType),
             }));
 
         return {
@@ -318,6 +385,16 @@ export class AssessmentsService {
                 status: score.status,
                 tier2Required: score.tier2Required,
                 tier2Reason: score.tier2Reason,
+                // PERSIST THE COVERAGE. It was being computed and thrown away, which meant
+                // anything re-reading these rows fell back to `coverage ?? 1` — a default
+                // written for LEGACY rows (which predate NOT_OBSERVED and were fully
+                // answered by a parent). A new educator screening with 20% coverage would
+                // have been read back as fully covered, and its INSUFFICIENT_DATA reasoning
+                // silently undone.
+                coverage: score.coverage,
+                observedCount: score.observedCount,
+                availableCount: score.availableCount,
+                domainName: score.domainName,
             };
             return acc;
         }, {} as Record<string, any>);
@@ -686,6 +763,14 @@ export class AssessmentsService {
                     riskIndex: data.riskIndex,
                     status: data.status,
                     zone,
+                    // Legacy rows predate NOT_OBSERVED and were all guardian-administered
+                    // with every item answered, so full coverage is the honest default for
+                    // them. Defaulting to 0 would retro-flag every historic screening as
+                    // INSUFFICIENT_DATA; defaulting to 1 for a NEW row can't happen, because
+                    // new rows always persist a real coverage figure.
+                    coverage: data.coverage ?? 1,
+                    observedCount: data.observedCount ?? 0,
+                    availableCount: data.availableCount ?? 0,
                     tier2Required: data.tier2Required,
                     tier2Reason: data.tier2Reason,
                     interpretation: generateDomainInterpretation(domainId, domainName, data.riskIndex, zone),

@@ -99,6 +99,8 @@ export interface RosterChild {
   keyworker: { memberId: string; name: string | null } | null;
   /** false => the record is LOCKED. The nursery sees this row and nothing behind it. */
   consentGranted: boolean;
+  /** A SEPARATE permission. Observing a child is not screening them. */
+  screeningConsentGranted: boolean;
   guardian: { name: string; email: string | null; onPlatform: boolean } | null;
   claim: { id: string; status: ClaimStatus; expiresAt: string } | null;
 }
@@ -188,3 +190,86 @@ export const resendClaim = (facilityId: string, affiliationId: string) =>
 
 export const endEnrolment = (facilityId: string, affiliationId: string) =>
   apiClient.delete(`/facilities/${facilityId}/roster/${affiliationId}`).then(r => r.data);
+
+export const requestScreeningConsent = (facilityId: string, affiliationId: string) =>
+  apiClient
+    .post(`/facilities/${facilityId}/roster/${affiliationId}/request-screening-consent`, {})
+    .then(r => r.data);
+
+// ── Screening (educator-administered) ──
+
+export type AnswerType = 'YES' | 'SOMETIMES' | 'NOT_SURE' | 'NO' | 'NOT_OBSERVED';
+export type DomainStatus = 'GREEN' | 'YELLOW' | 'RED' | 'INSUFFICIENT_DATA';
+
+export interface ScreeningItem {
+  id: string;
+  question: string;
+  whyWeAsk?: string;
+  observableBy?: string[];
+}
+
+export interface ScreeningDomain {
+  domainId: string;
+  domainName: string;
+  description?: string;
+  questions: ScreeningItem[];
+}
+
+export interface Questionnaire {
+  ageGroup: string;
+  displayName: string;
+  estimatedTime: string | number;
+  informantType: 'PARENT' | 'EDUCATOR' | 'CLINICIAN';
+  domains: ScreeningDomain[];
+}
+
+export const createScreening = (childId: string, ageGroup: string) =>
+  apiClient.post('/assessments', { childId, ageGroup }).then(r => r.data);
+
+export const getTier1 = (assessmentId: string): Promise<Questionnaire> =>
+  apiClient.get(`/assessments/${assessmentId}/questionnaire/tier1`).then(r => r.data);
+
+export const submitTier1 = (
+  assessmentId: string,
+  responses: { questionId: string; answer: AnswerType }[],
+) => apiClient.post(`/assessments/${assessmentId}/responses/tier1`, { responses }).then(r => r.data);
+
+// ── Concordance (the moat) ──
+
+export type Concordance =
+  | 'AGREE_CONCERN'
+  | 'AGREE_TYPICAL'
+  | 'EDUCATOR_ONLY'
+  | 'PARENT_ONLY'
+  | 'NOT_COMPARABLE';
+
+export interface DomainConcordance {
+  domainId: string;
+  domainName: string;
+  concordance: Concordance;
+  parent: { riskIndex: number; status: DomainStatus } | null;
+  educator: { riskIndex: number; status: DomainStatus } | null;
+  delta: number | null;
+  interpretation: string;
+}
+
+export interface ConcordanceResult {
+  available: boolean;
+  reason?: string;
+  haveParent?: boolean;
+  haveEducator?: boolean;
+  gapDays?: number;
+  parentScreening?: { id: string; completedAt: string; respondent: string | null };
+  educatorScreening?: { id: string; completedAt: string; facility: string | null; respondent: string | null };
+  domains: DomainConcordance[];
+  summary?: {
+    agreedConcern: string[];
+    educatorOnly: string[];
+    parentOnly: string[];
+    notComparable: string[];
+    headline: string;
+  };
+}
+
+export const getConcordance = (childId: string): Promise<ConcordanceResult> =>
+  apiClient.get(`/assessments/concordance/${childId}`).then(r => r.data);

@@ -1,0 +1,14 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": "test/.*\\.e2e-spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": ["ts-jest", { "isolatedModules": true }]
+  },
+  "_comment_transformIgnorePatterns": "uuid@13 is pure ESM (\"type\":\"module\"), and jest's default is to skip transforming anything under node_modules — so requiring it from a CJS test blows up at import time with a bare `export {` syntax error. Let it through the transform. The .pnpm path is what the store actually nests it under.",
+  "transformIgnorePatterns": ["/node_modules/\\.pnpm/(?!uuid@)"],
+  "testTimeout": 120000,
+  "_comment_maxWorkers": "These specs share one database and create real rows. In parallel they would tear down each other's fixtures. Serial, deliberately.",
+  "maxWorkers": 1
+}

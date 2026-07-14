@@ -169,6 +169,10 @@ export class ReportGeneratorService {
         riskIndex: data.riskIndex,
         status: data.status,
         tier2Required: data.tier2Required,
+        // Legacy rows predate NOT_OBSERVED — see the note in assessments.service.ts.
+        coverage: data.coverage ?? 1,
+        observedCount: data.observedCount ?? 0,
+        availableCount: data.availableCount ?? 0,
       }),
     );
 

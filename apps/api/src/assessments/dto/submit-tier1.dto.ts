@@ -1,13 +1,18 @@
 import { IsArray, IsEnum, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { AnswerType } from '@prisma/client';
 
-export enum AnswerType {
-    YES = 'YES',
-    SOMETIMES = 'SOMETIMES',
-    NOT_SURE = 'NOT_SURE',
-    NO = 'NO',
-}
+/**
+ * Re-exported from Prisma rather than redeclared.
+ *
+ * This was a hand-maintained duplicate of the `AnswerType` enum in schema.prisma, and
+ * a duplicate that can drift is worse than none: the validator would reject a value
+ * the column accepts (or the reverse), and the failure surfaces as a mystifying 400
+ * rather than a type error. Adding NOT_OBSERVED to one and not the other would have
+ * done exactly that. There is now one definition, in the schema, and it cannot drift.
+ */
+export { AnswerType };
 
 export class QuestionResponseDto {
     @ApiProperty({

@@ -147,3 +147,12 @@ export function useEndEnrolment(facilityId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.roster(facilityId) }),
   });
 }
+
+export function useRequestScreeningConsent(facilityId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (affiliationId: string) =>
+      nurseryApi.requestScreeningConsent(facilityId, affiliationId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.roster(facilityId) }),
+  });
+}

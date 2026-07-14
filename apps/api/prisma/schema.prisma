@@ -161,6 +161,7 @@ model User {
   uploadedIdentityDocs PatientIdentityDocument[] @relation("UploadedIdentityDocs")
   guardianProfiles     Guardian[]                @relation("GuardianUser")
   claimedChildClaims   ChildClaim[]              @relation("ClaimedChildClaims")
+  assessmentsAnswered  Assessment[]              @relation("AssessmentRespondent")
   createdChildClaims   ChildClaim[]              @relation("CreatedChildClaims")
 
   // UAE clinic Phase 3 relations
@@ -1617,6 +1618,21 @@ model Assessment {
   childId             String
   ageGroup            String
   status              AssessmentStatus     @default(IN_PROGRESS)
+
+  // ─── Who is reporting? (F4 — multi-informant) ───────────────────────────────
+  //
+  // Defaults to PARENT because every screening that existed before this column did
+  // was guardian-administered: assessments.service threw unless the caller owned the
+  // child's profile. The default is a statement of fact about the backfill, not a
+  // convenience.
+  informantType   InformantType @default(PARENT)
+  /// The USER who actually answered the questions. Null only for legacy rows whose
+  /// guardian could not be resolved — reported, never guessed.
+  respondentId    String?
+  respondent      User?         @relation("AssessmentRespondent", fields: [respondentId], references: [id], onDelete: SetNull)
+  /// The setting in which it was administered. Null for a parent screening at home.
+  facilityId      String?
+  facility        Facility?     @relation("FacilityAssessments", fields: [facilityId], references: [id], onDelete: SetNull)
   tier1Completed      Boolean              @default(false)
   tier2Completed      Boolean              @default(false)
   tier1CompletedAt    DateTime?
@@ -1641,6 +1657,9 @@ model Assessment {
   @@index([childId])
   @@index([status])
   @@index([createdAt])
+  // The concordance query: "every screening of this child, by informant".
+  @@index([childId, informantType])
+  @@index([facilityId])
   @@map("assessments")
 }
 
@@ -2582,11 +2601,32 @@ enum AssessmentStatus {
   EXPIRED
 }
 
+/// WHO answered a screening. Without this, a parent-report and a teacher-report of the
+/// same child are indistinguishable rows — and multi-informant screening, where the
+/// DISAGREEMENT between settings is the signal, is unrepresentable.
+enum InformantType {
+  PARENT /// guardian, reporting on the child at home
+  EDUCATOR /// keyworker / teacher, reporting on the child in their setting
+  CLINICIAN /// administered by a therapist during assessment
+}
+
 enum AnswerType {
   YES
   SOMETIMES
+  /// The informant CAN observe this, but is genuinely unsure. Scored (0.7).
   NOT_SURE
   NO
+  /// The informant had NO OPPORTUNITY to observe this — e.g. a keyworker asked about
+  /// bedtime, or a parent asked about behaviour in a group of twenty. EXCLUDED from
+  /// scoring entirely: it is neither numerator nor denominator.
+  ///
+  /// This is the difference between "I don't know" and "I can't know", and it is
+  /// load-bearing for multi-informant screening. NOT_SURE scores 0.7 — worse than
+  /// SOMETIMES. If an educator's unavoidable blind spots were scored that way, their
+  /// report would run systematically hot, and the parent-vs-educator disagreement
+  /// that early identification depends on would be an artefact of who can see what,
+  /// not a signal about the child.
+  NOT_OBSERVED
 }
 
 enum ReportType {
@@ -4672,6 +4712,7 @@ model Facility {
   affiliations     ChildAffiliation[]
   consents         ChildConsent[]
   claims           ChildClaim[]
+  assessments      Assessment[]       @relation("FacilityAssessments")
   consentTemplates ConsentTemplate[]  @relation("FacilityConsentTemplates")
 
   createdAt DateTime @default(now())
