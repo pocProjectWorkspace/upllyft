@@ -17,6 +17,8 @@
 
 export type FacilityType = 'CLINIC' | 'NURSERY' | 'SCHOOL';
 
+export type LicenseAuthority = 'DHA' | 'DOH' | 'MOHAP' | 'KHDA' | 'ADEK' | 'MOE' | 'OTHER';
+
 export const DATA_SCOPES = [
   'OBSERVATIONS_ONLY',
   'SCREENING_SHARED',
@@ -35,7 +37,12 @@ export interface FacilityCapabilities {
   canRaiseConcern: boolean;
   canBill: boolean;
   maxDataScope: DataScope;
+  /** Licence authorities valid for this facility type. */
+  validAuthorities: readonly LicenseAuthority[];
 }
+
+const HEALTH_AUTHORITIES = ['DHA', 'DOH', 'MOHAP', 'OTHER'] as const;
+const EDUCATION_AUTHORITIES = ['KHDA', 'ADEK', 'MOE', 'OTHER'] as const;
 
 export const FACILITY_CAPABILITIES: Record<FacilityType, FacilityCapabilities> = {
   CLINIC: {
@@ -47,6 +54,7 @@ export const FACILITY_CAPABILITIES: Record<FacilityType, FacilityCapabilities> =
     canRaiseConcern: true,
     canBill: true,
     maxDataScope: 'FULL_CLINICAL',
+    validAuthorities: HEALTH_AUTHORITIES,
   },
   NURSERY: {
     canCreateCase: false,
@@ -57,6 +65,7 @@ export const FACILITY_CAPABILITIES: Record<FacilityType, FacilityCapabilities> =
     canRaiseConcern: true,
     canBill: false,
     maxDataScope: 'CLINICAL_SUMMARY',
+    validAuthorities: EDUCATION_AUTHORITIES,
   },
   SCHOOL: {
     canCreateCase: false,
@@ -67,10 +76,14 @@ export const FACILITY_CAPABILITIES: Record<FacilityType, FacilityCapabilities> =
     canRaiseConcern: true,
     canBill: false,
     maxDataScope: 'CLINICAL_SUMMARY',
+    validAuthorities: EDUCATION_AUTHORITIES,
   },
 };
 
-export type FacilityCapability = keyof Omit<FacilityCapabilities, 'maxDataScope'>;
+export type FacilityCapability = keyof Omit<
+  FacilityCapabilities,
+  'maxDataScope' | 'validAuthorities'
+>;
 
 /** Does this facility type permit `capability`? */
 export function facilityCan(type: FacilityType, capability: FacilityCapability): boolean {
@@ -89,4 +102,22 @@ export function scopeAtLeast(scope: DataScope, required: DataScope): boolean {
  */
 export function scopeAllowedFor(type: FacilityType, scope: DataScope): boolean {
   return scopeAtLeast(FACILITY_CAPABILITIES[type].maxDataScope, scope);
+}
+
+/**
+ * Is this licence authority valid for this facility type? A nursery is never
+ * DHA-licensed, and a clinic is never KHDA-licensed.
+ *
+ * This is what stops a nursery being onboarded as a health facility to slip past a
+ * clinical gate — `complianceStatus === ACTIVE` gates case creation, so without
+ * this check the way to make a nursery behave like a clinic would be to give it a
+ * DHA licence number and wait.
+ */
+export function authorityValidFor(type: FacilityType, authority: LicenseAuthority): boolean {
+  return FACILITY_CAPABILITIES[type].validAuthorities.includes(authority);
+}
+
+/** The dataScope a new affiliation should default to at this facility type. */
+export function defaultScopeFor(type: FacilityType): DataScope {
+  return type === 'CLINIC' ? 'FULL_CLINICAL' : 'OBSERVATIONS_ONLY';
 }

@@ -53,10 +53,20 @@ export class ChildConsentController {
   async getForChild(@Param('childId') childId: string, @Req() req: any) {
     await this.assertGuardian(childId, req.user.id);
 
+    // PENDING_CONSENT is included DELIBERATELY. This is the guardian's own view of
+    // who has asked for access to their child — and a nursery that has added the
+    // child to its roster but not yet been granted anything is precisely what they
+    // most need to see. Filtering to ACTIVE would hide every request that is still
+    // waiting on them, which is the one thing this screen exists to show.
     const affiliations = await this.prisma.childAffiliation.findMany({
-      where: { childId, status: 'ACTIVE', endedAt: null },
+      where: {
+        childId,
+        status: { in: ['PENDING_CONSENT', 'ACTIVE'] },
+        endedAt: null,
+      },
       select: {
         facilityId: true,
+        status: true,
         type: true,
         dataScope: true,
         facility: { select: { name: true, type: true } },
@@ -74,6 +84,8 @@ export class ChildConsentController {
       facilityType: a.facility.type,
       relationship: a.type,
       dataScope: a.dataScope,
+      /** PENDING_CONSENT = they are waiting on you; they can see nothing yet. */
+      status: a.status,
       granted: consents
         .filter((c) => c.facilityId === a.facilityId)
         .map((c) => ({ type: c.type, since: c.createdAt, until: c.validUntil })),

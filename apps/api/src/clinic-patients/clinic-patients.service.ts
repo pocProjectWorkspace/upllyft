@@ -15,6 +15,8 @@ import {
 } from '../common/child-scope';
 import { assertTherapistAssignable } from '../common/credentials';
 import { assertChildAccess } from '../common/consent';
+import { resolveParentContact } from '../common/parent-contact';
+import { ClaimsService, type GuardianDetails } from '../child-claims/claims.service';
 
 @Injectable()
 export class ClinicPatientsService {
@@ -23,6 +25,7 @@ export class ClinicPatientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationService: NotificationService,
+    private readonly claims: ClaimsService,
   ) { }
 
   async listPatients(query: ListPatientsQueryDto, clinicId: string | null) {
@@ -111,6 +114,9 @@ export class ClinicPatientsService {
               },
             },
           },
+          guardians: {
+            select: { fullName: true, email: true, phone: true, userId: true, isPrimaryContact: true },
+          },
           conditions: true,
           cases: {
             where: { status: { not: 'ARCHIVED' } },
@@ -176,15 +182,10 @@ export class ClinicPatientsService {
           type: c.conditionType,
           severity: c.severity,
         })),
-        parent: parentUser
-          ? {
-            id: parentUser.id,
-            name: parentUser.name,
-            email: parentUser.email,
-            phone: parentUser.phone,
-            avatar: parentUser.image,
-          }
-          : null,
+        // Prefers the Guardian row over a synthetic shadow account — see
+        // common/parent-contact.ts. `onPlatform: false` means they have not claimed
+        // the child yet and can see nothing.
+        parent: resolveParentContact(child),
         assignedTherapist: therapistUser
           ? {
             id: therapistUser.id,
@@ -245,6 +246,9 @@ export class ClinicPatientsService {
               select: { id: true, name: true, email: true, phone: true, image: true, role: true },
             },
           },
+        },
+        guardians: {
+          select: { fullName: true, email: true, phone: true, userId: true, isPrimaryContact: true },
         },
         conditions: true,
         cases: {
@@ -307,6 +311,7 @@ export class ClinicPatientsService {
     }
 
     const parentUser = child.profile?.user;
+    const parentContact = resolveParentContact(child);
 
     return {
       id: child.id,
@@ -336,21 +341,16 @@ export class ClinicPatientsService {
         delayedMilestones: child.delayedMilestones,
         delayedMilestonesDetails: child.delayedMilestonesDetails,
       },
-      parent: parentUser
-        ? {
-          id: parentUser.id,
-          name: parentUser.name,
-          email: parentUser.email,
-          phone: parentUser.phone,
-          avatar: parentUser.image,
-        }
-        : null,
+      // Prefers the Guardian row over a synthetic shadow account — see
+      // common/parent-contact.ts.
+      parent: parentContact,
       parentProfile: child.profile
         ? {
-          fullName: child.profile.fullName,
-          phoneNumber: child.profile.phoneNumber,
+          fullName: parentContact?.name ?? child.profile.fullName,
+          phoneNumber: parentContact?.phone ?? child.profile.phoneNumber,
           alternatePhone: child.profile.alternatePhone,
-          email: child.profile.email,
+          // NEVER the shadow profile's synthetic address.
+          email: parentContact?.email ?? null,
           relationshipToChild: child.profile.relationshipToChild,
         }
         : null,
@@ -638,67 +638,90 @@ export class ClinicPatientsService {
     }
   }
 
+  /**
+   * Create a walk-in patient, and invite their guardian to claim the record.
+   *
+   * THIS USED TO SET A TRAP FOR THE GUARDIAN. It minted a `User` on the guardian's
+   * REAL email with no password ("walk-in patients log in via magic link later" —
+   * a magic link that was never built). That guardian could then neither register
+   * (`register()` throws "User already exists") nor log in (`validateUser()` returns
+   * null without a password). The only door left was a password reset for an account
+   * they had no idea existed, and nobody ever found it: an audit of both databases
+   * found ZERO of 44 such guardians had ever obtained a password.
+   *
+   * Now it takes the same path as a nursery enrolment — synthetic shadow profile,
+   * real email on the `Guardian` row, and a claim link the guardian can actually
+   * act on. Their own address stays free for the account they knowingly create.
+   *
+   * A guardian who ALREADY has an Upllyft account is no longer rejected either. The
+   * old code refused ("use the Patients page to find them"), which meant a clinic
+   * could not admit a walk-in for an existing parent at all. Now the claim resolves
+   * it: the parent merges the record into the child they already have, and we keep
+   * one child record rather than two.
+   */
   async createWalkinPatient(dto: CreateWalkinPatientDto, adminId: string, clinicId: string | null) {
-    // Check if a user with this email already exists
-    if (dto.guardianEmail) {
-      const existing = await this.prisma.user.findUnique({
-        where: { email: dto.guardianEmail },
-      });
-      if (existing) {
-        throw new BadRequestException('A user with this email already exists. Use the Patients page to find them.');
-      }
-    }
+    const guardian: GuardianDetails = {
+      name: dto.guardianName,
+      // No email means no claim can ever be sent — the record stays clinic-only until
+      // someone collects one. That is honest; a synthetic address is not a channel.
+      email: dto.guardianEmail?.toLowerCase().trim() ?? '',
+      phone: dto.guardianPhone ?? null,
+      relationship: dto.guardianRelationship ?? null,
+    };
 
-    const email = dto.guardianEmail || `walkin.${Date.now()}@ancc.internal`;
-
-    // Create guardian User (no password — admin-created walk-in)
-    const guardianUser = await this.prisma.user.create({
-      data: {
-        email,
-        name: dto.guardianName,
-        phone: dto.guardianPhone,
-        role: Role.USER,
-        isEmailVerified: false,
-        // No password set — walk-in patients log in via magic link later
-      },
-    });
-
-    // Create UserProfile
-    const userProfile = await this.prisma.userProfile.create({
-      data: {
-        userId: guardianUser.id,
-        fullName: dto.guardianName,
-        phoneNumber: dto.guardianPhone,
-        email,
-        relationshipToChild: dto.guardianRelationship || 'Guardian',
-      },
-    });
-
-    // Create the Child record
-    const child = await this.prisma.child.create({
-      data: {
-        profileId: userProfile.id,
+    const { childId, rawToken } = await this.prisma.$transaction(async tx => {
+      const { childId } = await this.claims.createPlaceholderChild(tx, {
         firstName: dto.firstName,
         dateOfBirth: new Date(dto.dateOfBirth),
         gender: dto.gender,
-        clinicStatus: 'INTAKE',
-        walkinCreatedByAdmin: true,
+        guardian,
         referralSource: dto.referralSource || 'Walk-in',
-        developmentalConcerns: dto.primaryConcern || null,
-      },
+        extraChildData: {
+          clinicStatus: 'INTAKE',
+          walkinCreatedByAdmin: true,
+          developmentalConcerns: dto.primaryConcern || null,
+        },
+      });
+
+      // Attach to the creating clinic. This was previously MISSING: the walk-in was
+      // created with no clinic at all, which was invisible while patient lists were
+      // unscoped — but under fail-closed scoping the admin would add a patient and
+      // watch it vanish from their own list.
+      //
+      // A clinic PATIENT affiliation is ACTIVE, not PENDING_CONSENT: the family is
+      // physically in the building. The consent gate still binds at `getPatientDetail`.
+      let affiliationId: string | null = null;
+      if (clinicId) {
+        ({ affiliationId } = await attachChildToFacility(tx, childId, clinicId, {
+          type: 'PATIENT',
+        }));
+      }
+
+      let rawToken: string | null = null;
+      if (guardian.email && affiliationId && clinicId) {
+        rawToken = await this.claims.createInvite(tx, {
+          childId,
+          affiliationId,
+          facilityId: clinicId,
+          guardian,
+          createdById: adminId,
+        });
+      }
+
+      return { childId, rawToken };
     });
 
-    // Attach to the creating clinic. This was previously MISSING: the walk-in was
-    // created with no clinic at all, which was invisible while patient lists were
-    // unscoped — but under fail-closed scoping the admin would add a patient and
-    // watch it vanish from their own list. Dual-writes clinicId + affiliation.
-    if (clinicId) {
-      await attachChildToFacility(this.prisma, child.id, clinicId, { type: 'PATIENT' });
-    } else {
+    if (rawToken) {
+      await this.claims.sendInvite(clinicId, guardian, dto.firstName, rawToken);
+    }
+
+    const created = await this.prisma.child.findUniqueOrThrow({ where: { id: childId } });
+
+    if (!clinicId) {
       // SUPERADMIN with no clinic context — nothing to attach to. Log it: an
       // unattached child is invisible to every clinic surface.
       this.logger.warn(
-        `Walk-in child ${child.id} created without a clinic — it will not appear in any clinic patient list.`,
+        `Walk-in child ${childId} created without a clinic — it will not appear in any clinic patient list.`,
       );
     }
 
@@ -708,23 +731,29 @@ export class ClinicPatientsService {
       type: NotificationType.CASE_ASSIGNED,
       title: 'Walk-in Patient Added',
       message: `${dto.firstName} has been added to the intake queue.`,
-      relatedEntityId: child.id,
+      relatedEntityId: childId,
       relatedEntityType: 'child',
     }).catch(() => { });
 
     return {
-      id: child.id,
-      firstName: child.firstName,
-      dateOfBirth: child.dateOfBirth,
-      gender: child.gender,
-      clinicStatus: child.clinicStatus,
-      createdAt: child.createdAt,
+      id: created.id,
+      firstName: created.firstName,
+      dateOfBirth: created.dateOfBirth,
+      gender: created.gender,
+      clinicStatus: created.clinicStatus,
+      createdAt: created.createdAt,
+      // The parent's REAL details, read from the Guardian row — NOT from the shadow
+      // user, whose address is synthetic. Returning the shadow's email here would
+      // put `walkin.<uuid>@ancc.internal` in front of clinic staff as if it were the
+      // family's address.
       parent: {
-        id: guardianUser.id,
-        name: guardianUser.name,
-        email: guardianUser.email,
-        phone: guardianUser.phone,
+        id: null,
+        name: guardian.name,
+        email: guardian.email || null,
+        phone: guardian.phone ?? null,
+        onPlatform: false,
       },
+      claimSent: Boolean(rawToken),
     };
   }
 

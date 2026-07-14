@@ -1,4 +1,7 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Prisma, PrismaClient, AffiliationType, AffiliationStatus } from '@prisma/client';
+import { assertScopeWithinCeiling } from './consent';
+import { facilityCan, type DataScope, type FacilityType } from './facility-capabilities';
 
 /**
  * Phase D — scope children by AFFILIATION, not by `Child.clinicId`.
@@ -23,6 +26,32 @@ export function childInFacility(facilityId: string | null): Prisma.ChildWhereInp
   return {
     affiliations: {
       some: { facilityId, status: 'ACTIVE', endedAt: null },
+    },
+  };
+}
+
+/**
+ * Children on a facility's ROSTER — including those whose guardian has not yet
+ * consented (`PENDING_CONSENT`).
+ *
+ * This is deliberately NOT the default. `childInFacility()` is ACTIVE-only, so a
+ * reader that forgets to think about consent gets the fail-closed answer. Seeing a
+ * not-yet-consented child is an explicit opt-in, and it is only ever correct for
+ * one thing: the roster itself, so a nursery can tell WHO it is still waiting on.
+ *
+ * A roster row is a name and a consent status. It is not the record — opening that
+ * still goes through `resolveChildAccess()`, which requires an ACTIVE affiliation
+ * AND a live consent. That split (list ≠ read) is the F2 decision, unchanged.
+ */
+export function childOnRoster(facilityId: string | null): Prisma.ChildWhereInput {
+  if (!facilityId) return {};
+  return {
+    affiliations: {
+      some: {
+        facilityId,
+        status: { in: ['PENDING_CONSENT', 'ACTIVE'] },
+        endedAt: null,
+      },
     },
   };
 }
@@ -55,11 +84,32 @@ export function sessionInFacility(facilityId: string | null): Prisma.CaseSession
 }
 
 /**
- * Attach a child to a facility. DUAL-WRITE: sets the legacy `Child.clinicId` AND
- * creates the affiliation, so migrated and un-migrated readers agree.
+ * Attach a child to a facility.
  *
- * Idempotent — re-attaching an already-active child is a no-op rather than a
- * duplicate affiliation.
+ * Idempotent — re-attaching an already-live child returns the existing affiliation
+ * rather than creating a duplicate.
+ *
+ * THREE THINGS THIS FUNCTION IS CAREFUL ABOUT, each of which was a live bug when a
+ * nursery first called it:
+ *
+ * 1. STATUS IS NOT ALWAYS ACTIVE. An enrolment starts at PENDING_CONSENT: the
+ *    nursery has added the child, the guardian has not yet agreed to anything. If
+ *    this defaulted to ACTIVE, adding a child to a roster would GRANT THE NURSERY
+ *    ACCESS TO THAT CHILD — the facility would be consenting on the guardian's
+ *    behalf, which is the one thing consent exists to prevent. A clinic PATIENT
+ *    still defaults to ACTIVE (unchanged): its gate is the consent check at detail,
+ *    which `resolveChildAccess()` applies regardless of status.
+ *
+ * 2. THE LEGACY `Child.clinicId` MIRROR IS FOR CLINICS ONLY. `clinicId` is what the
+ *    un-migrated readers still scope on, so mirroring a NURSERY's id into it would
+ *    make an enrolled child surface in clinic patient lists and clinic tracking —
+ *    the helper written to make scoping safe would be manufacturing the leak. The
+ *    facility type is looked up here rather than trusted from the caller, because a
+ *    caller that could be trusted to pass it correctly wouldn't need this guard.
+ *
+ * 3. SCOPE IS CAPPED BY TYPE. `assertScopeWithinCeiling` rejects FULL_CLINICAL on a
+ *    nursery even if a caller asks for it. A nursery cannot be talked into seeing a
+ *    diagnosis.
  *
  * Drop the `clinicId` half in Phase F.
  */
@@ -67,25 +117,93 @@ export async function attachChildToFacility(
   prisma: PrismaClient | Prisma.TransactionClient,
   childId: string,
   facilityId: string,
-  opts: { type?: 'PATIENT' | 'ENROLLED'; dataScope?: 'OBSERVATIONS_ONLY' | 'FULL_CLINICAL' } = {},
-): Promise<void> {
-  const type = opts.type ?? 'PATIENT';
-  const dataScope = opts.dataScope ?? (type === 'PATIENT' ? 'FULL_CLINICAL' : 'OBSERVATIONS_ONLY');
+  opts: {
+    type?: AffiliationType;
+    dataScope?: DataScope;
+    /** Override only with cause. The defaults are the safe ones — see (1) above. */
+    status?: AffiliationStatus;
+    roomId?: string | null;
+    keyworkerId?: string | null;
+  } = {},
+): Promise<{ affiliationId: string; created: boolean }> {
+  const facility = await prisma.facility.findUnique({
+    where: { id: facilityId },
+    select: { id: true, type: true },
+  });
+
+  if (!facility) {
+    throw new NotFoundException(`Facility ${facilityId} does not exist.`);
+  }
+
+  const facilityType = facility.type as FacilityType;
+
+  const type: AffiliationType =
+    opts.type ?? (facilityType === 'CLINIC' ? 'PATIENT' : 'ENROLLED');
+
+  // A nursery may not hold a clinical affiliation. It cannot open a case or treat,
+  // so a PATIENT affiliation there would be a lens onto nothing — or worse, a lens
+  // onto everything.
+  if (type === 'PATIENT' && !facilityCan(facilityType, 'canCreateCase')) {
+    throw new ForbiddenException(
+      `A ${facilityType.toLowerCase()} cannot hold a PATIENT affiliation; children are ENROLLED.`,
+    );
+  }
+
+  const dataScope: DataScope =
+    opts.dataScope ?? (type === 'PATIENT' ? 'FULL_CLINICAL' : 'OBSERVATIONS_ONLY');
+  assertScopeWithinCeiling(facilityType, dataScope);
+
+  const status: AffiliationStatus =
+    opts.status ?? (type === 'PATIENT' ? 'ACTIVE' : 'PENDING_CONSENT');
 
   const existing = await prisma.childAffiliation.findFirst({
     where: { childId, facilityId, endedAt: null },
     select: { id: true },
   });
 
-  if (!existing) {
-    await prisma.childAffiliation.create({
-      data: { childId, facilityId, type, status: 'ACTIVE', dataScope },
-    });
+  if (existing) {
+    return { affiliationId: existing.id, created: false };
   }
 
-  // Legacy mirror — remove in Phase F.
-  await prisma.child.update({
-    where: { id: childId },
-    data: { clinicId: facilityId },
+  const affiliation = await prisma.childAffiliation.create({
+    data: {
+      childId,
+      facilityId,
+      type,
+      status,
+      dataScope,
+      roomId: opts.roomId ?? null,
+      keyworkerId: opts.keyworkerId ?? null,
+    },
+    select: { id: true },
   });
+
+  // Legacy mirror — CLINIC only (see (2) above). Remove in Phase F.
+  //
+  // `Child.clinicId` is an FK to `Clinic`, NOT to `Facility`. Every clinic facility
+  // in existence today came from the backfill, which preserved ids (Facility.id ==
+  // Clinic.id), so the mirror resolves. A NATIVELY-created clinic facility has no
+  // legacy `Clinic` row, and writing its id here raises a foreign-key violation
+  // that takes the whole enrolment down with it. Mirror only where there is
+  // something to mirror INTO.
+  //
+  // The gap this leaves is real: a child at a clinic facility with no legacy row is
+  // invisible to the un-migrated readers that still scope on `clinicId`. The fix
+  // belongs at facility CREATION — a new CLINIC facility must dual-write its
+  // `Clinic` row under the same id, preserving the invariant the backfill
+  // established. It does not belong here, silently, inside an attach.
+  if (facilityType === 'CLINIC') {
+    const legacy = await prisma.clinic.findUnique({
+      where: { id: facilityId },
+      select: { id: true },
+    });
+    if (legacy) {
+      await prisma.child.update({
+        where: { id: childId },
+        data: { clinicId: facilityId },
+      });
+    }
+  }
+
+  return { affiliationId: affiliation.id, created: true };
 }

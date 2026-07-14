@@ -95,6 +95,9 @@ import { ClinicTherapistsModule } from './clinic-therapists/clinic-therapists.mo
 import { ClinicTrackingModule } from './clinic-tracking/clinic-tracking.module';
 import { ClinicOutcomesModule } from './clinic-outcomes/clinic-outcomes.module';
 import { ConsentModule } from './consent/consent.module';
+import { FacilitiesModule } from './facilities/facilities.module';
+import { NurseryModule } from './nursery/nursery.module';
+import { ChildClaimsModule } from './child-claims/child-claims.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { AuditModule } from './audit/audit.module';
@@ -209,6 +212,9 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
 
     // Consent forms
     ConsentModule,
+    FacilitiesModule,
+    NurseryModule,
+    ChildClaimsModule,
 
     // Invoices
     InvoiceModule,

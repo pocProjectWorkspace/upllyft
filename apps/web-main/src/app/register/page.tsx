@@ -4,6 +4,7 @@ import { useAuth, useRedirectIfAuthenticated, apiClient } from '@upllyft/api-cli
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { getSafeNext } from '@/lib/safe-next';
 import { useState, useEffect, useCallback } from 'react';
 
 type AccountType = 'individual' | 'professional';
@@ -197,7 +198,7 @@ export default function RegisterPage() {
       }
 
       await register(payload);
-      router.push('/');
+      router.push(getSafeNext());
     } catch (err: any) {
       const msg = err?.response?.data?.message;
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Registration failed. Please try again.');
