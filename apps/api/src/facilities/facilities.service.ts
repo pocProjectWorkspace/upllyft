@@ -21,6 +21,7 @@ import {
 } from '../common/facility-capabilities';
 import {
   CreateFacilityDto,
+  OnboardNurseryDto,
   UpdateFacilityDto,
   CreateRoomDto,
   UpdateRoomDto,
@@ -105,6 +106,89 @@ export class FacilitiesService {
     );
 
     return this.detail(actor, facility.id);
+  }
+
+  /**
+   * PLATFORM-ADMIN onboarding — the combined action: create the organisation, its first
+   * site, and name the admin, in one transaction.
+   *
+   * This is the top-down path (a platform admin brings a nursery on), as opposed to
+   * `create()`, which is the self-serve path where the actor becomes the owner. Here the
+   * OWNER is a NAMED person, and they are made BOTH:
+   *   - OrganizationMember ADMIN — runs the account (this is what the "My Organisation"
+   *     resolver reads, so without it the org page is dead for them), and
+   *   - FacilityMember OWNER — runs the site (this is what the /nursery shell gates on).
+   *
+   * The admin must already have an Upllyft account. Staff are invited, never fabricated —
+   * we do not mint an account for them (that is the shadow-account trap). If they are not
+   * on Upllyft yet, they sign up first.
+   */
+  async onboardNursery(actor: FacilityActor, dto: OnboardNurseryDto) {
+    if (dto.type === 'CLINIC') {
+      throw new BadRequestException(
+        'Clinics are onboarded through clinic setup, not here. This is for nurseries and schools.',
+      );
+    }
+    this.assertAuthorityFitsType(dto.type, dto.licenseAuthority);
+
+    const admin = await this.prisma.user.findUnique({
+      where: { email: dto.adminEmail.toLowerCase().trim() },
+      select: { id: true, email: true, name: true },
+    });
+    if (!admin) {
+      throw new NotFoundException(
+        `No Upllyft account for ${dto.adminEmail}. Ask them to sign up, then onboard the nursery.`,
+      );
+    }
+
+    const orgSlug = await this.uniqueOrgSlug(dto.name);
+    const facilitySlug = await this.uniqueSlug(dto.name);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const org = await tx.organization.create({
+        data: {
+          name: dto.name,
+          slug: orgSlug,
+          kind: ORG_KIND_FOR[dto.type],
+          members: {
+            create: { userId: admin.id, role: 'ADMIN', status: 'ACTIVE', joinedAt: new Date() },
+          },
+        },
+        select: { id: true, slug: true },
+      });
+
+      const facility = await tx.facility.create({
+        data: {
+          organizationId: org.id,
+          type: dto.type,
+          name: dto.name,
+          slug: facilitySlug,
+          licenseNo: dto.licenseNo ?? null,
+          licenseAuthority: dto.licenseAuthority ?? null,
+          emirate: dto.emirate ?? null,
+          complianceStatus: 'DRAFT',
+          members: {
+            create: { userId: admin.id, role: 'OWNER', status: 'ACTIVE' },
+          },
+        },
+        select: { id: true, slug: true },
+      });
+
+      return { org, facility };
+    });
+
+    this.logger.log(
+      `Nursery onboarded: org ${result.org.id} + facility ${result.facility.id} (${dto.type}), ` +
+        `admin ${admin.email}, by platform admin ${actor.id}`,
+    );
+
+    return {
+      organizationId: result.org.id,
+      organizationSlug: result.org.slug,
+      facilityId: result.facility.id,
+      facilitySlug: result.facility.slug,
+      admin: { email: admin.email, name: admin.name },
+    };
   }
 
   /** Facilities the caller staffs. */

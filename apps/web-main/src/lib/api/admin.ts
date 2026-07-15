@@ -413,3 +413,27 @@ export async function updateSystemSettings(
   const { data } = await apiClient.patch<SystemSettings>('/admin/settings', payload);
   return data;
 }
+
+// ── Nursery onboarding (platform admin) ──
+
+export interface OnboardNurseryPayload {
+  name: string;
+  type: 'NURSERY' | 'SCHOOL';
+  adminEmail: string;
+  licenseAuthority?: 'KHDA' | 'ADEK' | 'MOE' | 'OTHER';
+  emirate?: string;
+  licenseNo?: string;
+}
+
+export interface OnboardNurseryResult {
+  organizationId: string;
+  organizationSlug: string;
+  facilityId: string;
+  facilitySlug: string;
+  admin: { email: string; name: string | null };
+}
+
+export async function onboardNursery(payload: OnboardNurseryPayload): Promise<OnboardNurseryResult> {
+  const { data } = await apiClient.post<OnboardNurseryResult>('/facilities/onboard', payload);
+  return data;
+}

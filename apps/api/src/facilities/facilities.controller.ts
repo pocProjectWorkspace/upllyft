@@ -17,6 +17,7 @@ import { Role } from '@prisma/client';
 import { FacilitiesService } from './facilities.service';
 import {
   CreateFacilityDto,
+  OnboardNurseryDto,
   UpdateFacilityDto,
   CreateRoomDto,
   UpdateRoomDto,
@@ -45,6 +46,14 @@ export class FacilitiesController {
   @ApiOperation({ summary: 'Create a facility (NURSERY or SCHOOL)' })
   create(@Req() req: any, @Body() dto: CreateFacilityDto) {
     return this.facilities.create(req.user, dto);
+  }
+
+  @Post('onboard')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  @ApiOperation({ summary: 'Platform admin: onboard a nursery (org + first site + admin) in one step' })
+  onboard(@Req() req: any, @Body() dto: OnboardNurseryDto) {
+    return this.facilities.onboardNursery(req.user, dto);
   }
 
   @Get()

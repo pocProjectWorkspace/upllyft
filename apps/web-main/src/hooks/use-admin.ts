@@ -248,3 +248,12 @@ export function useUpdateSystemSettings() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'settings'] }),
   });
 }
+
+export function useOnboardNursery() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: import('@/lib/api/admin').OnboardNurseryPayload) =>
+      adminApi.onboardNursery(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'organizations'] }),
+  });
+}
