@@ -45,6 +45,16 @@ export function getNavItems(
     items.push({ label: 'Cases', app: 'cases', href: APP_URLS.cases });
   }
 
+  // Nursery lives inside the Cases app (/nursery) but is a distinct destination, so it
+  // gets its own tab. Shown to the roles that staff a nursery — an EDUCATOR (keyworker /
+  // inclusion lead) or an ORGANIZATION admin. The nav is role-only (it can't know who is a
+  // FacilityMember), so a clinical educator sees the tab too; the page's own empty state
+  // ("No nursery yet — ask your platform admin") handles that gracefully. Access to any
+  // actual nursery is still gated on FacilityMembership server-side.
+  if (role === 'EDUCATOR' || role === 'ORGANIZATION') {
+    items.push({ label: 'Nursery', app: 'cases', href: `${APP_URLS.cases}/nursery` });
+  }
+
   items.push(
     { label: 'Feed', app: 'community', href: APP_URLS.community },
     { label: 'Screening', app: 'screening', href: APP_URLS.screening },
