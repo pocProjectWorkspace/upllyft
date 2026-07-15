@@ -31,3 +31,19 @@ export const grantConsent = (data: {
 /** Revocation must bite immediately — the gate re-checks on every access. */
 export const revokeConsent = (childId: string, facilityId: string, type: string) =>
   apiClient.delete(`/child-consent/grant/${childId}/${facilityId}/${type}`).then(r => r.data);
+
+// ── Observations a guardian can see (F5) ──
+
+export interface GuardianObservation {
+  id: string;
+  note: string;
+  domain: string | null;
+  type: 'NOTE' | 'MOMENT' | 'MILESTONE' | 'CONCERN';
+  observedAt: string;
+  createdAt: string;
+  author: { id: string; name: string | null } | null;
+  facilityName: string | null;
+}
+
+export const getChildObservations = (childId: string): Promise<GuardianObservation[]> =>
+  apiClient.get(`/children/${childId}/observations`).then(r => r.data);

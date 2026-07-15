@@ -98,6 +98,7 @@ import { ConsentModule } from './consent/consent.module';
 import { FacilitiesModule } from './facilities/facilities.module';
 import { NurseryModule } from './nursery/nursery.module';
 import { ChildClaimsModule } from './child-claims/child-claims.module';
+import { ObservationsModule } from './observations/observations.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { AuditModule } from './audit/audit.module';
@@ -215,6 +216,7 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     FacilitiesModule,
     NurseryModule,
     ChildClaimsModule,
+    ObservationsModule,
 
     // Invoices
     InvoiceModule,

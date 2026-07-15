@@ -156,3 +156,37 @@ export function useRequestScreeningConsent(facilityId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.roster(facilityId) }),
   });
 }
+
+// ── Observations ──
+
+export function useObservations(
+  facilityId: string | undefined,
+  childId: string,
+  params?: { domain?: string; type?: nurseryApi.ObservationType },
+) {
+  return useQuery({
+    queryKey: [...keys.all, 'observations', facilityId, childId, params] as const,
+    queryFn: () => nurseryApi.listObservations(facilityId!, childId, params),
+    enabled: !!facilityId && !!childId,
+  });
+}
+
+export function useCreateObservation(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof nurseryApi.createObservation>[2]) =>
+      nurseryApi.createObservation(facilityId, childId, data),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: [...keys.all, 'observations', facilityId, childId] }),
+  });
+}
+
+export function useDeleteObservation(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (observationId: string) =>
+      nurseryApi.deleteObservation(facilityId, childId, observationId),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: [...keys.all, 'observations', facilityId, childId] }),
+  });
+}
