@@ -97,6 +97,22 @@ async function main() {
   });
   void leadMember;
 
+  // ── Org membership ────────────────────────────────────────────────────────
+  // The nursery admin is a FacilityMember OWNER (runs the site) AND an OrganizationMember
+  // ADMIN (runs the account). The second is what the "My Organisation" resolver reads —
+  // without it the org page shows nothing for them. This is the "name the admin" step of
+  // onboarding: both memberships, together.
+  await prisma.organizationMember.upsert({
+    where: { userId_organizationId: { userId: lead.id, organizationId: org.id } },
+    update: { role: 'ADMIN', status: 'ACTIVE' },
+    create: { userId: lead.id, organizationId: org.id, role: 'ADMIN', status: 'ACTIVE', joinedAt: new Date() },
+  });
+  await prisma.organizationMember.upsert({
+    where: { userId_organizationId: { userId: keyworker.id, organizationId: org.id } },
+    update: { role: 'MEMBER', status: 'ACTIVE' },
+    create: { userId: keyworker.id, organizationId: org.id, role: 'MEMBER', status: 'ACTIVE', joinedAt: new Date() },
+  });
+
   // ── Children, each in a different consent state ───────────────────────────
   //
   //   Yousef — full consent (observations + screening). Has seeded observations.

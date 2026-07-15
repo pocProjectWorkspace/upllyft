@@ -116,6 +116,7 @@ export class FacilitiesService {
         name: true,
         slug: true,
         type: true,
+        organizationId: true,
         complianceStatus: true,
         licenseAuthority: true,
         emirate: true,

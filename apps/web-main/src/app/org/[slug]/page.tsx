@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Skeleton } from '@upllyft/ui';
+import { APP_URLS } from '@upllyft/api-client';
 import {
   getOrganization,
   getOrganizationStats,
+  getMyFacilities,
   type OrgDetails,
+  type OrgFacility,
 } from '@/lib/api/organizations';
 
 interface DashboardStats {
@@ -19,6 +22,7 @@ export default function OrgDashboard() {
   const params = useParams();
   const slug = params.slug as string;
   const [org, setOrg] = useState<OrgDetails | null>(null);
+  const [facilities, setFacilities] = useState<OrgFacility[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     memberCount: 0,
     communityCount: 0,
@@ -31,6 +35,16 @@ export default function OrgDashboard() {
       try {
         const orgData = await getOrganization(slug);
         setOrg(orgData);
+
+        // The org's sites (nurseries / clinics). Supplementary — a failure here must not
+        // blank the page. Filtered to THIS org so a multi-org staff member sees the right
+        // ones.
+        try {
+          const all = await getMyFacilities();
+          setFacilities(all.filter((f) => f.organizationId === orgData.id));
+        } catch {
+          /* leave empty */
+        }
 
         // Stats are supplementary — a failure here shouldn't blank the whole page.
         try {
@@ -149,6 +163,44 @@ export default function OrgDashboard() {
           subtitle={stats.upcomingEventCount === 0 ? 'No events scheduled' : 'Scheduled ahead'}
         />
       </div>
+
+      {/* Facilities — the org's nurseries / clinics, and the door into each. */}
+      {facilities.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <h3 className="font-semibold text-gray-900 mb-4">Your settings</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {facilities.map((f) => {
+              const isNursery = f.type === 'NURSERY' || f.type === 'SCHOOL';
+              // A nursery/school opens the nursery workspace in the Cases app; a clinic
+              // opens the clinic admin. Only the nursery link is wired for now.
+              const href = isNursery ? `${APP_URLS.cases}/nursery` : `${APP_URLS.admin}`;
+              return (
+                <a
+                  key={f.id}
+                  href={href}
+                  className="flex items-center gap-3 rounded-xl border border-gray-100 p-4 hover:border-teal-300 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{f.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {f.type.charAt(0) + f.type.slice(1).toLowerCase()} ·{' '}
+                      {f._count.members} staff · {f._count.rooms} room{f._count.rooms === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Content cards */}
       <div className="grid gap-4 lg:grid-cols-7">

@@ -74,6 +74,12 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
   const bookmarksUrl = `${APP_URLS.main}/bookmarks`;
   const invitationsUrl = `${APP_URLS.main}/invitations`;
   const settingsUrl = `${APP_URLS.main}/settings`;
+  // Resolver — figures out the user's own org and forwards to /org/<slug>. Shown to
+  // anyone who might belong to an organisation (a nursery/clinic admin or staff member),
+  // never to a plain parent. This is the door to the org workspace, and from there the
+  // nursery.
+  const orgUrl = `${APP_URLS.main}/org`;
+  const mayHaveOrg = user.role !== 'USER';
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
@@ -215,6 +221,14 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                           Invitations
                         </a>
                       </>
+                    )}
+                    {mayHaveOrg && !isOneVoiceUser && (
+                      <a href={orgUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
+                        <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        My Organisation
+                      </a>
                     )}
                     <a href={settingsUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                       <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

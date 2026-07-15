@@ -327,3 +327,23 @@ export async function updateOrganizationCommission(
     { commissionPercentage },
   );
 }
+
+// ── Facilities under an organization (F3 tenancy) ──
+
+export interface OrgFacility {
+  id: string;
+  name: string;
+  slug: string;
+  type: 'CLINIC' | 'NURSERY' | 'SCHOOL';
+  organizationId: string;
+  complianceStatus: string;
+  licenseAuthority: string | null;
+  emirate: string | null;
+  _count: { rooms: number; members: number };
+}
+
+/** Facilities the current user staffs. Filter by organizationId for a given org's sites. */
+export async function getMyFacilities(): Promise<OrgFacility[]> {
+  const { data } = await apiClient.get<OrgFacility[]>('/facilities');
+  return data;
+}
