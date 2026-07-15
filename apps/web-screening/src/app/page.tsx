@@ -950,17 +950,24 @@ export default function ScreeningLibraryPage() {
 
       {/* Framework Attribution */}
       <div className="mb-8 px-5 py-4 bg-teal-50/60 border border-teal-100 rounded-2xl">
+        {/*
+          Do NOT name ASQ-3 here. It is a copyrighted, normed, licensed instrument and
+          not one of our 641 items derives from it — the item bank cites the CDC, WHO,
+          ASHA and NHS. Claiming it implied a standing this checklist does not have,
+          in the one place a nursery's procurement review would read first.
+        */}
         <p className="text-sm text-teal-900 leading-relaxed">
-          <span className="font-semibold">Evidence-based methodology.</span>{' '}
-          Our developmental screening instruments are grounded in internationally
-          recognised frameworks, including the{' '}
-          <span className="font-medium">WHO/UNICEF Nurturing Care Framework</span>,
-          the <span className="font-medium">Ages &amp; Stages Questionnaires (ASQ-3)</span>,
-          the <span className="font-medium">WHO International Classification of Functioning, Disability and Health (ICF)</span>,
-          and the <span className="font-medium">CDC developmental milestones</span>.
-          These tools are designed for early identification and care planning. They
-          are intended as screening instruments and do not constitute a clinical
-          diagnostic assessment.
+          <span className="font-semibold">How our screening is built.</span>{' '}
+          Our developmental screening questions are drawn from publicly available
+          milestone guidance published by the{' '}
+          <span className="font-medium">CDC</span>, the{' '}
+          <span className="font-medium">World Health Organization</span>,{' '}
+          <span className="font-medium">ASHA</span> (speech and language), and the{' '}
+          <span className="font-medium">NHS</span>, organised into recognised
+          developmental domains and checked against age-anchored expectations.
+          They are designed for early identification and care planning. They are
+          screening checklists — not standardised or normed instruments — and they
+          do not constitute a clinical diagnostic assessment.
         </p>
       </div>
 
