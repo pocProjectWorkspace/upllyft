@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '@/lib/api/permissions';
 import type { FacilityPermission } from '@/lib/api/permissions';
-import { Loader2, Lock, ShieldCheck, School, Stethoscope, Eye, ClipboardList } from 'lucide-react';
+import { Loader2, Lock, ShieldCheck, School, Stethoscope, Eye, ClipboardList, Sparkles, Flag, Trophy, StickyNote } from 'lucide-react';
 
 /**
  * The guardian's control panel: who has asked for access to my child, and what have I
@@ -88,6 +88,8 @@ export default function PermissionsPage({
             <FacilityCard key={p.facilityId} childId={childId} perm={p} onChange={invalidate} />
           ))}
         </div>
+
+        <ObservationFeed childId={childId} />
       </div>
     </div>
   );
@@ -189,6 +191,66 @@ function FacilityCard({
         Withdrawing takes effect immediately — they lose access to what they collected.
         Your child’s place is not affected either way.
       </p>
+    </div>
+  );
+}
+
+/**
+ * What the nursery has recorded about this child — the guardian's window into the
+ * observations. Read-only and always visible to the parent: it is their child, and
+ * transparency is the point. A parent who can see exactly what is being noted is a parent
+ * who can trust the setting with it.
+ */
+function ObservationFeed({ childId }: { childId: string }) {
+  const { data: observations, isLoading } = useQuery({
+    queryKey: ['child-observations', childId],
+    queryFn: () => api.getChildObservations(childId),
+  });
+
+  if (isLoading || !observations || observations.length === 0) return null;
+
+  const icon = (t: string) =>
+    t === 'CONCERN' ? Flag : t === 'MOMENT' ? Sparkles : t === 'MILESTONE' ? Trophy : StickyNote;
+  const color = (t: string) =>
+    t === 'CONCERN' ? 'text-amber-600' : t === 'MOMENT' ? 'text-green-600' : t === 'MILESTONE' ? 'text-blue-600' : 'text-gray-400';
+
+  const DOMAIN_LABELS: Record<string, string> = {
+    grossMotor: 'Gross motor', fineMotor: 'Fine motor', speechLanguage: 'Speech & language',
+    socialEmotional: 'Social & emotional', cognitiveLearning: 'Thinking & learning',
+    adaptiveSelfCare: 'Self-care', sensoryProcessing: 'Sensory', visionHearing: 'Vision & hearing',
+  };
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-semibold text-gray-900">What your nursery has noticed</h2>
+      <p className="text-sm text-gray-600 mt-1">
+        Everything your child’s keyworker records is shown here, as they record it.
+      </p>
+
+      <div className="mt-4 space-y-2">
+        {observations.map(o => {
+          const Icon = icon(o.type);
+          return (
+            <div
+              key={o.id}
+              className={`flex gap-3 p-4 rounded-xl border bg-white ${
+                o.type === 'CONCERN' ? 'border-amber-200' : 'border-gray-100'
+              }`}
+            >
+              <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${color(o.type)}`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{o.note}</p>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  {o.domain ? `${DOMAIN_LABELS[o.domain] ?? o.domain} · ` : ''}
+                  {new Date(o.observedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                  {o.facilityName ? ` · ${o.facilityName}` : ''}
+                  {o.author?.name ? ` · ${o.author.name}` : ''}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

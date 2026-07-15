@@ -6,6 +6,7 @@ import { Lock, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { useNursery } from '@/components/nursery/nursery-context';
 import { useRoster, useRequestScreeningConsent } from '@/hooks/use-nursery';
 import { ConcordanceView } from '@/components/nursery/concordance-view';
+import { ObservationTimeline } from '@/components/nursery/observation-timeline';
 import type { RosterChild } from '@/lib/api/nursery';
 
 /**
@@ -17,8 +18,9 @@ import type { RosterChild } from '@/lib/api/nursery';
  * at OBSERVATIONS_ONLY, so the API would refuse regardless of what this page asked
  * for. The page reflects that; it does not enforce it.
  *
- * Observations themselves are F5. For now this is the consent state and the
- * placement — which is genuinely all a nursery is entitled to before F5 lands.
+ * For a consented child this shows the screening entry point, the observation timeline
+ * (F5), and the home-vs-nursery concordance (F4). For an unconsented one it shows only
+ * what the setting itself entered — the locked state.
  */
 export default function NurseryChildPage({
   params,
@@ -107,19 +109,9 @@ export default function NurseryChildPage({
 
           <ScreeningCard child={child} />
 
-          <ConcordanceView childId={child.childId} childName={child.firstName} />
+          <ObservationTimeline childId={child.childId} childName={child.firstName} />
 
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900">Observations</h2>
-              <Badge color="gray">Coming soon</Badge>
-            </div>
-            <p className="text-sm text-gray-600">
-              Recording day-to-day developmental observations is the next thing we’re
-              building. {child.firstName}’s parent has already consented, so it will work
-              here the moment it ships.
-            </p>
-          </Card>
+          <ConcordanceView childId={child.childId} childName={child.firstName} />
         </>
       )}
     </div>

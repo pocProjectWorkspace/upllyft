@@ -162,6 +162,7 @@ model User {
   guardianProfiles     Guardian[]                @relation("GuardianUser")
   claimedChildClaims   ChildClaim[]              @relation("ClaimedChildClaims")
   assessmentsAnswered  Assessment[]              @relation("AssessmentRespondent")
+  observationsAuthored Observation[]             @relation("ObservationAuthor")
   createdChildClaims   ChildClaim[]              @relation("CreatedChildClaims")
 
   // UAE clinic Phase 3 relations
@@ -1396,6 +1397,7 @@ model Child {
   insurancePolicies                     InsurancePolicy[]
   convertedFromLead                     Lead?                     @relation("LeadConversion")
   claims                                ChildClaim[]              @relation("ChildClaims")
+  observations                          Observation[]             @relation("ChildObservations")
   profile                               UserProfile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
@@ -4713,6 +4715,7 @@ model Facility {
   consents         ChildConsent[]
   claims           ChildClaim[]
   assessments      Assessment[]       @relation("FacilityAssessments")
+  observations     Observation[]      @relation("FacilityObservations")
   consentTemplates ConsentTemplate[]  @relation("FacilityConsentTemplates")
 
   createdAt DateTime @default(now())
@@ -4852,8 +4855,9 @@ model ChildAffiliation {
   keyworkerId String?
   keyworker   FacilityMember? @relation("AffiliationKeyworker", fields: [keyworkerId], references: [id], onDelete: SetNull)
 
-  consents ChildConsent[]
-  claims   ChildClaim[]
+  consents     ChildConsent[]
+  claims       ChildClaim[]
+  observations Observation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4938,4 +4942,69 @@ model ChildClaim {
   @@index([guardianEmail])
   @@index([childId])
   @@map("child_claims")
+}
+
+// ─── Continuous observation capture (F5) ─────────────────────────────────────
+
+enum ObservationType {
+  NOTE /// a general note about the day
+  MOMENT /// a nice developmental moment / progress worth recording
+  MILESTONE /// a milestone reached
+  CONCERN /// the keyworker is worried about something — seeds the F6 concern→conversation pathway
+}
+
+/// A single developmental observation, recorded by a keyworker about an enrolled child.
+///
+/// THIS IS NOT A CLINICAL RECORD, and it is deliberately a separate model rather than a
+/// caseless `ClinicalRecord`. A nursery observes; it does not treat. It has no case, no
+/// diagnosis, no discipline, no therapist signature — the capability map grants a nursery
+/// `canObserve` and denies it `canWriteClinicalNotes`, and the data model mirrors that
+/// split rather than blurring it. Widening `ClinicalRecord.caseId` to null would force
+/// every clinical reader to defend against a caseless record.
+///
+/// ANCHORED TO THE AFFILIATION, which is the consent anchor. There is no path to an
+/// observation that does not route through a `ChildAffiliation`, so the consent gate
+/// applies by construction: an observation can only be WRITTEN while the affiliation is
+/// ACTIVE (consent granted), and nursery staff can only READ it while that consent
+/// stands. This is also what keeps the F3 placeholder-merge safe — "a PENDING_CONSENT
+/// affiliation accrues no data" holds because observations require ACTIVE.
+///
+/// DOMAIN-TAGGED with the same 8-domain vocabulary the screening uses, so observations
+/// accumulate as corroborating evidence against the same domains a screening flags —
+/// which is what the F6 coached conversation is built on.
+model Observation {
+  id      String @id @default(cuid())
+  childId String
+  child   Child  @relation("ChildObservations", fields: [childId], references: [id], onDelete: Cascade)
+
+  // The enrolment this was observed under. The consent anchor — deleting it (a child
+  // leaving) takes the observations with it, because they were only ever visible through it.
+  affiliationId String
+  affiliation   ChildAffiliation @relation(fields: [affiliationId], references: [id], onDelete: Cascade)
+
+  // Denormalised for direct, fail-closed scoping without a join through the affiliation.
+  facilityId String
+  facility   Facility @relation("FacilityObservations", fields: [facilityId], references: [id], onDelete: Cascade)
+
+  // WHO observed it — the keyworker, as a User. SetNull so a departing staff member does
+  // not delete the developmental history of a child they observed.
+  authorId String?
+  author   User?   @relation("ObservationAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  /// One of the 8 developmental domains, or null for a general note not tied to one.
+  domain     String?
+  type       ObservationType @default(NOTE)
+  note       String
+  /// WHEN it was observed — may differ from createdAt (a keyworker writing up the morning
+  /// at lunchtime). Continuous capture is dated by this, not by the row's creation.
+  observedAt DateTime        @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([childId, observedAt])
+  @@index([facilityId, observedAt])
+  @@index([affiliationId])
+  @@index([domain])
+  @@map("observations")
 }

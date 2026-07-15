@@ -273,3 +273,51 @@ export interface ConcordanceResult {
 
 export const getConcordance = (childId: string): Promise<ConcordanceResult> =>
   apiClient.get(`/assessments/concordance/${childId}`).then(r => r.data);
+
+// ── Observations (F5) ──
+
+export type ObservationType = 'NOTE' | 'MOMENT' | 'MILESTONE' | 'CONCERN';
+
+export const DEVELOPMENTAL_DOMAINS = [
+  { id: 'grossMotor', label: 'Gross motor' },
+  { id: 'fineMotor', label: 'Fine motor' },
+  { id: 'speechLanguage', label: 'Speech & language' },
+  { id: 'socialEmotional', label: 'Social & emotional' },
+  { id: 'cognitiveLearning', label: 'Thinking & learning' },
+  { id: 'adaptiveSelfCare', label: 'Self-care' },
+  { id: 'sensoryProcessing', label: 'Sensory' },
+  { id: 'visionHearing', label: 'Vision & hearing' },
+] as const;
+
+export interface Observation {
+  id: string;
+  note: string;
+  domain: string | null;
+  type: ObservationType;
+  observedAt: string;
+  createdAt: string;
+  author: { id: string; name: string | null } | null;
+}
+
+export const listObservations = (
+  facilityId: string,
+  childId: string,
+  params?: { domain?: string; type?: ObservationType },
+): Promise<Observation[]> =>
+  apiClient
+    .get(`/facilities/${facilityId}/children/${childId}/observations`, { params })
+    .then(r => r.data);
+
+export const createObservation = (
+  facilityId: string,
+  childId: string,
+  data: { note: string; domain?: string; type?: ObservationType; observedAt?: string },
+): Promise<Observation> =>
+  apiClient
+    .post(`/facilities/${facilityId}/children/${childId}/observations`, data)
+    .then(r => r.data);
+
+export const deleteObservation = (facilityId: string, childId: string, observationId: string) =>
+  apiClient
+    .delete(`/facilities/${facilityId}/children/${childId}/observations/${observationId}`)
+    .then(r => r.data);
