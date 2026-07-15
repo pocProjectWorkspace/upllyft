@@ -115,10 +115,13 @@ describe('Educator-administered screening', () => {
   });
 
   describe('the educator is only asked what a keyworker can see', () => {
-    it('in the nursery band, the educator answers the FULL tier-1 form', async () => {
-      // This is the right answer, not a bug: every tier-1 item for a 2-3 year old is
-      // something a keyworker watches daily — running, blocks, two-word phrases, peer
-      // play, spoon, handwashing. The home-only items in this band sit in tier 2.
+    it('in the nursery band, the educator gets every shared item PLUS the educator-only ones', async () => {
+      // Before the group-context items were clinically approved (2026-07-15), the two
+      // forms had the SAME count here: every tier-1 item for a 2-3 year old is something
+      // a keyworker watches daily, and the home-only items sit in tier 2. Now the educator
+      // ALSO gets the educator-only items (whole-group instructions, turn-taking, circle
+      // time) that a parent cannot answer — so the educator form is STRICTLY LARGER. That
+      // gap is the nursery's observational advantage, made concrete.
       const eduA = await create(edu.actor);
       const parA = await create(parentUser);
 
@@ -127,7 +130,13 @@ describe('Educator-administered screening', () => {
       const count = (f: any) => f.domains.reduce((n: number, d: any) => n + d.questions.length, 0);
 
       expect(eduForm.informantType).toBe('EDUCATOR');
-      expect(count(eduForm)).toBe(count(parForm));
+      expect(count(eduForm)).toBeGreaterThan(count(parForm));
+
+      // And every item the PARENT is asked in this band, the educator is also asked —
+      // the educator superset contains the shared items, it does not swap them out.
+      const eduQs = new Set(eduForm.domains.flatMap((d: any) => d.questions.map((q: any) => q.question)));
+      const parQs = parForm.domains.flatMap((d: any) => d.questions.map((q: any) => q.question));
+      expect(parQs.every((q: string) => eduQs.has(q))).toBe(true);
     });
 
     it('in a band where a home-only item is in tier 1, the educator is not asked it', async () => {
@@ -155,13 +164,13 @@ describe('Educator-administered screening', () => {
     });
   });
 
-  describe('unreviewed clinical content never reaches a child', () => {
-    it('items pending clinical review are excluded from BOTH forms', async () => {
-      // 28 educator-only items (circle time, turn-taking among peers, group instructions,
-      // drop-off separation) are authored and sitting in the bank, but written by an
-      // engineer against public guidance — enough to draft, not enough to screen with.
-      // They carry clinicalReview: PENDING and must not be asked or scored until a
-      // clinician signs off. This is the test that stops them leaking out early.
+  describe('clinical review gates what reaches a child', () => {
+    it('an item still pending clinical review is never asked or scored', async () => {
+      // The PERMANENT guard, independent of what has been approved so far. Any item
+      // carrying clinicalReview: PENDING is a draft a clinician has not signed off, and
+      // it must not appear in either form. (The 28 educator group-context items were
+      // approved on 2026-07-15, so this is currently vacuously true — but the guard
+      // stays, because the NEXT batch of drafts will lean on it.)
       const eduA = await create(edu.actor);
       const parA = await create(parentUser);
 
@@ -171,10 +180,31 @@ describe('Educator-administered screening', () => {
       const allItems = [...eduForm.domains, ...parForm.domains].flatMap((d: any) => d.questions);
       expect(allItems.length).toBeGreaterThan(0);
       expect(allItems.some((q: any) => q.clinicalReview === 'PENDING')).toBe(false);
+    });
 
-      // Specifically: none of the group-context items are being asked yet.
-      const questions = allItems.map((q: any) => q.question);
-      expect(questions.some((q: string) => /whole group|circle|turn/i.test(q) && /this child/i.test(q))).toBe(false);
+    it('the APPROVED educator group-context items now appear in the educator form', async () => {
+      // The inverse of the pre-activation test: these items (group instructions, circle
+      // time, waiting a turn among peers) were held out until clinical sign-off, and are
+      // now live. Their presence is the proof the activation actually took.
+      const eduA = await create(edu.actor);
+      const eduForm: any = await svc.getTier1Questionnaire(eduA.id, edu.user.id);
+      const questions = eduForm.domains.flatMap((d: any) => d.questions).map((q: any) => q.question);
+
+      expect(
+        questions.some((q: string) => /whole group|circle|turn/i.test(q) && /this child/i.test(q)),
+      ).toBe(true);
+    });
+
+    it('...but the parent form is not given those educator-only items', async () => {
+      const parA = await create(parentUser);
+      const parForm: any = await svc.getTier1Questionnaire(parA.id, parentUser.id);
+      const questions = parForm.domains.flatMap((d: any) => d.questions).map((q: any) => q.question);
+
+      // "does THIS child follow a whole-group instruction" is educator-voiced and
+      // observableBy EDUCATOR only — a parent never sees it.
+      expect(
+        questions.some((q: string) => /whole group/i.test(q) && /this child/i.test(q)),
+      ).toBe(false);
     });
 
     it('a parent is never shown an EDUCATOR-only item', async () => {
