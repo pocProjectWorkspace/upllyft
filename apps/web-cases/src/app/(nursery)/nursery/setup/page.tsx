@@ -4,145 +4,37 @@ import { useState } from 'react';
 import { Button, Card, Input, Label, Badge, useToast } from '@upllyft/ui';
 import { Loader2, Plus, Trash2, School } from 'lucide-react';
 import { useNursery } from '@/components/nursery/nursery-context';
-import { useCreateFacility, useCreateRoom, useDeleteRoom } from '@/hooks/use-nursery';
-import type { Emirate, LicenseAuthority } from '@/lib/api/nursery';
+import { useCreateRoom, useDeleteRoom } from '@/hooks/use-nursery';
 
-/**
- * Nursery licence authorities ONLY.
- *
- * DHA/DOH/MOHAP are health regulators and are deliberately absent — the API rejects
- * them for a nursery ("DHA does not license a nursery"), because `complianceStatus`
- * gates clinical capability and a nursery holding a health licence is how you would
- * quietly talk one into behaving like a clinic. Not offering them here just spares
- * someone the error; the refusal is server-side.
- */
-const AUTHORITIES: { value: LicenseAuthority; label: string }[] = [
-  { value: 'KHDA', label: 'KHDA — Dubai' },
-  { value: 'ADEK', label: 'ADEK — Abu Dhabi' },
-  { value: 'MOE', label: 'MOE — Ministry of Education' },
-  { value: 'OTHER', label: 'Other' },
-];
 
-const EMIRATES: Emirate[] = [
-  'ABU_DHABI',
-  'DUBAI',
-  'SHARJAH',
-  'AJMAN',
-  'UMM_AL_QUWAIN',
-  'RAS_AL_KHAIMAH',
-  'FUJAIRAH',
-];
 
-const pretty = (e: string) =>
-  e
-    .split('_')
-    .map(w => w.charAt(0) + w.slice(1).toLowerCase())
-    .join(' ');
 
 export default function NurserySetupPage() {
   const { facility, facilityId, facilities } = useNursery();
-  const create = useCreateFacility();
-  const { toast } = useToast();
-
-  const [form, setForm] = useState({
-    name: '',
-    licenseNo: '',
-    licenseAuthority: 'KHDA' as LicenseAuthority,
-    emirate: 'DUBAI' as Emirate,
-  });
-
-  const submitNew = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await create.mutateAsync({
-        name: form.name.trim(),
-        type: 'NURSERY',
-        licenseNo: form.licenseNo.trim() || undefined,
-        licenseAuthority: form.licenseAuthority,
-        emirate: form.emirate,
-      });
-      toast({ title: `${form.name} created` });
-    } catch (err: any) {
-      toast({
-        title: err?.response?.data?.message ?? 'Could not create the nursery',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // No facility yet => onboarding.
+  // No facility yet.
+  //
+  // Nurseries are NOT self-created here. A nursery is an organisation that a platform
+  // admin onboards (org + first site + named admin, in one step), the same way clinics
+  // are brought on. So the empty state points there rather than offering a create form —
+  // self-serve creation was the wrong model.
   if (facilities.length === 0 || !facility) {
     return (
       <div className="max-w-lg mx-auto">
-        <div className="text-center mb-8">
+        <div className="text-center">
           <div className="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
             <School className="w-6 h-6 text-teal-600" />
           </div>
-          <h1 className="text-2xl font-semibold text-gray-900">Set up your nursery</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            You’ll be its owner. You can add rooms and staff next.
+          <h1 className="text-2xl font-semibold text-gray-900">No nursery yet</h1>
+          <p className="text-sm text-gray-600 mt-2">
+            Nurseries are set up by an Upllyft administrator. Once yours is onboarded and
+            you’ve been added as its admin, it’ll appear here — and under{' '}
+            <span className="font-medium">My Organisation</span> in your profile menu.
+          </p>
+          <p className="text-sm text-gray-500 mt-4">
+            If you’re expecting access, ask whoever arranged your Upllyft account to onboard
+            your setting and add you as the admin.
           </p>
         </div>
-
-        <Card className="p-6">
-          <form onSubmit={submitNew} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Nursery name</Label>
-              <Input
-                id="name"
-                required
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="auth">Licensed by</Label>
-                <select
-                  id="auth"
-                  value={form.licenseAuthority}
-                  onChange={e =>
-                    setForm(f => ({ ...f, licenseAuthority: e.target.value as LicenseAuthority }))
-                  }
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                >
-                  {AUTHORITIES.map(a => (
-                    <option key={a.value} value={a.value}>
-                      {a.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="lic">Licence number</Label>
-                <Input
-                  id="lic"
-                  value={form.licenseNo}
-                  onChange={e => setForm(f => ({ ...f, licenseNo: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="em">Emirate</Label>
-              <select
-                id="em"
-                value={form.emirate}
-                onChange={e => setForm(f => ({ ...f, emirate: e.target.value as Emirate }))}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                {EMIRATES.map(e => (
-                  <option key={e} value={e}>
-                    {pretty(e)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <Button type="submit" disabled={create.isPending} className="w-full">
-              {create.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-              Create nursery
-            </Button>
-          </form>
-        </Card>
       </div>
     );
   }

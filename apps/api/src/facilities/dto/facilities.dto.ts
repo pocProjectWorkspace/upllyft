@@ -55,6 +55,38 @@ export class CreateFacilityDto {
   email?: string;
 }
 
+/**
+ * Platform-admin onboarding: create the organisation, its first site, and name the admin,
+ * in one action. `type` is NURSERY | SCHOOL only (a clinic is onboarded through the legacy
+ * clinic path — see FacilitiesService.create).
+ */
+export class OnboardNurseryDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  name!: string;
+
+  @IsEnum(FacilityType)
+  type!: FacilityType;
+
+  /** The person who will run this nursery. Must already have an Upllyft account. */
+  @IsEmail()
+  adminEmail!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  licenseNo?: string;
+
+  @IsOptional()
+  @IsEnum(LicenseAuthority)
+  licenseAuthority?: LicenseAuthority;
+
+  @IsOptional()
+  @IsEnum(Emirate)
+  emirate?: Emirate;
+}
+
 export class UpdateFacilityDto {
   @IsOptional()
   @IsString()
