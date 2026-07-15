@@ -32,7 +32,8 @@
     "db:seed:demo": "tsx prisma/seeds/seed-demo.ts",
     "db:seed:org": "tsx prisma/seeds/seed-org.ts",
     "db:seed:org:content": "tsx prisma/seeds/seed-org-content.ts",
-    "db:seed:all": "pnpm db:seed && pnpm db:seed:events && pnpm db:seed:qa && pnpm db:seed:crisis"
+    "db:seed:all": "pnpm db:seed && pnpm db:seed:events && pnpm db:seed:qa && pnpm db:seed:crisis",
+    "db:seed:nursery-demo": "tsx prisma/seeds/seed-nursery-demo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.72.1",
