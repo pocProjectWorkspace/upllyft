@@ -430,7 +430,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         },
         {
           "id": "T1_SL_E02",
@@ -445,7 +445,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         }
       ],
       "tier2": [
@@ -537,7 +537,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         }
       ]
     },
@@ -636,7 +636,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         },
         {
           "id": "T1_SE_E02",
@@ -652,7 +652,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         }
       ],
       "tier2": [
@@ -743,7 +743,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         },
         {
           "id": "T2_SE_E04",
@@ -758,7 +758,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         }
       ]
     },
@@ -856,7 +856,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         }
       ],
       "tier2": [
@@ -947,7 +947,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         }
       ]
     },
@@ -1121,7 +1121,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         }
       ]
     },
@@ -1220,7 +1220,7 @@
           "observableBy": [
             "EDUCATOR"
           ],
-          "clinicalReview": "PENDING"
+          "clinicalReview": "APPROVED"
         }
       ],
       "tier2": [
