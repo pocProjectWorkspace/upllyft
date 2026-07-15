@@ -185,10 +185,12 @@ export default function InsightDetailPage() {
             {/* ── Disclaimer ── */}
             <div className="text-center py-4 border-t border-gray-100">
               <p className="text-xs text-gray-400 max-w-2xl mx-auto leading-relaxed">
-                This report was generated using Upllyft Developmental Screening, a multi-domain tool adapted from the WHO/UNICEF Nurturing Care Framework, ASQ-3, WHO ICF, and CDC developmental milestones.
-                It is NOT a medical or psychological diagnosis. Diagnostic classification remains the
-                responsibility of qualified clinicians. Clinical connections are hypothesis-generating for
-                referral and intervention planning.
+                This report was generated using Upllyft Developmental Screening, a multi-domain screening
+                checklist built on public developmental milestone guidance from the CDC, the WHO, ASHA and
+                the NHS. It is a screening checklist, not a standardised or normed instrument, and it is NOT
+                a medical or psychological diagnosis. Diagnostic classification remains the responsibility of
+                qualified clinicians. Clinical connections are hypothesis-generating for referral and
+                intervention planning.
               </p>
             </div>
           </div>
