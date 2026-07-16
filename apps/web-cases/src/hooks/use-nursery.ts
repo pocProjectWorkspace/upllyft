@@ -190,3 +190,39 @@ export function useDeleteObservation(facilityId: string, childId: string) {
       qc.invalidateQueries({ queryKey: [...keys.all, 'observations', facilityId, childId] }),
   });
 }
+
+// ── Concerns ──
+
+export function useConcerns(facilityId: string | undefined, childId: string) {
+  return useQuery({
+    queryKey: [...keys.all, 'concerns', facilityId, childId] as const,
+    queryFn: () => nurseryApi.listConcerns(facilityId!, childId),
+    enabled: !!facilityId && !!childId,
+    retry: false, // a 403 (not an inclusion lead) should not retry — the panel hides
+  });
+}
+
+export function useRaiseConcern(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (note?: string) => nurseryApi.raiseConcern(facilityId, childId, note),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...keys.all, 'concerns', facilityId, childId] }),
+  });
+}
+
+export function useUpdateConcernSummary(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ concernId, parentSummary }: { concernId: string; parentSummary: string }) =>
+      nurseryApi.updateConcernSummary(facilityId, childId, concernId, parentSummary),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...keys.all, 'concerns', facilityId, childId] }),
+  });
+}
+
+export function useShareConcern(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (concernId: string) => nurseryApi.shareConcern(facilityId, childId, concernId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...keys.all, 'concerns', facilityId, childId] }),
+  });
+}

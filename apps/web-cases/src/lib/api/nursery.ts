@@ -321,3 +321,34 @@ export const deleteObservation = (facilityId: string, childId: string, observati
   apiClient
     .delete(`/facilities/${facilityId}/children/${childId}/observations/${observationId}`)
     .then(r => r.data);
+
+// ── Concerns (F6 coached conversation) ──
+
+export type ConcernStatus = 'DRAFT' | 'SHARED' | 'ACKNOWLEDGED' | 'CLOSED';
+
+export interface Concern {
+  id: string;
+  status: ConcernStatus;
+  domains: string[];
+  staffCoaching: string | null;
+  coachingModel: string | null;
+  parentSummary: string;
+  evidence: { concernObservations?: number; flaggedDomains?: string[]; bothSettingsAgree?: string[] } | null;
+  sharedAt: string | null;
+  acknowledgedAt: string | null;
+  parentResponse: string | null;
+  createdAt: string;
+  raisedBy: { id: string; name: string | null } | null;
+}
+
+export const listConcerns = (facilityId: string, childId: string): Promise<Concern[]> =>
+  apiClient.get(`/facilities/${facilityId}/children/${childId}/concerns`).then(r => r.data);
+
+export const raiseConcern = (facilityId: string, childId: string, note?: string): Promise<Concern> =>
+  apiClient.post(`/facilities/${facilityId}/children/${childId}/concerns`, { note }).then(r => r.data);
+
+export const updateConcernSummary = (facilityId: string, childId: string, concernId: string, parentSummary: string): Promise<Concern> =>
+  apiClient.patch(`/facilities/${facilityId}/children/${childId}/concerns/${concernId}`, { parentSummary }).then(r => r.data);
+
+export const shareConcern = (facilityId: string, childId: string, concernId: string): Promise<Concern> =>
+  apiClient.post(`/facilities/${facilityId}/children/${childId}/concerns/${concernId}/share`, {}).then(r => r.data);

@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '@/lib/api/permissions';
 import type { FacilityPermission } from '@/lib/api/permissions';
-import { Loader2, Lock, ShieldCheck, School, Stethoscope, Eye, ClipboardList, Sparkles, Flag, Trophy, StickyNote } from 'lucide-react';
+import { Loader2, Lock, ShieldCheck, School, Stethoscope, Eye, ClipboardList, Sparkles, Flag, Trophy, StickyNote, MessageCircle } from 'lucide-react';
 
 /**
  * The guardian's control panel: who has asked for access to my child, and what have I
@@ -89,6 +89,7 @@ export default function PermissionsPage({
           ))}
         </div>
 
+        <ConcernFeed childId={childId} childName="your child" />
         <ObservationFeed childId={childId} />
       </div>
     </div>
@@ -251,6 +252,119 @@ function ObservationFeed({ childId }: { childId: string }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * A concern a nursery has shared about this child (F6). This is a delicate thing to receive
+ * as a parent, so it's framed as an invitation, not an alarm — a note from the setting, the
+ * chance to reply, and no clinical language (the nursery is barred from diagnosing).
+ */
+function ConcernFeed({ childId, childName }: { childId: string; childName: string }) {
+  const qc = useQueryClient();
+  const { data: concerns } = useQuery({
+    queryKey: ['child-concerns', childId],
+    queryFn: () => api.getChildConcerns(childId),
+  });
+
+  if (!concerns || concerns.length === 0) return null;
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-semibold text-gray-900">A note from your nursery</h2>
+      <div className="mt-4 space-y-3">
+        {concerns.map(c => (
+          <ConcernNote key={c.id} childId={childId} childName={childName} concern={c} onChange={() => qc.invalidateQueries({ queryKey: ['child-concerns', childId] })} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ConcernNote({
+  childId,
+  childName,
+  concern,
+  onChange,
+}: {
+  childId: string;
+  childName: string;
+  concern: api.GuardianConcern;
+  onChange: () => void;
+}) {
+  const [reply, setReply] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const ack = useMutation({
+    mutationFn: (response?: string) => api.acknowledgeConcern(childId, concern.id, response),
+    onSuccess: onChange,
+  });
+
+  const acknowledged = concern.status === 'ACKNOWLEDGED' || concern.status === 'CLOSED';
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-6">
+      <div className="flex items-center gap-2 mb-3">
+        <MessageCircle className="w-4 h-4 text-teal-600" />
+        <span className="text-sm font-medium text-gray-900">{concern.facilityName}</span>
+        {concern.sharedAt && (
+          <span className="text-xs text-gray-400 ml-auto">
+            {new Date(concern.sharedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+          </span>
+        )}
+      </div>
+
+      <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{concern.summary}</p>
+
+      {concern.yourResponse ? (
+        <div className="mt-4 p-3 rounded-lg bg-gray-50 border border-gray-100">
+          <p className="text-xs font-medium text-gray-500 mb-1">Your reply</p>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{concern.yourResponse}</p>
+        </div>
+      ) : (
+        <div className="mt-4">
+          {open ? (
+            <div className="space-y-2">
+              <textarea
+                value={reply}
+                onChange={e => setReply(e.target.value)}
+                rows={3}
+                placeholder="Anything you'd like to say back (optional)…"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => ack.mutate(reply.trim() || undefined)}
+                  disabled={ack.isPending}
+                  className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+                >
+                  Send
+                </button>
+                <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setOpen(true)}
+                className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700"
+              >
+                Reply
+              </button>
+              <button
+                onClick={() => ack.mutate(undefined)}
+                disabled={ack.isPending}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {acknowledged ? 'Seen' : 'Mark as seen'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
