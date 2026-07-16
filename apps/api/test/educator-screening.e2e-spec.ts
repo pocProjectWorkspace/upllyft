@@ -134,9 +134,19 @@ describe('Educator-administered screening', () => {
 
       // And every item the PARENT is asked in this band, the educator is also asked —
       // the educator superset contains the shared items, it does not swap them out.
-      const eduQs = new Set(eduForm.domains.flatMap((d: any) => d.questions.map((q: any) => q.question)));
-      const parQs = parForm.domains.flatMap((d: any) => d.questions.map((q: any) => q.question));
-      expect(parQs.every((q: string) => eduQs.has(q))).toBe(true);
+      // Compared by item id, NOT text: the shared items are re-voiced for the educator
+      // (below), and concordance itself pairs the two informants by id, never by wording.
+      const eduIds = new Set(eduForm.domains.flatMap((d: any) => d.questions.map((q: any) => q.id)));
+      const parIds = parForm.domains.flatMap((d: any) => d.questions.map((q: any) => q.id));
+      expect(parIds.every((id: string) => eduIds.has(id))).toBe(true);
+
+      // The shared item bank is authored in the parent's voice. The educator reads it about
+      // the child in front of them — "this child", never "your child" — while the parent
+      // keeps the original wording. Same id, informant-appropriate voice.
+      const eduTexts = eduForm.domains.flatMap((d: any) => d.questions.map((q: any) => q.question));
+      const parTexts = parForm.domains.flatMap((d: any) => d.questions.map((q: any) => q.question));
+      expect(eduTexts.some((q: string) => /your child/i.test(q))).toBe(false);
+      expect(parTexts.some((q: string) => /your child/i.test(q))).toBe(true);
     });
 
     it('in a band where a home-only item is in tier 1, the educator is not asked it', async () => {
