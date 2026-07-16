@@ -21,6 +21,20 @@ import { AddAnnotationDto } from './dto/add-annotation.dto';
 import * as fs from 'fs';
 import * as path from 'path';
 
+/**
+ * Rephrase a parent-voiced screening item ("Does your child…") for an educator, who is
+ * answering about the child in their setting, not their own child. Only the "your child"
+ * subject is rewritten — a trailing "you" ("…ask you to repeat", "…when you point")
+ * refers to whoever is administering the item and reads correctly for an educator as-is,
+ * so it is deliberately left alone. Case and the possessive form are preserved.
+ */
+function toObserverVoice(question: string): string {
+    if (!question) return question;
+    return question
+        .replace(/\bYour child\b/g, 'This child')
+        .replace(/\byour child\b/g, 'this child');
+}
+
 @Injectable()
 export class AssessmentsService {
     private readonly logger = new Logger(AssessmentsService.name);
@@ -267,9 +281,15 @@ export class AssessmentsService {
             );
         }
 
-        return reviewed.filter(
-            (q) => !q.observableBy || q.observableBy.includes('EDUCATOR'),
-        );
+        // The shared item bank is authored in the parent's voice ("Does your child…").
+        // An educator answering the same item should read it about the child in front of
+        // them, not "your child" — so we rephrase to observer voice on the way out. This is
+        // presentation only: scoring and concordance key on the item id, never the text, so
+        // the parent and educator answer the SAME item and stay comparable. The 28
+        // purpose-built educator items are already in this voice and pass through untouched.
+        return reviewed
+            .filter((q) => !q.observableBy || q.observableBy.includes('EDUCATOR'))
+            .map((q) => ({ ...q, question: toObserverVoice(q.question) }));
     }
 
     /**
