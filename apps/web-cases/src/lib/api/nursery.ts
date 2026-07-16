@@ -470,3 +470,95 @@ export const addReview = (
 
 export const shareSupportPlan = (facilityId: string, childId: string, planId: string): Promise<SupportPlan> =>
   apiClient.post(`${plansBase(facilityId, childId)}/${planId}/share`, {}).then(r => r.data);
+
+// ── Developmental reviews (F9) ──
+
+export type DevReviewStatus = 'DRAFT' | 'SHARED' | 'ACKNOWLEDGED';
+
+export interface DevReview {
+  id: string;
+  status: DevReviewStatus;
+  ageMonths: number;
+  flaggedDomains: string[];
+  evidence: { flaggedDomains?: string[]; bothSettingsAgree?: string[]; concernObservations?: number } | null;
+  summary: string;
+  recommendation: string | null;
+  sharedAt: string | null;
+  acknowledgedAt: string | null;
+  parentResponse: string | null;
+  createdAt: string;
+  createdBy: { id: string; name: string | null } | null;
+}
+
+export interface DueReview {
+  childId: string;
+  firstName: string;
+  ageMonths: number;
+}
+
+const reviewsBase = (f: string, c: string) => `/facilities/${f}/children/${c}/developmental-reviews`;
+
+export const listDevReviews = (facilityId: string, childId: string): Promise<DevReview[]> =>
+  apiClient.get(reviewsBase(facilityId, childId)).then(r => r.data);
+
+export const createDevReview = (facilityId: string, childId: string): Promise<DevReview> =>
+  apiClient.post(reviewsBase(facilityId, childId), {}).then(r => r.data);
+
+export const updateDevReview = (facilityId: string, childId: string, reviewId: string, data: { summary?: string; recommendation?: string }): Promise<DevReview> =>
+  apiClient.patch(`/facilities/${facilityId}/developmental-reviews/${reviewId}`, data).then(r => r.data);
+
+export const shareDevReview = (facilityId: string, childId: string, reviewId: string): Promise<DevReview> =>
+  apiClient.post(`/facilities/${facilityId}/developmental-reviews/${reviewId}/share`, {}).then(r => r.data);
+
+export const listDueReviews = (facilityId: string): Promise<DueReview[]> =>
+  apiClient.get(`/facilities/${facilityId}/developmental-reviews/due`).then(r => r.data);
+
+// ── Handover records (F11) ──
+
+export type HandoverRecipient = 'SCHOOL' | 'CLINICIAN' | 'OTHER';
+export type HandoverStatus = 'DRAFT' | 'SHARED';
+
+export interface HandoverRecord {
+  id: string;
+  status: HandoverStatus;
+  recipientType: HandoverRecipient;
+  recipientName: string | null;
+  snapshot: any;
+  summary: string;
+  guardianAuthorised: boolean;
+  guardianConsentedAt: string | null;
+  sharedAt: string | null;
+  createdAt: string;
+  createdBy: { id: string; name: string | null } | null;
+}
+
+const handoverBase = (f: string, c: string) => `/facilities/${f}/children/${c}/handovers`;
+
+export const listHandovers = (facilityId: string, childId: string): Promise<HandoverRecord[]> =>
+  apiClient.get(handoverBase(facilityId, childId)).then(r => r.data);
+
+export const generateHandover = (facilityId: string, childId: string, data: { recipientType: HandoverRecipient; recipientName?: string }): Promise<HandoverRecord> =>
+  apiClient.post(handoverBase(facilityId, childId), data).then(r => r.data);
+
+export const updateHandover = (facilityId: string, childId: string, handoverId: string, data: { summary?: string; recipientType?: HandoverRecipient; recipientName?: string }): Promise<HandoverRecord> =>
+  apiClient.patch(`${handoverBase(facilityId, childId)}/${handoverId}`, data).then(r => r.data);
+
+export const shareHandover = (facilityId: string, childId: string, handoverId: string): Promise<HandoverRecord> =>
+  apiClient.post(`${handoverBase(facilityId, childId)}/${handoverId}/share`, {}).then(r => r.data);
+
+// ── Insights (F10) ──
+
+export interface GroupStat { group: string; total: number; identified: number; rate: number }
+
+export interface FacilityInsights {
+  headcount: { active: number; pendingConsent: number; screened: number; identified: number };
+  domainFlags: { domain: string; count: number }[];
+  concerns: Record<string, number>;
+  supportPlans: Record<string, number>;
+  outcomes: { total: number; achieved: number; inProgress: number };
+  reviews: { done: number };
+  equity: { note: string; byGender: GroupStat[]; byAgeBand: GroupStat[]; byLanguage: GroupStat[] };
+}
+
+export const getInsights = (facilityId: string): Promise<FacilityInsights> =>
+  apiClient.get(`/facilities/${facilityId}/insights`).then(r => r.data);

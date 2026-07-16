@@ -112,3 +112,45 @@ export const getChildSupportPlans = (childId: string): Promise<GuardianSupportPl
 
 export const acknowledgeSupportPlan = (childId: string, planId: string, response?: string) =>
   apiClient.post(`/children/${childId}/support-plans/${planId}/acknowledge`, { response }).then(r => r.data);
+
+// ── Developmental reviews a nursery has shared (F9) ──
+
+export interface GuardianDevReview {
+  id: string;
+  status: 'SHARED' | 'ACKNOWLEDGED';
+  ageMonths: number;
+  flaggedDomains: string[];
+  summary: string;
+  recommendation: string | null;
+  sharedAt: string | null;
+  acknowledgedAt: string | null;
+  yourResponse: string | null;
+  facilityName: string;
+}
+
+export const getChildDevReviews = (childId: string): Promise<GuardianDevReview[]> =>
+  apiClient.get(`/children/${childId}/developmental-reviews`).then(r => r.data);
+
+export const acknowledgeDevReview = (childId: string, reviewId: string, response?: string) =>
+  apiClient.post(`/children/${childId}/developmental-reviews/${reviewId}/acknowledge`, { response }).then(r => r.data);
+
+// ── Handover records awaiting the family's authorisation (F11) ──
+
+export interface GuardianHandover {
+  id: string;
+  status: 'DRAFT' | 'SHARED';
+  recipientType: 'SCHOOL' | 'CLINICIAN' | 'OTHER';
+  recipientName: string | null;
+  summary: string;
+  authorised: boolean;
+  guardianConsentedAt: string | null;
+  sharedAt: string | null;
+  createdAt: string;
+  facilityName: string;
+}
+
+export const getChildHandovers = (childId: string): Promise<GuardianHandover[]> =>
+  apiClient.get(`/children/${childId}/handovers`).then(r => r.data);
+
+export const authorizeHandover = (childId: string, handoverId: string) =>
+  apiClient.post(`/children/${childId}/handovers/${handoverId}/authorize`, {}).then(r => r.data);

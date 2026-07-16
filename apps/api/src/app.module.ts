@@ -101,6 +101,9 @@ import { ChildClaimsModule } from './child-claims/child-claims.module';
 import { ObservationsModule } from './observations/observations.module';
 import { ConcernsModule } from './concerns/concerns.module';
 import { SupportPlansModule } from './support-plans/support-plans.module';
+import { DevelopmentalReviewsModule } from './developmental-reviews/developmental-reviews.module';
+import { HandoverModule } from './handover/handover.module';
+import { InsightsModule } from './insights/insights.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { AuditModule } from './audit/audit.module';
@@ -221,6 +224,9 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     ObservationsModule,
     ConcernsModule,
     SupportPlansModule,
+    DevelopmentalReviewsModule,
+    HandoverModule,
+    InsightsModule,
 
     // Invoices
     InvoiceModule,
