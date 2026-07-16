@@ -183,6 +183,22 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
             Update {selectedChild.firstName}&apos;s details
           </a>
         )}
+        {/*
+          The door to consent — and to everything a nursery shares back (reviews, concerns,
+          support plans, handovers). The permissions page was previously reachable only by
+          typing its URL; this is how a parent actually finds it.
+        */}
+        {selectedChild && (
+          <a
+            href={`/children/${selectedChild.id}/permissions`}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-white border border-gray-200 text-gray-700 hover:border-teal-300 hover:text-teal-700 transition-colors shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Who can see {selectedChild.firstName}
+          </a>
+        )}
       </div>
 
       {/* ── Mira Hero Card ──────────────────────────────────────── */}
