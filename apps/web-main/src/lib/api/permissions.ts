@@ -66,3 +66,49 @@ export const getChildConcerns = (childId: string): Promise<GuardianConcern[]> =>
 
 export const acknowledgeConcern = (childId: string, concernId: string, response?: string) =>
   apiClient.post(`/children/${childId}/concerns/${concernId}/acknowledge`, { response }).then(r => r.data);
+
+// ── Support plans a nursery has shared (F7 + F8) ──
+
+export interface GuardianHomeStrategy {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+}
+
+export interface GuardianOutcome {
+  id: string;
+  domain: string;
+  outcomeText: string;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'ACHIEVED' | 'DISCONTINUED';
+  progress: number;
+  homeStrategies: GuardianHomeStrategy[];
+}
+
+export interface GuardianSupportReview {
+  id: string;
+  progressNote: string | null;
+  decision: string;
+  reviewedAt: string;
+}
+
+export interface GuardianSupportPlan {
+  id: string;
+  status: 'ACTIVE' | 'UNDER_REVIEW' | 'CLOSED';
+  title: string;
+  domains: string[];
+  summary: string | null;
+  reviewDate: string | null;
+  sharedAt: string | null;
+  acknowledgedAt: string | null;
+  yourResponse: string | null;
+  facilityName: string | null;
+  outcomes: GuardianOutcome[];
+  reviews: GuardianSupportReview[];
+}
+
+export const getChildSupportPlans = (childId: string): Promise<GuardianSupportPlan[]> =>
+  apiClient.get(`/children/${childId}/support-plans`).then(r => r.data);
+
+export const acknowledgeSupportPlan = (childId: string, planId: string, response?: string) =>
+  apiClient.post(`/children/${childId}/support-plans/${planId}/acknowledge`, { response }).then(r => r.data);

@@ -164,6 +164,9 @@ model User {
   assessmentsAnswered  Assessment[]              @relation("AssessmentRespondent")
   observationsAuthored Observation[]             @relation("ObservationAuthor")
   concernsRaised       Concern[]                 @relation("ConcernRaiser")
+  createdSupportPlans  SupportPlan[]             @relation("CreatedSupportPlans")
+  supportReviews       SupportReview[]           @relation("SupportPlanReviewer")
+  createdInterventions SupportIntervention[]     @relation("CreatedInterventions")
   createdChildClaims   ChildClaim[]              @relation("CreatedChildClaims")
 
   // UAE clinic Phase 3 relations
@@ -1400,6 +1403,7 @@ model Child {
   claims                                ChildClaim[]              @relation("ChildClaims")
   observations                          Observation[]             @relation("ChildObservations")
   concerns                              Concern[]                 @relation("ChildConcerns")
+  supportPlans                          SupportPlan[]             @relation("ChildSupportPlans")
   profile                               UserProfile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
@@ -4719,6 +4723,7 @@ model Facility {
   assessments      Assessment[]       @relation("FacilityAssessments")
   observations     Observation[]      @relation("FacilityObservations")
   concerns         Concern[]          @relation("FacilityConcerns")
+  supportPlans     SupportPlan[]      @relation("FacilitySupportPlans")
   consentTemplates ConsentTemplate[]  @relation("FacilityConsentTemplates")
 
   createdAt DateTime @default(now())
@@ -4862,6 +4867,7 @@ model ChildAffiliation {
   claims       ChildClaim[]
   observations Observation[]
   concerns     Concern[]
+  supportPlans SupportPlan[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5065,10 +5071,191 @@ model Concern {
   acknowledgedAt DateTime?
   parentResponse String?
 
+  /// A concern may lead to an in-setting support plan (F6 → F7).
+  supportPlans SupportPlan[] @relation("ConcernSupportPlans")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([childId, status])
   @@index([facilityId, status])
   @@map("concerns")
+}
+
+// ─── In-setting support & the graduated approach (F7) ────────────────────────
+
+enum SupportPlanStatus {
+  DRAFT /// the lead is drafting it — not yet shared
+  ACTIVE /// shared with the parent; support is underway
+  UNDER_REVIEW /// a review cycle is in progress
+  CLOSED /// concluded — outcomes met, or handed onward to a referral
+}
+
+enum SupportReviewDecision {
+  CONTINUE /// support is working — keep going
+  ADJUST /// change the outcomes or the interventions
+  ESCALATE /// in-setting support is not enough — refer on
+  CLOSE /// outcomes met — close the plan
+}
+
+/// A nursery's in-setting support plan for an enrolled child — the "Do → Review" of the
+/// graduated approach (Assess → Plan → Do → Review), the step AFTER a concern (F6).
+///
+/// NOT an IEP. `IEP`/`MilestonePlan` hang off a `Case`, and a nursery has no case. This is
+/// its own model anchored to the affiliation (the consent anchor), following the F5/F6
+/// pattern: created only while the affiliation is ACTIVE + consented, read by staff only
+/// while that consent stands, and always visible to the guardian once shared. It reuses the
+/// `GoalBankItem` vocabulary and the IEP goal/versioning SHAPES — not the case-bound tables.
+model SupportPlan {
+  id      String @id @default(cuid())
+  childId String
+  child   Child  @relation("ChildSupportPlans", fields: [childId], references: [id], onDelete: Cascade)
+
+  affiliationId String
+  affiliation   ChildAffiliation @relation(fields: [affiliationId], references: [id], onDelete: Cascade)
+  facilityId    String
+  facility      Facility         @relation("FacilitySupportPlans", fields: [facilityId], references: [id], onDelete: Cascade)
+
+  /// The concern this plan responds to, where it grew from one (F6 → F7). Optional: a lead
+  /// may also open a plan directly from accumulated observations / screening flags.
+  concernId String?
+  concern   Concern? @relation("ConcernSupportPlans", fields: [concernId], references: [id], onDelete: SetNull)
+
+  /// The lead who owns it. SetNull so their leaving does not erase the record.
+  createdById String?
+  createdBy   User?   @relation("CreatedSupportPlans", fields: [createdById], references: [id], onDelete: SetNull)
+
+  title   String
+  status  SupportPlanStatus @default(DRAFT)
+  /// The developmental domains the plan addresses (the same 8-domain vocabulary).
+  domains String[]          @default([])
+
+  /// A short, parent-facing summary of what the nursery is doing and why — shared with the
+  /// guardian. Staff-private working notes live in `staffNotes`, never on the guardian path.
+  summary    String?
+  staffNotes String?
+
+  /// When the next review is due. The graduated approach is a CYCLE, not a one-off.
+  reviewDate DateTime?
+
+  sharedAt       DateTime?
+  acknowledgedAt DateTime?
+  parentResponse String?
+
+  version           Int          @default(1)
+  previousVersionId String?      @unique
+  previousVersion   SupportPlan? @relation("SupportPlanVersioning", fields: [previousVersionId], references: [id])
+  nextVersion       SupportPlan? @relation("SupportPlanVersioning")
+
+  outcomes SupportOutcome[]
+  reviews  SupportReview[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([childId, status])
+  @@index([facilityId, status])
+  @@index([affiliationId])
+  @@index([concernId])
+  @@map("support_plans")
+}
+
+/// One targeted outcome within a support plan. Mirrors the `IEPGoal` measurability shape,
+/// and reuses `GoalStatus`. Outcomes hold LIVE state; `SupportReview` snapshots their
+/// history at each review point.
+model SupportOutcome {
+  id     String      @id @default(cuid())
+  planId String
+  plan   SupportPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  domain      String
+  outcomeText String
+  /// How we'll know it's working — a short, observable success measure.
+  successCriteria String?
+
+  baselineValue      Float?
+  targetDate         DateTime?
+  reviewIntervalDays Int?
+  currentProgress    Float      @default(0)
+  status             GoalStatus @default(NOT_STARTED)
+  order              Int        @default(0)
+
+  interventions SupportIntervention[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([planId])
+  @@index([status])
+  @@map("support_outcomes")
+}
+
+/// A review point in the plan's cycle — the "Review" of Assess-Plan-Do-Review. Records the
+/// decision (continue / adjust / escalate to referral / close) and a snapshot of where each
+/// outcome stood, so the history survives even as the live outcomes move on.
+model SupportReview {
+  id     String      @id @default(cuid())
+  planId String
+  plan   SupportPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  reviewedById String?
+  reviewedBy   User?   @relation("SupportPlanReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  /// Per-outcome snapshot at this review: [{ outcomeId, progress, status }].
+  outcomeProgress  Json?
+  progressNote     String?
+  decision         SupportReviewDecision
+  /// Whether this review was shared with the parent (a review can update them, or be internal).
+  sharedWithParent Boolean               @default(false)
+
+  reviewedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([planId])
+  @@map("support_reviews")
+}
+
+// ─── Targeted interventions & home strategies (F8) ───────────────────────────
+
+enum InterventionKind {
+  IN_SETTING /// something staff do in the nursery
+  HOME /// a strategy or activity shared with the parent for home
+}
+
+enum InterventionStatus {
+  PLANNED
+  ACTIVE
+  DONE
+  DISCONTINUED
+}
+
+/// A specific thing being DONE for an outcome — the "Do" of the graduated approach. Either
+/// an in-setting strategy staff deliver, or a home activity shared with the parent.
+///
+/// Where a HOME activity is a generated worksheet, it links the existing worksheet engine by
+/// id (`worksheetAssignmentId`) — that engine already carries parent assignment, completion,
+/// and effectiveness (pre/post scores), so we reuse it rather than reinvent it. Kept a plain
+/// nullable id, not an FK: not every intervention is a worksheet, and the link is loose by
+/// design (same precedent as `ChildClaim.mergedFromPlaceholderId`).
+model SupportIntervention {
+  id        String         @id @default(cuid())
+  outcomeId String
+  outcome   SupportOutcome @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+
+  kind        InterventionKind
+  title       String
+  description String?
+  status      InterventionStatus @default(PLANNED)
+
+  /// When this is a home worksheet, the `WorksheetAssignment` that carries it to the parent.
+  worksheetAssignmentId String?
+
+  createdById String?
+  createdBy   User?   @relation("CreatedInterventions", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([outcomeId])
+  @@map("support_interventions")
 }
