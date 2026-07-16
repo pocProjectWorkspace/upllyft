@@ -1,6 +1,6 @@
 # Nursery — Early-Identification Roadmap (F7–F11)
 
-_Status: proposed. Draft 2026-07-16._
+_Status: **all five shipped.** F7+F8 (PR #30) and F9+F10+F11 delivered 2026-07-16. This doc is kept as the design rationale._
 
 ## Context
 

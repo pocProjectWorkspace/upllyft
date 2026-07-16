@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '@/lib/api/permissions';
 import type { FacilityPermission } from '@/lib/api/permissions';
-import { Loader2, Lock, ShieldCheck, School, Stethoscope, Eye, ClipboardList, Sparkles, Flag, Trophy, StickyNote, MessageCircle, Target, Home } from 'lucide-react';
+import { Loader2, Lock, ShieldCheck, School, Stethoscope, Eye, ClipboardList, Sparkles, Flag, Trophy, StickyNote, MessageCircle, Target, Home, CalendarCheck, FileOutput } from 'lucide-react';
 
 /**
  * The guardian's control panel: who has asked for access to my child, and what have I
@@ -91,7 +91,11 @@ export default function PermissionsPage({
 
         <ConcernFeed childId={childId} childName="your child" />
 
+        <DevReviewFeed childId={childId} />
+
         <SupportPlanFeed childId={childId} />
+
+        <HandoverFeed childId={childId} />
         <ObservationFeed childId={childId} />
       </div>
     </div>
@@ -367,6 +371,120 @@ function ConcernNote({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function DevReviewFeed({ childId }: { childId: string }) {
+  const qc = useQueryClient();
+  const { data: reviews } = useQuery({
+    queryKey: ['child-dev-reviews', childId],
+    queryFn: () => api.getChildDevReviews(childId),
+  });
+  const [reply, setReply] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const ack = useMutation({
+    mutationFn: ({ id, response }: { id: string; response?: string }) => api.acknowledgeDevReview(childId, id, response),
+    onSuccess: () => { setOpenId(null); setReply(''); qc.invalidateQueries({ queryKey: ['child-dev-reviews', childId] }); },
+  });
+
+  if (!reviews || reviews.length === 0) return null;
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-semibold text-gray-900">Developmental review</h2>
+      <div className="mt-4 space-y-3">
+        {reviews.map(r => (
+          <div key={r.id} className="bg-white rounded-xl border border-gray-100 p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <CalendarCheck className="w-4 h-4 text-teal-600" />
+              <span className="text-sm font-medium text-gray-900">{r.facilityName}</span>
+              <span className="text-xs text-gray-400">· at ~{r.ageMonths} months</span>
+            </div>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{r.summary}</p>
+            {r.recommendation && (
+              <p className="text-sm text-gray-500 mt-2"><span className="font-medium">Suggested next step:</span> {r.recommendation}</p>
+            )}
+            {r.yourResponse ? (
+              <div className="mt-4 p-3 rounded-lg bg-gray-50 border border-gray-100">
+                <p className="text-xs font-medium text-gray-500 mb-1">Your reply</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{r.yourResponse}</p>
+              </div>
+            ) : (
+              <div className="mt-4">
+                {openId === r.id ? (
+                  <div className="space-y-2">
+                    <textarea value={reply} onChange={e => setReply(e.target.value)} rows={3} placeholder="Anything you'd like to say back (optional)…"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                    <div className="flex gap-2">
+                      <button onClick={() => ack.mutate({ id: r.id, response: reply.trim() || undefined })} disabled={ack.isPending}
+                        className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50">Send</button>
+                      <button onClick={() => setOpenId(null)} className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button onClick={() => { setOpenId(r.id); setReply(''); }} className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700">Reply</button>
+                    <button onClick={() => ack.mutate({ id: r.id })} disabled={ack.isPending} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                      {r.status === 'ACKNOWLEDGED' ? 'Seen' : 'Mark as seen'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HandoverFeed({ childId }: { childId: string }) {
+  const qc = useQueryClient();
+  const { data: handovers } = useQuery({
+    queryKey: ['child-handovers', childId],
+    queryFn: () => api.getChildHandovers(childId),
+  });
+  const authorize = useMutation({
+    mutationFn: (id: string) => api.authorizeHandover(childId, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['child-handovers', childId] }),
+  });
+
+  if (!handovers || handovers.length === 0) return null;
+
+  const recipientLabel = (t: string) => (t === 'SCHOOL' ? 'a school' : t === 'CLINICIAN' ? 'a clinician' : 'someone else');
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-semibold text-gray-900">Sharing your child’s story onward</h2>
+      <p className="text-sm text-gray-500 mt-1">
+        Your nursery would like to pass on a summary. Nothing is shared until you authorise it.
+      </p>
+      <div className="mt-4 space-y-3">
+        {handovers.map(h => (
+          <div key={h.id} className="bg-white rounded-xl border border-gray-100 p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <FileOutput className="w-4 h-4 text-teal-600" />
+              <span className="text-sm font-medium text-gray-900">{h.facilityName}</span>
+              <span className="text-xs text-gray-400">· for {recipientLabel(h.recipientType)}{h.recipientName ? ` (${h.recipientName})` : ''}</span>
+            </div>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{h.summary}</p>
+            <div className="mt-4">
+              {h.status === 'SHARED' ? (
+                <p className="text-sm text-green-700 inline-flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> Shared with your authorisation</p>
+              ) : h.authorised ? (
+                <p className="text-sm text-gray-500">Authorised — your nursery can now share it.</p>
+              ) : (
+                <button onClick={() => authorize.mutate(h.id)} disabled={authorize.isPending}
+                  className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
+                  Authorise sharing
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -309,3 +309,91 @@ export function useShareSupportPlan(facilityId: string, childId: string) {
     nurseryApi.shareSupportPlan(facilityId, childId, planId),
   );
 }
+
+// ── Developmental reviews (F9) ──
+
+const reviewsKey = (f: string | undefined, c: string) => [...keys.all, 'dev-reviews', f, c] as const;
+
+export function useDevReviews(facilityId: string | undefined, childId: string) {
+  return useQuery({
+    queryKey: reviewsKey(facilityId, childId),
+    queryFn: () => nurseryApi.listDevReviews(facilityId!, childId),
+    enabled: !!facilityId && !!childId,
+    retry: false,
+  });
+}
+
+export function useCreateDevReview(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => nurseryApi.createDevReview(facilityId, childId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: reviewsKey(facilityId, childId) }),
+  });
+}
+
+export function useUpdateDevReview(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reviewId, data }: { reviewId: string; data: { summary?: string; recommendation?: string } }) =>
+      nurseryApi.updateDevReview(facilityId, childId, reviewId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: reviewsKey(facilityId, childId) }),
+  });
+}
+
+export function useShareDevReview(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reviewId: string) => nurseryApi.shareDevReview(facilityId, childId, reviewId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: reviewsKey(facilityId, childId) }),
+  });
+}
+
+// ── Handover records (F11) ──
+
+const handoverKey = (f: string | undefined, c: string) => [...keys.all, 'handovers', f, c] as const;
+
+export function useHandovers(facilityId: string | undefined, childId: string) {
+  return useQuery({
+    queryKey: handoverKey(facilityId, childId),
+    queryFn: () => nurseryApi.listHandovers(facilityId!, childId),
+    enabled: !!facilityId && !!childId,
+    retry: false,
+  });
+}
+
+export function useGenerateHandover(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { recipientType: nurseryApi.HandoverRecipient; recipientName?: string }) =>
+      nurseryApi.generateHandover(facilityId, childId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: handoverKey(facilityId, childId) }),
+  });
+}
+
+export function useUpdateHandover(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ handoverId, data }: { handoverId: string; data: { summary?: string; recipientType?: nurseryApi.HandoverRecipient; recipientName?: string } }) =>
+      nurseryApi.updateHandover(facilityId, childId, handoverId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: handoverKey(facilityId, childId) }),
+  });
+}
+
+export function useShareHandover(facilityId: string, childId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (handoverId: string) => nurseryApi.shareHandover(facilityId, childId, handoverId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: handoverKey(facilityId, childId) }),
+  });
+}
+
+// ── Insights (F10) ──
+
+export function useInsights(facilityId: string | undefined) {
+  return useQuery({
+    queryKey: [...keys.all, 'insights', facilityId] as const,
+    queryFn: () => nurseryApi.getInsights(facilityId!),
+    enabled: !!facilityId,
+    retry: false,
+  });
+}

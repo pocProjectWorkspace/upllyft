@@ -10,6 +10,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  BarChart3,
 } from 'lucide-react';
 import { useNursery } from './nursery-context';
 import { useRoster, useResendClaim } from '@/hooks/use-nursery';
@@ -135,10 +136,19 @@ export function RosterView() {
             {facility?.name}
           </p>
         </div>
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" />
-          Add child
-        </Button>
+        <div className="flex items-center gap-2">
+          <a
+            href="/nursery/insights"
+            className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
+          >
+            <BarChart3 className="w-4 h-4 mr-1" />
+            Insights
+          </a>
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="w-4 h-4 mr-1" />
+            Add child
+          </Button>
+        </div>
       </div>
 
       {/*

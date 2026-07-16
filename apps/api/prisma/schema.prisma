@@ -167,6 +167,8 @@ model User {
   createdSupportPlans  SupportPlan[]             @relation("CreatedSupportPlans")
   supportReviews       SupportReview[]           @relation("SupportPlanReviewer")
   createdInterventions SupportIntervention[]     @relation("CreatedInterventions")
+  createdDevReviews    DevelopmentalReview[]     @relation("CreatedDevReviews")
+  createdHandovers     HandoverRecord[]          @relation("CreatedHandovers")
   createdChildClaims   ChildClaim[]              @relation("CreatedChildClaims")
 
   // UAE clinic Phase 3 relations
@@ -1404,6 +1406,8 @@ model Child {
   observations                          Observation[]             @relation("ChildObservations")
   concerns                              Concern[]                 @relation("ChildConcerns")
   supportPlans                          SupportPlan[]             @relation("ChildSupportPlans")
+  developmentalReviews                  DevelopmentalReview[]     @relation("ChildDevReviews")
+  handoverRecords                       HandoverRecord[]          @relation("ChildHandovers")
   profile                               UserProfile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
@@ -4724,6 +4728,8 @@ model Facility {
   observations     Observation[]      @relation("FacilityObservations")
   concerns         Concern[]          @relation("FacilityConcerns")
   supportPlans     SupportPlan[]      @relation("FacilitySupportPlans")
+  developmentalReviews DevelopmentalReview[] @relation("FacilityDevReviews")
+  handoverRecords      HandoverRecord[]      @relation("FacilityHandovers")
   consentTemplates ConsentTemplate[]  @relation("FacilityConsentTemplates")
 
   createdAt DateTime @default(now())
@@ -4868,6 +4874,8 @@ model ChildAffiliation {
   observations Observation[]
   concerns     Concern[]
   supportPlans SupportPlan[]
+  developmentalReviews DevelopmentalReview[]
+  handoverRecords      HandoverRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5258,4 +5266,123 @@ model SupportIntervention {
 
   @@index([outcomeId])
   @@map("support_interventions")
+}
+
+// ─── Early developmental review (~age 2) (F9) ────────────────────────────────
+
+enum DevReviewStatus {
+  DRAFT /// the lead is preparing the review summary
+  SHARED /// shared with the guardian
+  ACKNOWLEDGED /// the guardian has seen it (and may have responded)
+}
+
+/// A point-in-time developmental review at around age two — the age at which delays first
+/// become reliably visible. A defined top-of-funnel instrument that pulls a child's
+/// screening (F4), the parent-vs-educator concordance, and the recorded observations into
+/// one plain-language snapshot the nursery shares with the family (and can hand to an onward
+/// health contact).
+///
+/// This is the GENERIC well-child-review concept — NOT any one country's statutory check.
+/// A statutory wrapper (e.g. England's Progress Check at Age Two + integrated review) is a
+/// regional-config concern layered on top, never baked into the core.
+///
+/// Reuses the F4 screening ENGINE (it links the assessments; it does not re-implement
+/// screening) and follows the F5/F6 nursery pattern: own model, anchored to the affiliation
+/// (the consent anchor), created only while ACTIVE + consented, guardian-visible once shared.
+model DevelopmentalReview {
+  id      String @id @default(cuid())
+  childId String
+  child   Child  @relation("ChildDevReviews", fields: [childId], references: [id], onDelete: Cascade)
+
+  affiliationId String
+  affiliation   ChildAffiliation @relation(fields: [affiliationId], references: [id], onDelete: Cascade)
+  facilityId    String
+  facility      Facility         @relation("FacilityDevReviews", fields: [facilityId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("CreatedDevReviews", fields: [createdById], references: [id], onDelete: SetNull)
+
+  /// The child's age in months at review time (snapshot — the review is dated by this).
+  ageMonths Int
+  status    DevReviewStatus @default(DRAFT)
+  /// Domains flagged at review, for quick display (the same 8-domain vocabulary).
+  flaggedDomains String[] @default([])
+
+  /// Which screenings informed it (loose ids — the screenings live in the assessments engine).
+  educatorAssessmentId String?
+  parentAssessmentId   String?
+
+  /// A snapshot of what the review rests on — counts + concordance headline, not duplicated PHI.
+  evidenceSummary Json?
+  /// The plain-language review shared with the parent (editable before sharing).
+  summary        String
+  /// A short next-step suggestion, deliberately non-diagnostic (e.g. "continue to monitor").
+  recommendation String?
+
+  sharedAt       DateTime?
+  acknowledgedAt DateTime?
+  parentResponse String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([childId, status])
+  @@index([facilityId, status])
+  @@map("developmental_reviews")
+}
+
+// ─── Onward handover record (school transition / multi-agency) (F11) ─────────
+
+enum HandoverRecipient {
+  SCHOOL /// moving on to school / reception
+  CLINICIAN /// into a diagnostic or therapy pathway
+  OTHER
+}
+
+enum HandoverStatus {
+  DRAFT /// assembled, being prepared — not yet disclosed
+  SHARED /// disclosed onward, after the guardian authorised it
+}
+
+/// The child's identification + support story, assembled for the people who come next —
+/// a receiving school, or a clinician. The nursery already holds all of it (observations,
+/// screenings, reviews, concerns, support plans and what worked); this packages it so the
+/// investment in early identification is not lost at the hand-off.
+///
+/// DISCLOSURE IS GUARDIAN-GATED. A handover leaves the setting only after the guardian has
+/// authorised that specific onward disclosure (`guardianConsentedAt`) — assembling it is a
+/// staff action; letting it go is the family's decision. Anchored to the affiliation, like
+/// everything else a nursery holds about a child.
+model HandoverRecord {
+  id      String @id @default(cuid())
+  childId String
+  child   Child  @relation("ChildHandovers", fields: [childId], references: [id], onDelete: Cascade)
+
+  affiliationId String
+  affiliation   ChildAffiliation @relation(fields: [affiliationId], references: [id], onDelete: Cascade)
+  facilityId    String
+  facility      Facility         @relation("FacilityHandovers", fields: [facilityId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("CreatedHandovers", fields: [createdById], references: [id], onDelete: SetNull)
+
+  recipientType HandoverRecipient @default(SCHOOL)
+  recipientName String?
+  status        HandoverStatus    @default(DRAFT)
+
+  /// The assembled snapshot at generation time (counts + summaries, not raw PHI dumps).
+  snapshot Json
+  /// A plain-language narrative of the story, editable before disclosure.
+  summary  String
+
+  /// The guardian's authorisation of THIS onward disclosure. Required before SHARED.
+  guardianConsentedAt DateTime?
+  sharedAt            DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([childId, status])
+  @@index([facilityId, status])
+  @@map("handover_records")
 }

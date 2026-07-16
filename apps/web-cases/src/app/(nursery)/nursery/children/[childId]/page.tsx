@@ -9,6 +9,8 @@ import { ConcordanceView } from '@/components/nursery/concordance-view';
 import { ObservationTimeline } from '@/components/nursery/observation-timeline';
 import { ConcernPanel } from '@/components/nursery/concern-panel';
 import { SupportPlanPanel } from '@/components/nursery/support-plan-panel';
+import { DevelopmentalReviewPanel } from '@/components/nursery/developmental-review-panel';
+import { HandoverPanel } from '@/components/nursery/handover-panel';
 import type { RosterChild } from '@/lib/api/nursery';
 
 /**
@@ -118,6 +120,10 @@ export default function NurseryChildPage({
           <ConcernPanel childId={child.childId} childName={child.firstName} />
 
           <SupportPlanPanel childId={child.childId} childName={child.firstName} />
+
+          <DevelopmentalReviewPanel childId={child.childId} childName={child.firstName} />
+
+          <HandoverPanel childId={child.childId} childName={child.firstName} />
         </>
       )}
     </div>
