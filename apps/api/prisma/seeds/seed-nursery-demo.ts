@@ -261,6 +261,44 @@ async function main() {
     }
   }
 
+  // ── Completed screenings for Yousef, so the later features have something to work on ──
+  //
+  // F9 (developmental review) and F10 (insights domain-flags) both read a COMPLETED educator
+  // screening; F6's concordance note reads the parent's. Both informants flag speechLanguage
+  // (an agreement — the strongest signal), and the educator additionally flags
+  // sensoryProcessing (matching Yousef's "covered his ears at music" CONCERN observation).
+  // Idempotent: one per (child, informant). Synthetic child only — Yousef hangs off
+  // parent.amina@upllyft.demo, asserted above.
+  const screenings = [
+    { informantType: 'EDUCATOR' as const, flaggedDomains: ['speechLanguage', 'sensoryProcessing'] },
+    { informantType: 'PARENT' as const, flaggedDomains: ['speechLanguage'] },
+  ];
+  const yousefChild = await prisma.child.findUniqueOrThrow({
+    where: { id: yousef.childId },
+    select: { profile: { select: { userId: true } } },
+  });
+  const aminaUserId = yousefChild.profile.userId;
+  for (const sc of screenings) {
+    const existing = await prisma.assessment.findFirst({
+      where: { childId: yousef.childId, informantType: sc.informantType, tier1Completed: true },
+    });
+    if (!existing) {
+      await prisma.assessment.create({
+        data: {
+          childId: yousef.childId,
+          ageGroup: '24-36-months',
+          informantType: sc.informantType,
+          respondentId: sc.informantType === 'EDUCATOR' ? lead.id : aminaUserId,
+          facilityId: sc.informantType === 'EDUCATOR' ? facility.id : null,
+          tier1Completed: true,
+          tier1CompletedAt: new Date(),
+          completedAt: new Date(),
+          flaggedDomains: sc.flaggedDomains,
+        },
+      });
+    }
+  }
+
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log('✅ Nursery demo ready.\n');
   console.log(`   Nursery:  Little Explorers Nursery  (KHDA · Dubai)`);
