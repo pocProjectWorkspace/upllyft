@@ -226,3 +226,86 @@ export function useShareConcern(facilityId: string, childId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: [...keys.all, 'concerns', facilityId, childId] }),
   });
 }
+
+// ── Support plans (F7 + F8) ──
+
+const plansKey = (f: string | undefined, c: string) => [...keys.all, 'support-plans', f, c] as const;
+
+export function useSupportPlans(facilityId: string | undefined, childId: string) {
+  return useQuery({
+    queryKey: plansKey(facilityId, childId),
+    queryFn: () => nurseryApi.listSupportPlans(facilityId!, childId),
+    enabled: !!facilityId && !!childId,
+    retry: false, // a 403 (not an inclusion lead) should not retry — the panel hides
+  });
+}
+
+/** One mutation factory keyed to (facility, child); every support-plan write invalidates the list. */
+function usePlanMutation<TArgs>(
+  facilityId: string,
+  childId: string,
+  fn: (args: TArgs) => Promise<nurseryApi.SupportPlan>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => qc.invalidateQueries({ queryKey: plansKey(facilityId, childId) }),
+  });
+}
+
+export function useCreateSupportPlan(facilityId: string, childId: string) {
+  return usePlanMutation(facilityId, childId, (data: Parameters<typeof nurseryApi.createSupportPlan>[2]) =>
+    nurseryApi.createSupportPlan(facilityId, childId, data),
+  );
+}
+
+export function useUpdateSupportPlan(facilityId: string, childId: string) {
+  return usePlanMutation(
+    facilityId,
+    childId,
+    ({ planId, data }: { planId: string; data: Parameters<typeof nurseryApi.updateSupportPlan>[3] }) =>
+      nurseryApi.updateSupportPlan(facilityId, childId, planId, data),
+  );
+}
+
+export function useAddOutcome(facilityId: string, childId: string) {
+  return usePlanMutation(
+    facilityId,
+    childId,
+    ({ planId, data }: { planId: string; data: nurseryApi.OutcomeInput }) =>
+      nurseryApi.addOutcome(facilityId, childId, planId, data),
+  );
+}
+
+export function useUpdateOutcome(facilityId: string, childId: string) {
+  return usePlanMutation(
+    facilityId,
+    childId,
+    ({ planId, outcomeId, data }: { planId: string; outcomeId: string; data: Parameters<typeof nurseryApi.updateOutcome>[4] }) =>
+      nurseryApi.updateOutcome(facilityId, childId, planId, outcomeId, data),
+  );
+}
+
+export function useAddIntervention(facilityId: string, childId: string) {
+  return usePlanMutation(
+    facilityId,
+    childId,
+    ({ planId, outcomeId, data }: { planId: string; outcomeId: string; data: Parameters<typeof nurseryApi.addIntervention>[4] }) =>
+      nurseryApi.addIntervention(facilityId, childId, planId, outcomeId, data),
+  );
+}
+
+export function useAddReview(facilityId: string, childId: string) {
+  return usePlanMutation(
+    facilityId,
+    childId,
+    ({ planId, data }: { planId: string; data: Parameters<typeof nurseryApi.addReview>[3] }) =>
+      nurseryApi.addReview(facilityId, childId, planId, data),
+  );
+}
+
+export function useShareSupportPlan(facilityId: string, childId: string) {
+  return usePlanMutation(facilityId, childId, (planId: string) =>
+    nurseryApi.shareSupportPlan(facilityId, childId, planId),
+  );
+}

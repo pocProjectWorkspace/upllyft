@@ -352,3 +352,121 @@ export const updateConcernSummary = (facilityId: string, childId: string, concer
 
 export const shareConcern = (facilityId: string, childId: string, concernId: string): Promise<Concern> =>
   apiClient.post(`/facilities/${facilityId}/children/${childId}/concerns/${concernId}/share`, {}).then(r => r.data);
+
+// ── Support plans (F7 graduated approach + F8 interventions) ──
+
+export type SupportPlanStatus = 'DRAFT' | 'ACTIVE' | 'UNDER_REVIEW' | 'CLOSED';
+export type OutcomeStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'ACHIEVED' | 'DISCONTINUED';
+export type InterventionKind = 'IN_SETTING' | 'HOME';
+export type InterventionStatus = 'PLANNED' | 'ACTIVE' | 'DONE' | 'DISCONTINUED';
+export type ReviewDecision = 'CONTINUE' | 'ADJUST' | 'ESCALATE' | 'CLOSE';
+
+export interface Intervention {
+  id: string;
+  kind: InterventionKind;
+  title: string;
+  description: string | null;
+  status: InterventionStatus;
+  worksheetAssignmentId: string | null;
+}
+
+export interface SupportOutcome {
+  id: string;
+  domain: string;
+  outcomeText: string;
+  successCriteria: string | null;
+  baselineValue: number | null;
+  targetDate: string | null;
+  reviewIntervalDays: number | null;
+  currentProgress: number;
+  status: OutcomeStatus;
+  order: number;
+  interventions: Intervention[];
+}
+
+export interface SupportReview {
+  id: string;
+  progressNote: string | null;
+  decision: ReviewDecision;
+  sharedWithParent: boolean;
+  reviewedAt: string;
+  reviewedBy: { id: string; name: string | null } | null;
+}
+
+export interface SupportPlan {
+  id: string;
+  status: SupportPlanStatus;
+  title: string;
+  domains: string[];
+  summary: string | null;
+  staffNotes: string | null;
+  reviewDate: string | null;
+  concernId: string | null;
+  sharedAt: string | null;
+  acknowledgedAt: string | null;
+  parentResponse: string | null;
+  createdAt: string;
+  createdBy: { id: string; name: string | null } | null;
+  outcomes: SupportOutcome[];
+  reviews: SupportReview[];
+}
+
+export interface OutcomeInput {
+  domain: string;
+  outcomeText: string;
+  successCriteria?: string;
+  reviewIntervalDays?: number;
+}
+
+const plansBase = (f: string, c: string) => `/facilities/${f}/children/${c}/support-plans`;
+
+export const listSupportPlans = (facilityId: string, childId: string): Promise<SupportPlan[]> =>
+  apiClient.get(plansBase(facilityId, childId)).then(r => r.data);
+
+export const createSupportPlan = (
+  facilityId: string,
+  childId: string,
+  data: { title: string; domains?: string[]; summary?: string; staffNotes?: string; concernId?: string; outcomes?: OutcomeInput[] },
+): Promise<SupportPlan> => apiClient.post(plansBase(facilityId, childId), data).then(r => r.data);
+
+export const updateSupportPlan = (
+  facilityId: string,
+  childId: string,
+  planId: string,
+  data: { title?: string; summary?: string; staffNotes?: string; domains?: string[]; reviewDate?: string },
+): Promise<SupportPlan> => apiClient.patch(`${plansBase(facilityId, childId)}/${planId}`, data).then(r => r.data);
+
+export const addOutcome = (
+  facilityId: string,
+  childId: string,
+  planId: string,
+  data: OutcomeInput,
+): Promise<SupportPlan> => apiClient.post(`${plansBase(facilityId, childId)}/${planId}/outcomes`, data).then(r => r.data);
+
+export const updateOutcome = (
+  facilityId: string,
+  childId: string,
+  planId: string,
+  outcomeId: string,
+  data: { currentProgress?: number; status?: OutcomeStatus; outcomeText?: string },
+): Promise<SupportPlan> =>
+  apiClient.patch(`${plansBase(facilityId, childId)}/${planId}/outcomes/${outcomeId}`, data).then(r => r.data);
+
+export const addIntervention = (
+  facilityId: string,
+  childId: string,
+  planId: string,
+  outcomeId: string,
+  data: { kind: InterventionKind; title: string; description?: string; worksheetAssignmentId?: string },
+): Promise<SupportPlan> =>
+  apiClient.post(`${plansBase(facilityId, childId)}/${planId}/outcomes/${outcomeId}/interventions`, data).then(r => r.data);
+
+export const addReview = (
+  facilityId: string,
+  childId: string,
+  planId: string,
+  data: { decision: ReviewDecision; progressNote?: string; sharedWithParent?: boolean; nextReviewDate?: string; outcomeUpdates?: { outcomeId: string; progress?: number; status?: OutcomeStatus }[] },
+): Promise<SupportPlan> => apiClient.post(`${plansBase(facilityId, childId)}/${planId}/reviews`, data).then(r => r.data);
+
+export const shareSupportPlan = (facilityId: string, childId: string, planId: string): Promise<SupportPlan> =>
+  apiClient.post(`${plansBase(facilityId, childId)}/${planId}/share`, {}).then(r => r.data);

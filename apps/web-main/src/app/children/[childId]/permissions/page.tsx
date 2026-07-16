@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '@/lib/api/permissions';
 import type { FacilityPermission } from '@/lib/api/permissions';
-import { Loader2, Lock, ShieldCheck, School, Stethoscope, Eye, ClipboardList, Sparkles, Flag, Trophy, StickyNote, MessageCircle } from 'lucide-react';
+import { Loader2, Lock, ShieldCheck, School, Stethoscope, Eye, ClipboardList, Sparkles, Flag, Trophy, StickyNote, MessageCircle, Target, Home } from 'lucide-react';
 
 /**
  * The guardian's control panel: who has asked for access to my child, and what have I
@@ -90,6 +90,8 @@ export default function PermissionsPage({
         </div>
 
         <ConcernFeed childId={childId} childName="your child" />
+
+        <SupportPlanFeed childId={childId} />
         <ObservationFeed childId={childId} />
       </div>
     </div>
@@ -321,6 +323,164 @@ function ConcernNote({
         <div className="mt-4 p-3 rounded-lg bg-gray-50 border border-gray-100">
           <p className="text-xs font-medium text-gray-500 mb-1">Your reply</p>
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{concern.yourResponse}</p>
+        </div>
+      ) : (
+        <div className="mt-4">
+          {open ? (
+            <div className="space-y-2">
+              <textarea
+                value={reply}
+                onChange={e => setReply(e.target.value)}
+                rows={3}
+                placeholder="Anything you'd like to say back (optional)…"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => ack.mutate(reply.trim() || undefined)}
+                  disabled={ack.isPending}
+                  className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+                >
+                  Send
+                </button>
+                <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setOpen(true)}
+                className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700"
+              >
+                Reply
+              </button>
+              <button
+                onClick={() => ack.mutate(undefined)}
+                disabled={ack.isPending}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {acknowledged ? 'Seen' : 'Mark as seen'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const DOMAIN_LABELS: Record<string, string> = {
+  grossMotor: 'Gross motor',
+  fineMotor: 'Fine motor',
+  speechLanguage: 'Speech & language',
+  socialEmotional: 'Social & emotional',
+  cognitiveLearning: 'Thinking & learning',
+  adaptiveSelfCare: 'Self-care',
+  sensoryProcessing: 'Sensory',
+  visionHearing: 'Vision & hearing',
+};
+const domainLabel = (id: string) => DOMAIN_LABELS[id] ?? id;
+
+function SupportPlanFeed({ childId }: { childId: string }) {
+  const qc = useQueryClient();
+  const { data: plans } = useQuery({
+    queryKey: ['child-support-plans', childId],
+    queryFn: () => api.getChildSupportPlans(childId),
+  });
+
+  if (!plans || plans.length === 0) return null;
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-semibold text-gray-900">Support your nursery is putting in place</h2>
+      <div className="mt-4 space-y-3">
+        {plans.map(p => (
+          <SupportPlanNote
+            key={p.id}
+            childId={childId}
+            plan={p}
+            onChange={() => qc.invalidateQueries({ queryKey: ['child-support-plans', childId] })}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SupportPlanNote({
+  childId,
+  plan,
+  onChange,
+}: {
+  childId: string;
+  plan: api.GuardianSupportPlan;
+  onChange: () => void;
+}) {
+  const [reply, setReply] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const ack = useMutation({
+    mutationFn: (response?: string) => api.acknowledgeSupportPlan(childId, plan.id, response),
+    onSuccess: onChange,
+  });
+
+  const acknowledged = !!plan.acknowledgedAt;
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-6">
+      <div className="flex items-center gap-2 mb-3">
+        <Target className="w-4 h-4 text-teal-600" />
+        <span className="text-sm font-medium text-gray-900">{plan.title}</span>
+        {plan.facilityName && <span className="text-xs text-gray-400">· {plan.facilityName}</span>}
+        {plan.status === 'CLOSED' && <span className="text-xs text-gray-400 ml-auto">completed</span>}
+      </div>
+
+      {plan.summary && (
+        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{plan.summary}</p>
+      )}
+
+      {/* Outcomes with progress, and the strategies to try at home. */}
+      {plan.outcomes.length > 0 && (
+        <div className="mt-4 space-y-3">
+          {plan.outcomes.map(o => (
+            <div key={o.id} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-medium text-gray-500">{domainLabel(o.domain)}</span>
+                <span className="ml-auto text-xs text-gray-400">{Math.round(o.progress)}%</span>
+              </div>
+              <p className="text-sm text-gray-800">{o.outcomeText}</p>
+              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mt-2">
+                <div className="h-full bg-teal-500" style={{ width: `${o.progress}%` }} />
+              </div>
+              {o.homeStrategies.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {o.homeStrategies.map(h => (
+                    <div key={h.id} className="text-xs text-gray-600 flex items-start gap-1.5">
+                      <Home className="w-3 h-3 text-teal-600 mt-0.5 shrink-0" />
+                      <span>
+                        <span className="font-medium">{h.title}</span>
+                        {h.description ? ` — ${h.description}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Latest shared review. */}
+      {plan.reviews.length > 0 && plan.reviews[0].progressNote && (
+        <p className="mt-3 text-xs text-gray-500 italic">Latest update: {plan.reviews[0].progressNote}</p>
+      )}
+
+      {plan.yourResponse ? (
+        <div className="mt-4 p-3 rounded-lg bg-gray-50 border border-gray-100">
+          <p className="text-xs font-medium text-gray-500 mb-1">Your reply</p>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{plan.yourResponse}</p>
         </div>
       ) : (
         <div className="mt-4">
