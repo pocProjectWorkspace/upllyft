@@ -47,3 +47,22 @@ export interface GuardianObservation {
 
 export const getChildObservations = (childId: string): Promise<GuardianObservation[]> =>
   apiClient.get(`/children/${childId}/observations`).then(r => r.data);
+
+// ── Concerns a nursery has shared (F6) ──
+
+export interface GuardianConcern {
+  id: string;
+  status: 'SHARED' | 'ACKNOWLEDGED' | 'CLOSED';
+  domains: string[];
+  summary: string;
+  sharedAt: string | null;
+  acknowledgedAt: string | null;
+  yourResponse: string | null;
+  facilityName: string;
+}
+
+export const getChildConcerns = (childId: string): Promise<GuardianConcern[]> =>
+  apiClient.get(`/children/${childId}/concerns`).then(r => r.data);
+
+export const acknowledgeConcern = (childId: string, concernId: string, response?: string) =>
+  apiClient.post(`/children/${childId}/concerns/${concernId}/acknowledge`, { response }).then(r => r.data);

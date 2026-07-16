@@ -7,6 +7,7 @@ import { useNursery } from '@/components/nursery/nursery-context';
 import { useRoster, useRequestScreeningConsent } from '@/hooks/use-nursery';
 import { ConcordanceView } from '@/components/nursery/concordance-view';
 import { ObservationTimeline } from '@/components/nursery/observation-timeline';
+import { ConcernPanel } from '@/components/nursery/concern-panel';
 import type { RosterChild } from '@/lib/api/nursery';
 
 /**
@@ -112,6 +113,8 @@ export default function NurseryChildPage({
           <ObservationTimeline childId={child.childId} childName={child.firstName} />
 
           <ConcordanceView childId={child.childId} childName={child.firstName} />
+
+          <ConcernPanel childId={child.childId} childName={child.firstName} />
         </>
       )}
     </div>

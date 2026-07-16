@@ -163,6 +163,7 @@ model User {
   claimedChildClaims   ChildClaim[]              @relation("ClaimedChildClaims")
   assessmentsAnswered  Assessment[]              @relation("AssessmentRespondent")
   observationsAuthored Observation[]             @relation("ObservationAuthor")
+  concernsRaised       Concern[]                 @relation("ConcernRaiser")
   createdChildClaims   ChildClaim[]              @relation("CreatedChildClaims")
 
   // UAE clinic Phase 3 relations
@@ -1398,6 +1399,7 @@ model Child {
   convertedFromLead                     Lead?                     @relation("LeadConversion")
   claims                                ChildClaim[]              @relation("ChildClaims")
   observations                          Observation[]             @relation("ChildObservations")
+  concerns                              Concern[]                 @relation("ChildConcerns")
   profile                               UserProfile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
@@ -4716,6 +4718,7 @@ model Facility {
   claims           ChildClaim[]
   assessments      Assessment[]       @relation("FacilityAssessments")
   observations     Observation[]      @relation("FacilityObservations")
+  concerns         Concern[]          @relation("FacilityConcerns")
   consentTemplates ConsentTemplate[]  @relation("FacilityConsentTemplates")
 
   createdAt DateTime @default(now())
@@ -4858,6 +4861,7 @@ model ChildAffiliation {
   consents     ChildConsent[]
   claims       ChildClaim[]
   observations Observation[]
+  concerns     Concern[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5007,4 +5011,64 @@ model Observation {
   @@index([affiliationId])
   @@index([domain])
   @@map("observations")
+}
+
+// ─── The coached teacher → parent conversation (F6) ──────────────────────────
+
+enum ConcernStatus {
+  DRAFT /// the inclusion lead is preparing it — coaching generated, summary still editable
+  SHARED /// shared with the guardian
+  ACKNOWLEDGED /// the guardian has seen it (and may have responded)
+  CLOSED /// resolved, or handed onward to a referral
+}
+
+/// A concern a nursery raises with a child's parent, and the coaching that surrounds it.
+///
+/// This is the last step of the nursery proposition: an inclusion lead has accumulated
+/// evidence (CONCERN observations, a screening flag, a home-vs-nursery disagreement) and
+/// now has to have the hardest conversation in early years — telling a parent their child
+/// might be struggling. It is easy to do badly: to alarm, to label, to sound like an
+/// accusation. So the platform COACHES the lead (privately) on how to raise it, and helps
+/// draft a warm, specific, non-diagnostic message the parent actually receives.
+///
+/// Anchored to the affiliation (the consent anchor). Raising requires an ACTIVE, consented
+/// enrolment; the guardian can always see concerns shared with them about their own child.
+model Concern {
+  id      String @id @default(cuid())
+  childId String
+  child   Child  @relation("ChildConcerns", fields: [childId], references: [id], onDelete: Cascade)
+
+  affiliationId String
+  affiliation   ChildAffiliation @relation(fields: [affiliationId], references: [id], onDelete: Cascade)
+  facilityId    String
+  facility      Facility         @relation("FacilityConcerns", fields: [facilityId], references: [id], onDelete: Cascade)
+
+  /// The inclusion lead who raised it. SetNull so their leaving does not erase the record.
+  raisedById String?
+  raisedBy   User?   @relation("ConcernRaiser", fields: [raisedById], references: [id], onDelete: SetNull)
+
+  status  ConcernStatus @default(DRAFT)
+  /// The developmental domains the concern is about (the same 8-domain vocabulary).
+  domains String[]      @default([])
+
+  /// PRIVATE to staff — how to have the conversation. Never shown to the parent.
+  staffCoaching String?
+  coachingModel String?
+  /// The message shared WITH the parent. AI-drafted, editable by staff before sharing.
+  parentSummary String
+
+  /// A snapshot of what the concern rests on — counts + refs, not duplicated PHI.
+  /// { concernObservations: n, assessmentId?: string, flaggedDomains?: string[] }
+  evidenceSummary Json?
+
+  sharedAt       DateTime?
+  acknowledgedAt DateTime?
+  parentResponse String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([childId, status])
+  @@index([facilityId, status])
+  @@map("concerns")
 }
