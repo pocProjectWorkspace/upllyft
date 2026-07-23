@@ -204,6 +204,57 @@ export async function approveOrgMember(
   });
 }
 
+// ── Add Therapist wizard: profile (Basic Info + Credentials) ──
+
+export interface TherapistProfileData {
+  title?: string | null;
+  bio?: string | null;
+  department?: string | null;
+  phone?: string | null;
+  branch?: string | null;
+  country?: string | null;
+  qualification?: string | null;
+  university?: string | null;
+  yearsExperience?: number | null;
+  specializations?: string[];
+  licenceNumber?: string | null;
+  licenceExpiry?: string | null;
+  licenseAuthority?: string | null;
+  rciNumber?: string | null;
+  councilNumber?: string | null;
+  bcbaNumber?: string | null;
+  emiratesId?: string | null;
+  visaStatus?: string | null;
+  insuranceProvider?: string | null;
+  insurancePolicyNumber?: string | null;
+  insuranceExpiry?: string | null;
+}
+
+export async function getMemberTherapistProfile(
+  slug: string,
+  memberId: string,
+): Promise<{
+  member: { status: string; userId: string };
+  user: { id: string; name: string | null; email: string } | null;
+  profile: TherapistProfileData | null;
+}> {
+  const { data } = await apiClient.get(
+    `/organizations/${slug}/members/${memberId}/therapist-profile`,
+  );
+  return data;
+}
+
+export async function saveMemberTherapistProfile(
+  slug: string,
+  memberId: string,
+  payload: TherapistProfileData & { name?: string },
+): Promise<void> {
+  await apiClient.patch(
+    `/organizations/${slug}/members/${memberId}/therapist-profile`,
+    payload,
+  );
+}
+
 // ── Leave / holidays (shares the therapist's AvailabilityException records) ──
 
 export interface LeaveRecord {

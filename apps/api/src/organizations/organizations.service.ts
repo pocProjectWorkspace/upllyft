@@ -1,7 +1,32 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
-import { Organization, OrganizationMember, OrganizationRole, OrganizationStatus, AvailabilityExceptionType, TherapistApprovalStatus, Prisma } from '@prisma/client';
+import { Organization, OrganizationMember, OrganizationRole, OrganizationStatus, AvailabilityExceptionType, TherapistApprovalStatus, LicenseAuthority, Prisma } from '@prisma/client';
+
+interface SaveTherapistProfileInput {
+    name?: string;
+    title?: string;
+    bio?: string;
+    department?: string;
+    phone?: string;
+    branch?: string;
+    country?: string;
+    qualification?: string;
+    university?: string;
+    yearsExperience?: number;
+    specializations?: string[];
+    licenceNumber?: string;
+    licenceExpiry?: string;
+    licenseAuthority?: string;
+    rciNumber?: string;
+    councilNumber?: string;
+    bcbaNumber?: string;
+    emiratesId?: string;
+    visaStatus?: string;
+    insuranceProvider?: string;
+    insurancePolicyNumber?: string;
+    insuranceExpiry?: string;
+}
 import { randomBytes } from 'crypto';
 import { AppLoggerService } from '../common/logging';
 import * as XLSX from 'xlsx';
@@ -1382,6 +1407,98 @@ export class OrganizationsService {
                 : `Changes requested from ${targetMember.user.name || targetMember.user.email}`,
             member: updated,
         };
+    }
+
+    /** Shared: resolve org and assert the requester is an org or platform admin. */
+    private async getOrgAndAssertAdmin(slug: string, adminId: string) {
+        const org = await this.findOne(slug);
+        const adminMember = await this.prisma.organizationMember.findUnique({
+            where: { userId_organizationId: { userId: adminId, organizationId: org.id } },
+        });
+        const adminUser = await this.prisma.user.findUnique({
+            where: { id: adminId },
+            select: { role: true },
+        });
+        if (adminUser?.role !== 'ADMIN' && adminMember?.role !== 'ADMIN') {
+            throw new BadRequestException('Only organization admins or platform admins can perform this action');
+        }
+        return org;
+    }
+
+    private async getMemberInOrg(org: { id: string }, memberId: string) {
+        const targetMember = await this.prisma.organizationMember.findUnique({ where: { id: memberId } });
+        if (!targetMember) {
+            throw new NotFoundException('Member not found');
+        }
+        if (targetMember.organizationId !== org.id) {
+            throw new BadRequestException('Member does not belong to this organization');
+        }
+        return targetMember;
+    }
+
+    /** Add Therapist wizard: read a member's therapist profile for pre-fill. */
+    async getMemberTherapistProfile(slug: string, memberId: string, adminId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const targetMember = await this.getMemberInOrg(org, memberId);
+        const user = await this.prisma.user.findUnique({
+            where: { id: targetMember.userId },
+            select: { id: true, name: true, email: true },
+        });
+        const profile = await this.prisma.therapistProfile.findUnique({
+            where: { userId: targetMember.userId },
+        });
+        return { member: targetMember, user, profile };
+    }
+
+    /** Add Therapist wizard: save Basic Info + Credentials. Upserts the profile. */
+    async saveMemberTherapistProfile(
+        slug: string,
+        memberId: string,
+        adminId: string,
+        data: SaveTherapistProfileInput,
+    ) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const targetMember = await this.getMemberInOrg(org, memberId);
+
+        if (data.name) {
+            await this.prisma.user.update({
+                where: { id: targetMember.userId },
+                data: { name: data.name },
+            });
+        }
+
+        const profileData = {
+            title: data.title,
+            bio: data.bio,
+            department: data.department,
+            phone: data.phone,
+            branch: data.branch,
+            country: data.country,
+            qualification: data.qualification,
+            university: data.university,
+            yearsExperience: data.yearsExperience,
+            specializations: data.specializations,
+            licenceNumber: data.licenceNumber,
+            licenceExpiry: data.licenceExpiry ? new Date(data.licenceExpiry) : undefined,
+            licenseAuthority: data.licenseAuthority
+                ? (data.licenseAuthority as LicenseAuthority)
+                : undefined,
+            rciNumber: data.rciNumber,
+            councilNumber: data.councilNumber,
+            bcbaNumber: data.bcbaNumber,
+            emiratesId: data.emiratesId,
+            visaStatus: data.visaStatus,
+            insuranceProvider: data.insuranceProvider,
+            insurancePolicyNumber: data.insurancePolicyNumber,
+            insuranceExpiry: data.insuranceExpiry ? new Date(data.insuranceExpiry) : undefined,
+        };
+
+        const profile = await this.prisma.therapistProfile.upsert({
+            where: { userId: targetMember.userId },
+            create: { userId: targetMember.userId, ...profileData },
+            update: profileData,
+        });
+        return { success: true, profile };
     }
 
     /**

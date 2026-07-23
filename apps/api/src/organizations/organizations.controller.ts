@@ -253,6 +253,29 @@ export class OrganizationsController {
         return this.organizationsService.removeMemberLeave(slug, memberId, req.user.id, exceptionId);
     }
 
+    /** Add Therapist wizard: read a member's therapist profile for pre-fill. */
+    @Get(':slug/members/:memberId/therapist-profile')
+    @UseGuards(JwtAuthGuard)
+    getMemberTherapistProfile(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getMemberTherapistProfile(slug, memberId, req.user.id);
+    }
+
+    /** Add Therapist wizard: save Basic Info + Credentials. */
+    @Patch(':slug/members/:memberId/therapist-profile')
+    @UseGuards(JwtAuthGuard)
+    saveMemberTherapistProfile(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Body() body: any,
+        @Request() req: any
+    ) {
+        return this.organizationsService.saveMemberTherapistProfile(slug, memberId, req.user.id, body);
+    }
+
     /**
      * Approve & Activate (approve=true, the default) or Request Changes
      * (approve=false) for a member — the Add Therapist wizard's Review step.

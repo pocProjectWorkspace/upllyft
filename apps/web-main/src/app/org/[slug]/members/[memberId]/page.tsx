@@ -19,7 +19,13 @@ import {
   LICENSE_AUTHORITIES_UAE,
   type DepartmentKey,
 } from '@upllyft/types';
-import { getOrgMember, approveOrgMember, type OrgMember } from '@/lib/api/organizations';
+import {
+  getOrgMember,
+  approveOrgMember,
+  getMemberTherapistProfile,
+  saveMemberTherapistProfile,
+  type OrgMember,
+} from '@/lib/api/organizations';
 
 type Country = 'India' | 'UAE';
 type Mode = 'in-person' | 'online';
@@ -190,10 +196,43 @@ export default function AddTherapistWizard() {
     let active = true;
     (async () => {
       try {
-        const m = await getOrgMember(slug, memberId);
+        const [m, detail] = await Promise.all([
+          getOrgMember(slug, memberId),
+          getMemberTherapistProfile(slug, memberId).catch(() => null),
+        ]);
         if (!active) return;
         setMember(m ?? null);
-        setForm(initialForm(m));
+        const base = initialForm(m);
+        const p = detail?.profile;
+        setForm(
+          p
+            ? {
+                ...base,
+                name: detail?.user?.name ?? base.name,
+                displayTitle: p.title ?? '',
+                bio: p.bio ?? '',
+                department: (p.department as DepartmentKey) || '',
+                phone: p.phone ?? '',
+                branch: p.branch ?? '',
+                country: (p.country as Country) || 'India',
+                qualification: p.qualification ?? '',
+                university: p.university ?? '',
+                yearsExperience: p.yearsExperience != null ? String(p.yearsExperience) : '',
+                specializations: p.specializations ?? [],
+                rciNumber: p.rciNumber ?? '',
+                councilNumber: p.councilNumber ?? '',
+                bcbaNumber: p.bcbaNumber ?? '',
+                licenseAuthority: p.licenseAuthority ?? '',
+                licenseNumber: p.licenceNumber ?? '',
+                licenseExpiry: p.licenceExpiry ? p.licenceExpiry.slice(0, 10) : '',
+                emiratesId: p.emiratesId ?? '',
+                visaStatus: p.visaStatus ?? '',
+                insuranceProvider: p.insuranceProvider ?? '',
+                insurancePolicy: p.insurancePolicyNumber ?? '',
+                insuranceExpiry: p.insuranceExpiry ? p.insuranceExpiry.slice(0, 10) : '',
+              }
+            : base,
+        );
       } catch {
         toast({ title: 'Error', description: 'Failed to load member', variant: 'destructive' });
       } finally {
@@ -204,6 +243,33 @@ export default function AddTherapistWizard() {
       active = false;
     };
   }, [slug, memberId]);
+
+  async function saveProfile() {
+    await saveMemberTherapistProfile(slug, memberId, {
+      name: form.name || undefined,
+      title: form.displayTitle || undefined,
+      bio: form.bio || undefined,
+      department: form.department || undefined,
+      phone: form.phone || undefined,
+      branch: form.branch || undefined,
+      country: form.country,
+      qualification: form.qualification || undefined,
+      university: form.university || undefined,
+      yearsExperience: form.yearsExperience ? Number(form.yearsExperience) : undefined,
+      specializations: form.specializations,
+      rciNumber: form.rciNumber || undefined,
+      councilNumber: form.councilNumber || undefined,
+      bcbaNumber: form.bcbaNumber || undefined,
+      emiratesId: form.emiratesId || undefined,
+      visaStatus: form.visaStatus || undefined,
+      licenseAuthority: form.country === 'UAE' ? form.licenseAuthority || undefined : undefined,
+      licenceNumber: form.country === 'UAE' ? form.licenseNumber || undefined : undefined,
+      licenceExpiry: form.country === 'UAE' ? form.licenseExpiry || undefined : undefined,
+      insuranceProvider: form.insuranceProvider || undefined,
+      insurancePolicyNumber: form.insurancePolicy || undefined,
+      insuranceExpiry: form.insuranceExpiry || undefined,
+    });
+  }
 
   const dept = form.department ? DEPARTMENTS[form.department] : null;
   const durations = DURATION_PRESETS.extended; // wizard uses the extended set (incl. 90/120)
@@ -276,7 +342,23 @@ export default function AddTherapistWizard() {
     });
   }
 
-  function next() {
+  async function next() {
+    // Basic Info (0) and Credentials (1) persist to the therapist profile on Continue.
+    if (step === 0 || step === 1) {
+      setSaving(true);
+      try {
+        await saveProfile();
+      } catch (err: any) {
+        toast({
+          title: 'Error',
+          description: err?.response?.data?.message || 'Failed to save',
+          variant: 'destructive',
+        });
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+    }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
   function back() {
@@ -741,9 +823,10 @@ export default function AddTherapistWizard() {
           ) : (
             <button
               onClick={next}
-              className="px-4 py-2 text-sm rounded-xl text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700"
+              disabled={saving}
+              className="px-4 py-2 text-sm rounded-xl text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 disabled:opacity-40"
             >
-              Continue →
+              {saving ? 'Saving…' : 'Continue →'}
             </button>
           )}
         </div>
