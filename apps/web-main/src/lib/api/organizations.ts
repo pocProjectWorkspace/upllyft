@@ -136,6 +136,16 @@ export async function getOrgMembers(slug: string): Promise<OrgMember[]> {
   return data;
 }
 
+export async function getOrgMember(
+  slug: string,
+  memberId: string,
+): Promise<OrgMember | undefined> {
+  // No single-member endpoint yet; resolve from the org roster. Cheap for
+  // clinic-sized orgs — swap for `GET /organizations/:slug/members/:id` when built.
+  const members = await getOrgMembers(slug);
+  return members.find((m) => m.id === memberId);
+}
+
 export async function inviteOrgMember(
   slug: string,
   payload: { email: string; role: string },
@@ -181,6 +191,43 @@ export async function reactivateOrgMember(
 ): Promise<void> {
   await apiClient.post(
     `/organizations/${slug}/members/${memberId}/reactivate`,
+  );
+}
+
+// ── Leave / holidays (shares the therapist's AvailabilityException records) ──
+
+export interface LeaveRecord {
+  id: string;
+  therapistId: string;
+  date: string;
+  reason?: string | null;
+}
+
+export async function getMemberLeave(
+  slug: string,
+  memberId: string,
+): Promise<LeaveRecord[]> {
+  const { data } = await apiClient.get<LeaveRecord[]>(
+    `/organizations/${slug}/members/${memberId}/leave`,
+  );
+  return data;
+}
+
+export async function addMemberLeave(
+  slug: string,
+  memberId: string,
+  body: { fromDate: string; toDate?: string; reason?: string },
+): Promise<void> {
+  await apiClient.post(`/organizations/${slug}/members/${memberId}/leave`, body);
+}
+
+export async function removeMemberLeave(
+  slug: string,
+  memberId: string,
+  exceptionId: string,
+): Promise<void> {
+  await apiClient.delete(
+    `/organizations/${slug}/members/${memberId}/leave/${exceptionId}`,
   );
 }
 

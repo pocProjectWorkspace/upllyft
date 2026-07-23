@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
-import { Organization, OrganizationMember, OrganizationRole, OrganizationStatus, Prisma } from '@prisma/client';
+import { Organization, OrganizationMember, OrganizationRole, OrganizationStatus, AvailabilityExceptionType, Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { AppLoggerService } from '../common/logging';
 import * as XLSX from 'xlsx';
@@ -1206,6 +1206,108 @@ export class OrganizationsService {
             message: `Member ${targetMember.user.name || targetMember.user.email} has been reactivated`,
             member: updatedMember
         };
+    }
+
+    /**
+     * Resolve an OrganizationMember id to their TherapistProfile id, after checking
+     * the requester is an org or platform admin and the member belongs to the org.
+     * Shared by the leave-management endpoints.
+     */
+    private async resolveMemberTherapist(slug: string, memberId: string, adminId: string) {
+        const org = await this.findOne(slug);
+
+        const adminMember = await this.prisma.organizationMember.findUnique({
+            where: { userId_organizationId: { userId: adminId, organizationId: org.id } },
+        });
+        const adminUser = await this.prisma.user.findUnique({
+            where: { id: adminId },
+            select: { role: true },
+        });
+        const isPlatformAdmin = adminUser?.role === 'ADMIN';
+        const isOrgAdmin = adminMember?.role === 'ADMIN';
+        if (!isPlatformAdmin && !isOrgAdmin) {
+            throw new BadRequestException('Only organization admins or platform admins can manage leave');
+        }
+
+        const targetMember = await this.prisma.organizationMember.findUnique({
+            where: { id: memberId },
+        });
+        if (!targetMember) {
+            throw new NotFoundException('Member not found');
+        }
+        if (targetMember.organizationId !== org.id) {
+            throw new BadRequestException('Member does not belong to this organization');
+        }
+
+        const therapist = await this.prisma.therapistProfile.findUnique({
+            where: { userId: targetMember.userId },
+            select: { id: true },
+        });
+        if (!therapist) {
+            throw new BadRequestException('This member does not have a therapist profile');
+        }
+        return therapist.id;
+    }
+
+    /** Leave records (blocked dates) for a member's therapist profile. */
+    async getMemberLeave(slug: string, memberId: string, adminId: string) {
+        const therapistId = await this.resolveMemberTherapist(slug, memberId, adminId);
+        return this.prisma.availabilityException.findMany({
+            where: { therapistId, type: AvailabilityExceptionType.BLOCKED },
+            orderBy: { date: 'asc' },
+        });
+    }
+
+    /**
+     * Add leave on the therapist's behalf. A From→To range is stored as one
+     * BLOCKED AvailabilityException per day (the model keys on a single date).
+     */
+    async addMemberLeave(
+        slug: string,
+        memberId: string,
+        adminId: string,
+        body: { fromDate: string; toDate?: string; reason?: string },
+    ) {
+        const therapistId = await this.resolveMemberTherapist(slug, memberId, adminId);
+        if (!body?.fromDate) {
+            throw new BadRequestException('fromDate is required');
+        }
+        const from = new Date(`${body.fromDate}T00:00:00`);
+        const to = new Date(`${body.toDate || body.fromDate}T00:00:00`);
+        if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+            throw new BadRequestException('Invalid date');
+        }
+        if (to < from) {
+            throw new BadRequestException('toDate must be on or after fromDate');
+        }
+
+        const created = [] as unknown[];
+        for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+            created.push(
+                await this.prisma.availabilityException.create({
+                    data: {
+                        therapistId,
+                        date: new Date(d),
+                        type: AvailabilityExceptionType.BLOCKED,
+                        reason: body.reason || null,
+                    },
+                }),
+            );
+        }
+        return { success: true, created };
+    }
+
+    /** Remove a leave record, scoped to the member's therapist profile. */
+    async removeMemberLeave(slug: string, memberId: string, adminId: string, exceptionId: string) {
+        const therapistId = await this.resolveMemberTherapist(slug, memberId, adminId);
+        const exception = await this.prisma.availabilityException.findUnique({
+            where: { id: exceptionId },
+        });
+        if (!exception || exception.therapistId !== therapistId) {
+            throw new NotFoundException('Leave record not found');
+        }
+        await this.prisma.availabilityException.delete({ where: { id: exceptionId } });
+        return { success: true };
     }
 
     /**

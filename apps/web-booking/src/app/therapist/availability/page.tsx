@@ -7,6 +7,8 @@ import {
   useMyAvailability,
   useSetRecurringAvailability,
   useDeleteAvailability,
+  useAddAvailabilityException,
+  useDeleteAvailabilityException,
 } from '@/hooks/use-marketplace';
 import { dayNames } from '@/lib/utils';
 import type { TherapistAvailability } from '@/lib/api/marketplace';
@@ -37,13 +39,60 @@ export default function TherapistAvailabilityPage() {
   const { data: availability, isLoading } = useMyAvailability();
   const setAvailability = useSetRecurringAvailability();
   const deleteAvailability = useDeleteAvailability();
+  const addException = useAddAvailabilityException();
+  const deleteException = useDeleteAvailabilityException();
 
   const [addOpen, setAddOpen] = useState(false);
   const [addDay, setAddDay] = useState<number>(0);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('17:00');
 
+  // Absence / leave form
+  const [leaveFrom, setLeaveFrom] = useState('');
+  const [leaveTo, setLeaveTo] = useState('');
+  const [leaveReason, setLeaveReason] = useState('');
+
   const recurring = availability?.recurring || [];
+
+  const today = new Date().toISOString().slice(0, 10);
+  // Leave = any non-AVAILABLE exception. Each record is a single day; a From→To
+  // range is stored as one record per day (the model keys on a single `date`).
+  const leaveRecords = (availability?.exceptions || [])
+    .filter((e) => e.type !== 'AVAILABLE')
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const upcomingLeave = leaveRecords.filter((e) => e.date.slice(0, 10) >= today);
+  const daysOffThisYear = leaveRecords.filter(
+    (e) => e.date.slice(0, 4) === today.slice(0, 4),
+  ).length;
+  const nextUnavailable = upcomingLeave[0]?.date.slice(0, 10);
+
+  function enumerateDates(from: string, to: string): string[] {
+    const out: string[] = [];
+    const end = new Date(`${to || from}T00:00:00`);
+    for (let d = new Date(`${from}T00:00:00`); d <= end; d.setDate(d.getDate() + 1)) {
+      out.push(d.toISOString().slice(0, 10));
+    }
+    return out;
+  }
+
+  async function handleAddLeave() {
+    if (!leaveFrom) {
+      toast({ title: 'Pick a start date', variant: 'destructive' });
+      return;
+    }
+    if (leaveTo && leaveTo < leaveFrom) {
+      toast({ title: 'End date must be after the start date', variant: 'destructive' });
+      return;
+    }
+    const dates = enumerateDates(leaveFrom, leaveTo);
+    for (const date of dates) {
+      await addException.mutateAsync({ date, type: 'BLOCKED', reason: leaveReason || undefined });
+    }
+    setLeaveFrom('');
+    setLeaveTo('');
+    setLeaveReason('');
+  }
 
   function getSlotsByDay(day: number): TherapistAvailability[] {
     return recurring.filter((s) => s.dayOfWeek === day && s.isActive).sort((a, b) => a.startTime.localeCompare(b.startTime));
@@ -174,6 +223,99 @@ export default function TherapistAvailabilityPage() {
             })}
           </div>
         )}
+
+        {/* Absence management */}
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Absence management</h2>
+            <p className="text-gray-500 mt-1 text-sm">
+              Leave and blackout dates. These block bookings and are visible to your clinic admin.
+            </p>
+          </div>
+
+          {/* Summary tiles */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="rounded-2xl">
+              <div className="p-5">
+                <p className="text-sm text-gray-500">Upcoming leave</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{upcomingLeave.length}</p>
+              </div>
+            </Card>
+            <Card className="rounded-2xl">
+              <div className="p-5">
+                <p className="text-sm text-gray-500">Days off this year</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{daysOffThisYear}</p>
+              </div>
+            </Card>
+            <Card className="rounded-2xl">
+              <div className="p-5">
+                <p className="text-sm text-gray-500">Next unavailable</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {nextUnavailable ? new Date(`${nextUnavailable}T00:00:00`).toLocaleDateString() : '—'}
+                </p>
+              </div>
+            </Card>
+          </div>
+
+          {/* Add record */}
+          <Card className="rounded-2xl">
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+              <div className="space-y-2">
+                <Label htmlFor="leave-from">From</Label>
+                <Input id="leave-from" type="date" value={leaveFrom} onChange={(e) => setLeaveFrom(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="leave-to">To (optional)</Label>
+                <Input id="leave-to" type="date" value={leaveTo} onChange={(e) => setLeaveTo(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="leave-reason">Reason (optional)</Label>
+                <Input id="leave-reason" value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} placeholder="e.g. Conference" />
+              </div>
+              <Button
+                onClick={handleAddLeave}
+                disabled={addException.isPending}
+                className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl"
+              >
+                {addException.isPending ? 'Adding…' : 'Add record'}
+              </Button>
+            </div>
+          </Card>
+
+          {/* Records list */}
+          <Card className="rounded-2xl">
+            <div className="p-5">
+              {leaveRecords.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4 text-center">No leave records yet.</p>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {leaveRecords.map((rec) => {
+                    const past = rec.date.slice(0, 10) < today;
+                    return (
+                      <div key={rec.id} className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-gray-900">
+                            {new Date(`${rec.date.slice(0, 10)}T00:00:00`).toLocaleDateString()}
+                          </span>
+                          {rec.reason && <span className="text-sm text-gray-500">— {rec.reason}</span>}
+                          <Badge color={past ? 'gray' : 'green'}>{past ? 'Past' : 'Upcoming'}</Badge>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteException.mutate(rec.id)}
+                          disabled={deleteException.isPending}
+                          className="text-sm text-gray-400 hover:text-red-500"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
 
         {/* Add Slot Dialog */}
         <Dialog open={addOpen} onOpenChange={setAddOpen}>

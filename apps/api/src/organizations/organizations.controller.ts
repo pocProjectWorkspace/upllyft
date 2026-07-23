@@ -217,6 +217,43 @@ export class OrganizationsController {
     }
 
     /**
+     * Leave / holidays for a member's therapist profile — the org-admin's
+     * Leave Management screen. Reads/writes the SAME AvailabilityException
+     * records the therapist edits from their own Hub Absence panel.
+     */
+    @Get(':slug/members/:memberId/leave')
+    @UseGuards(JwtAuthGuard)
+    getMemberLeave(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getMemberLeave(slug, memberId, req.user.id);
+    }
+
+    @Post(':slug/members/:memberId/leave')
+    @UseGuards(JwtAuthGuard)
+    addMemberLeave(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Body() body: { fromDate: string; toDate?: string; reason?: string },
+        @Request() req: any
+    ) {
+        return this.organizationsService.addMemberLeave(slug, memberId, req.user.id, body);
+    }
+
+    @Delete(':slug/members/:memberId/leave/:exceptionId')
+    @UseGuards(JwtAuthGuard)
+    removeMemberLeave(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Param('exceptionId') exceptionId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.removeMemberLeave(slug, memberId, req.user.id, exceptionId);
+    }
+
+    /**
      * Get member status - useful for checking if user is suspended/deactivated
      */
     @Get(':slug/members/:userId/status')
