@@ -315,6 +315,56 @@ export class OrganizationsController {
         return this.organizationsService.approveMember(slug, memberId, req.user.id, approve !== false);
     }
 
+    // ── Family Intake Journey ──
+
+    /** Org therapists for the assign dropdown. */
+    @Get(':slug/therapists')
+    @UseGuards(JwtAuthGuard)
+    getOrgTherapists(@Param('slug') slug: string, @Request() req: any) {
+        return this.organizationsService.getOrgTherapists(slug, req.user.id);
+    }
+
+    /** Families queue — every case belonging to this org. */
+    @Get(':slug/families')
+    @UseGuards(JwtAuthGuard)
+    getOrgFamilies(@Param('slug') slug: string, @Request() req: any) {
+        return this.organizationsService.getOrgFamilies(slug, req.user.id);
+    }
+
+    /** One family's full detail. */
+    @Get(':slug/families/:caseId')
+    @UseGuards(JwtAuthGuard)
+    getOrgFamilyDetail(
+        @Param('slug') slug: string,
+        @Param('caseId') caseId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getOrgFamilyDetail(slug, req.user.id, caseId);
+    }
+
+    /** Assign / reassign the primary therapist on a family's case. */
+    @Post(':slug/families/:caseId/assign')
+    @UseGuards(JwtAuthGuard)
+    assignOrgFamilyTherapist(
+        @Param('slug') slug: string,
+        @Param('caseId') caseId: string,
+        @Body('therapistId') therapistId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.assignOrgFamilyTherapist(slug, req.user.id, caseId, therapistId);
+    }
+
+    /** Grant the family's parent platform access (set-password email). */
+    @Post(':slug/families/:caseId/grant-access')
+    @UseGuards(JwtAuthGuard)
+    grantOrgFamilyAccess(
+        @Param('slug') slug: string,
+        @Param('caseId') caseId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.grantOrgFamilyAccess(slug, req.user.id, caseId);
+    }
+
     /**
      * Get member status - useful for checking if user is suspended/deactivated
      */

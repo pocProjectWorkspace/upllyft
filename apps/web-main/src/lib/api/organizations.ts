@@ -294,6 +294,103 @@ export async function saveMemberTherapistProfile(
   );
 }
 
+// ── Family Intake Journey ──
+
+export interface OrgFamily {
+  caseId: string;
+  caseNumber: string;
+  childName: string;
+  childDob: string;
+  parentName: string | null;
+  submittedAt: string;
+  assignedTherapistId: string | null;
+  assignedTherapistName: string | null;
+  status: 'PENDING_REVIEW' | 'ACCESS_GRANTED';
+}
+
+export interface OrgFamilyDetail {
+  id: string;
+  caseNumber: string;
+  status: string;
+  createdAt: string;
+  child: {
+    id: string;
+    firstName: string;
+    nickname: string | null;
+    dateOfBirth: string;
+    gender: string;
+    guardians: {
+      fullName: string;
+      relationship: string;
+      email: string | null;
+      phone: string | null;
+      isPrimaryContact: boolean;
+      userId: string | null;
+    }[];
+  };
+  primaryTherapist: { id: string; user: { name: string | null } } | null;
+  intake: {
+    state: string;
+    presentingConcern: string | null;
+    referralQuestions: string[];
+    parentGoals: string[];
+    urgencyFlag: string | null;
+    aiSummary: string | null;
+    consentAssessment: boolean;
+    consentTherapy: boolean;
+    consentSharing: boolean;
+    consentAi: boolean;
+  } | null;
+}
+
+export interface OrgTherapistOption {
+  id: string;
+  name: string;
+  department: string | null;
+}
+
+export async function getOrgFamilies(slug: string): Promise<OrgFamily[]> {
+  const { data } = await apiClient.get<OrgFamily[]>(`/organizations/${slug}/families`);
+  return data;
+}
+
+export async function getOrgFamilyDetail(
+  slug: string,
+  caseId: string,
+): Promise<OrgFamilyDetail> {
+  const { data } = await apiClient.get<OrgFamilyDetail>(
+    `/organizations/${slug}/families/${caseId}`,
+  );
+  return data;
+}
+
+export async function getOrgTherapists(slug: string): Promise<OrgTherapistOption[]> {
+  const { data } = await apiClient.get<OrgTherapistOption[]>(
+    `/organizations/${slug}/therapists`,
+  );
+  return data;
+}
+
+export async function assignOrgFamilyTherapist(
+  slug: string,
+  caseId: string,
+  therapistId: string,
+): Promise<void> {
+  await apiClient.post(`/organizations/${slug}/families/${caseId}/assign`, {
+    therapistId,
+  });
+}
+
+export async function grantOrgFamilyAccess(
+  slug: string,
+  caseId: string,
+): Promise<{ success: boolean; message: string }> {
+  const { data } = await apiClient.post(
+    `/organizations/${slug}/families/${caseId}/grant-access`,
+  );
+  return data;
+}
+
 // ── Leave / holidays (shares the therapist's AvailabilityException records) ──
 
 export interface LeaveRecord {
