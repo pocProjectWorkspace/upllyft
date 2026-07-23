@@ -254,6 +254,21 @@ export class OrganizationsController {
     }
 
     /**
+     * Approve & Activate (approve=true, the default) or Request Changes
+     * (approve=false) for a member — the Add Therapist wizard's Review step.
+     */
+    @Post(':slug/members/:memberId/approve')
+    @UseGuards(JwtAuthGuard)
+    approveMember(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Body('approve') approve: boolean | undefined,
+        @Request() req: any
+    ) {
+        return this.organizationsService.approveMember(slug, memberId, req.user.id, approve !== false);
+    }
+
+    /**
      * Get member status - useful for checking if user is suspended/deactivated
      */
     @Get(':slug/members/:userId/status')

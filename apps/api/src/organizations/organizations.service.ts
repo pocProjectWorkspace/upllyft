@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
-import { Organization, OrganizationMember, OrganizationRole, OrganizationStatus, AvailabilityExceptionType, Prisma } from '@prisma/client';
+import { Organization, OrganizationMember, OrganizationRole, OrganizationStatus, AvailabilityExceptionType, TherapistApprovalStatus, Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { AppLoggerService } from '../common/logging';
 import * as XLSX from 'xlsx';
@@ -1308,6 +1308,80 @@ export class OrganizationsService {
         }
         await this.prisma.availabilityException.delete({ where: { id: exceptionId } });
         return { success: true };
+    }
+
+    /**
+     * Approve & Activate (or Request Changes for) a member from the Add Therapist
+     * wizard's Review step. Flips the OrganizationMember status and mirrors the
+     * decision onto the therapist's org link if one exists.
+     */
+    async approveMember(slug: string, memberId: string, adminId: string, approve: boolean) {
+        const org = await this.findOne(slug);
+
+        const adminMember = await this.prisma.organizationMember.findUnique({
+            where: { userId_organizationId: { userId: adminId, organizationId: org.id } },
+        });
+        const adminUser = await this.prisma.user.findUnique({
+            where: { id: adminId },
+            select: { role: true },
+        });
+        const isPlatformAdmin = adminUser?.role === 'ADMIN';
+        const isOrgAdmin = adminMember?.role === 'ADMIN';
+        if (!isPlatformAdmin && !isOrgAdmin) {
+            throw new BadRequestException('Only organization admins or platform admins can approve members');
+        }
+
+        const targetMember = await this.prisma.organizationMember.findUnique({
+            where: { id: memberId },
+            include: { user: { select: { id: true, name: true, email: true } } },
+        });
+        if (!targetMember) {
+            throw new NotFoundException('Member not found');
+        }
+        if (targetMember.organizationId !== org.id) {
+            throw new BadRequestException('Member does not belong to this organization');
+        }
+
+        const updated = await this.prisma.organizationMember.update({
+            where: { id: memberId },
+            data: { status: approve ? OrganizationStatus.ACTIVE : OrganizationStatus.PENDING },
+        });
+
+        // Mirror onto the therapist's org link, if the member has one.
+        const therapist = await this.prisma.therapistProfile.findUnique({
+            where: { userId: targetMember.userId },
+            select: { id: true },
+        });
+        if (therapist) {
+            const link = await this.prisma.therapistOrganizationLink.findUnique({
+                where: {
+                    therapistId_organizationId: {
+                        therapistId: therapist.id,
+                        organizationId: org.id,
+                    },
+                },
+            });
+            if (link) {
+                await this.prisma.therapistOrganizationLink.update({
+                    where: { id: link.id },
+                    data: approve
+                        ? {
+                              status: TherapistApprovalStatus.APPROVED,
+                              approvedAt: new Date(),
+                              approvedBy: adminId,
+                          }
+                        : { status: TherapistApprovalStatus.PENDING },
+                });
+            }
+        }
+
+        return {
+            success: true,
+            message: approve
+                ? `${targetMember.user.name || targetMember.user.email} has been approved and activated`
+                : `Changes requested from ${targetMember.user.name || targetMember.user.email}`,
+            member: updated,
+        };
     }
 
     /**

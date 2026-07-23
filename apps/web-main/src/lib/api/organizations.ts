@@ -194,6 +194,16 @@ export async function reactivateOrgMember(
   );
 }
 
+export async function approveOrgMember(
+  slug: string,
+  memberId: string,
+  approve: boolean,
+): Promise<void> {
+  await apiClient.post(`/organizations/${slug}/members/${memberId}/approve`, {
+    approve,
+  });
+}
+
 // ── Leave / holidays (shares the therapist's AvailabilityException records) ──
 
 export interface LeaveRecord {

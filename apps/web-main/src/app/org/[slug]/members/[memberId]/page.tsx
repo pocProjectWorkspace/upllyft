@@ -19,7 +19,7 @@ import {
   LICENSE_AUTHORITIES_UAE,
   type DepartmentKey,
 } from '@upllyft/types';
-import { getOrgMember, type OrgMember } from '@/lib/api/organizations';
+import { getOrgMember, approveOrgMember, type OrgMember } from '@/lib/api/organizations';
 
 type Country = 'India' | 'UAE';
 type Mode = 'in-person' | 'online';
@@ -286,13 +286,31 @@ export default function AddTherapistWizard() {
   async function handleApprove() {
     setSaving(true);
     try {
-      // TODO(backend): PATCH therapist_organization_links status PENDING → APPROVED
-      // (approvedAt/approvedBy). No org-admin approval endpoint exists yet — add
-      // `POST /organizations/:slug/members/:memberId/approve`.
+      await approveOrgMember(slug, memberId, true);
+      toast({ title: 'Approved', description: `${form.name || 'Member'} is now active.` });
+      router.push(`/org/${slug}/members`);
+    } catch (err: any) {
       toast({
-        title: 'Not wired yet',
-        description:
-          'Approve & Activate needs the therapist-approval endpoint (see IMPLEMENTATION-PLAN.md).',
+        title: 'Error',
+        description: err?.response?.data?.message || 'Failed to approve',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRequestChanges() {
+    setSaving(true);
+    try {
+      await approveOrgMember(slug, memberId, false);
+      toast({ title: 'Changes requested', description: 'The member has been moved back to pending.' });
+      router.push(`/org/${slug}/members`);
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err?.response?.data?.message || 'Failed to request changes',
+        variant: 'destructive',
       });
     } finally {
       setSaving(false);
@@ -706,13 +724,9 @@ export default function AddTherapistWizard() {
           {step === STEPS.length - 1 ? (
             <>
               <button
-                onClick={() =>
-                  toast({
-                    title: 'Request Changes',
-                    description: 'TODO(backend): revert status to Invited and notify the member.',
-                  })
-                }
-                className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50"
+                onClick={handleRequestChanges}
+                disabled={saving}
+                className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50 disabled:opacity-40"
               >
                 Request Changes
               </button>
