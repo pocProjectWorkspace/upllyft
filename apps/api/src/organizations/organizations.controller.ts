@@ -276,6 +276,30 @@ export class OrganizationsController {
         return this.organizationsService.saveMemberTherapistProfile(slug, memberId, req.user.id, body);
     }
 
+    /** Add Therapist wizard, Schedule step: replace weekly availability. */
+    @Put(':slug/members/:memberId/availability')
+    @UseGuards(JwtAuthGuard)
+    saveMemberAvailability(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Body() body: { slots: { dayOfWeek: number; startTime: string; endTime: string }[]; timezone?: string },
+        @Request() req: any
+    ) {
+        return this.organizationsService.saveMemberAvailability(slug, memberId, req.user.id, body?.slots || [], body?.timezone);
+    }
+
+    /** Add Therapist wizard, Fees step: upsert session types. */
+    @Put(':slug/members/:memberId/session-types')
+    @UseGuards(JwtAuthGuard)
+    saveMemberSessionTypes(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Body() body: { items: { name: string; duration: number; price: number; currency: string }[] },
+        @Request() req: any
+    ) {
+        return this.organizationsService.saveMemberSessionTypes(slug, memberId, req.user.id, body?.items || []);
+    }
+
     /**
      * Approve & Activate (approve=true, the default) or Request Changes
      * (approve=false) for a member — the Add Therapist wizard's Review step.

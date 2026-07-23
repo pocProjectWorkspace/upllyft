@@ -24,7 +24,11 @@ import {
   approveOrgMember,
   getMemberTherapistProfile,
   saveMemberTherapistProfile,
+  saveMemberAvailability,
+  saveMemberSessionTypes,
   type OrgMember,
+  type WizardSessionType,
+  type WizardAvailabilitySlot,
 } from '@/lib/api/organizations';
 
 type Country = 'India' | 'UAE';
@@ -122,6 +126,82 @@ function initialForm(member?: OrgMember): WizardForm {
   };
 }
 
+// dayOfWeek convention matches TherapistAvailability (0 = Sunday … 6 = Saturday),
+// so the grid the org admin sets is the same the therapist reads on their own Hub.
+const DAY_TO_DOW: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 0 };
+const DOW_TO_DAY: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 0: 'Sun' };
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+// Collapse selected hour-cells into contiguous {dayOfWeek, start, end} ranges.
+function gridToSlots(availability: Record<string, boolean>) {
+  const slots: { dayOfWeek: number; startTime: string; endTime: string }[] = [];
+  for (const day of DAYS) {
+    const hours = HOURS.filter((h) => availability[`${day}-${h}`]).sort((a, b) => a - b);
+    let runStart: number | null = null;
+    let prev: number | null = null;
+    const flush = () => {
+      if (runStart !== null && prev !== null) {
+        slots.push({ dayOfWeek: DAY_TO_DOW[day], startTime: `${pad(runStart)}:00`, endTime: `${pad(prev + 1)}:00` });
+      }
+    };
+    for (const h of hours) {
+      if (runStart === null) {
+        runStart = h;
+        prev = h;
+      } else if (prev !== null && h === prev + 1) {
+        prev = h;
+      } else {
+        flush();
+        runStart = h;
+        prev = h;
+      }
+    }
+    flush();
+  }
+  return slots;
+}
+
+function slotsToGrid(slots: WizardAvailabilitySlot[]) {
+  const grid: Record<string, boolean> = {};
+  for (const s of slots) {
+    const day = DOW_TO_DAY[s.dayOfWeek];
+    if (!day) continue;
+    const sh = parseInt(s.startTime.slice(0, 2), 10);
+    const eh = parseInt(s.endTime.slice(0, 2), 10);
+    for (let h = sh; h < eh; h++) grid[`${day}-${h}`] = true;
+  }
+  return grid;
+}
+
+function feesFromSessionTypes(sts: WizardSessionType[], deptKey: DepartmentKey | ''): FeeRow[] {
+  const labelToKey: Record<string, string> = {};
+  if (deptKey && DEPARTMENTS[deptKey]) {
+    DEPARTMENTS[deptKey].services.forEach((s) => (labelToKey[s.label] = s.key));
+  }
+  const byName: Record<string, FeeRow> = {};
+  for (const st of sts) {
+    if (!byName[st.name]) byName[st.name] = { service: labelToKey[st.name] || '', durations: [], prices: {} };
+    byName[st.name].durations.push(st.duration);
+    byName[st.name].prices[st.duration] = String(st.defaultPrice);
+  }
+  const rows = Object.values(byName).map((r) => ({ ...r, durations: r.durations.slice().sort((a, b) => a - b) }));
+  return rows.length ? rows : [emptyFee()];
+}
+
+function feesToItems(fees: FeeRow[], deptKey: DepartmentKey | '', currency: string) {
+  const services = deptKey && DEPARTMENTS[deptKey] ? DEPARTMENTS[deptKey].services : [];
+  const labelOf = (key: string) => services.find((s) => s.key === key)?.label || key;
+  const items: { name: string; duration: number; price: number; currency: string }[] = [];
+  for (const row of fees) {
+    if (!row.service) continue;
+    for (const d of row.durations) {
+      items.push({ name: labelOf(row.service), duration: d, price: Number(row.prices[d] || 0), currency });
+    }
+  }
+  return items;
+}
+
 // ── Small field helpers (kept local to match the members page's plain-Tailwind style) ──
 
 const inputCls =
@@ -204,6 +284,7 @@ export default function AddTherapistWizard() {
         setMember(m ?? null);
         const base = initialForm(m);
         const p = detail?.profile;
+        const deptKey = (p?.department as DepartmentKey) || '';
         setForm(
           p
             ? {
@@ -211,7 +292,7 @@ export default function AddTherapistWizard() {
                 name: detail?.user?.name ?? base.name,
                 displayTitle: p.title ?? '',
                 bio: p.bio ?? '',
-                department: (p.department as DepartmentKey) || '',
+                department: deptKey,
                 phone: p.phone ?? '',
                 branch: p.branch ?? '',
                 country: (p.country as Country) || 'India',
@@ -230,6 +311,8 @@ export default function AddTherapistWizard() {
                 insuranceProvider: p.insuranceProvider ?? '',
                 insurancePolicy: p.insurancePolicyNumber ?? '',
                 insuranceExpiry: p.insuranceExpiry ? p.insuranceExpiry.slice(0, 10) : '',
+                fees: feesFromSessionTypes(detail?.sessionTypes ?? [], deptKey),
+                availability: slotsToGrid(detail?.availability ?? []),
               }
             : base,
         );
@@ -343,22 +426,26 @@ export default function AddTherapistWizard() {
   }
 
   async function next() {
-    // Basic Info (0) and Credentials (1) persist to the therapist profile on Continue.
-    if (step === 0 || step === 1) {
-      setSaving(true);
-      try {
+    // Each step persists to the shared therapist records on Continue.
+    setSaving(true);
+    try {
+      if (step === 0 || step === 1) {
         await saveProfile();
-      } catch (err: any) {
-        toast({
-          title: 'Error',
-          description: err?.response?.data?.message || 'Failed to save',
-          variant: 'destructive',
-        });
-        setSaving(false);
-        return;
+      } else if (step === 2) {
+        await saveMemberSessionTypes(slug, memberId, feesToItems(form.fees, form.department, currency));
+      } else if (step === 3) {
+        await saveMemberAvailability(slug, memberId, gridToSlots(form.availability), 'Asia/Kolkata');
       }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err?.response?.data?.message || 'Failed to save',
+        variant: 'destructive',
+      });
       setSaving(false);
+      return;
     }
+    setSaving(false);
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
   function back() {

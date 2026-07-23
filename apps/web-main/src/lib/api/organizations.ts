@@ -230,6 +230,21 @@ export interface TherapistProfileData {
   insuranceExpiry?: string | null;
 }
 
+export interface WizardSessionType {
+  id: string;
+  name: string;
+  duration: number;
+  defaultPrice: number;
+  currency: string;
+}
+
+export interface WizardAvailabilitySlot {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
 export async function getMemberTherapistProfile(
   slug: string,
   memberId: string,
@@ -237,11 +252,35 @@ export async function getMemberTherapistProfile(
   member: { status: string; userId: string };
   user: { id: string; name: string | null; email: string } | null;
   profile: TherapistProfileData | null;
+  sessionTypes: WizardSessionType[];
+  availability: WizardAvailabilitySlot[];
 }> {
   const { data } = await apiClient.get(
     `/organizations/${slug}/members/${memberId}/therapist-profile`,
   );
   return data;
+}
+
+export async function saveMemberAvailability(
+  slug: string,
+  memberId: string,
+  slots: { dayOfWeek: number; startTime: string; endTime: string }[],
+  timezone?: string,
+): Promise<void> {
+  await apiClient.put(`/organizations/${slug}/members/${memberId}/availability`, {
+    slots,
+    timezone,
+  });
+}
+
+export async function saveMemberSessionTypes(
+  slug: string,
+  memberId: string,
+  items: { name: string; duration: number; price: number; currency: string }[],
+): Promise<void> {
+  await apiClient.put(`/organizations/${slug}/members/${memberId}/session-types`, {
+    items,
+  });
 }
 
 export async function saveMemberTherapistProfile(

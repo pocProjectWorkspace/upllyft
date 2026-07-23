@@ -1447,7 +1447,96 @@ export class OrganizationsService {
         const profile = await this.prisma.therapistProfile.findUnique({
             where: { userId: targetMember.userId },
         });
-        return { member: targetMember, user, profile };
+        const sessionTypes = profile
+            ? await this.prisma.sessionType.findMany({
+                  where: { therapistId: profile.id, isActive: true },
+                  orderBy: { name: 'asc' },
+              })
+            : [];
+        const availability = profile
+            ? await this.prisma.therapistAvailability.findMany({
+                  where: { therapistId: profile.id, isActive: true },
+              })
+            : [];
+        return { member: targetMember, user, profile, sessionTypes, availability };
+    }
+
+    /** Resolve a member to their TherapistProfile id, creating a bare one if absent. */
+    private async ensureMemberTherapist(org: { id: string }, memberId: string) {
+        const targetMember = await this.getMemberInOrg(org, memberId);
+        const existing = await this.prisma.therapistProfile.findUnique({
+            where: { userId: targetMember.userId },
+            select: { id: true },
+        });
+        if (existing) return existing.id;
+        const created = await this.prisma.therapistProfile.create({
+            data: { userId: targetMember.userId },
+            select: { id: true },
+        });
+        return created.id;
+    }
+
+    /** Add Therapist wizard, Schedule step: replace the member's weekly availability. */
+    async saveMemberAvailability(
+        slug: string,
+        memberId: string,
+        adminId: string,
+        slots: { dayOfWeek: number; startTime: string; endTime: string }[],
+        timezone?: string,
+    ) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const therapistId = await this.ensureMemberTherapist(org, memberId);
+        await this.prisma.therapistAvailability.deleteMany({ where: { therapistId } });
+        if (slots?.length) {
+            await this.prisma.therapistAvailability.createMany({
+                data: slots.map((s) => ({
+                    therapistId,
+                    dayOfWeek: s.dayOfWeek,
+                    startTime: s.startTime,
+                    endTime: s.endTime,
+                    timezone: timezone || 'Asia/Kolkata',
+                })),
+            });
+        }
+        return { success: true };
+    }
+
+    /** Add Therapist wizard, Fees step: upsert the member's session types by name+duration. */
+    async saveMemberSessionTypes(
+        slug: string,
+        memberId: string,
+        adminId: string,
+        items: { name: string; duration: number; price: number; currency: string }[],
+    ) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const therapistId = await this.ensureMemberTherapist(org, memberId);
+        const results: Prisma.SessionTypeGetPayload<{}>[] = [];
+        for (const it of items || []) {
+            const existing = await this.prisma.sessionType.findFirst({
+                where: { therapistId, name: it.name, duration: it.duration },
+            });
+            if (existing) {
+                results.push(
+                    await this.prisma.sessionType.update({
+                        where: { id: existing.id },
+                        data: { defaultPrice: it.price, currency: it.currency, isActive: true },
+                    }),
+                );
+            } else {
+                results.push(
+                    await this.prisma.sessionType.create({
+                        data: {
+                            therapistId,
+                            name: it.name,
+                            duration: it.duration,
+                            defaultPrice: it.price,
+                            currency: it.currency,
+                        },
+                    }),
+                );
+            }
+        }
+        return { success: true, sessionTypes: results };
     }
 
     /** Add Therapist wizard: save Basic Info + Credentials. Upserts the profile. */
