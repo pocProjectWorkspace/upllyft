@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import { createClient } from '@supabase/supabase-js';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
@@ -1468,6 +1469,64 @@ export class OrganizationsService {
             throw new BadRequestException('Member does not belong to this organization');
         }
         return targetMember;
+    }
+
+    /**
+     * Add Therapist wizard: upload a member's credential document to Supabase
+     * storage (the shared `credentials` bucket) and record a Credential row.
+     * Reuses the existing Credential model (keyed to the therapist's User id).
+     */
+    async uploadMemberCredential(
+        slug: string,
+        adminId: string,
+        memberId: string,
+        file: any,
+        label: string,
+    ) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const targetMember = await this.getMemberInOrg(org, memberId);
+
+        const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (!file || !allowed.includes(file.mimetype)) {
+            throw new BadRequestException('Invalid file type. Only PDF, JPEG and PNG are allowed.');
+        }
+
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!url || !key) {
+            throw new BadRequestException('Supabase is not configured.');
+        }
+        const supabase = createClient(url, key);
+        const storagePath = `${targetMember.userId}/${Date.now()}-${file.originalname}`;
+        const { error } = await supabase.storage
+            .from('credentials')
+            .upload(storagePath, file.buffer, { contentType: file.mimetype, upsert: false });
+        if (error) {
+            throw new BadRequestException(`File upload failed: ${error.message}`);
+        }
+
+        return this.prisma.credential.create({
+            data: {
+                therapistId: targetMember.userId,
+                uploadedBy: adminId,
+                label: label || '',
+                fileName: file.originalname,
+                fileUrl: storagePath,
+                mimeType: file.mimetype,
+            },
+            select: { id: true, label: true, fileName: true, fileUrl: true, mimeType: true },
+        });
+    }
+
+    /** List a member's uploaded credential documents (for the wizard). */
+    async listMemberCredentials(slug: string, adminId: string, memberId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const targetMember = await this.getMemberInOrg(org, memberId);
+        return this.prisma.credential.findMany({
+            where: { therapistId: targetMember.userId },
+            orderBy: { id: 'desc' },
+            select: { id: true, label: true, fileName: true, fileUrl: true, mimeType: true },
+        });
     }
 
     /** Add Therapist wizard: read a member's therapist profile for pre-fill. */
