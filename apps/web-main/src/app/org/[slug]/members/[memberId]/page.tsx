@@ -225,6 +225,33 @@ function Field({
   );
 }
 
+// Document upload — UI only for now; selected file names are held locally and the
+// actual upload is wired to the asset pipeline as a follow-up (see IMPLEMENTATION-PLAN).
+function FileField({
+  label,
+  fileName,
+  onSelect,
+}: {
+  label: string;
+  fileName: string;
+  onSelect: (name: string) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="flex items-center gap-3 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 cursor-pointer hover:border-teal-400">
+        <span className="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs">Choose file</span>
+        <span className="truncate">{fileName || 'No file selected'}</span>
+        <input
+          type="file"
+          className="hidden"
+          onChange={(e) => onSelect(e.target.files?.[0]?.name ?? '')}
+        />
+      </label>
+    </div>
+  );
+}
+
 function Chip({
   active,
   onClick,
@@ -262,6 +289,10 @@ export default function AddTherapistWizard() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<WizardForm>(initialForm());
+
+  // Document uploads (UI only until the asset pipeline is wired).
+  const [certFileName, setCertFileName] = useState('');
+  const [docFileName, setDocFileName] = useState('');
 
   // Review checklist
   const [checks, setChecks] = useState({
@@ -653,8 +684,8 @@ export default function AddTherapistWizard() {
                       <input className={inputCls} value={form.bcbaNumber} onChange={(e) => set('bcbaNumber', e.target.value)} />
                     </Field>
                   )}
+                  <FileField label="Registration certificate" fileName={certFileName} onSelect={setCertFileName} />
                 </div>
-                {/* TODO(backend): certificate upload → asset pipeline */}
               </div>
             ) : (
               <div className="space-y-4">
@@ -682,8 +713,8 @@ export default function AddTherapistWizard() {
                   <Field label="Visa status">
                     <input className={inputCls} value={form.visaStatus} onChange={(e) => set('visaStatus', e.target.value)} />
                   </Field>
+                  <FileField label="Supporting document" fileName={docFileName} onSelect={setDocFileName} />
                 </div>
-                {/* TODO(backend): document upload → asset pipeline */}
               </div>
             )}
 
