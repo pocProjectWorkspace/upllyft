@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Patch, Delete, UseGuards, Request, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Put, Patch, Delete, UseGuards, Request, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -363,6 +363,18 @@ export class OrganizationsController {
         @Request() req: any
     ) {
         return this.organizationsService.grantOrgFamilyAccess(slug, req.user.id, caseId);
+    }
+
+    /** Clinic-wide bookings calendar for a date range. */
+    @Get(':slug/bookings-calendar')
+    @UseGuards(JwtAuthGuard)
+    getOrgBookingsCalendar(
+        @Param('slug') slug: string,
+        @Query('from') from: string,
+        @Query('to') to: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getOrgBookingsCalendar(slug, req.user.id, from, to);
     }
 
     /**

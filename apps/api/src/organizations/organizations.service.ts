@@ -1778,6 +1778,80 @@ export class OrganizationsService {
     }
 
     /**
+     * Clinic-wide bookings calendar: every therapist's sessions + assessment
+     * reviews for the org in a date range. Org-scoped (Booking.organizationId /
+     * Case.organizationId) — never reaches another org's schedule.
+     */
+    async getOrgBookingsCalendar(slug: string, adminId: string, fromIso: string, toIso: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const from = new Date(fromIso);
+        const to = new Date(toIso);
+        if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+            throw new BadRequestException('Invalid date range');
+        }
+
+        const [bookings, assessments] = await Promise.all([
+            this.prisma.booking.findMany({
+                where: { organizationId: org.id, startDateTime: { gte: from, lte: to } },
+                select: {
+                    id: true,
+                    startDateTime: true,
+                    endDateTime: true,
+                    status: true,
+                    therapist: { select: { id: true, user: { select: { name: true } } } },
+                    patient: { select: { name: true } },
+                    sessionType: { select: { name: true } },
+                },
+                orderBy: { startDateTime: 'asc' },
+            }),
+            this.prisma.assessmentReview.findMany({
+                where: { meetingAt: { gte: from, lte: to }, case: { organizationId: org.id } },
+                select: {
+                    id: true,
+                    meetingAt: true,
+                    sharedAt: true,
+                    case: {
+                        select: {
+                            primaryTherapist: { select: { id: true, user: { select: { name: true } } } },
+                            child: { select: { firstName: true } },
+                        },
+                    },
+                },
+                orderBy: { meetingAt: 'asc' },
+            }),
+        ]);
+
+        const events = [
+            ...bookings.map((b) => ({
+                id: b.id,
+                kind: 'session' as const,
+                therapistId: b.therapist.id,
+                therapistName: b.therapist.user?.name ?? 'Therapist',
+                title: b.sessionType?.name ?? 'Session',
+                patientName: b.patient?.name ?? null,
+                start: b.startDateTime,
+                end: b.endDateTime as Date | null,
+                status: b.status as string,
+            })),
+            ...assessments
+                .filter((a) => a.meetingAt)
+                .map((a) => ({
+                    id: a.id,
+                    kind: 'assessment' as const,
+                    therapistId: a.case.primaryTherapist?.id ?? '',
+                    therapistName: a.case.primaryTherapist?.user?.name ?? 'Therapist',
+                    title: 'Assessment',
+                    patientName: a.case.child?.firstName ?? null,
+                    start: a.meetingAt as Date,
+                    end: null as Date | null,
+                    status: a.sharedAt ? 'Report shared' : 'Scheduled',
+                })),
+        ].sort((x, y) => new Date(x.start).getTime() - new Date(y.start).getTime());
+
+        return { events };
+    }
+
+    /**
      * Grant Platform Access: activate the account that already owns the child's
      * profile (real or shadow) into a login-capable account for the guardian's
      * email, and send a set-password link — the SAME mechanism as forgot-password.

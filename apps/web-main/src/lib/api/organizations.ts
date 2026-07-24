@@ -294,6 +294,31 @@ export async function saveMemberTherapistProfile(
   );
 }
 
+// ── Bookings calendar (clinic-wide) ──
+
+export interface CalendarEvent {
+  id: string;
+  kind: 'session' | 'assessment';
+  therapistId: string;
+  therapistName: string;
+  title: string;
+  patientName: string | null;
+  start: string;
+  end: string | null;
+  status: string;
+}
+
+export async function getOrgBookingsCalendar(
+  slug: string,
+  from: string,
+  to: string,
+): Promise<{ events: CalendarEvent[] }> {
+  const { data } = await apiClient.get(`/organizations/${slug}/bookings-calendar`, {
+    params: { from, to },
+  });
+  return data;
+}
+
 // ── Family Intake Journey ──
 
 export interface OrgFamily {
