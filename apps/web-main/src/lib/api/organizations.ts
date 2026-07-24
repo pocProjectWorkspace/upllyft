@@ -347,6 +347,7 @@ export interface OrgFamilyDetail {
 
 export interface OrgTherapistOption {
   id: string;
+  userId: string;
   name: string;
   department: string | null;
 }
@@ -476,19 +477,30 @@ export async function getOrgCommunities(
   return data;
 }
 
+export interface CreateOrgCommunityPayload {
+  name: string;
+  description?: string;
+  focusArea?: string;
+  privacy?: 'invite' | 'open';
+  eligibleBranches?: string[];
+  eligibleSpecializations?: string[];
+  guidelines?: string;
+  moderatorUserIds?: string[];
+  autoAddMatching?: boolean;
+  publish?: boolean;
+  // Legacy single-form callers still pass isPrivate/organizationId; both are accepted.
+  isPrivate?: boolean;
+  organizationId?: string;
+}
+
 export async function createOrgCommunity(
   slug: string,
-  payload: {
-    name: string;
-    description?: string;
-    isPrivate: boolean;
-    organizationId: string;
-  },
+  payload: CreateOrgCommunityPayload,
 ): Promise<OrgCommunity> {
-  const { data } = await apiClient.post<OrgCommunity>(`/organizations/${slug}/communities`, {
-    ...payload,
-    type: 'professional',
-  });
+  const { data } = await apiClient.post<OrgCommunity>(
+    `/organizations/${slug}/communities`,
+    payload,
+  );
   return data;
 }
 

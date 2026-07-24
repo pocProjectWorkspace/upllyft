@@ -385,27 +385,60 @@ export class OrganizationsService {
         let communitySlug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
         communitySlug += '-' + randomBytes(4).toString('hex');
 
+        // 5-step wizard fields map onto the existing Community model:
+        //   focusArea → condition/type, privacy → inviteOnly/isPrivate,
+        //   guidelines → rules, eligible branches/specializations → tags,
+        //   publish/draft → isActive, moderators/auto-add → CommunityMember rows.
+        const isInviteOnly = data.privacy ? data.privacy === 'invite' : !!data.isPrivate;
+        const tags = [...(data.eligibleBranches || []), ...(data.eligibleSpecializations || [])].filter(Boolean);
+
+        // Auto-add therapists whose department matches the focus area.
+        let matchingUserIds: string[] = [];
+        if (data.autoAddMatching && data.focusArea) {
+            const links = await this.prisma.therapistOrganizationLink.findMany({
+                where: { organizationId: org.id, therapist: { department: data.focusArea } },
+                select: { therapist: { select: { userId: true } } },
+            });
+            matchingUserIds = links.map((l) => l.therapist.userId);
+        }
+
+        const moderatorIds = new Set<string>(
+            ((data.moderatorUserIds as string[]) || []).filter((id) => id && id !== userId),
+        );
+
         return this.prisma.$transaction(async (tx) => {
             const community = await tx.community.create({
                 data: {
                     name: data.name,
                     description: data.description,
                     slug: communitySlug,
-                    type: data.type || 'professional',
-                    isPrivate: data.isPrivate || false,
+                    type: data.focusArea || data.type || 'professional',
+                    condition: data.focusArea || null,
+                    isPrivate: isInviteOnly,
+                    inviteOnly: isInviteOnly,
+                    rules: data.guidelines || null,
+                    tags,
+                    isActive: data.publish !== false, // draft => publish: false
                     organizationId: org.id,
                     creatorId: userId,
-                }
+                },
             });
 
             await tx.communityMember.create({
-                data: {
-                    userId,
-                    communityId: community.id,
-                    role: 'ADMIN',
-                    status: 'ACTIVE',
-                }
+                data: { userId, communityId: community.id, role: 'ADMIN', status: 'ACTIVE' },
             });
+
+            for (const modId of moderatorIds) {
+                await tx.communityMember.create({
+                    data: { userId: modId, communityId: community.id, role: 'MODERATOR', status: 'ACTIVE' },
+                });
+            }
+            for (const memId of matchingUserIds) {
+                if (memId === userId || moderatorIds.has(memId)) continue;
+                await tx.communityMember.create({
+                    data: { userId: memId, communityId: community.id, role: 'MEMBER', status: 'ACTIVE' },
+                });
+            }
 
             return community;
         });
@@ -1600,12 +1633,13 @@ export class OrganizationsService {
             where: { organizationId: org.id },
             select: {
                 therapist: {
-                    select: { id: true, department: true, user: { select: { name: true } } },
+                    select: { id: true, userId: true, department: true, user: { select: { name: true } } },
                 },
             },
         });
         return links.map((l) => ({
             id: l.therapist.id,
+            userId: l.therapist.userId,
             name: l.therapist.user?.name ?? 'Therapist',
             department: l.therapist.department,
         }));
