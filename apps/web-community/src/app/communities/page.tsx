@@ -637,14 +637,21 @@ export default function BrowseCommunitiesPage() {
             Find your people — groups of parents, therapists, and educators who get it
           </p>
         </div>
-        <Link href="/communities/create">
-          <button className="inline-flex items-center px-5 py-2.5 rounded-full text-sm font-semibold bg-gradient-to-r from-pink-500 to-rose-600 text-white hover:from-pink-600 hover:to-rose-700 transition-all shadow-sm">
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Create Community
-          </button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/communities/create-clinic">
+            <button className="inline-flex items-center px-4 py-2.5 rounded-full text-sm font-semibold border border-pink-200 text-pink-700 hover:bg-pink-50 transition-all">
+              Clinic community
+            </button>
+          </Link>
+          <Link href="/communities/create">
+            <button className="inline-flex items-center px-5 py-2.5 rounded-full text-sm font-semibold bg-gradient-to-r from-pink-500 to-rose-600 text-white hover:from-pink-600 hover:to-rose-700 transition-all shadow-sm">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Create Community
+            </button>
+          </Link>
+        </div>
       </div>
 
       {/* Mira Nudge */}

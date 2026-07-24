@@ -317,11 +317,18 @@ export class OrganizationsController {
 
     // ── Family Intake Journey ──
 
-    /** Org therapists for the assign dropdown. */
+    /** Org therapists for the assign dropdown (admin). */
     @Get(':slug/therapists')
     @UseGuards(JwtAuthGuard)
     getOrgTherapists(@Param('slug') slug: string, @Request() req: any) {
         return this.organizationsService.getOrgTherapists(slug, req.user.id);
+    }
+
+    /** Member-accessible therapist roster (therapist-side Community wizard). */
+    @Get(':slug/roster')
+    @UseGuards(JwtAuthGuard)
+    getOrgRoster(@Param('slug') slug: string, @Request() req: any) {
+        return this.organizationsService.getOrgRoster(slug, req.user.id);
     }
 
     /** Families queue — every case belonging to this org. */

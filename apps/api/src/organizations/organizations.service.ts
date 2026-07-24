@@ -1645,6 +1645,29 @@ export class OrganizationsService {
         }));
     }
 
+    /**
+     * Member-accessible therapist roster (for the therapist-side Community wizard's
+     * moderator picker / auto-add). Any active org member — not admin-only.
+     */
+    async getOrgRoster(slug: string, userId: string) {
+        const org = await this.findOne(slug);
+        await this.assertMember(org.id, userId);
+        const links = await this.prisma.therapistOrganizationLink.findMany({
+            where: { organizationId: org.id },
+            select: {
+                therapist: {
+                    select: { id: true, userId: true, department: true, user: { select: { name: true } } },
+                },
+            },
+        });
+        return links.map((l) => ({
+            id: l.therapist.id,
+            userId: l.therapist.userId,
+            name: l.therapist.user?.name ?? 'Therapist',
+            department: l.therapist.department,
+        }));
+    }
+
     /** Families queue: every case belonging to this org. */
     async getOrgFamilies(slug: string, adminId: string) {
         const org = await this.getOrgAndAssertAdmin(slug, adminId);
