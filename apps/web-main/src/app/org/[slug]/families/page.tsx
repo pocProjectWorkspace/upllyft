@@ -106,7 +106,9 @@ export default function FamiliesPage() {
   }
 
   const primaryGuardian = detail?.child.guardians.find((g) => g.isPrimaryContact) ?? detail?.child.guardians[0];
-  const accessGranted = !!primaryGuardian?.userId;
+  const accessGranted = !!detail?.accessGranted;
+  // Prefer a guardian record; fall back to the child's profile-owner account.
+  const contactEmail = primaryGuardian?.email ?? detail?.profileOwner?.email ?? null;
 
   return (
     <div className="space-y-6">
@@ -206,6 +208,13 @@ export default function FamiliesPage() {
                     <dt className="text-gray-500">Phone</dt>
                     <dd className="text-gray-900">{primaryGuardian.phone ?? '—'}</dd>
                   </dl>
+                ) : detail.profileOwner ? (
+                  <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                    <dt className="text-gray-500">Name</dt>
+                    <dd className="text-gray-900">{detail.profileOwner.name ?? '—'}</dd>
+                    <dt className="text-gray-500">Email</dt>
+                    <dd className="text-gray-900 break-all">{detail.profileOwner.email ?? '—'}</dd>
+                  </dl>
                 ) : (
                   <p className="text-sm text-gray-400">No guardian on file.</p>
                 )}
@@ -266,8 +275,8 @@ export default function FamiliesPage() {
                 </div>
                 <button
                   onClick={handleGrantAccess}
-                  disabled={granting || !primaryGuardian?.email}
-                  title={!primaryGuardian?.email ? 'Add a guardian email first' : undefined}
+                  disabled={granting || !contactEmail}
+                  title={!contactEmail ? 'Add a guardian email first' : undefined}
                   className="w-full px-4 py-2 text-sm rounded-xl text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 disabled:opacity-40"
                 >
                   {granting ? 'Sending…' : accessGranted ? 'Resend access email' : 'Grant Platform Access'}

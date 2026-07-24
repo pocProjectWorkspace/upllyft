@@ -1630,6 +1630,9 @@ export class OrganizationsService {
                             take: 1,
                             select: { fullName: true, email: true, userId: true },
                         },
+                        // The account that owns the child's profile — a real (password-set)
+                        // owner means the parent can already log in and see their child.
+                        profile: { select: { user: { select: { name: true, password: true } } } },
                     },
                 },
                 primaryTherapist: { select: { id: true, user: { select: { name: true } } } },
@@ -1639,17 +1642,18 @@ export class OrganizationsService {
         });
         return cases.map((c) => {
             const guardian = c.child.guardians[0];
+            const owner = c.child.profile?.user;
+            const hasAccess = !!owner?.password;
             return {
                 caseId: c.id,
                 caseNumber: c.caseNumber,
                 childName: c.child.firstName,
                 childDob: c.child.dateOfBirth,
-                parentName: guardian?.fullName ?? null,
+                parentName: guardian?.fullName ?? owner?.name ?? null,
                 submittedAt: c.intake?.createdAt ?? c.createdAt,
                 assignedTherapistId: c.primaryTherapist?.id ?? null,
                 assignedTherapistName: c.primaryTherapist?.user?.name ?? null,
-                // Access is granted once the primary guardian has a real linked account.
-                status: guardian?.userId ? 'ACCESS_GRANTED' : 'PENDING_REVIEW',
+                status: hasAccess ? 'ACCESS_GRANTED' : 'PENDING_REVIEW',
             };
         });
     }
@@ -1681,6 +1685,7 @@ export class OrganizationsService {
                                 userId: true,
                             },
                         },
+                        profile: { select: { user: { select: { name: true, email: true, password: true } } } },
                     },
                 },
                 primaryTherapist: { select: { id: true, user: { select: { name: true } } } },
@@ -1703,7 +1708,16 @@ export class OrganizationsService {
         if (!c) {
             throw new NotFoundException('Family not found');
         }
-        return c;
+        // Access = the child's profile owner can log in. Strip the profile (with its
+        // password) from the response and expose only a boolean + safe owner fields.
+        const owner = c.child.profile?.user;
+        const { profile: _profile, ...child } = c.child;
+        return {
+            ...c,
+            child,
+            accessGranted: !!owner?.password,
+            profileOwner: owner ? { name: owner.name, email: owner.email } : null,
+        };
     }
 
     /** Assign (or reassign) the primary therapist on a family's case. */
@@ -1760,12 +1774,6 @@ export class OrganizationsService {
         }
 
         const guardian = theCase.child.guardians[0];
-        const targetEmail = (guardian?.email || '').toLowerCase().trim();
-        if (!targetEmail) {
-            throw new BadRequestException(
-                'The primary guardian has no email on file. Add one before granting access.',
-            );
-        }
 
         const profile = await this.prisma.userProfile.findUnique({
             where: { id: theCase.child.profileId },
@@ -1774,6 +1782,14 @@ export class OrganizationsService {
         const owner = profile?.user;
         if (!owner) {
             throw new BadRequestException('This child has no linked profile account.');
+        }
+
+        // Prefer the guardian's email; fall back to the profile owner's own address.
+        const targetEmail = (guardian?.email || owner.email || '').toLowerCase().trim();
+        if (!targetEmail) {
+            throw new BadRequestException(
+                'No email on file for this family. Add a guardian email before granting access.',
+            );
         }
 
         // If the guardian email already belongs to a different account, merging the two

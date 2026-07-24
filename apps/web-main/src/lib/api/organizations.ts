@@ -341,6 +341,8 @@ export interface OrgFamilyDetail {
     consentSharing: boolean;
     consentAi: boolean;
   } | null;
+  accessGranted: boolean;
+  profileOwner: { name: string | null; email: string | null } | null;
 }
 
 export interface OrgTherapistOption {
