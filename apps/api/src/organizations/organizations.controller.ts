@@ -365,6 +365,17 @@ export class OrganizationsController {
         return this.organizationsService.grantOrgFamilyAccess(slug, req.user.id, caseId);
     }
 
+    /** Issue a Parent Intake public link for a case. */
+    @Post(':slug/families/:caseId/intake-link')
+    @UseGuards(JwtAuthGuard)
+    createIntakeLink(
+        @Param('slug') slug: string,
+        @Param('caseId') caseId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.createIntakeLink(slug, req.user.id, caseId);
+    }
+
     /** Clinic-wide bookings calendar for a date range. */
     @Get(':slug/bookings-calendar')
     @UseGuards(JwtAuthGuard)

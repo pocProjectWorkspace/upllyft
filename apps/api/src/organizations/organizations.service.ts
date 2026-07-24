@@ -28,7 +28,7 @@ interface SaveTherapistProfileInput {
     insurancePolicyNumber?: string;
     insuranceExpiry?: string;
 }
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { AppLoggerService } from '../common/logging';
 import * as XLSX from 'xlsx';
 
@@ -1775,6 +1775,32 @@ export class OrganizationsService {
             data: { primaryTherapistId: therapistId },
         });
         return { success: true };
+    }
+
+    /**
+     * Issue a Parent Intake public link for a case: mint an unguessable token,
+     * store only its SHA-256 on the case with a 14-day expiry, return the raw
+     * token for the admin to share. Regenerating invalidates the previous link.
+     */
+    async createIntakeLink(slug: string, adminId: string, caseId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const theCase = await this.prisma.case.findFirst({
+            where: { id: caseId, organizationId: org.id },
+            select: { id: true },
+        });
+        if (!theCase) {
+            throw new NotFoundException('Family not found');
+        }
+        const rawToken = randomBytes(32).toString('hex');
+        const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+        await this.prisma.case.update({
+            where: { id: caseId },
+            data: {
+                intakeTokenHash: tokenHash,
+                intakeTokenExpiry: new Date(Date.now() + 14 * 86400000),
+            },
+        });
+        return { token: rawToken };
     }
 
     /**

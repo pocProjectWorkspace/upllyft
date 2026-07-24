@@ -7,12 +7,14 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Badge, useToast } from '@upllyft/ui';
+import { APP_URLS } from '@upllyft/api-client';
 import {
   getOrgFamilies,
   getOrgFamilyDetail,
   getOrgTherapists,
   assignOrgFamilyTherapist,
   grantOrgFamilyAccess,
+  createOrgFamilyIntakeLink,
   type OrgFamily,
   type OrgFamilyDetail,
   type OrgTherapistOption,
@@ -84,6 +86,26 @@ export default function FamiliesPage() {
       });
     } finally {
       setAssigning(false);
+    }
+  }
+
+  const [linking, setLinking] = useState(false);
+  async function handleIntakeLink() {
+    if (!selectedId) return;
+    setLinking(true);
+    try {
+      const { token } = await createOrgFamilyIntakeLink(slug, selectedId);
+      const url = `${APP_URLS.cases}/intake/${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({ title: 'Intake link copied', description: 'Share it with the parent. Valid for 14 days.' });
+      } catch {
+        toast({ title: 'Intake link created', description: url });
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to create link', variant: 'destructive' });
+    } finally {
+      setLinking(false);
     }
   }
 
@@ -280,6 +302,13 @@ export default function FamiliesPage() {
                   className="w-full px-4 py-2 text-sm rounded-xl text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 disabled:opacity-40"
                 >
                   {granting ? 'Sending…' : accessGranted ? 'Resend access email' : 'Grant Platform Access'}
+                </button>
+                <button
+                  onClick={handleIntakeLink}
+                  disabled={linking}
+                  className="w-full px-4 py-2 text-sm rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  {linking ? 'Generating…' : 'Copy parent intake link'}
                 </button>
               </div>
             </div>

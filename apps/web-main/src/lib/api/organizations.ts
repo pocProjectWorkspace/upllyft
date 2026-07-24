@@ -419,6 +419,16 @@ export async function grantOrgFamilyAccess(
   return data;
 }
 
+export async function createOrgFamilyIntakeLink(
+  slug: string,
+  caseId: string,
+): Promise<{ token: string }> {
+  const { data } = await apiClient.post(
+    `/organizations/${slug}/families/${caseId}/intake-link`,
+  );
+  return data;
+}
+
 // ── Leave / holidays (shares the therapist's AvailabilityException records) ──
 
 export interface LeaveRecord {

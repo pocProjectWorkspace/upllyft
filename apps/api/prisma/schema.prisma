@@ -2796,6 +2796,10 @@ model AdAnalytics {
 model Case {
   id                      String           @id @default(cuid())
   caseNumber              String           @unique
+  // Parent Intake public link — SHA-256 of the unguessable token the parent uses
+  // to submit intake without a login. Additive/nullable.
+  intakeTokenHash         String?
+  intakeTokenExpiry       DateTime?
   childId                 String
   child                   Child            @relation(fields: [childId], references: [id])
   primaryTherapistId      String
