@@ -26,6 +26,8 @@ import {
   saveMemberTherapistProfile,
   saveMemberAvailability,
   saveMemberSessionTypes,
+  uploadMemberCredential,
+  listMemberCredentials,
   type OrgMember,
   type WizardSessionType,
   type WizardAvailabilitySlot,
@@ -225,27 +227,36 @@ function Field({
   );
 }
 
-// Document upload — UI only for now; selected file names are held locally and the
-// actual upload is wired to the asset pipeline as a follow-up (see IMPLEMENTATION-PLAN).
+// Document upload — uploads to the Supabase `credentials` bucket via the org
+// credential endpoint and records a Credential row.
 function FileField({
   label,
   fileName,
+  uploading,
   onSelect,
 }: {
   label: string;
   fileName: string;
-  onSelect: (name: string) => void;
+  uploading: boolean;
+  onSelect: (file: File) => void;
 }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <label className="flex items-center gap-3 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 cursor-pointer hover:border-teal-400">
         <span className="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs">Choose file</span>
-        <span className="truncate">{fileName || 'No file selected'}</span>
+        <span className="truncate">
+          {uploading ? 'Uploading…' : fileName || 'No file selected'}
+        </span>
         <input
           type="file"
+          accept="application/pdf,image/jpeg,image/png"
           className="hidden"
-          onChange={(e) => onSelect(e.target.files?.[0]?.name ?? '')}
+          disabled={uploading}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onSelect(f);
+          }}
         />
       </label>
     </div>
@@ -290,9 +301,35 @@ export default function AddTherapistWizard() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<WizardForm>(initialForm());
 
-  // Document uploads (UI only until the asset pipeline is wired).
+  // Credential document uploads (Supabase `credentials` bucket).
+  const CERT_LABEL = 'Registration certificate';
+  const DOC_LABEL = 'Supporting document';
   const [certFileName, setCertFileName] = useState('');
   const [docFileName, setDocFileName] = useState('');
+  const [certUploading, setCertUploading] = useState(false);
+  const [docUploading, setDocUploading] = useState(false);
+
+  async function uploadCredential(
+    file: File,
+    label: string,
+    setName: (n: string) => void,
+    setBusy: (b: boolean) => void,
+  ) {
+    setBusy(true);
+    try {
+      const res = await uploadMemberCredential(slug, memberId, file, label);
+      setName(res.fileName);
+      toast({ title: 'Uploaded', description: `${label} saved.` });
+    } catch (err: any) {
+      toast({
+        title: 'Upload failed',
+        description: err?.response?.data?.message || 'Could not upload the file',
+        variant: 'destructive',
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // Review checklist
   const [checks, setChecks] = useState({
@@ -307,12 +344,15 @@ export default function AddTherapistWizard() {
     let active = true;
     (async () => {
       try {
-        const [m, detail] = await Promise.all([
+        const [m, detail, creds] = await Promise.all([
           getOrgMember(slug, memberId),
           getMemberTherapistProfile(slug, memberId).catch(() => null),
+          listMemberCredentials(slug, memberId).catch(() => []),
         ]);
         if (!active) return;
         setMember(m ?? null);
+        setCertFileName(creds.find((c) => c.label === CERT_LABEL)?.fileName ?? '');
+        setDocFileName(creds.find((c) => c.label === DOC_LABEL)?.fileName ?? '');
         const base = initialForm(m);
         const p = detail?.profile;
         const deptKey = (p?.department as DepartmentKey) || '';
@@ -684,7 +724,12 @@ export default function AddTherapistWizard() {
                       <input className={inputCls} value={form.bcbaNumber} onChange={(e) => set('bcbaNumber', e.target.value)} />
                     </Field>
                   )}
-                  <FileField label="Registration certificate" fileName={certFileName} onSelect={setCertFileName} />
+                  <FileField
+                    label={CERT_LABEL}
+                    fileName={certFileName}
+                    uploading={certUploading}
+                    onSelect={(f) => uploadCredential(f, CERT_LABEL, setCertFileName, setCertUploading)}
+                  />
                 </div>
               </div>
             ) : (
@@ -713,7 +758,12 @@ export default function AddTherapistWizard() {
                   <Field label="Visa status">
                     <input className={inputCls} value={form.visaStatus} onChange={(e) => set('visaStatus', e.target.value)} />
                   </Field>
-                  <FileField label="Supporting document" fileName={docFileName} onSelect={setDocFileName} />
+                  <FileField
+                    label={DOC_LABEL}
+                    fileName={docFileName}
+                    uploading={docUploading}
+                    onSelect={(f) => uploadCredential(f, DOC_LABEL, setDocFileName, setDocUploading)}
+                  />
                 </div>
               </div>
             )}

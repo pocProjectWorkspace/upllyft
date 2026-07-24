@@ -245,6 +245,40 @@ export interface WizardAvailabilitySlot {
   endTime: string;
 }
 
+export interface MemberCredential {
+  id: string;
+  label: string;
+  fileName: string;
+  fileUrl: string;
+  mimeType: string;
+}
+
+export async function uploadMemberCredential(
+  slug: string,
+  memberId: string,
+  file: File,
+  label: string,
+): Promise<MemberCredential> {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('label', label);
+  const { data } = await apiClient.post<MemberCredential>(
+    `/organizations/${slug}/members/${memberId}/credentials`,
+    fd,
+  );
+  return data;
+}
+
+export async function listMemberCredentials(
+  slug: string,
+  memberId: string,
+): Promise<MemberCredential[]> {
+  const { data } = await apiClient.get<MemberCredential[]>(
+    `/organizations/${slug}/members/${memberId}/credentials`,
+  );
+  return data;
+}
+
 export async function getMemberTherapistProfile(
   slug: string,
   memberId: string,

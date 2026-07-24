@@ -264,6 +264,34 @@ export class OrganizationsController {
         return this.organizationsService.getMemberTherapistProfile(slug, memberId, req.user.id);
     }
 
+    /** Add Therapist wizard: upload a credential document. */
+    @Post(':slug/members/:memberId/credentials')
+    @UseGuards(JwtAuthGuard)
+    @UseInterceptors(FileInterceptor('file'))
+    uploadMemberCredential(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @UploadedFile() file: any,
+        @Body('label') label: string,
+        @Request() req: any
+    ) {
+        if (!file) {
+            throw new BadRequestException('No file uploaded');
+        }
+        return this.organizationsService.uploadMemberCredential(slug, req.user.id, memberId, file, label);
+    }
+
+    /** Add Therapist wizard: list a member's uploaded credentials. */
+    @Get(':slug/members/:memberId/credentials')
+    @UseGuards(JwtAuthGuard)
+    listMemberCredentials(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.listMemberCredentials(slug, req.user.id, memberId);
+    }
+
     /** Add Therapist wizard: save Basic Info + Credentials. */
     @Patch(':slug/members/:memberId/therapist-profile')
     @UseGuards(JwtAuthGuard)
