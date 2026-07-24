@@ -9,3 +9,4 @@ export * from './api';
 export * from './region';
 export * from './clinical-template';
 export * from './facility';
+export * from './therapist-taxonomy';

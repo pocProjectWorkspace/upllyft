@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Patch, Delete, UseGuards, Request, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Put, Patch, Delete, UseGuards, Request, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -214,6 +214,178 @@ export class OrganizationsController {
         @Request() req: any
     ) {
         return this.organizationsService.reactivateMember(slug, memberId, req.user.id);
+    }
+
+    /**
+     * Leave / holidays for a member's therapist profile — the org-admin's
+     * Leave Management screen. Reads/writes the SAME AvailabilityException
+     * records the therapist edits from their own Hub Absence panel.
+     */
+    @Get(':slug/members/:memberId/leave')
+    @UseGuards(JwtAuthGuard)
+    getMemberLeave(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getMemberLeave(slug, memberId, req.user.id);
+    }
+
+    @Post(':slug/members/:memberId/leave')
+    @UseGuards(JwtAuthGuard)
+    addMemberLeave(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Body() body: { fromDate: string; toDate?: string; reason?: string },
+        @Request() req: any
+    ) {
+        return this.organizationsService.addMemberLeave(slug, memberId, req.user.id, body);
+    }
+
+    @Delete(':slug/members/:memberId/leave/:exceptionId')
+    @UseGuards(JwtAuthGuard)
+    removeMemberLeave(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Param('exceptionId') exceptionId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.removeMemberLeave(slug, memberId, req.user.id, exceptionId);
+    }
+
+    /** Add Therapist wizard: read a member's therapist profile for pre-fill. */
+    @Get(':slug/members/:memberId/therapist-profile')
+    @UseGuards(JwtAuthGuard)
+    getMemberTherapistProfile(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getMemberTherapistProfile(slug, memberId, req.user.id);
+    }
+
+    /** Add Therapist wizard: save Basic Info + Credentials. */
+    @Patch(':slug/members/:memberId/therapist-profile')
+    @UseGuards(JwtAuthGuard)
+    saveMemberTherapistProfile(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Body() body: any,
+        @Request() req: any
+    ) {
+        return this.organizationsService.saveMemberTherapistProfile(slug, memberId, req.user.id, body);
+    }
+
+    /** Add Therapist wizard, Schedule step: replace weekly availability. */
+    @Put(':slug/members/:memberId/availability')
+    @UseGuards(JwtAuthGuard)
+    saveMemberAvailability(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Body() body: { slots: { dayOfWeek: number; startTime: string; endTime: string }[]; timezone?: string },
+        @Request() req: any
+    ) {
+        return this.organizationsService.saveMemberAvailability(slug, memberId, req.user.id, body?.slots || [], body?.timezone);
+    }
+
+    /** Add Therapist wizard, Fees step: upsert session types. */
+    @Put(':slug/members/:memberId/session-types')
+    @UseGuards(JwtAuthGuard)
+    saveMemberSessionTypes(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Body() body: { items: { name: string; duration: number; price: number; currency: string }[] },
+        @Request() req: any
+    ) {
+        return this.organizationsService.saveMemberSessionTypes(slug, memberId, req.user.id, body?.items || []);
+    }
+
+    /**
+     * Approve & Activate (approve=true, the default) or Request Changes
+     * (approve=false) for a member — the Add Therapist wizard's Review step.
+     */
+    @Post(':slug/members/:memberId/approve')
+    @UseGuards(JwtAuthGuard)
+    approveMember(
+        @Param('slug') slug: string,
+        @Param('memberId') memberId: string,
+        @Body('approve') approve: boolean | undefined,
+        @Request() req: any
+    ) {
+        return this.organizationsService.approveMember(slug, memberId, req.user.id, approve !== false);
+    }
+
+    // ── Family Intake Journey ──
+
+    /** Org therapists for the assign dropdown. */
+    @Get(':slug/therapists')
+    @UseGuards(JwtAuthGuard)
+    getOrgTherapists(@Param('slug') slug: string, @Request() req: any) {
+        return this.organizationsService.getOrgTherapists(slug, req.user.id);
+    }
+
+    /** Families queue — every case belonging to this org. */
+    @Get(':slug/families')
+    @UseGuards(JwtAuthGuard)
+    getOrgFamilies(@Param('slug') slug: string, @Request() req: any) {
+        return this.organizationsService.getOrgFamilies(slug, req.user.id);
+    }
+
+    /** One family's full detail. */
+    @Get(':slug/families/:caseId')
+    @UseGuards(JwtAuthGuard)
+    getOrgFamilyDetail(
+        @Param('slug') slug: string,
+        @Param('caseId') caseId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getOrgFamilyDetail(slug, req.user.id, caseId);
+    }
+
+    /** Assign / reassign the primary therapist on a family's case. */
+    @Post(':slug/families/:caseId/assign')
+    @UseGuards(JwtAuthGuard)
+    assignOrgFamilyTherapist(
+        @Param('slug') slug: string,
+        @Param('caseId') caseId: string,
+        @Body('therapistId') therapistId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.assignOrgFamilyTherapist(slug, req.user.id, caseId, therapistId);
+    }
+
+    /** Grant the family's parent platform access (set-password email). */
+    @Post(':slug/families/:caseId/grant-access')
+    @UseGuards(JwtAuthGuard)
+    grantOrgFamilyAccess(
+        @Param('slug') slug: string,
+        @Param('caseId') caseId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.grantOrgFamilyAccess(slug, req.user.id, caseId);
+    }
+
+    /** Issue a Parent Intake public link for a case. */
+    @Post(':slug/families/:caseId/intake-link')
+    @UseGuards(JwtAuthGuard)
+    createIntakeLink(
+        @Param('slug') slug: string,
+        @Param('caseId') caseId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.createIntakeLink(slug, req.user.id, caseId);
+    }
+
+    /** Clinic-wide bookings calendar for a date range. */
+    @Get(':slug/bookings-calendar')
+    @UseGuards(JwtAuthGuard)
+    getOrgBookingsCalendar(
+        @Param('slug') slug: string,
+        @Query('from') from: string,
+        @Query('to') to: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getOrgBookingsCalendar(slug, req.user.id, from, to);
     }
 
     /**

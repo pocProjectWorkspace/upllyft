@@ -136,6 +136,16 @@ export async function getOrgMembers(slug: string): Promise<OrgMember[]> {
   return data;
 }
 
+export async function getOrgMember(
+  slug: string,
+  memberId: string,
+): Promise<OrgMember | undefined> {
+  // No single-member endpoint yet; resolve from the org roster. Cheap for
+  // clinic-sized orgs — swap for `GET /organizations/:slug/members/:id` when built.
+  const members = await getOrgMembers(slug);
+  return members.find((m) => m.id === memberId);
+}
+
 export async function inviteOrgMember(
   slug: string,
   payload: { email: string; role: string },
@@ -181,6 +191,278 @@ export async function reactivateOrgMember(
 ): Promise<void> {
   await apiClient.post(
     `/organizations/${slug}/members/${memberId}/reactivate`,
+  );
+}
+
+export async function approveOrgMember(
+  slug: string,
+  memberId: string,
+  approve: boolean,
+): Promise<void> {
+  await apiClient.post(`/organizations/${slug}/members/${memberId}/approve`, {
+    approve,
+  });
+}
+
+// ── Add Therapist wizard: profile (Basic Info + Credentials) ──
+
+export interface TherapistProfileData {
+  title?: string | null;
+  bio?: string | null;
+  department?: string | null;
+  phone?: string | null;
+  branch?: string | null;
+  country?: string | null;
+  qualification?: string | null;
+  university?: string | null;
+  yearsExperience?: number | null;
+  specializations?: string[];
+  licenceNumber?: string | null;
+  licenceExpiry?: string | null;
+  licenseAuthority?: string | null;
+  rciNumber?: string | null;
+  councilNumber?: string | null;
+  bcbaNumber?: string | null;
+  emiratesId?: string | null;
+  visaStatus?: string | null;
+  insuranceProvider?: string | null;
+  insurancePolicyNumber?: string | null;
+  insuranceExpiry?: string | null;
+}
+
+export interface WizardSessionType {
+  id: string;
+  name: string;
+  duration: number;
+  defaultPrice: number;
+  currency: string;
+}
+
+export interface WizardAvailabilitySlot {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
+export async function getMemberTherapistProfile(
+  slug: string,
+  memberId: string,
+): Promise<{
+  member: { status: string; userId: string };
+  user: { id: string; name: string | null; email: string } | null;
+  profile: TherapistProfileData | null;
+  sessionTypes: WizardSessionType[];
+  availability: WizardAvailabilitySlot[];
+}> {
+  const { data } = await apiClient.get(
+    `/organizations/${slug}/members/${memberId}/therapist-profile`,
+  );
+  return data;
+}
+
+export async function saveMemberAvailability(
+  slug: string,
+  memberId: string,
+  slots: { dayOfWeek: number; startTime: string; endTime: string }[],
+  timezone?: string,
+): Promise<void> {
+  await apiClient.put(`/organizations/${slug}/members/${memberId}/availability`, {
+    slots,
+    timezone,
+  });
+}
+
+export async function saveMemberSessionTypes(
+  slug: string,
+  memberId: string,
+  items: { name: string; duration: number; price: number; currency: string }[],
+): Promise<void> {
+  await apiClient.put(`/organizations/${slug}/members/${memberId}/session-types`, {
+    items,
+  });
+}
+
+export async function saveMemberTherapistProfile(
+  slug: string,
+  memberId: string,
+  payload: TherapistProfileData & { name?: string },
+): Promise<void> {
+  await apiClient.patch(
+    `/organizations/${slug}/members/${memberId}/therapist-profile`,
+    payload,
+  );
+}
+
+// ── Bookings calendar (clinic-wide) ──
+
+export interface CalendarEvent {
+  id: string;
+  kind: 'session' | 'assessment';
+  therapistId: string;
+  therapistName: string;
+  title: string;
+  patientName: string | null;
+  start: string;
+  end: string | null;
+  status: string;
+}
+
+export async function getOrgBookingsCalendar(
+  slug: string,
+  from: string,
+  to: string,
+): Promise<{ events: CalendarEvent[] }> {
+  const { data } = await apiClient.get(`/organizations/${slug}/bookings-calendar`, {
+    params: { from, to },
+  });
+  return data;
+}
+
+// ── Family Intake Journey ──
+
+export interface OrgFamily {
+  caseId: string;
+  caseNumber: string;
+  childName: string;
+  childDob: string;
+  parentName: string | null;
+  submittedAt: string;
+  assignedTherapistId: string | null;
+  assignedTherapistName: string | null;
+  status: 'PENDING_REVIEW' | 'ACCESS_GRANTED';
+}
+
+export interface OrgFamilyDetail {
+  id: string;
+  caseNumber: string;
+  status: string;
+  createdAt: string;
+  child: {
+    id: string;
+    firstName: string;
+    nickname: string | null;
+    dateOfBirth: string;
+    gender: string;
+    guardians: {
+      fullName: string;
+      relationship: string;
+      email: string | null;
+      phone: string | null;
+      isPrimaryContact: boolean;
+      userId: string | null;
+    }[];
+  };
+  primaryTherapist: { id: string; user: { name: string | null } } | null;
+  intake: {
+    state: string;
+    presentingConcern: string | null;
+    referralQuestions: string[];
+    parentGoals: string[];
+    urgencyFlag: string | null;
+    aiSummary: string | null;
+    consentAssessment: boolean;
+    consentTherapy: boolean;
+    consentSharing: boolean;
+    consentAi: boolean;
+  } | null;
+  accessGranted: boolean;
+  profileOwner: { name: string | null; email: string | null } | null;
+}
+
+export interface OrgTherapistOption {
+  id: string;
+  userId: string;
+  name: string;
+  department: string | null;
+}
+
+export async function getOrgFamilies(slug: string): Promise<OrgFamily[]> {
+  const { data } = await apiClient.get<OrgFamily[]>(`/organizations/${slug}/families`);
+  return data;
+}
+
+export async function getOrgFamilyDetail(
+  slug: string,
+  caseId: string,
+): Promise<OrgFamilyDetail> {
+  const { data } = await apiClient.get<OrgFamilyDetail>(
+    `/organizations/${slug}/families/${caseId}`,
+  );
+  return data;
+}
+
+export async function getOrgTherapists(slug: string): Promise<OrgTherapistOption[]> {
+  const { data } = await apiClient.get<OrgTherapistOption[]>(
+    `/organizations/${slug}/therapists`,
+  );
+  return data;
+}
+
+export async function assignOrgFamilyTherapist(
+  slug: string,
+  caseId: string,
+  therapistId: string,
+): Promise<void> {
+  await apiClient.post(`/organizations/${slug}/families/${caseId}/assign`, {
+    therapistId,
+  });
+}
+
+export async function grantOrgFamilyAccess(
+  slug: string,
+  caseId: string,
+): Promise<{ success: boolean; message: string }> {
+  const { data } = await apiClient.post(
+    `/organizations/${slug}/families/${caseId}/grant-access`,
+  );
+  return data;
+}
+
+export async function createOrgFamilyIntakeLink(
+  slug: string,
+  caseId: string,
+): Promise<{ token: string }> {
+  const { data } = await apiClient.post(
+    `/organizations/${slug}/families/${caseId}/intake-link`,
+  );
+  return data;
+}
+
+// ── Leave / holidays (shares the therapist's AvailabilityException records) ──
+
+export interface LeaveRecord {
+  id: string;
+  therapistId: string;
+  date: string;
+  reason?: string | null;
+}
+
+export async function getMemberLeave(
+  slug: string,
+  memberId: string,
+): Promise<LeaveRecord[]> {
+  const { data } = await apiClient.get<LeaveRecord[]>(
+    `/organizations/${slug}/members/${memberId}/leave`,
+  );
+  return data;
+}
+
+export async function addMemberLeave(
+  slug: string,
+  memberId: string,
+  body: { fromDate: string; toDate?: string; reason?: string },
+): Promise<void> {
+  await apiClient.post(`/organizations/${slug}/members/${memberId}/leave`, body);
+}
+
+export async function removeMemberLeave(
+  slug: string,
+  memberId: string,
+  exceptionId: string,
+): Promise<void> {
+  await apiClient.delete(
+    `/organizations/${slug}/members/${memberId}/leave/${exceptionId}`,
   );
 }
 
@@ -230,19 +512,30 @@ export async function getOrgCommunities(
   return data;
 }
 
+export interface CreateOrgCommunityPayload {
+  name: string;
+  description?: string;
+  focusArea?: string;
+  privacy?: 'invite' | 'open';
+  eligibleBranches?: string[];
+  eligibleSpecializations?: string[];
+  guidelines?: string;
+  moderatorUserIds?: string[];
+  autoAddMatching?: boolean;
+  publish?: boolean;
+  // Legacy single-form callers still pass isPrivate/organizationId; both are accepted.
+  isPrivate?: boolean;
+  organizationId?: string;
+}
+
 export async function createOrgCommunity(
   slug: string,
-  payload: {
-    name: string;
-    description?: string;
-    isPrivate: boolean;
-    organizationId: string;
-  },
+  payload: CreateOrgCommunityPayload,
 ): Promise<OrgCommunity> {
-  const { data } = await apiClient.post<OrgCommunity>(`/organizations/${slug}/communities`, {
-    ...payload,
-    type: 'professional',
-  });
+  const { data } = await apiClient.post<OrgCommunity>(
+    `/organizations/${slug}/communities`,
+    payload,
+  );
   return data;
 }
 

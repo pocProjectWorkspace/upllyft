@@ -1,8 +1,34 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
-import { Organization, OrganizationMember, OrganizationRole, OrganizationStatus, Prisma } from '@prisma/client';
-import { randomBytes } from 'crypto';
+import { Organization, OrganizationMember, OrganizationRole, OrganizationStatus, AvailabilityExceptionType, TherapistApprovalStatus, LicenseAuthority, Prisma } from '@prisma/client';
+
+interface SaveTherapistProfileInput {
+    name?: string;
+    title?: string;
+    bio?: string;
+    department?: string;
+    phone?: string;
+    branch?: string;
+    country?: string;
+    qualification?: string;
+    university?: string;
+    yearsExperience?: number;
+    specializations?: string[];
+    licenceNumber?: string;
+    licenceExpiry?: string;
+    licenseAuthority?: string;
+    rciNumber?: string;
+    councilNumber?: string;
+    bcbaNumber?: string;
+    emiratesId?: string;
+    visaStatus?: string;
+    insuranceProvider?: string;
+    insurancePolicyNumber?: string;
+    insuranceExpiry?: string;
+}
+import { randomBytes, createHash } from 'crypto';
 import { AppLoggerService } from '../common/logging';
 import * as XLSX from 'xlsx';
 
@@ -359,27 +385,60 @@ export class OrganizationsService {
         let communitySlug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
         communitySlug += '-' + randomBytes(4).toString('hex');
 
+        // 5-step wizard fields map onto the existing Community model:
+        //   focusArea → condition/type, privacy → inviteOnly/isPrivate,
+        //   guidelines → rules, eligible branches/specializations → tags,
+        //   publish/draft → isActive, moderators/auto-add → CommunityMember rows.
+        const isInviteOnly = data.privacy ? data.privacy === 'invite' : !!data.isPrivate;
+        const tags = [...(data.eligibleBranches || []), ...(data.eligibleSpecializations || [])].filter(Boolean);
+
+        // Auto-add therapists whose department matches the focus area.
+        let matchingUserIds: string[] = [];
+        if (data.autoAddMatching && data.focusArea) {
+            const links = await this.prisma.therapistOrganizationLink.findMany({
+                where: { organizationId: org.id, therapist: { department: data.focusArea } },
+                select: { therapist: { select: { userId: true } } },
+            });
+            matchingUserIds = links.map((l) => l.therapist.userId);
+        }
+
+        const moderatorIds = new Set<string>(
+            ((data.moderatorUserIds as string[]) || []).filter((id) => id && id !== userId),
+        );
+
         return this.prisma.$transaction(async (tx) => {
             const community = await tx.community.create({
                 data: {
                     name: data.name,
                     description: data.description,
                     slug: communitySlug,
-                    type: data.type || 'professional',
-                    isPrivate: data.isPrivate || false,
+                    type: data.focusArea || data.type || 'professional',
+                    condition: data.focusArea || null,
+                    isPrivate: isInviteOnly,
+                    inviteOnly: isInviteOnly,
+                    rules: data.guidelines || null,
+                    tags,
+                    isActive: data.publish !== false, // draft => publish: false
                     organizationId: org.id,
                     creatorId: userId,
-                }
+                },
             });
 
             await tx.communityMember.create({
-                data: {
-                    userId,
-                    communityId: community.id,
-                    role: 'ADMIN',
-                    status: 'ACTIVE',
-                }
+                data: { userId, communityId: community.id, role: 'ADMIN', status: 'ACTIVE' },
             });
+
+            for (const modId of moderatorIds) {
+                await tx.communityMember.create({
+                    data: { userId: modId, communityId: community.id, role: 'MODERATOR', status: 'ACTIVE' },
+                });
+            }
+            for (const memId of matchingUserIds) {
+                if (memId === userId || moderatorIds.has(memId)) continue;
+                await tx.communityMember.create({
+                    data: { userId: memId, communityId: community.id, role: 'MEMBER', status: 'ACTIVE' },
+                });
+            }
 
             return community;
         });
@@ -1206,6 +1265,698 @@ export class OrganizationsService {
             message: `Member ${targetMember.user.name || targetMember.user.email} has been reactivated`,
             member: updatedMember
         };
+    }
+
+    /**
+     * Resolve an OrganizationMember id to their TherapistProfile id, after checking
+     * the requester is an org or platform admin and the member belongs to the org.
+     * Shared by the leave-management endpoints.
+     */
+    private async resolveMemberTherapist(slug: string, memberId: string, adminId: string) {
+        const org = await this.findOne(slug);
+
+        const adminMember = await this.prisma.organizationMember.findUnique({
+            where: { userId_organizationId: { userId: adminId, organizationId: org.id } },
+        });
+        const adminUser = await this.prisma.user.findUnique({
+            where: { id: adminId },
+            select: { role: true },
+        });
+        const isPlatformAdmin = adminUser?.role === 'ADMIN';
+        const isOrgAdmin = adminMember?.role === 'ADMIN';
+        if (!isPlatformAdmin && !isOrgAdmin) {
+            throw new BadRequestException('Only organization admins or platform admins can manage leave');
+        }
+
+        const targetMember = await this.prisma.organizationMember.findUnique({
+            where: { id: memberId },
+        });
+        if (!targetMember) {
+            throw new NotFoundException('Member not found');
+        }
+        if (targetMember.organizationId !== org.id) {
+            throw new BadRequestException('Member does not belong to this organization');
+        }
+
+        const therapist = await this.prisma.therapistProfile.findUnique({
+            where: { userId: targetMember.userId },
+            select: { id: true },
+        });
+        if (!therapist) {
+            throw new BadRequestException('This member does not have a therapist profile');
+        }
+        return therapist.id;
+    }
+
+    /** Leave records (blocked dates) for a member's therapist profile. */
+    async getMemberLeave(slug: string, memberId: string, adminId: string) {
+        const therapistId = await this.resolveMemberTherapist(slug, memberId, adminId);
+        return this.prisma.availabilityException.findMany({
+            where: { therapistId, type: AvailabilityExceptionType.BLOCKED },
+            orderBy: { date: 'asc' },
+        });
+    }
+
+    /**
+     * Add leave on the therapist's behalf. A From→To range is stored as one
+     * BLOCKED AvailabilityException per day (the model keys on a single date).
+     */
+    async addMemberLeave(
+        slug: string,
+        memberId: string,
+        adminId: string,
+        body: { fromDate: string; toDate?: string; reason?: string },
+    ) {
+        const therapistId = await this.resolveMemberTherapist(slug, memberId, adminId);
+        if (!body?.fromDate) {
+            throw new BadRequestException('fromDate is required');
+        }
+        const from = new Date(`${body.fromDate}T00:00:00`);
+        const to = new Date(`${body.toDate || body.fromDate}T00:00:00`);
+        if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+            throw new BadRequestException('Invalid date');
+        }
+        if (to < from) {
+            throw new BadRequestException('toDate must be on or after fromDate');
+        }
+
+        const created = [] as unknown[];
+        for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+            created.push(
+                await this.prisma.availabilityException.create({
+                    data: {
+                        therapistId,
+                        date: new Date(d),
+                        type: AvailabilityExceptionType.BLOCKED,
+                        reason: body.reason || null,
+                    },
+                }),
+            );
+        }
+        return { success: true, created };
+    }
+
+    /** Remove a leave record, scoped to the member's therapist profile. */
+    async removeMemberLeave(slug: string, memberId: string, adminId: string, exceptionId: string) {
+        const therapistId = await this.resolveMemberTherapist(slug, memberId, adminId);
+        const exception = await this.prisma.availabilityException.findUnique({
+            where: { id: exceptionId },
+        });
+        if (!exception || exception.therapistId !== therapistId) {
+            throw new NotFoundException('Leave record not found');
+        }
+        await this.prisma.availabilityException.delete({ where: { id: exceptionId } });
+        return { success: true };
+    }
+
+    /**
+     * Approve & Activate (or Request Changes for) a member from the Add Therapist
+     * wizard's Review step. Flips the OrganizationMember status and mirrors the
+     * decision onto the therapist's org link if one exists.
+     */
+    async approveMember(slug: string, memberId: string, adminId: string, approve: boolean) {
+        const org = await this.findOne(slug);
+
+        const adminMember = await this.prisma.organizationMember.findUnique({
+            where: { userId_organizationId: { userId: adminId, organizationId: org.id } },
+        });
+        const adminUser = await this.prisma.user.findUnique({
+            where: { id: adminId },
+            select: { role: true },
+        });
+        const isPlatformAdmin = adminUser?.role === 'ADMIN';
+        const isOrgAdmin = adminMember?.role === 'ADMIN';
+        if (!isPlatformAdmin && !isOrgAdmin) {
+            throw new BadRequestException('Only organization admins or platform admins can approve members');
+        }
+
+        const targetMember = await this.prisma.organizationMember.findUnique({
+            where: { id: memberId },
+            include: { user: { select: { id: true, name: true, email: true } } },
+        });
+        if (!targetMember) {
+            throw new NotFoundException('Member not found');
+        }
+        if (targetMember.organizationId !== org.id) {
+            throw new BadRequestException('Member does not belong to this organization');
+        }
+
+        const updated = await this.prisma.organizationMember.update({
+            where: { id: memberId },
+            data: { status: approve ? OrganizationStatus.ACTIVE : OrganizationStatus.PENDING },
+        });
+
+        // Mirror onto the therapist's org link, if the member has one.
+        const therapist = await this.prisma.therapistProfile.findUnique({
+            where: { userId: targetMember.userId },
+            select: { id: true },
+        });
+        if (therapist) {
+            const link = await this.prisma.therapistOrganizationLink.findUnique({
+                where: {
+                    therapistId_organizationId: {
+                        therapistId: therapist.id,
+                        organizationId: org.id,
+                    },
+                },
+            });
+            if (link) {
+                await this.prisma.therapistOrganizationLink.update({
+                    where: { id: link.id },
+                    data: approve
+                        ? {
+                              status: TherapistApprovalStatus.APPROVED,
+                              approvedAt: new Date(),
+                              approvedBy: adminId,
+                          }
+                        : { status: TherapistApprovalStatus.PENDING },
+                });
+            }
+        }
+
+        return {
+            success: true,
+            message: approve
+                ? `${targetMember.user.name || targetMember.user.email} has been approved and activated`
+                : `Changes requested from ${targetMember.user.name || targetMember.user.email}`,
+            member: updated,
+        };
+    }
+
+    /** Shared: resolve org and assert the requester is an org or platform admin. */
+    private async getOrgAndAssertAdmin(slug: string, adminId: string) {
+        const org = await this.findOne(slug);
+        const adminMember = await this.prisma.organizationMember.findUnique({
+            where: { userId_organizationId: { userId: adminId, organizationId: org.id } },
+        });
+        const adminUser = await this.prisma.user.findUnique({
+            where: { id: adminId },
+            select: { role: true },
+        });
+        if (adminUser?.role !== 'ADMIN' && adminMember?.role !== 'ADMIN') {
+            throw new BadRequestException('Only organization admins or platform admins can perform this action');
+        }
+        return org;
+    }
+
+    private async getMemberInOrg(org: { id: string }, memberId: string) {
+        const targetMember = await this.prisma.organizationMember.findUnique({ where: { id: memberId } });
+        if (!targetMember) {
+            throw new NotFoundException('Member not found');
+        }
+        if (targetMember.organizationId !== org.id) {
+            throw new BadRequestException('Member does not belong to this organization');
+        }
+        return targetMember;
+    }
+
+    /** Add Therapist wizard: read a member's therapist profile for pre-fill. */
+    async getMemberTherapistProfile(slug: string, memberId: string, adminId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const targetMember = await this.getMemberInOrg(org, memberId);
+        const user = await this.prisma.user.findUnique({
+            where: { id: targetMember.userId },
+            select: { id: true, name: true, email: true },
+        });
+        const profile = await this.prisma.therapistProfile.findUnique({
+            where: { userId: targetMember.userId },
+        });
+        const sessionTypes = profile
+            ? await this.prisma.sessionType.findMany({
+                  where: { therapistId: profile.id, isActive: true },
+                  orderBy: { name: 'asc' },
+              })
+            : [];
+        const availability = profile
+            ? await this.prisma.therapistAvailability.findMany({
+                  where: { therapistId: profile.id, isActive: true },
+              })
+            : [];
+        return { member: targetMember, user, profile, sessionTypes, availability };
+    }
+
+    /** Resolve a member to their TherapistProfile id, creating a bare one if absent. */
+    private async ensureMemberTherapist(org: { id: string }, memberId: string) {
+        const targetMember = await this.getMemberInOrg(org, memberId);
+        const existing = await this.prisma.therapistProfile.findUnique({
+            where: { userId: targetMember.userId },
+            select: { id: true },
+        });
+        if (existing) return existing.id;
+        const created = await this.prisma.therapistProfile.create({
+            data: { userId: targetMember.userId },
+            select: { id: true },
+        });
+        return created.id;
+    }
+
+    /** Add Therapist wizard, Schedule step: replace the member's weekly availability. */
+    async saveMemberAvailability(
+        slug: string,
+        memberId: string,
+        adminId: string,
+        slots: { dayOfWeek: number; startTime: string; endTime: string }[],
+        timezone?: string,
+    ) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const therapistId = await this.ensureMemberTherapist(org, memberId);
+        await this.prisma.therapistAvailability.deleteMany({ where: { therapistId } });
+        if (slots?.length) {
+            await this.prisma.therapistAvailability.createMany({
+                data: slots.map((s) => ({
+                    therapistId,
+                    dayOfWeek: s.dayOfWeek,
+                    startTime: s.startTime,
+                    endTime: s.endTime,
+                    timezone: timezone || 'Asia/Kolkata',
+                })),
+            });
+        }
+        return { success: true };
+    }
+
+    /** Add Therapist wizard, Fees step: upsert the member's session types by name+duration. */
+    async saveMemberSessionTypes(
+        slug: string,
+        memberId: string,
+        adminId: string,
+        items: { name: string; duration: number; price: number; currency: string }[],
+    ) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const therapistId = await this.ensureMemberTherapist(org, memberId);
+        const results: Prisma.SessionTypeGetPayload<{}>[] = [];
+        for (const it of items || []) {
+            const existing = await this.prisma.sessionType.findFirst({
+                where: { therapistId, name: it.name, duration: it.duration },
+            });
+            if (existing) {
+                results.push(
+                    await this.prisma.sessionType.update({
+                        where: { id: existing.id },
+                        data: { defaultPrice: it.price, currency: it.currency, isActive: true },
+                    }),
+                );
+            } else {
+                results.push(
+                    await this.prisma.sessionType.create({
+                        data: {
+                            therapistId,
+                            name: it.name,
+                            duration: it.duration,
+                            defaultPrice: it.price,
+                            currency: it.currency,
+                        },
+                    }),
+                );
+            }
+        }
+        return { success: true, sessionTypes: results };
+    }
+
+    /** Add Therapist wizard: save Basic Info + Credentials. Upserts the profile. */
+    async saveMemberTherapistProfile(
+        slug: string,
+        memberId: string,
+        adminId: string,
+        data: SaveTherapistProfileInput,
+    ) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const targetMember = await this.getMemberInOrg(org, memberId);
+
+        if (data.name) {
+            await this.prisma.user.update({
+                where: { id: targetMember.userId },
+                data: { name: data.name },
+            });
+        }
+
+        const profileData = {
+            title: data.title,
+            bio: data.bio,
+            department: data.department,
+            phone: data.phone,
+            branch: data.branch,
+            country: data.country,
+            qualification: data.qualification,
+            university: data.university,
+            yearsExperience: data.yearsExperience,
+            specializations: data.specializations,
+            licenceNumber: data.licenceNumber,
+            licenceExpiry: data.licenceExpiry ? new Date(data.licenceExpiry) : undefined,
+            licenseAuthority: data.licenseAuthority
+                ? (data.licenseAuthority as LicenseAuthority)
+                : undefined,
+            rciNumber: data.rciNumber,
+            councilNumber: data.councilNumber,
+            bcbaNumber: data.bcbaNumber,
+            emiratesId: data.emiratesId,
+            visaStatus: data.visaStatus,
+            insuranceProvider: data.insuranceProvider,
+            insurancePolicyNumber: data.insurancePolicyNumber,
+            insuranceExpiry: data.insuranceExpiry ? new Date(data.insuranceExpiry) : undefined,
+        };
+
+        const profile = await this.prisma.therapistProfile.upsert({
+            where: { userId: targetMember.userId },
+            create: { userId: targetMember.userId, ...profileData },
+            update: profileData,
+        });
+        return { success: true, profile };
+    }
+
+    // ── Family Intake Journey (org-scoped by Case.organizationId) ──
+
+    /** Approved/linked therapists in the org, for the assign dropdown. */
+    async getOrgTherapists(slug: string, adminId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const links = await this.prisma.therapistOrganizationLink.findMany({
+            where: { organizationId: org.id },
+            select: {
+                therapist: {
+                    select: { id: true, userId: true, department: true, user: { select: { name: true } } },
+                },
+            },
+        });
+        return links.map((l) => ({
+            id: l.therapist.id,
+            userId: l.therapist.userId,
+            name: l.therapist.user?.name ?? 'Therapist',
+            department: l.therapist.department,
+        }));
+    }
+
+    /** Families queue: every case belonging to this org. */
+    async getOrgFamilies(slug: string, adminId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const cases = await this.prisma.case.findMany({
+            where: { organizationId: org.id },
+            select: {
+                id: true,
+                caseNumber: true,
+                status: true,
+                createdAt: true,
+                child: {
+                    select: {
+                        firstName: true,
+                        dateOfBirth: true,
+                        guardians: {
+                            where: { isPrimaryContact: true },
+                            take: 1,
+                            select: { fullName: true, email: true, userId: true },
+                        },
+                        // The account that owns the child's profile — a real (password-set)
+                        // owner means the parent can already log in and see their child.
+                        profile: { select: { user: { select: { name: true, password: true } } } },
+                    },
+                },
+                primaryTherapist: { select: { id: true, user: { select: { name: true } } } },
+                intake: { select: { state: true, createdAt: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        return cases.map((c) => {
+            const guardian = c.child.guardians[0];
+            const owner = c.child.profile?.user;
+            const hasAccess = !!owner?.password;
+            return {
+                caseId: c.id,
+                caseNumber: c.caseNumber,
+                childName: c.child.firstName,
+                childDob: c.child.dateOfBirth,
+                parentName: guardian?.fullName ?? owner?.name ?? null,
+                submittedAt: c.intake?.createdAt ?? c.createdAt,
+                assignedTherapistId: c.primaryTherapist?.id ?? null,
+                assignedTherapistName: c.primaryTherapist?.user?.name ?? null,
+                status: hasAccess ? 'ACCESS_GRANTED' : 'PENDING_REVIEW',
+            };
+        });
+    }
+
+    /** Full detail for one family/case (guardian, child, intake summary). */
+    async getOrgFamilyDetail(slug: string, adminId: string, caseId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const c = await this.prisma.case.findFirst({
+            where: { id: caseId, organizationId: org.id },
+            select: {
+                id: true,
+                caseNumber: true,
+                status: true,
+                createdAt: true,
+                child: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        nickname: true,
+                        dateOfBirth: true,
+                        gender: true,
+                        guardians: {
+                            select: {
+                                fullName: true,
+                                relationship: true,
+                                email: true,
+                                phone: true,
+                                isPrimaryContact: true,
+                                userId: true,
+                            },
+                        },
+                        profile: { select: { user: { select: { name: true, email: true, password: true } } } },
+                    },
+                },
+                primaryTherapist: { select: { id: true, user: { select: { name: true } } } },
+                intake: {
+                    select: {
+                        state: true,
+                        presentingConcern: true,
+                        referralQuestions: true,
+                        parentGoals: true,
+                        urgencyFlag: true,
+                        aiSummary: true,
+                        consentAssessment: true,
+                        consentTherapy: true,
+                        consentSharing: true,
+                        consentAi: true,
+                    },
+                },
+            },
+        });
+        if (!c) {
+            throw new NotFoundException('Family not found');
+        }
+        // Access = the child's profile owner can log in. Strip the profile (with its
+        // password) from the response and expose only a boolean + safe owner fields.
+        const owner = c.child.profile?.user;
+        const { profile: _profile, ...child } = c.child;
+        return {
+            ...c,
+            child,
+            accessGranted: !!owner?.password,
+            profileOwner: owner ? { name: owner.name, email: owner.email } : null,
+        };
+    }
+
+    /** Assign (or reassign) the primary therapist on a family's case. */
+    async assignOrgFamilyTherapist(slug: string, adminId: string, caseId: string, therapistId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const theCase = await this.prisma.case.findFirst({
+            where: { id: caseId, organizationId: org.id },
+            select: { id: true },
+        });
+        if (!theCase) {
+            throw new NotFoundException('Family not found');
+        }
+        const link = await this.prisma.therapistOrganizationLink.findUnique({
+            where: { therapistId_organizationId: { therapistId, organizationId: org.id } },
+        });
+        if (!link) {
+            throw new BadRequestException('Therapist is not part of this organization');
+        }
+        await this.prisma.case.update({
+            where: { id: caseId },
+            data: { primaryTherapistId: therapistId },
+        });
+        return { success: true };
+    }
+
+    /**
+     * Issue a Parent Intake public link for a case: mint an unguessable token,
+     * store only its SHA-256 on the case with a 14-day expiry, return the raw
+     * token for the admin to share. Regenerating invalidates the previous link.
+     */
+    async createIntakeLink(slug: string, adminId: string, caseId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const theCase = await this.prisma.case.findFirst({
+            where: { id: caseId, organizationId: org.id },
+            select: { id: true },
+        });
+        if (!theCase) {
+            throw new NotFoundException('Family not found');
+        }
+        const rawToken = randomBytes(32).toString('hex');
+        const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+        await this.prisma.case.update({
+            where: { id: caseId },
+            data: {
+                intakeTokenHash: tokenHash,
+                intakeTokenExpiry: new Date(Date.now() + 14 * 86400000),
+            },
+        });
+        return { token: rawToken };
+    }
+
+    /**
+     * Clinic-wide bookings calendar: every therapist's sessions + assessment
+     * reviews for the org in a date range. Org-scoped (Booking.organizationId /
+     * Case.organizationId) — never reaches another org's schedule.
+     */
+    async getOrgBookingsCalendar(slug: string, adminId: string, fromIso: string, toIso: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const from = new Date(fromIso);
+        const to = new Date(toIso);
+        if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+            throw new BadRequestException('Invalid date range');
+        }
+
+        const [bookings, assessments] = await Promise.all([
+            this.prisma.booking.findMany({
+                where: { organizationId: org.id, startDateTime: { gte: from, lte: to } },
+                select: {
+                    id: true,
+                    startDateTime: true,
+                    endDateTime: true,
+                    status: true,
+                    therapist: { select: { id: true, user: { select: { name: true } } } },
+                    patient: { select: { name: true } },
+                    sessionType: { select: { name: true } },
+                },
+                orderBy: { startDateTime: 'asc' },
+            }),
+            this.prisma.assessmentReview.findMany({
+                where: { meetingAt: { gte: from, lte: to }, case: { organizationId: org.id } },
+                select: {
+                    id: true,
+                    meetingAt: true,
+                    sharedAt: true,
+                    case: {
+                        select: {
+                            primaryTherapist: { select: { id: true, user: { select: { name: true } } } },
+                            child: { select: { firstName: true } },
+                        },
+                    },
+                },
+                orderBy: { meetingAt: 'asc' },
+            }),
+        ]);
+
+        const events = [
+            ...bookings.map((b) => ({
+                id: b.id,
+                kind: 'session' as const,
+                therapistId: b.therapist.id,
+                therapistName: b.therapist.user?.name ?? 'Therapist',
+                title: b.sessionType?.name ?? 'Session',
+                patientName: b.patient?.name ?? null,
+                start: b.startDateTime,
+                end: b.endDateTime as Date | null,
+                status: b.status as string,
+            })),
+            ...assessments
+                .filter((a) => a.meetingAt)
+                .map((a) => ({
+                    id: a.id,
+                    kind: 'assessment' as const,
+                    therapistId: a.case.primaryTherapist?.id ?? '',
+                    therapistName: a.case.primaryTherapist?.user?.name ?? 'Therapist',
+                    title: 'Assessment',
+                    patientName: a.case.child?.firstName ?? null,
+                    start: a.meetingAt as Date,
+                    end: null as Date | null,
+                    status: a.sharedAt ? 'Report shared' : 'Scheduled',
+                })),
+        ].sort((x, y) => new Date(x.start).getTime() - new Date(y.start).getTime());
+
+        return { events };
+    }
+
+    /**
+     * Grant Platform Access: activate the account that already owns the child's
+     * profile (real or shadow) into a login-capable account for the guardian's
+     * email, and send a set-password link — the SAME mechanism as forgot-password.
+     * This keeps Child.profileId intact (parent immediately sees their child) and
+     * refuses to auto-merge if the guardian email already belongs to a different
+     * account, rather than risk data integrity.
+     */
+    async grantOrgFamilyAccess(slug: string, adminId: string, caseId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const theCase = await this.prisma.case.findFirst({
+            where: { id: caseId, organizationId: org.id },
+            select: {
+                id: true,
+                child: {
+                    select: {
+                        profileId: true,
+                        guardians: {
+                            where: { isPrimaryContact: true },
+                            take: 1,
+                            select: { id: true, fullName: true, email: true, userId: true },
+                        },
+                    },
+                },
+            },
+        });
+        if (!theCase) {
+            throw new NotFoundException('Family not found');
+        }
+
+        const guardian = theCase.child.guardians[0];
+
+        const profile = await this.prisma.userProfile.findUnique({
+            where: { id: theCase.child.profileId },
+            select: { user: { select: { id: true, email: true, password: true, name: true } } },
+        });
+        const owner = profile?.user;
+        if (!owner) {
+            throw new BadRequestException('This child has no linked profile account.');
+        }
+
+        // Prefer the guardian's email; fall back to the profile owner's own address.
+        const targetEmail = (guardian?.email || owner.email || '').toLowerCase().trim();
+        if (!targetEmail) {
+            throw new BadRequestException(
+                'No email on file for this family. Add a guardian email before granting access.',
+            );
+        }
+
+        // If the guardian email already belongs to a different account, merging the two
+        // users + relinking the child is out of scope — refuse rather than corrupt data.
+        const emailHolder = await this.prisma.user.findUnique({
+            where: { email: targetEmail },
+            select: { id: true },
+        });
+        if (emailHolder && emailHolder.id !== owner.id) {
+            throw new BadRequestException(
+                'An account already exists for this guardian email. Link it manually — automatic merge is not supported.',
+            );
+        }
+
+        const resetToken = randomBytes(32).toString('hex');
+        const data: Prisma.UserUpdateInput = {
+            resetPasswordToken: resetToken,
+            resetPasswordExpiry: new Date(Date.now() + 3600000),
+        };
+        if (owner.email.toLowerCase() !== targetEmail) data.email = targetEmail;
+        // Never leave a null-password dead-end: seed a random password the parent then resets.
+        if (!owner.password) data.password = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
+        await this.prisma.user.update({ where: { id: owner.id }, data });
+
+        if (guardian && guardian.userId !== owner.id) {
+            await this.prisma.guardian.update({ where: { id: guardian.id }, data: { userId: owner.id } });
+        }
+
+        this.emailService
+            .sendPasswordResetEmail(targetEmail, resetToken, owner.name ?? guardian?.fullName ?? undefined)
+            .catch((e) => this.logger.error(`Failed to send access email: ${e.message}`));
+
+        return { success: true, message: `Access email sent to ${targetEmail}` };
     }
 
     /**

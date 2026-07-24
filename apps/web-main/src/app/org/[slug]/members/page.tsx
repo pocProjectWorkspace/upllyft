@@ -162,13 +162,14 @@ export default function OrgMembersPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Holidays</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center">
+                  <td colSpan={7} className="px-6 py-8 text-center">
                     <div className="flex items-center justify-center gap-2 text-gray-500">
                       <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
                       Loading members...
@@ -177,7 +178,7 @@ export default function OrgMembersPage() {
                 </tr>
               ) : members.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     No members yet. Invite members to get started.
                   </td>
                 </tr>
@@ -192,7 +193,13 @@ export default function OrgMembersPage() {
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
                       <div className="flex items-center gap-2">
-                        {m.user?.name || 'Unknown'}
+                        {m.role === 'ADMIN' ? (
+                          m.user?.name || 'Unknown'
+                        ) : (
+                          <a href={`/org/${slug}/members/${m.id}`} className="text-teal-700 hover:underline">
+                            {m.user?.name || 'Unknown'}
+                          </a>
+                        )}
                         {m.role === 'ADMIN' && (
                           <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">Admin</span>
                         )}
@@ -207,6 +214,15 @@ export default function OrgMembersPage() {
                     <td className="px-6 py-4">{statusBadge(m.status)}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {m.joinedAt ? new Date(m.joinedAt).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {m.role === 'ADMIN' ? (
+                        <span className="text-gray-300">-</span>
+                      ) : (
+                        <a href={`/org/${slug}/members/${m.id}/holidays`} className="text-teal-600 hover:underline">
+                          View Holidays
+                        </a>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right relative">
                       <button

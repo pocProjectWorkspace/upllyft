@@ -84,6 +84,7 @@ import { CaseBillingModule } from './case-billing/case-billing.module';
 import { CaseAuditModule } from './case-audit/case-audit.module';
 import { CaseConsentsModule } from './case-consents/case-consents.module';
 import { ClinicIntakeModule } from './clinic-intake/clinic-intake.module';
+import { PublicIntakeModule } from './public-intake/public-intake.module';
 import { PayerModule } from './payer/payer.module';
 import { ClinicOrchestrationModule } from './clinic-orchestration/clinic-orchestration.module';
 import { ClinicSafetyModule } from './clinic-safety/clinic-safety.module';
@@ -193,6 +194,7 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     CaseAuditModule,
     CaseConsentsModule,
     ClinicIntakeModule,
+    PublicIntakeModule,
     PayerModule,
     ClinicOrchestrationModule,
     ClinicSafetyModule,

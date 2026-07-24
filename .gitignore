@@ -29,3 +29,7 @@ coverage/
 npm-debug.log*
 pnpm-debug.log*
 .vercel
+
+# Local design/handoff docs — do not commit to public repo
+handoff/
+*-20260723T*.zip

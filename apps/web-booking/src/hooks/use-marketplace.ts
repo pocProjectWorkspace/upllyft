@@ -18,6 +18,7 @@ import {
   getMyAvailability,
   setRecurringAvailability,
   addAvailabilityException,
+  deleteAvailabilityException,
   deleteAvailability,
   createBooking,
   getMyBookings,
@@ -259,6 +260,20 @@ export function useDeleteAvailability() {
     },
     onError: () => {
       toast({ title: 'Error', description: 'Failed to remove slot.', variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteAvailabilityException() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteAvailabilityException(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.availability() });
+      toast({ title: 'Leave record removed' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to remove leave record.', variant: 'destructive' });
     },
   });
 }

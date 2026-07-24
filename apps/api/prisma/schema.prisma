@@ -1756,6 +1756,23 @@ model TherapistProfile {
   licenseAuthority         LicenseAuthority?
   canDiagnose              Boolean                     @default(false)
   scopeOfPractice          String[]                    @default([])
+  // --- Org onboarding (Add Therapist wizard): profile + discipline-specific
+  // credential fields. All nullable/additive. `department` stores a DepartmentKey
+  // (see @upllyft/types) and drives the wizard's services/specializations/licensing.
+  department               String?
+  phone                    String?
+  branch                   String?
+  country                  String?
+  qualification            String?
+  university               String?
+  rciNumber                String?
+  councilNumber            String?
+  bcbaNumber               String?
+  emiratesId               String?
+  visaStatus               String?
+  insuranceProvider        String?
+  insurancePolicyNumber    String?
+  insuranceExpiry          DateTime?
   // --- UAE Phase 3: clinic governance role ---
   clinicRole               ClinicRole                  @default(THERAPIST)
   clinicId                 String?
@@ -2779,6 +2796,10 @@ model AdAnalytics {
 model Case {
   id                      String           @id @default(cuid())
   caseNumber              String           @unique
+  // Parent Intake public link — SHA-256 of the unguessable token the parent uses
+  // to submit intake without a login. Additive/nullable.
+  intakeTokenHash         String?
+  intakeTokenExpiry       DateTime?
   childId                 String
   child                   Child            @relation(fields: [childId], references: [id])
   primaryTherapistId      String
