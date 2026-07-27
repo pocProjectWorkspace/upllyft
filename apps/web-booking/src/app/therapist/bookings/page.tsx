@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { BookingShell } from '@/components/booking-shell';
+import { AvailabilityManager } from '@/components/availability-manager';
 import {
   useMyBookings,
   useAcceptBooking,
@@ -206,20 +207,37 @@ export default function TherapistBookingsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Bookings</h1>
-            <p className="text-gray-500 mt-1">Manage your session requests and appointments</p>
+            <h1 className="text-3xl font-bold text-gray-900">Bookings &amp; Availability</h1>
+            <p className="text-gray-500 mt-1">Requests, upcoming schedule, weekly availability and absence — all in one place</p>
           </div>
           <Link href="/therapist/dashboard">
             <Button variant="outline" className="rounded-xl">
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              Dashboard
+              Hub
             </Button>
           </Link>
         </div>
 
-        {/* Tabs */}
+        {/* Two-way management banner */}
+        <div className="rounded-2xl border border-teal-200 bg-teal-50 px-5 py-3 text-sm text-teal-800">
+          Your services, schedule and leave are seeded from your clinic&apos;s onboarding. Changes you make here sync back to the clinic record.
+        </div>
+
+        {/* Sticky sub-nav */}
+        <div className="sticky top-0 z-10 -mx-4 border-b border-gray-100 bg-gray-50/95 px-4 py-2 backdrop-blur">
+          <nav className="flex flex-wrap gap-2 text-sm">
+            <a href="#requests" className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-700 hover:border-teal-300">Booking requests</a>
+            <a href="#upcoming" className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-700 hover:border-teal-300">Upcoming schedule</a>
+            <a href="#availability" className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-700 hover:border-teal-300">Weekly availability</a>
+            <a href="#absence" className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-700 hover:border-teal-300">Absence</a>
+          </nav>
+        </div>
+
+        {/* Booking requests */}
+        <section id="requests" className="space-y-4 scroll-mt-24">
+        <h2 className="text-xl font-bold text-gray-900">Booking requests</h2>
         <Tabs defaultValue="pending" className="space-y-6">
           <TabsList className="bg-white border rounded-xl p-1">
             <TabsTrigger value="pending" className="rounded-lg data-[state=active]:bg-teal-50 data-[state=active]:text-teal-700">
@@ -315,6 +333,32 @@ export default function TherapistBookingsPage() {
             )}
           </TabsContent>
         </Tabs>
+        </section>
+
+        {/* Upcoming schedule */}
+        <section id="upcoming" className="space-y-4 scroll-mt-24">
+          <h2 className="text-xl font-bold text-gray-900">Upcoming schedule</h2>
+          {confirmedLoading ? (
+            <LoadingSkeleton />
+          ) : confirmedCount === 0 ? (
+            <EmptyState title="No upcoming sessions" description="Confirmed sessions and assessments will appear here" />
+          ) : (
+            <div className="rounded-2xl border border-gray-200 bg-white divide-y divide-gray-100">
+              {confirmedBookings!.map((b) => (
+                <div key={b.id} className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{b.patient?.name || 'Client'}</p>
+                    <p className="text-xs text-gray-500">{formatDate(b.startDateTime)}</p>
+                  </div>
+                  <Badge color="green">{bookingStatusLabels[b.status]}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Weekly availability + Absence */}
+        <AvailabilityManager />
 
         {/* Reject Dialog */}
         <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>

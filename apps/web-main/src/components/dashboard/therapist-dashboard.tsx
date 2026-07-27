@@ -22,8 +22,8 @@ const quickActions = [
     hoverShadow: 'hover:shadow-[0_12px_24px_-8px_rgba(236,72,153,0.2)]',
   },
   {
-    title: 'Manage Availability',
-    href: `${APP_URLS.booking}/therapist/availability`,
+    title: 'Bookings & Availability',
+    href: `${APP_URLS.booking}/therapist/bookings`,
     icon: (
       <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -34,6 +34,34 @@ const quickActions = [
     hoverBorder: 'hover:border-blue-300',
     hoverText: 'group-hover:text-blue-700',
     hoverShadow: 'hover:shadow-[0_12px_24px_-8px_rgba(59,130,246,0.2)]',
+  },
+  {
+    title: 'Session Types & Pricing',
+    href: `${APP_URLS.booking}/therapist/pricing`,
+    icon: (
+      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
+      </svg>
+    ),
+    color: 'amber',
+    gradient: 'bg-gradient-to-br from-amber-500 to-amber-700',
+    hoverBorder: 'hover:border-amber-300',
+    hoverText: 'group-hover:text-amber-700',
+    hoverShadow: 'hover:shadow-[0_12px_24px_-8px_rgba(245,158,11,0.2)]',
+  },
+  {
+    title: 'My Profile',
+    href: `${APP_URLS.booking}/therapist/profile`,
+    icon: (
+      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    ),
+    color: 'green',
+    gradient: 'bg-gradient-to-br from-green-500 to-green-700',
+    hoverBorder: 'hover:border-green-300',
+    hoverText: 'group-hover:text-green-700',
+    hoverShadow: 'hover:shadow-[0_12px_24px_-8px_rgba(34,197,94,0.2)]',
   },
   {
     title: 'Learning Resources',
@@ -316,7 +344,7 @@ export function TherapistDashboard({ user }: TherapistDashboardProps) {
       {/* Quick Actions — Module cards matching design system */}
       <div>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
           {quickActions.map((action) => (
             <a
               key={action.title}
@@ -329,7 +357,9 @@ export function TherapistDashboard({ user }: TherapistDashboardProps) {
               <p className={`font-semibold text-gray-900 mb-1 ${action.hoverText}`}>{action.title}</p>
               <p className="text-sm text-gray-500">
                 {action.title === 'Case Management' && 'Manage client cases'}
-                {action.title === 'Manage Availability' && 'Set your schedule'}
+                {action.title === 'Bookings & Availability' && 'Requests, schedule & leave'}
+                {action.title === 'Session Types & Pricing' && 'Services & fees'}
+                {action.title === 'My Profile' && 'Credentials & bio'}
                 {action.title === 'Learning Resources' && 'AI-powered worksheets'}
                 {action.title === 'Screening Tools' && 'Assessment tools'}
               </p>

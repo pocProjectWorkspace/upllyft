@@ -35,3 +35,12 @@ export function useConfirmTriage(caseId: string) {
     onError: () => toast({ title: 'Failed to confirm triage', variant: 'destructive' }),
   });
 }
+
+export function useTherapistAvailabilityForTriage(therapistId: string | undefined) {
+  return useQuery({
+    queryKey: ['therapist-availability', therapistId],
+    queryFn: () => api.getTherapistAvailabilityForTriage(therapistId!),
+    enabled: !!therapistId,
+    staleTime: 60_000,
+  });
+}

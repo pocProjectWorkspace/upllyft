@@ -58,3 +58,20 @@ export const getTriageCandidates = (caseId: string): Promise<TriageCandidate[]> 
 
 export const confirmTriage = (caseId: string, data: ConfirmTriageInput) =>
   apiClient.post(`${base(caseId)}/confirm`, data).then((r) => r.data);
+
+// ── Therapist availability (for Triage Step-4 scheduling, TC-TRI-01/02) ──
+// Reuses the marketplace availability endpoint: recurring weekly slots + leave
+// exceptions. No sessionTypeId needed (unlike :id/slots), so it works at triage.
+export interface TherapistAvailabilityData {
+  recurring: { id: string; dayOfWeek: number; startTime: string; endTime: string; isActive: boolean }[];
+  exceptions: { id: string; date: string; type: string }[];
+}
+
+export async function getTherapistAvailabilityForTriage(
+  therapistId: string,
+): Promise<TherapistAvailabilityData> {
+  const { data } = await apiClient.get<TherapistAvailabilityData>(
+    `/marketplace/therapists/${therapistId}/availability`,
+  );
+  return data;
+}

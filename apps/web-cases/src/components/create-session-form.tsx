@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   useCreateSession,
   useUpdateSession,
@@ -49,6 +49,17 @@ interface SessionNoteFormProps {
   initialData?: CaseSession;
 }
 
+// Consultation step (pathway-gated) — mirrors Consultation.dc.html: parent
+// expectations, 6-domain observation ratings, recommendation. Shown in the Session
+// Note only when the session's care pathway is Consultation (handoff v5, TC-CON-01).
+const CONSULT_DOMAINS = ['Communication', 'Sensory / motor', 'Behaviour', 'Attention', 'Social', 'Emotional'];
+const CONSULT_RATINGS = [
+  { key: 'ok', label: 'Age-appropriate' },
+  { key: 'emerging', label: 'Emerging' },
+  { key: 'concern', label: 'Concern' },
+];
+const CONSULT_RECS = ['No further action', 'Assessment', 'Therapy block', 'Parent coaching', 'Referral'];
+
 export function CreateSessionForm({ caseId }: { caseId: string }) {
   return <SessionNoteForm caseId={caseId} />;
 }
@@ -81,6 +92,28 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
   const [assessment, setAssessment] = useState(sn.assessment ?? sn.response ?? '');
   const [plan, setPlan] = useState(sn.plan ?? '');
   const [rawNotes, setRawNotes] = useState(initialData?.rawNotes ?? '');
+
+  // Consultation step — gated on the session's care pathway (?pathway=consultation
+  // in the prototype; wire from the booking/triage record in production).
+  const searchParams = useSearchParams();
+  const isConsultation =
+    searchParams.get('pathway') === 'consultation' ||
+    (initialData as any)?.pathway === 'consultation' ||
+    !!sn.consultation;
+  const consult0 = (() => {
+    try {
+      return JSON.parse(sn.consultation ?? '{}') as {
+        parentExpectations?: string;
+        domainRatings?: Record<string, string>;
+        recommendation?: string;
+      };
+    } catch {
+      return {};
+    }
+  })();
+  const [parentExpectations, setParentExpectations] = useState(consult0.parentExpectations ?? '');
+  const [domainRatings, setDomainRatings] = useState<Record<string, string>>(consult0.domainRatings ?? {});
+  const [recommendation, setRecommendation] = useState(consult0.recommendation ?? '');
 
   // Goal progress
   const [goalEntries, setGoalEntries] = useState<GoalProgressEntry[]>(() => {
@@ -147,8 +180,11 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
     if (objective) notes.objective = objective;
     if (assessment) notes.assessment = assessment;
     if (plan) notes.plan = plan;
+    if (isConsultation && (parentExpectations || Object.keys(domainRatings).length > 0 || recommendation)) {
+      notes.consultation = JSON.stringify({ parentExpectations, domainRatings, recommendation });
+    }
     return Object.keys(notes).length > 0 ? notes : undefined;
-  }, [subjective, objective, assessment, plan]);
+  }, [subjective, objective, assessment, plan, isConsultation, parentExpectations, domainRatings, recommendation]);
 
   const buildPayload = useCallback(() => ({
     actualDuration: Number(duration),
@@ -165,7 +201,7 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
       hasUnsavedChanges.current = true;
       setAutoSaveStatus('unsaved');
     }
-  }, [subjective, objective, assessment, plan, rawNotes, duration, attendance, sessionType, createdSessionId]);
+  }, [subjective, objective, assessment, plan, rawNotes, duration, attendance, sessionType, createdSessionId, parentExpectations, domainRatings, recommendation]);
 
   // Auto-save interval (30s) - only after first save
   useEffect(() => {
@@ -507,6 +543,75 @@ export function SessionNoteForm({ caseId, sessionId, initialData }: SessionNoteF
             className="mt-1.5"
           />
         </Card>
+
+        {/* Consultation step — pathway-gated, before Sign-off */}
+        {isConsultation && (
+          <SOAPSection letter="C" title="Consultation">
+            <div className="space-y-5">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700">
+                Consultation pathway
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700">Parent expectations for this session</Label>
+                <Textarea
+                  value={parentExpectations}
+                  onChange={(e) => setParentExpectations(e.target.value)}
+                  rows={2}
+                  className="mt-1.5"
+                  disabled={isScribing}
+                  placeholder="What the parent hopes to get from this session…"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Clinical observations</p>
+                <div className="space-y-2">
+                  {CONSULT_DOMAINS.map((d) => (
+                    <div key={d} className="flex items-center justify-between gap-3">
+                      <span className="text-sm text-gray-700">{d}</span>
+                      <div className="flex gap-1.5">
+                        {CONSULT_RATINGS.map((r) => (
+                          <button
+                            key={r.key}
+                            type="button"
+                            onClick={() => setDomainRatings((prev) => ({ ...prev, [d]: r.key }))}
+                            className={
+                              'rounded-full border px-2.5 py-1 text-xs ' +
+                              (domainRatings[d] === r.key
+                                ? 'border-teal-500 bg-teal-50 text-teal-700'
+                                : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300')
+                            }
+                          >
+                            {r.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700">Recommendation</Label>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {CONSULT_RECS.map((rec) => (
+                    <button
+                      key={rec}
+                      type="button"
+                      onClick={() => setRecommendation(rec)}
+                      className={
+                        'rounded-full border px-3 py-1.5 text-sm ' +
+                        (recommendation === rec
+                          ? 'border-teal-500 bg-teal-50 text-teal-700'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300')
+                      }
+                    >
+                      {rec}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </SOAPSection>
+        )}
 
         {/* Actions */}
         <div className="flex items-center justify-between">

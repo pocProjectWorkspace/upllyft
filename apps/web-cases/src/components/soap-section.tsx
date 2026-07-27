@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface SOAPSectionProps {
-  letter: 'S' | 'O' | 'A' | 'P';
+  letter: 'S' | 'O' | 'A' | 'P' | 'C';
   title: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
@@ -15,6 +15,7 @@ const letterColors: Record<string, string> = {
   O: 'bg-emerald-100 text-emerald-700',
   A: 'bg-amber-100 text-amber-700',
   P: 'bg-purple-100 text-purple-700',
+  C: 'bg-teal-100 text-teal-700',
 };
 
 export function SOAPSection({ letter, title, defaultOpen = true, children }: SOAPSectionProps) {

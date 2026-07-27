@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Check,
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useCase } from '@/hooks/use-cases';
 import { useIntake } from '@/hooks/use-case-intake';
-import { useTriageCandidates, useConfirmTriage } from '@/hooks/use-case-triage';
+import { useTriageCandidates, useConfirmTriage, useTherapistAvailabilityForTriage } from '@/hooks/use-case-triage';
 import type {
   TriageDecision,
   TriagePathway,
@@ -121,6 +121,40 @@ export function TriageTab({ caseId }: { caseId: string }) {
   const anyFlag = Object.values(flags).some(Boolean);
   const isAccept = decision === 'accept';
   const apptType = pathway ? APPT_TYPE[pathway] : '';
+
+  // Step-4 scheduling: show the assigned primary therapist's availability over the
+  // next 7 days and validate the chosen slot against it (TC-TRI-01/02).
+  const primaryName = candidates?.find((c) => c.id === primary)?.name;
+  const { data: primaryAvail } = useTherapistAvailabilityForTriage(primary || undefined);
+  const upcomingDays = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const blocked = new Set(
+      (primaryAvail?.exceptions ?? []).filter((e) => e.type !== 'AVAILABLE').map((e) => e.date.slice(0, 10)),
+    );
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const slots = (primaryAvail?.recurring ?? [])
+        .filter((s) => s.isActive && s.dayOfWeek === d.getDay())
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      return { date: d, iso, slots, blocked: blocked.has(iso) };
+    });
+  }, [primaryAvail]);
+  const schedCheck = useMemo(() => {
+    if (!schedAt || !primaryAvail) return null;
+    const dateStr = schedAt.slice(0, 10);
+    const hhmm = schedAt.slice(11, 16);
+    if ((primaryAvail.exceptions ?? []).some((e) => e.type !== 'AVAILABLE' && e.date.slice(0, 10) === dateStr)) {
+      return { ok: false, reason: 'The therapist is on leave that day.' };
+    }
+    const dow = new Date(`${schedAt}:00`).getDay();
+    const daySlots = (primaryAvail.recurring ?? []).filter((s) => s.isActive && s.dayOfWeek === dow);
+    if (daySlots.length === 0) return { ok: false, reason: 'No weekly availability on that day.' };
+    const within = daySlots.some((s) => s.startTime <= hhmm && hhmm < s.endTime);
+    return within ? { ok: true, reason: '' } : { ok: false, reason: 'Outside the therapist’s weekly availability.' };
+  }, [schedAt, primaryAvail]);
   const canConfirm = isAccept ? !!(pathway && primary && schedAt) : !!decision;
 
   const toggleSecondary = (id: string) =>
@@ -459,6 +493,50 @@ export function TriageTab({ caseId }: { caseId: string }) {
                   </select>
                 </div>
               </div>
+
+              {/* Slot validation */}
+              {schedCheck && (
+                <p className={`mt-2 text-xs font-medium ${schedCheck.ok ? 'text-teal-600' : 'text-amber-600'}`}>
+                  {schedCheck.ok ? '✓ Within the therapist’s availability' : `⚠ ${schedCheck.reason} See suggested times below.`}
+                </p>
+              )}
+
+              {/* Upcoming availability for the assigned primary */}
+              {primary && (
+                <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+                  <p className="text-xs font-medium text-gray-600 mb-2">
+                    Upcoming availability{primaryName ? ` — ${primaryName}` : ''} (next 7 days)
+                  </p>
+                  <div className="space-y-1.5">
+                    {upcomingDays.map((day) => (
+                      <div key={day.iso} className="flex items-center gap-3">
+                        <span className="w-24 shrink-0 text-xs text-gray-500">
+                          {day.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </span>
+                        {day.blocked ? (
+                          <span className="text-xs text-amber-600">On leave</span>
+                        ) : day.slots.length === 0 ? (
+                          <span className="text-xs text-gray-400">No availability</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {day.slots.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => setSchedAt(`${day.iso}T${s.startTime}`)}
+                                className="rounded-full border border-teal-200 bg-white px-2.5 py-0.5 text-xs text-teal-700 hover:border-teal-400"
+                              >
+                                {s.startTime}–{s.endTime}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[11px] text-gray-400">Click a window to set the date &amp; time.</p>
+                </div>
+              )}
             </Section>
 
             <Section n={5} title="Inform parent (optional)" done={false}>

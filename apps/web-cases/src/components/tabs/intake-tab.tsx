@@ -47,8 +47,8 @@ const FIELDS: { section: 'A' | 'C' | 'D'; id: string; label: string; area?: bool
   { section: 'C', id: 'pregnancyBirth', label: 'Pregnancy / birth history', area: true },
   { section: 'C', id: 'medicalDiagnoses', label: 'Medical diagnoses / conditions' },
   { section: 'C', id: 'hearingVision', label: 'Hearing / vision status' },
-  { section: 'D', id: 'familyComposition', label: 'Family composition' },
-  { section: 'D', id: 'schoolHistory', label: 'School / nursery history' },
+  { section: 'D', id: 'familyComposition', label: 'Family composition', area: true },
+  { section: 'D', id: 'schoolHistory', label: 'School / nursery history', area: true },
 ];
 
 export function IntakeTab({ caseId }: { caseId: string }) {
@@ -64,6 +64,7 @@ export function IntakeTab({ caseId }: { caseId: string }) {
   const [urgencyFlag, setUrgencyFlag] = useState('');
   const [referralQuestions, setReferralQuestions] = useState<string[]>([]);
   const [parentGoals, setParentGoals] = useState<string[]>([]);
+  const [goalInput, setGoalInput] = useState('');
   const [consents, setConsents] = useState<Record<string, boolean>>({
     consentAssessment: true,
     consentTherapy: true,
@@ -288,13 +289,59 @@ export function IntakeTab({ caseId }: { caseId: string }) {
             <>
               {renderFields('D')}
               <label className="text-[11px] text-gray-500 block mt-4 mb-1">Parent goals</label>
-              <div className="flex flex-wrap gap-2">
-                {GOAL_OPTIONS.map((o) => (
-                  <ChipToggle key={o} active={parentGoals.includes(o)} onClick={() => toggle(parentGoals, setParentGoals, o)}>
-                    {o}
-                  </ChipToggle>
-                ))}
+              <p className="text-[11px] text-gray-400 mb-2">Capture goals in the family&apos;s own words — add as many as you need.</p>
+              {/* Added goals as removable chips */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {parentGoals.length === 0 ? (
+                  <span className="text-xs text-gray-400">No goals added yet.</span>
+                ) : (
+                  parentGoals.map((g) => (
+                    <span key={g} className="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs text-teal-700">
+                      {g}
+                      <button type="button" onClick={() => setParentGoals(parentGoals.filter((x) => x !== g))} className="text-teal-400 hover:text-red-500">×</button>
+                    </span>
+                  ))
+                )}
               </div>
+              {/* Free-text entry */}
+              <div className="flex gap-2">
+                <input
+                  value={goalInput}
+                  onChange={(e) => setGoalInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const t = goalInput.trim();
+                      if (t && !parentGoals.includes(t)) setParentGoals([...parentGoals, t]);
+                      setGoalInput('');
+                    }
+                  }}
+                  placeholder="Type a goal and press Enter"
+                  className="flex-1 h-9 rounded-lg border border-gray-200 px-3 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const t = goalInput.trim();
+                    if (t && !parentGoals.includes(t)) setParentGoals([...parentGoals, t]);
+                    setGoalInput('');
+                  }}
+                  className="h-9 rounded-lg border border-gray-200 px-3 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  Add
+                </button>
+              </div>
+              {/* Optional suggestions */}
+              {GOAL_OPTIONS.filter((o) => !parentGoals.includes(o)).length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] text-gray-400">Suggestions:</span>
+                  {GOAL_OPTIONS.filter((o) => !parentGoals.includes(o)).map((o) => (
+                    <button key={o} type="button" onClick={() => setParentGoals([...parentGoals, o])} className="rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-xs text-gray-500 hover:border-teal-300">
+                      + {o}
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
