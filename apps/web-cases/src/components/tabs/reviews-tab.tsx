@@ -41,10 +41,27 @@ const EXEC_LABEL: Record<AssessmentExecStatus, string> = {
   SUBMITTED: 'Submitted',
 };
 
+const DATE_FILTERS: { key: 'all' | '7' | '30'; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: '7', label: 'Upcoming 7 days' },
+  { key: '30', label: 'Upcoming 30 days' },
+];
+
 export function ReviewsTab({ caseId }: { caseId: string }) {
   const { data: reviews, isLoading } = useAssessmentReviews(caseId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [dateFilter, setDateFilter] = useState<'all' | '7' | '30'>('all');
+
+  // TC-REV-02: filter by a scheduled-date window (reviews with meetingAt in range).
+  const filtered = (reviews ?? []).filter((r) => {
+    if (dateFilter === 'all') return true;
+    if (!r.meetingAt) return false;
+    const when = new Date(r.meetingAt).getTime();
+    const now = Date.now();
+    const horizon = now + Number(dateFilter) * 86400000;
+    return when >= now - 86400000 && when <= horizon;
+  });
 
   if (isLoading) return <div className="h-64 rounded-2xl bg-gray-50 animate-pulse" />;
   if (selectedId) return <Workspace caseId={caseId} id={selectedId} onBack={() => setSelectedId(null)} />;
@@ -73,8 +90,32 @@ export function ReviewsTab({ caseId }: { caseId: string }) {
           <p className="text-gray-400 text-sm mt-1">Start a single-discipline or MDT assessment.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {(reviews ?? []).map((r) => (
+        <>
+          {/* Date-range filter (TC-REV-02) */}
+          <div className="flex flex-wrap gap-2 mb-1">
+            {DATE_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setDateFilter(f.key)}
+                className={
+                  'rounded-full border px-3 py-1 text-xs ' +
+                  (dateFilter === f.key
+                    ? 'border-teal-500 bg-teal-50 text-teal-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300')
+                }
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {filtered.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-400">
+              No assessments scheduled in this window.
+            </div>
+          ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {filtered.map((r) => (
             <button
               key={r.id}
               onClick={() => setSelectedId(r.id)}
@@ -99,9 +140,16 @@ export function ReviewsTab({ caseId }: { caseId: string }) {
                   );
                 })}
               </div>
+              <p className="mt-2 text-[11px] text-gray-400">
+                {r.meetingAt
+                  ? `Scheduled: ${new Date(r.meetingAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                  : 'Not scheduled'}
+              </p>
             </button>
-          ))}
-        </div>
+            ))}
+          </div>
+          )}
+        </>
       )}
     </div>
   );
