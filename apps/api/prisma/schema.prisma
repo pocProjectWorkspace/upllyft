@@ -1842,6 +1842,10 @@ model SessionType {
   payerRoute        PayerType?
   requiresPreAuth   Boolean           @default(false)
   insuranceEligible Boolean           @default(false)
+  // Provenance (handoff v5): who authored this session type, and whether a
+  // therapist has since edited an admin-authored one ("edited by you" pill).
+  setBy             String?
+  edited            Boolean           @default(false)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   packages          BookingPackage[]

@@ -32,6 +32,7 @@ export class TherapistManagementController {
                 currency: dto.currency || 'INR',
                 therapistId: therapistProfile.id,
                 isActive: true,
+                setBy: 'therapist',
             },
         });
     }
@@ -96,6 +97,8 @@ export class TherapistManagementController {
                 duration: dto.duration,
                 defaultPrice: dto.defaultPrice,
                 isActive: dto.isActive,
+                // A therapist editing an admin-authored type flags it "edited by you".
+                ...(sessionType.setBy === 'admin' ? { edited: true } : {}),
             },
         });
     }

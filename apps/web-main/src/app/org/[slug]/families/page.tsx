@@ -135,7 +135,7 @@ export default function FamiliesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Families</h1>
+        <h1 className="text-xl font-bold text-gray-900">Patients</h1>
         <p className="text-sm text-gray-500">Review intake submissions, assign a therapist, and grant platform access.</p>
       </div>
 

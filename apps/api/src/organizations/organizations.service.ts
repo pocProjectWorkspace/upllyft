@@ -1624,6 +1624,7 @@ export class OrganizationsService {
                             duration: it.duration,
                             defaultPrice: it.price,
                             currency: it.currency,
+                            setBy: 'admin',
                         },
                     }),
                 );

@@ -45,6 +45,8 @@ export interface SessionType {
   description?: string;
   duration: number;
   isActive: boolean;
+  setBy?: string | null; // 'admin' | 'therapist' — provenance
+  edited?: boolean; // therapist edited an admin-authored type
 }
 
 export interface SessionPricing {
