@@ -283,7 +283,19 @@ export default function TherapistPricingPage() {
                           </svg>
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{st.name}</h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-lg font-semibold text-gray-900">{st.name}</h3>
+                            {st.setBy === 'admin' && (
+                              <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700">
+                                {st.edited ? 'Set by clinic admin · edited by you' : 'Set by clinic admin'}
+                              </span>
+                            )}
+                            {st.setBy === 'therapist' && (
+                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                                Added by you
+                              </span>
+                            )}
+                          </div>
                           {st.description && (
                             <p className="text-sm text-gray-500 mt-0.5">{st.description}</p>
                           )}
