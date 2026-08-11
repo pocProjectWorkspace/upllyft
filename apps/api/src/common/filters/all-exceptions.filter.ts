@@ -23,17 +23,33 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const request = ctx.getRequest();
         const response = ctx.getResponse();
 
-        const httpStatus =
-            exception instanceof HttpException
-                ? exception.getStatus()
-                : HttpStatus.INTERNAL_SERVER_ERROR;
+        const isHttpException = exception instanceof HttpException;
+
+        const httpStatus = isHttpException
+            ? exception.getStatus()
+            : HttpStatus.INTERNAL_SERVER_ERROR;
+
+        // Only surface messages from intentional HttpExceptions (preserving the
+        // class-validator error array). For everything else (raw Errors, Prisma
+        // failures, etc.) return a generic message so internal detail — query
+        // fragments, table/column names — never reaches the client.
+        let message: unknown = 'Internal server error';
+        if (isHttpException) {
+            const exceptionResponse = exception.getResponse();
+            message =
+                typeof exceptionResponse === 'object' && exceptionResponse !== null
+                    ? ((exceptionResponse as Record<string, unknown>).message ??
+                        (exceptionResponse as Record<string, unknown>).error ??
+                        exception.message)
+                    : exceptionResponse;
+        }
 
         const responseBody = {
             statusCode: httpStatus,
             timestamp: new Date().toISOString(),
             path: httpAdapter.getRequestUrl(request),
             method: httpAdapter.getRequestMethod(request),
-            message: exception?.message || 'Internal server error',
+            message,
         };
 
         // Enhanced logging for errors
