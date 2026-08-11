@@ -32,6 +32,17 @@ if (!sessionSecret && nodeEnv === 'production') {
   process.exit(1);
 }
 
+  // Refuse to start in production without the auth secrets set. Missing values
+  // otherwise silently activate guessable/shared fallbacks in the token paths.
+  if (nodeEnv === 'production') {
+    const requiredSecrets = ['JWT_SECRET', 'JWT_REFRESH_SECRET'];
+    const missing = requiredSecrets.filter((key) => !configService.get<string>(key));
+    if (missing.length > 0) {
+      logger.error(`❌ Missing required secrets in production: ${missing.join(', ')}`);
+      process.exit(1);
+    }
+  }
+
   // Global prefix
   app.setGlobalPrefix('api', {
     exclude: ['health', ''],
