@@ -86,13 +86,19 @@ if (!sessionSecret && nodeEnv === 'production') {
   // This is critical for 'secure: true' cookies and session handling in production
   (app.getHttpAdapter().getInstance() as any).set('trust proxy', 1);
 
-  // CORS - Restrict to Upllyft origins + Vercel previews + Railway
+  // CORS - Restrict to Upllyft product domains + local dev. Additional origins
+  // (e.g. a specific Vercel preview URL) can be supplied via CORS_EXTRA_ORIGINS
+  // as a comma-separated list, rather than allowing any *.vercel.app / *.railway.app
+  // origin — which, paired with credentials:true, is a credentialed cross-origin risk.
+  const extraOrigins = (configService.get<string>('CORS_EXTRA_ORIGINS') || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
     origin: [
       /\.upllyft\.com$/,
       /\.safehaven-upllyft\.com$/,
-      /\.vercel\.app$/,
-      /\.railway\.app$/,
       'http://localhost:3000',
       'http://localhost:3002',
       'http://localhost:3003',
@@ -100,13 +106,14 @@ if (!sessionSecret && nodeEnv === 'production') {
       'http://localhost:3005',
       'http://localhost:3006',
       'http://localhost:3007',
+      ...extraOrigins,
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
     exposedHeaders: ['Set-Cookie'],
   });
-  logger.log(`✅ CORS enabled for Upllyft origins (including localhost)`);
+  logger.log(`✅ CORS enabled for Upllyft origins (${extraOrigins.length} extra from env)`);
 
   // Simple validation pipe
   app.useGlobalPipes(
