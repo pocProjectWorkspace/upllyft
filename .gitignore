@@ -33,3 +33,7 @@ pnpm-debug.log*
 # Local design/handoff docs — do not commit to public repo
 handoff/
 *-20260723T*.zip
+
+# Private local notes / remediation plans — NEVER commit (public repo; these
+# enumerate unpatched security issues). Suffix any such file with .local.md
+*.local.md
