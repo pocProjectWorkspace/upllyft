@@ -342,6 +342,7 @@ export class OrganizationsService {
                         image: true,
                         role: true,
                         verificationStatus: true,
+                        therapistProfile: { select: { branch: true } },
                     }
                 }
             },
@@ -353,7 +354,6 @@ export class OrganizationsService {
         return this.prisma.community.findMany({
             where: {
                 organizationId: org.id,
-                isActive: true,
             },
             include: {
                 _count: {
@@ -567,7 +567,7 @@ export class OrganizationsService {
                 org.name,
             );
         } catch (error) {
-            console.error('Failed to send invitation email:', error);
+            this.logger.error(`Failed to send invitation email to ${email}: ${error?.message ?? error}`);
         }
 
         return {
@@ -1792,6 +1792,13 @@ export class OrganizationsService {
                         nickname: true,
                         dateOfBirth: true,
                         gender: true,
+                        primaryLanguage: true,
+                        schoolType: true,
+                        grade: true,
+                        currentSchool: true,
+                        referralSource: true,
+                        city: true,
+                        state: true,
                         guardians: {
                             select: {
                                 fullName: true,
@@ -1799,6 +1806,7 @@ export class OrganizationsService {
                                 email: true,
                                 phone: true,
                                 isPrimaryContact: true,
+                                isEmergencyContact: true,
                                 userId: true,
                             },
                         },

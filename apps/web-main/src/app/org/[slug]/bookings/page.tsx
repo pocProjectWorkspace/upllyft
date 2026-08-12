@@ -45,6 +45,18 @@ function addDays(d: Date, n: number) {
   return x;
 }
 
+// Map a BookingStatus to a compact label + pill colour for the calendar tiles.
+function bookingStatus(status: string): { label: string; cls: string } {
+  const s = (status || '').toUpperCase();
+  if (s.startsWith('PENDING')) return { label: 'Pending', cls: 'bg-amber-100 text-amber-700' };
+  if (s === 'ACCEPTED') return { label: 'Accepted', cls: 'bg-green-100 text-green-700' };
+  if (s === 'CONFIRMED') return { label: 'Confirmed', cls: 'bg-green-100 text-green-700' };
+  if (s === 'COMPLETED') return { label: 'Completed', cls: 'bg-gray-100 text-gray-600' };
+  if (s.startsWith('NO_SHOW')) return { label: 'No-show', cls: 'bg-red-100 text-red-600' };
+  if (s.startsWith('CANCELLED') || s === 'DECLINED') return { label: s === 'DECLINED' ? 'Declined' : 'Cancelled', cls: 'bg-red-100 text-red-600' };
+  return { label: s.replace(/_/g, ' ').toLowerCase(), cls: 'bg-gray-100 text-gray-600' };
+}
+
 const chipColors = ['bg-teal-500', 'bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-rose-500', 'bg-emerald-500'];
 
 export default function BookingsCalendarPage() {
@@ -201,6 +213,9 @@ export default function BookingsCalendarPage() {
                           <span className={`w-2 h-2 rounded-full ${colorOf(e.therapistId)}`} />
                           <span className="font-medium text-gray-900">{timeOf(e.start)}</span>
                           {e.kind === 'assessment' && <Badge color="purple">Assessment</Badge>}
+                          <span className={`ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-medium capitalize ${bookingStatus(e.status).cls}`}>
+                            {bookingStatus(e.status).label}
+                          </span>
                         </div>
                         <div className="text-gray-700 mt-0.5 truncate">{e.title}</div>
                         <div className="text-gray-400 truncate">

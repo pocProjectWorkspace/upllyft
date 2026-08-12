@@ -571,20 +571,17 @@ export default function AddTherapistWizard() {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <button
-            onClick={() => router.push(`/org/${slug}/members`)}
-            className="text-sm text-gray-500 hover:text-gray-700 mb-1"
-          >
-            ← Back to Members
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">
-            {form.name || member?.user?.email || 'Member'}
-          </h1>
-          <p className="text-sm text-gray-500">{member?.user?.email}</p>
+      <div>
+        <p className="text-sm text-gray-500 mb-1">
+          <a href={`/org/${slug}/members`} className="hover:underline">Members</a>
+          <span className="text-gray-300"> / </span>
+          <span className="text-gray-700">{form.name || member?.user?.email || 'Member'}</span>
+        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="text-xl font-bold text-gray-900">{form.name || member?.user?.email || 'Member'}</h1>
+          {member && <Badge color={member.status === 'ACTIVE' ? 'green' : 'yellow'}>{member.status}</Badge>}
         </div>
-        {member && <Badge color={member.status === 'ACTIVE' ? 'green' : 'yellow'}>{member.status}</Badge>}
+        <p className="text-sm text-gray-500 mt-0.5">{member?.user?.email}</p>
       </div>
 
       {/* Stepper */}
@@ -941,20 +938,24 @@ export default function AddTherapistWizard() {
             </p>
             {(
               [
-                ['profile', 'Profile complete'],
-                ['licence', 'Licence verified'],
-                ['insurance', 'Insurance on file'],
-                ['fees', 'Fees confirmed'],
-                ['availability', 'Availability published'],
+                ['profile', 'Profile complete', 'Basic info, department & bio filled in'],
+                ['licence', 'Licence verified', 'Cross-checked against the issuing authority'],
+                ['insurance', 'Insurance on file', 'Malpractice / indemnity policy recorded'],
+                ['fees', 'Fees confirmed', 'Services & per-duration rates set'],
+                ['availability', 'Availability published', 'Weekly schedule & timezone set'],
               ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700">
+            ).map(([key, label, subtext]) => (
+              <label key={key} className="flex items-start gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700">
                 <input
                   type="checkbox"
+                  className="mt-0.5"
                   checked={checks[key]}
                   onChange={(e) => setChecks((c) => ({ ...c, [key]: e.target.checked }))}
                 />
-                {label}
+                <span>
+                  <span className="block font-medium text-gray-900">{label}</span>
+                  <span className="text-xs text-gray-500">{subtext}</span>
+                </span>
               </label>
             ))}
           </div>

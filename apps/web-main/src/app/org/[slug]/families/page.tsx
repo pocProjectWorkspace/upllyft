@@ -24,6 +24,17 @@ function fmtDate(d?: string | null) {
   return d ? new Date(d).toLocaleDateString() : '—';
 }
 
+function ageFrom(dob?: string | null): string {
+  if (!dob) return '';
+  const d = new Date(dob);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  let years = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) years--;
+  return years >= 0 ? `${years}y` : '';
+}
+
 export default function FamiliesPage() {
   const { toast } = useToast();
   const params = useParams();
@@ -128,6 +139,8 @@ export default function FamiliesPage() {
   }
 
   const primaryGuardian = detail?.child.guardians.find((g) => g.isPrimaryContact) ?? detail?.child.guardians[0];
+  const emergencyContact = detail?.child.guardians.find((g) => g.isEmergencyContact);
+  const branchLabel = [detail?.child.city, detail?.child.state].filter(Boolean).join(', ');
   const accessGranted = !!detail?.accessGranted;
   // Prefer a guardian record; fall back to the child's profile-owner account.
   const contactEmail = primaryGuardian?.email ?? detail?.profileOwner?.email ?? null;
@@ -135,8 +148,12 @@ export default function FamiliesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Patients</h1>
+        <h1 className="text-xl font-bold text-gray-900">Clients</h1>
         <p className="text-sm text-gray-500">Review intake submissions, assign a therapist, and grant platform access.</p>
+        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400" /> Pending review</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> Access granted</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -175,7 +192,7 @@ export default function FamiliesPage() {
                     onClick={() => openDetail(f.caseId)}
                     className={`cursor-pointer hover:bg-gray-50 ${selectedId === f.caseId ? 'bg-teal-50/50' : ''}`}
                   >
-                    <td className="px-5 py-4 text-sm font-medium text-gray-900">{f.childName}</td>
+                    <td className="px-5 py-4 text-sm font-medium text-gray-900">{f.childName}{ageFrom(f.childDob) && <span className="text-gray-400 font-normal"> ({ageFrom(f.childDob)})</span>}</td>
                     <td className="px-5 py-4 text-sm text-gray-600">{f.parentName ?? '—'}</td>
                     <td className="px-5 py-4 text-sm text-gray-500">{fmtDate(f.submittedAt)}</td>
                     <td className="px-5 py-4 text-sm text-gray-600">{f.assignedTherapistName ?? <span className="text-gray-400">Unassigned</span>}</td>
@@ -203,6 +220,23 @@ export default function FamiliesPage() {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Header */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <p className="text-xs text-gray-400 mb-2">Clients / {detail.child.firstName}</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--org-primary-soft)', color: 'var(--org-primary)' }}>
+                    <span className="font-bold">{detail.child.firstName.charAt(0)}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-semibold text-gray-900 truncate">{detail.child.firstName}{detail.child.nickname ? ` (${detail.child.nickname})` : ''}</h2>
+                      <Badge color={accessGranted ? 'green' : 'yellow'}>{accessGranted ? 'Access granted' : 'Pending review'}</Badge>
+                    </div>
+                    <p className="text-xs text-gray-500">Submitted {fmtDate(detail.createdAt)}{branchLabel ? ` · ${branchLabel}` : ''}</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Child */}
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Child</h3>
@@ -213,6 +247,10 @@ export default function FamiliesPage() {
                   <dd className="text-gray-900">{fmtDate(detail.child.dateOfBirth)}</dd>
                   <dt className="text-gray-500">Gender</dt>
                   <dd className="text-gray-900">{detail.child.gender || '—'}</dd>
+                  <dt className="text-gray-500">School / grade</dt>
+                  <dd className="text-gray-900">{[detail.child.currentSchool, detail.child.grade].filter(Boolean).join(' · ') || '—'}</dd>
+                  <dt className="text-gray-500">Referred by</dt>
+                  <dd className="text-gray-900">{detail.child.referralSource || '—'}</dd>
                 </dl>
               </div>
 
@@ -229,6 +267,10 @@ export default function FamiliesPage() {
                     <dd className="text-gray-900 break-all">{primaryGuardian.email ?? '—'}</dd>
                     <dt className="text-gray-500">Phone</dt>
                     <dd className="text-gray-900">{primaryGuardian.phone ?? '—'}</dd>
+                    <dt className="text-gray-500">Preferred language</dt>
+                    <dd className="text-gray-900">{detail.child.primaryLanguage || '—'}</dd>
+                    <dt className="text-gray-500">Emergency contact</dt>
+                    <dd className="text-gray-900">{emergencyContact ? `${emergencyContact.fullName}${emergencyContact.phone ? ` · ${emergencyContact.phone}` : ''}` : '—'}</dd>
                   </dl>
                 ) : detail.profileOwner ? (
                   <dl className="grid grid-cols-2 gap-y-2 text-sm">
@@ -254,7 +296,7 @@ export default function FamiliesPage() {
                     {detail.intake.referralQuestions.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {detail.intake.referralQuestions.map((q) => (
-                          <span key={q} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs">{q}</span>
+                          <span key={q} className="px-2 py-0.5 rounded-full text-xs" style={{ backgroundColor: 'var(--org-primary-soft)', color: 'var(--org-primary)' }}>{q}</span>
                         ))}
                       </div>
                     )}
@@ -273,6 +315,12 @@ export default function FamiliesPage() {
               {/* Assign & activate */}
               <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
                 <h3 className="text-sm font-semibold text-gray-900">Assign &amp; activate</h3>
+                {branchLabel && (
+                  <div className="text-sm">
+                    <span className="text-gray-500">Branch: </span>
+                    <span className="text-gray-900">{branchLabel}</span>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Therapist</label>
                   <div className="flex gap-2">
