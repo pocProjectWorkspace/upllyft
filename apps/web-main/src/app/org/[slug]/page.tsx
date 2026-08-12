@@ -189,7 +189,7 @@ export default function OrgDashboard() {
       {/* Facilities — the org's nurseries / clinics, and the door into each. */}
       {facilities.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Your settings</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">Your facilities</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             {facilities.map((f) => {
               const isNursery = f.type === 'NURSERY' || f.type === 'SCHOOL';

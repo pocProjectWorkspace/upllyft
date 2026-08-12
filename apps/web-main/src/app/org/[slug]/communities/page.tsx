@@ -32,8 +32,11 @@ export default function OrgCommunitiesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Communities</h1>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Communities</h1>
+          <p className="text-sm text-gray-500 mt-1">Themed spaces for families and your team. Set eligibility, moderators &amp; guidelines, then publish.</p>
+        </div>
         <a
           href={`/org/${slug}/communities/create`}
           className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium shadow-md hover:opacity-90 transition-opacity"

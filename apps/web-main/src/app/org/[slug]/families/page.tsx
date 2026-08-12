@@ -220,6 +220,23 @@ export default function FamiliesPage() {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Header */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <p className="text-xs text-gray-400 mb-2">Clients / {detail.child.firstName}</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--org-primary-soft)', color: 'var(--org-primary)' }}>
+                    <span className="font-bold">{detail.child.firstName.charAt(0)}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-semibold text-gray-900 truncate">{detail.child.firstName}{detail.child.nickname ? ` (${detail.child.nickname})` : ''}</h2>
+                      <Badge color={accessGranted ? 'green' : 'yellow'}>{accessGranted ? 'Access granted' : 'Pending review'}</Badge>
+                    </div>
+                    <p className="text-xs text-gray-500">Submitted {fmtDate(detail.createdAt)}{branchLabel ? ` · ${branchLabel}` : ''}</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Child */}
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Child</h3>

@@ -133,7 +133,10 @@ export default function CreateOrgCommunityWizard() {
         <button onClick={() => router.push(`/org/${slug}/communities`)} className="text-sm text-gray-500 hover:text-gray-700 mb-1">
           ← Back to Communities
         </button>
-        <h1 className="text-xl font-bold text-gray-900">New Community</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold text-gray-900">New Community</h1>
+          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Draft</span>
+        </div>
       </div>
 
       {/* Stepper */}
@@ -167,12 +170,11 @@ export default function CreateOrgCommunityWizard() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Focus area</label>
-              <select className={inputCls} value={focusArea} onChange={(e) => setFocusArea(e.target.value as DepartmentKey)}>
-                <option value="">Select focus area…</option>
+              <div className="flex flex-wrap gap-2">
                 {DEPARTMENT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <Chip key={o.value} active={focusArea === o.value} onClick={() => setFocusArea(o.value as DepartmentKey)}>{o.label}</Chip>
                 ))}
-              </select>
+              </div>
               <p className="mt-1 text-xs text-gray-400">Drives eligible specializations and moderator suggestions.</p>
             </div>
           </>
@@ -218,10 +220,18 @@ export default function CreateOrgCommunityWizard() {
         {/* Step 3 — Members & moderators */}
         {step === 2 && (
           <>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={autoAddMatching} onChange={(e) => setAutoAddMatching(e.target.checked)} />
-              Auto-add therapists matching the focus area{focusArea ? ` (${matchingTherapists.length})` : ''}
-            </label>
+            <div className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+              <span className="text-sm text-gray-700">Auto-add therapists matching the focus area{focusArea ? ` (${matchingTherapists.length})` : ''}</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoAddMatching}
+                onClick={() => setAutoAddMatching(!autoAddMatching)}
+                className={'relative w-11 h-6 rounded-full transition-colors shrink-0 ' + (autoAddMatching ? 'bg-teal-600' : 'bg-gray-300')}
+              >
+                <span className={'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ' + (autoAddMatching ? 'translate-x-5' : '')} />
+              </button>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Moderators</label>
               {therapists.length === 0 ? (
@@ -232,10 +242,16 @@ export default function CreateOrgCommunityWizard() {
                     const matches = focusArea && t.department === focusArea;
                     const selected = moderatorUserIds.includes(t.userId);
                     return (
-                      <label key={t.id} className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm">
+                      <label key={t.id} className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-2 text-sm">
                         <input type="checkbox" checked={selected} onChange={() => toggle(moderatorUserIds, setModeratorUserIds, t.userId)} />
-                        <span className="text-gray-900">{t.name}</span>
-                        {matches && <span className="text-xs px-1.5 py-0.5 bg-teal-50 text-teal-700 rounded">Matches focus</span>}
+                        <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0" style={{ backgroundColor: 'var(--org-primary-soft)', color: 'var(--org-primary)' }}>{t.name.charAt(0)}</span>
+                        <span className="flex-1 min-w-0 truncate">
+                          <span className="text-gray-900">{t.name}</span>
+                          {t.department && DEPARTMENTS[t.department as DepartmentKey] && (
+                            <span className="text-gray-400"> · {DEPARTMENTS[t.department as DepartmentKey].label}</span>
+                          )}
+                        </span>
+                        {matches && <span className="text-xs px-1.5 py-0.5 bg-teal-50 text-teal-700 rounded shrink-0">Matches focus</span>}
                       </label>
                     );
                   })}
@@ -254,25 +270,34 @@ export default function CreateOrgCommunityWizard() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Digest notifications</label>
-              <select className={inputCls} value={digest} onChange={(e) => setDigest(e.target.value as (typeof DIGEST_OPTIONS)[number])}>
-                {DIGEST_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
+              <div className="flex gap-2">
+                {DIGEST_OPTIONS.map((d) => (
+                  <Chip key={d} active={digest === d} onClick={() => setDigest(d)}>{d}</Chip>
+                ))}
+              </div>
             </div>
           </>
         )}
 
         {/* Step 5 — Review */}
         {step === 4 && (
-          <dl className="grid grid-cols-3 gap-y-3 text-sm">
-            <dt className="text-gray-500">Name</dt><dd className="col-span-2 text-gray-900">{name || '—'}</dd>
-            <dt className="text-gray-500">Focus area</dt><dd className="col-span-2 text-gray-900">{focusLabel}</dd>
-            <dt className="text-gray-500">Enrollment</dt><dd className="col-span-2 text-gray-900">{privacy === 'invite' ? 'Invite only' : 'Open enrollment'}</dd>
-            <dt className="text-gray-500">Eligible branches</dt><dd className="col-span-2 text-gray-900">{eligibleBranches.length ? eligibleBranches.join(', ') : '—'}</dd>
-            <dt className="text-gray-500">Specializations</dt><dd className="col-span-2 text-gray-900">{eligibleSpecializations.length ? eligibleSpecializations.join(', ') : '—'}</dd>
-            <dt className="text-gray-500">Auto-add matching</dt><dd className="col-span-2 text-gray-900">{autoAddMatching ? `Yes (${matchingTherapists.length})` : 'No'}</dd>
-            <dt className="text-gray-500">Moderators</dt><dd className="col-span-2 text-gray-900">{moderatorUserIds.length || 0}</dd>
-            <dt className="text-gray-500">Digest</dt><dd className="col-span-2 text-gray-900">{digest}</dd>
-          </dl>
+          <div className="space-y-2">
+            {([
+              ['Name', name || '—'],
+              ['Focus area', focusLabel],
+              ['Enrollment', privacy === 'invite' ? 'Invite only' : 'Open enrollment'],
+              ['Eligible branches', eligibleBranches.length ? eligibleBranches.join(', ') : '—'],
+              ['Specializations', eligibleSpecializations.length ? eligibleSpecializations.join(', ') : '—'],
+              ['Auto-add matching', autoAddMatching ? `Yes (${matchingTherapists.length})` : 'No'],
+              ['Moderators', String(moderatorUserIds.length || 0)],
+              ['Digest', digest],
+            ] as [string, string][]).map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 px-4 py-2.5 text-sm">
+                <span className="text-gray-500 shrink-0">{k}</span>
+                <span className="font-semibold text-gray-900 text-right truncate">{v}</span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
