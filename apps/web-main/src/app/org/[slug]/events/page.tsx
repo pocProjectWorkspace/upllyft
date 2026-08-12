@@ -209,10 +209,10 @@ function EventCard({ event, live, muted }: { event: OrgEvent; live: boolean; mut
               ? 'Virtual'
               : event.venue || event.city || event.location || 'In person'}
           </span>
-          {event.creator?.name && (
+          {(event.host?.name || event.creator?.name) && (
             <>
               <span>·</span>
-              <span className="truncate">Hosted by {event.creator.name}</span>
+              <span className="truncate">Hosted by {event.host?.name || event.creator?.name}</span>
             </>
           )}
           {event.community && (

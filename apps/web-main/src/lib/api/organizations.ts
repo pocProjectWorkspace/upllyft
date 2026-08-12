@@ -55,6 +55,7 @@ export interface OrgEvent {
   maxAttendees?: number | null;
   community?: { id: string; name: string; slug: string } | null;
   creator?: { id: string; name: string | null; image?: string | null } | null;
+  host?: { id: string; name: string | null; image?: string | null } | null;
   _count?: { interests: number };
 }
 
@@ -604,6 +605,7 @@ export async function createOrgEvent(payload: {
   location?: string;
   communityId?: string;
   organizationId?: string;
+  hostId?: string;
   eventType: string; // EventCategory in Prisma
   format: string; // EventFormat in Prisma
   ageGroup: string[];

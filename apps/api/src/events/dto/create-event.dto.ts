@@ -11,6 +11,10 @@ export class CreateEventDto {
   @IsString()
   organizationId?: string;
 
+  @IsOptional()
+  @IsString()
+  hostId?: string;
+
   @IsString()
   title: string;
 
