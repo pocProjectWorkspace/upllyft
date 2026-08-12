@@ -14,7 +14,10 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 const prisma = new PrismaClient();
 
-const PASSWORD = 'Demo@1234';
+const PASSWORD = process.env.DEMO_SEED_PASSWORD ?? '';
+if (!PASSWORD) {
+  throw new Error('DEMO_SEED_PASSWORD is not set — refusing to seed demo accounts with a hardcoded password. Set it in the environment (see apps/api/.env.example).');
+}
 const ORG_ADMIN_EMAIL = 'orgadmin@upllyft.demo';
 const ORG_NAME = 'Upllyft Demo Clinic';
 const ORG_SLUG = 'upllyft-demo-clinic';

@@ -22,7 +22,10 @@ import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
-const PASSWORD = 'Demo@1234';
+const PASSWORD = process.env.DEMO_SEED_PASSWORD ?? '';
+if (!PASSWORD) {
+  throw new Error('DEMO_SEED_PASSWORD is not set — refusing to seed demo accounts with a hardcoded password. Set it in the environment (see apps/api/.env.example).');
+}
 
 /** A safety belt: this script must only ever mint @upllyft.demo identities. */
 const SYNTHETIC_DOMAIN = '@upllyft.demo';
@@ -303,10 +306,10 @@ async function main() {
   console.log('✅ Nursery demo ready.\n');
   console.log(`   Nursery:  Little Explorers Nursery  (KHDA · Dubai)`);
   console.log(`   Room:     Sunflowers (2–3 years)\n`);
-  console.log('   Staff logins (password Demo@1234) — see the nursery in web-cases:');
+  console.log(`   Staff logins (password ${PASSWORD}) — see the nursery in web-cases:`);
   console.log('     nursery.lead@upllyft.demo   Nadia Farouk   OWNER');
   console.log('     nursery.key@upllyft.demo    Sara Okoro     KEYWORKER\n');
-  console.log('   Parent logins (password Demo@1234) — see permissions + observations in web-main:');
+  console.log(`   Parent logins (password ${PASSWORD}) — see permissions + observations in web-main:`);
   console.log('     parent.amina@upllyft.demo   Yousef   FULL consent (observations + screening) · 4 observations');
   console.log('     parent.deepak@upllyft.demo  Diya     observation consent only (screening not yet granted)');
   console.log('     parent.mei@upllyft.demo     Kai      enrolled, awaiting consent (locked)\n');

@@ -37,3 +37,16 @@ handoff/
 # Private local notes / remediation plans — NEVER commit (public repo; these
 # enumerate unpatched security issues). Suffix any such file with .local.md
 *.local.md
+
+# npm lockfiles — this is a pnpm workspace; the root pnpm-lock.yaml is canonical
+package-lock.json
+# nested pnpm lockfile (workspace has a single root lockfile)
+/apps/api/pnpm-lock.yaml
+
+# committed tsc/eslint error dumps and scratch files
+tsc-errors.txt
+ts-errors*.txt
+test-validation.ts
+
+# binary planning docs — keep internal docs out of the public repo
+*.docx
