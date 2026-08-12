@@ -20,6 +20,8 @@ interface DashboardStats {
   memberCount: number;
   communityCount: number;
   upcomingEventCount: number;
+  pendingApprovals: number;
+  pendingFamilies: number;
 }
 
 export default function OrgDashboard() {
@@ -33,6 +35,8 @@ export default function OrgDashboard() {
     memberCount: 0,
     communityCount: 0,
     upcomingEventCount: 0,
+    pendingApprovals: 0,
+    pendingFamilies: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -59,6 +63,8 @@ export default function OrgDashboard() {
             memberCount: data.memberCount ?? 0,
             communityCount: data.communityCount ?? 0,
             upcomingEventCount: data.upcomingEventCount ?? 0,
+            pendingApprovals: data.pendingApprovals ?? 0,
+            pendingFamilies: data.pendingFamilies ?? 0,
           });
         } catch {
           /* keep zeroed defaults */
@@ -185,6 +191,28 @@ export default function OrgDashboard() {
           subtitle={stats.upcomingEventCount === 0 ? 'No events scheduled' : 'Scheduled ahead'}
         />
       </div>
+
+      {(stats.pendingApprovals > 0 || stats.pendingFamilies > 0) && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+          <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="text-sm text-amber-800">
+            <span className="font-medium">Needs your attention.</span>{' '}
+            {stats.pendingApprovals > 0 && (
+              <a href={`/org/${slug}/members`} className="underline">
+                {stats.pendingApprovals} therapist{stats.pendingApprovals === 1 ? '' : 's'} pending review
+              </a>
+            )}
+            {stats.pendingApprovals > 0 && stats.pendingFamilies > 0 && ' · '}
+            {stats.pendingFamilies > 0 && (
+              <a href={`/org/${slug}/families`} className="underline">
+                {stats.pendingFamilies} famil{stats.pendingFamilies === 1 ? 'y' : 'ies'} awaiting access
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Facilities — the org's nurseries / clinics, and the door into each. */}
       {facilities.length > 0 && (

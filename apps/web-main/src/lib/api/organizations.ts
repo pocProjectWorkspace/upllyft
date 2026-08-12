@@ -21,6 +21,8 @@ export interface OrgStats {
   memberCount: number;
   communityCount: number;
   upcomingEventCount: number;
+  pendingApprovals: number;
+  pendingFamilies: number;
 }
 
 export interface MyOrgMembership {

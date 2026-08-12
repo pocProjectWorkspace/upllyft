@@ -915,7 +915,7 @@ export class OrganizationsService {
 
         await this.assertMember(org.id, userId);
 
-        const [memberCount, communityCount, upcomingEventCount] = await Promise.all([
+        const [memberCount, communityCount, upcomingEventCount, pendingApprovals, pendingFamilies] = await Promise.all([
             this.prisma.organizationMember.count({
                 where: { organizationId: org.id, status: 'ACTIVE' },
             }),
@@ -934,9 +934,17 @@ export class OrganizationsService {
                     ],
                 },
             }),
+            // Members awaiting the admin's review (pre-Active).
+            this.prisma.organizationMember.count({
+                where: { organizationId: org.id, status: { in: ['PENDING', 'AWAITING_REVIEW'] } },
+            }),
+            // Families whose child's profile-owner account has no password yet = awaiting access.
+            this.prisma.case.count({
+                where: { organizationId: org.id, child: { profile: { user: { password: null } } } },
+            }),
         ]);
 
-        return { org, memberCount, communityCount, upcomingEventCount };
+        return { org, memberCount, communityCount, upcomingEventCount, pendingApprovals, pendingFamilies };
     }
 
     /**
