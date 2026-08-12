@@ -71,6 +71,7 @@ export interface OrgMember {
     image?: string | null;
     role: string;
     verificationStatus: string;
+    therapistProfile?: { branch: string | null } | null;
   };
 }
 
@@ -80,6 +81,11 @@ export interface OrgCommunity {
   description?: string;
   memberCount: number;
   isActive: boolean;
+  type?: string;
+  condition?: string | null;
+  isPrivate?: boolean;
+  inviteOnly?: boolean;
+  tags?: string[];
   organization?: { name: string; logo?: string };
   _count?: { members: number };
 }
@@ -385,12 +391,20 @@ export interface OrgFamilyDetail {
     nickname: string | null;
     dateOfBirth: string;
     gender: string;
+    primaryLanguage: string | null;
+    schoolType: string | null;
+    grade: string | null;
+    currentSchool: string | null;
+    referralSource: string | null;
+    city: string | null;
+    state: string | null;
     guardians: {
       fullName: string;
       relationship: string;
       email: string | null;
       phone: string | null;
       isPrimaryContact: boolean;
+      isEmergencyContact: boolean;
       userId: string | null;
     }[];
   };

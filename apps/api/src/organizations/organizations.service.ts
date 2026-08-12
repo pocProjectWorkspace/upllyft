@@ -342,6 +342,7 @@ export class OrganizationsService {
                         image: true,
                         role: true,
                         verificationStatus: true,
+                        therapistProfile: { select: { branch: true } },
                     }
                 }
             },
@@ -1791,6 +1792,13 @@ export class OrganizationsService {
                         nickname: true,
                         dateOfBirth: true,
                         gender: true,
+                        primaryLanguage: true,
+                        schoolType: true,
+                        grade: true,
+                        currentSchool: true,
+                        referralSource: true,
+                        city: true,
+                        state: true,
                         guardians: {
                             select: {
                                 fullName: true,
@@ -1798,6 +1806,7 @@ export class OrganizationsService {
                                 email: true,
                                 phone: true,
                                 isPrimaryContact: true,
+                                isEmergencyContact: true,
                                 userId: true,
                             },
                         },

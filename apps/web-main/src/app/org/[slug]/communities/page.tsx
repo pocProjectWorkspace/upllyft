@@ -6,6 +6,17 @@ import { Badge, Skeleton } from '@upllyft/ui';
 import { getOrgCommunities, type OrgCommunity } from '@/lib/api/organizations';
 import { APP_URLS } from '@upllyft/api-client';
 
+const ACCENTS = ['#0ea5e9', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#ec4899'];
+function accentFor(key: string): string {
+  let h = 0;
+  for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return ACCENTS[h % ACCENTS.length];
+}
+function humanizeLabel(s?: string | null): string {
+  if (!s) return '';
+  return s.replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function OrgCommunitiesPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -52,6 +63,7 @@ export default function OrgCommunitiesPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {communities.map((community) => (
             <div key={community.id} className="bg-white rounded-2xl border border-gray-200 p-5">
+              <div className="h-1.5 -mx-5 -mt-5 mb-4 rounded-t-2xl" style={{ backgroundColor: accentFor(community.id) }} />
               <div className="flex items-start gap-3 mb-3">
                 <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -71,6 +83,16 @@ export default function OrgCommunitiesPage() {
                 <Badge color={community.isActive ? 'green' : 'yellow'}>
                   {community.isActive ? 'Published' : 'Draft'}
                 </Badge>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {(community.condition || community.type) && (
+                  <span className="px-2 py-0.5 rounded-full text-xs" style={{ backgroundColor: 'var(--org-primary-soft)', color: 'var(--org-primary)' }}>
+                    {humanizeLabel(community.condition || community.type)}
+                  </span>
+                )}
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+                  {community.inviteOnly ? 'Invite only' : 'Open enrollment'}
+                </span>
               </div>
               <a
                 href={`${APP_URLS.community}/communities/${community.id}`}
