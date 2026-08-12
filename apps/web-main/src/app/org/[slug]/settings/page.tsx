@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useToast } from '@upllyft/ui';
-import { getOrganization, updateOrgSettings } from '@/lib/api/organizations';
+import { getOrganization, updateOrgSettings, uploadOrgAsset } from '@/lib/api/organizations';
 import { ORG_COLOR_DEFAULTS, contrastOn } from '@/components/org/org-theme';
 
 export default function OrgSettingsPage() {
@@ -84,16 +84,19 @@ export default function OrgSettingsPage() {
 
     setUploading(type);
     try {
-      // Create FormData and upload
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', type === 'logo' ? 'organization-logos' : 'organization-banners');
-
-      // For now, update settings with the preview URL
-      // In production this would upload to Supabase first
-      toast({ title: 'Info', description: 'Image upload requires backend file storage endpoint' });
-    } catch {
-      toast({ title: 'Error', description: `Failed to upload ${type}`, variant: 'destructive' });
+      const { url } = await uploadOrgAsset(slug, type, file);
+      if (type === 'logo') {
+        setForm((f) => ({ ...f, logo: url }));
+        setLogoPreview(url);
+        setLogoFile(null);
+      } else {
+        setForm((f) => ({ ...f, banner: url }));
+        setBannerPreview(url);
+        setBannerFile(null);
+      }
+      toast({ title: 'Uploaded', description: `${type === 'logo' ? 'Logo' : 'Banner'} saved.` });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.response?.data?.message || `Failed to upload ${type}`, variant: 'destructive' });
     } finally {
       setUploading(null);
     }

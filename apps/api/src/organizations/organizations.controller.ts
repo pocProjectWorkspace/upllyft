@@ -286,6 +286,22 @@ export class OrganizationsController {
         return this.organizationsService.uploadMemberCredential(slug, req.user.id, memberId, file, label);
     }
 
+    /** Settings: upload the org logo or banner (public asset) and persist its URL. */
+    @Post(':slug/asset')
+    @UseGuards(JwtAuthGuard)
+    @UseInterceptors(FileInterceptor('file'))
+    uploadOrgAsset(
+        @Param('slug') slug: string,
+        @UploadedFile() file: any,
+        @Body('type') type: string,
+        @Request() req: any
+    ) {
+        if (!file) {
+            throw new BadRequestException('No file uploaded');
+        }
+        return this.organizationsService.uploadOrgAsset(slug, req.user.id, type === 'banner' ? 'banner' : 'logo', file);
+    }
+
     /** Add Therapist wizard: list a member's uploaded credentials. */
     @Get(':slug/members/:memberId/credentials')
     @UseGuards(JwtAuthGuard)

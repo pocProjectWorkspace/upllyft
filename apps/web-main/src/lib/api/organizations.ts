@@ -641,6 +641,18 @@ export async function updateOrgSettings(
   return data;
 }
 
+export async function uploadOrgAsset(
+  slug: string,
+  type: 'logo' | 'banner',
+  file: File,
+): Promise<{ url: string }> {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('type', type);
+  const { data } = await apiClient.post<{ url: string }>(`/organizations/${slug}/asset`, fd);
+  return data;
+}
+
 // ── Admin: Onboarding Settings ─────────────────────────────────────
 
 export async function getOnboardingSettings(): Promise<OnboardingSettings> {

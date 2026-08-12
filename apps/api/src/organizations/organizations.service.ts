@@ -1533,6 +1533,34 @@ export class OrganizationsService {
         });
     }
 
+    /** Upload the org logo/banner to a public bucket and persist the URL on the org. */
+    async uploadOrgAsset(slug: string, adminId: string, type: 'logo' | 'banner', file: any) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/svg+xml'];
+        if (!file || !allowed.includes(file.mimetype)) {
+            throw new BadRequestException('Invalid file type. Only JPEG, PNG, WEBP and SVG are allowed.');
+        }
+        const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!supaUrl || !key) {
+            throw new BadRequestException('Supabase is not configured.');
+        }
+        const supabase = createClient(supaUrl, key);
+        const path = `${org.id}/${type}-${Date.now()}-${file.originalname}`;
+        const { error } = await supabase.storage
+            .from('org-assets')
+            .upload(path, file.buffer, { contentType: file.mimetype, upsert: true });
+        if (error) {
+            throw new BadRequestException(`Upload failed: ${error.message}`);
+        }
+        const publicUrl = supabase.storage.from('org-assets').getPublicUrl(path).data.publicUrl;
+        await this.prisma.organization.update({
+            where: { id: org.id },
+            data: type === 'logo' ? { logo: publicUrl } : { banner: publicUrl },
+        });
+        return { url: publicUrl };
+    }
+
     /** List a member's uploaded credential documents (for the wizard). */
     async listMemberCredentials(slug: string, adminId: string, memberId: string) {
         const org = await this.getOrgAndAssertAdmin(slug, adminId);
