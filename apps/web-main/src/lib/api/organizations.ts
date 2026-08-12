@@ -599,6 +599,32 @@ export async function createOrgCommunity(
   return data;
 }
 
+export interface OrgCommunityDetail {
+  id: string;
+  name: string;
+  description: string;
+  focusArea: string;
+  privacy: 'invite' | 'open';
+  guidelines: string;
+  tags: string[];
+  moderatorUserIds: string[];
+  isActive: boolean;
+}
+
+export async function getOrgCommunityDetail(slug: string, id: string): Promise<OrgCommunityDetail> {
+  const { data } = await apiClient.get<OrgCommunityDetail>(`/organizations/${slug}/communities/${id}`);
+  return data;
+}
+
+export async function updateOrgCommunity(
+  slug: string,
+  id: string,
+  payload: CreateOrgCommunityPayload,
+): Promise<OrgCommunity> {
+  const { data } = await apiClient.patch<OrgCommunity>(`/organizations/${slug}/communities/${id}`, payload);
+  return data;
+}
+
 // ── Events (org-scoped) ────────────────────────────────────────────
 
 export async function createOrgEvent(payload: {

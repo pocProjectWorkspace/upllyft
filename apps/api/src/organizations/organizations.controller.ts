@@ -98,6 +98,27 @@ export class OrganizationsController {
         return this.organizationsService.createCommunity(slug, body, req.user.id);
     }
 
+    @Get(':slug/communities/:id')
+    @UseGuards(JwtAuthGuard)
+    getCommunityDetail(
+        @Param('slug') slug: string,
+        @Param('id') id: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getCommunityDetail(slug, id, req.user.id);
+    }
+
+    @Patch(':slug/communities/:id')
+    @UseGuards(JwtAuthGuard)
+    updateCommunity(
+        @Param('slug') slug: string,
+        @Param('id') id: string,
+        @Body() body: any,
+        @Request() req: any
+    ) {
+        return this.organizationsService.updateCommunity(slug, id, body, req.user.id);
+    }
+
     @Get(':slug/invitations')
     @UseGuards(JwtAuthGuard)
     getPendingInvitations(@Param('slug') slug: string, @Request() req: any) {

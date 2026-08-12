@@ -447,6 +447,56 @@ export class OrganizationsService {
         });
     }
 
+    /** Wizard-shaped detail for one community (for the edit-mode prefill). */
+    async getCommunityDetail(slug: string, communityId: string, userId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, userId);
+        const c = await this.prisma.community.findFirst({
+            where: { id: communityId, organizationId: org.id },
+            include: { members: { where: { role: 'MODERATOR' }, select: { userId: true } } },
+        });
+        if (!c) {
+            throw new NotFoundException('Community not found');
+        }
+        return {
+            id: c.id,
+            name: c.name,
+            description: c.description ?? '',
+            focusArea: c.condition ?? '',
+            privacy: c.inviteOnly ? 'invite' : 'open',
+            guidelines: c.rules ?? '',
+            tags: c.tags,
+            moderatorUserIds: c.members.map((m) => m.userId),
+            isActive: c.isActive,
+        };
+    }
+
+    /** Update a community's core fields (moderators/auto-add unchanged from create). */
+    async updateCommunity(slug: string, communityId: string, data: any, userId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, userId);
+        const existing = await this.prisma.community.findFirst({
+            where: { id: communityId, organizationId: org.id },
+        });
+        if (!existing) {
+            throw new NotFoundException('Community not found');
+        }
+        const isInviteOnly = data.privacy ? data.privacy === 'invite' : !!data.isPrivate;
+        const tags = [...(data.eligibleBranches || []), ...(data.eligibleSpecializations || [])].filter(Boolean);
+        return this.prisma.community.update({
+            where: { id: communityId },
+            data: {
+                name: data.name,
+                description: data.description,
+                type: data.focusArea || existing.type,
+                condition: data.focusArea || null,
+                isPrivate: isInviteOnly,
+                inviteOnly: isInviteOnly,
+                rules: data.guidelines || null,
+                tags,
+                ...(data.publish !== undefined ? { isActive: data.publish !== false } : {}),
+            },
+        });
+    }
+
     async updateMemberStatus(
         slug: string,
         memberId: string,
