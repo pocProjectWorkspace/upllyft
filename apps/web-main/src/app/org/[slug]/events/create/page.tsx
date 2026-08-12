@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useToast } from '@upllyft/ui';
-import { getOrganization, getOrgCommunities, createOrgEvent, type OrgDetails, type OrgCommunity } from '@/lib/api/organizations';
+import { getOrganization, getOrgCommunities, getOrgTherapists, createOrgEvent, type OrgDetails, type OrgCommunity, type OrgTherapistOption } from '@/lib/api/organizations';
 
 export default function CreateOrgEventPage() {
   const params = useParams();
@@ -13,6 +13,8 @@ export default function CreateOrgEventPage() {
 
   const [org, setOrg] = useState<OrgDetails | null>(null);
   const [communities, setCommunities] = useState<OrgCommunity[]>([]);
+  const [therapists, setTherapists] = useState<OrgTherapistOption[]>([]);
+  const [hostId, setHostId] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [scope, setScope] = useState('general');
@@ -32,12 +34,14 @@ export default function CreateOrgEventPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [orgData, comms] = await Promise.all([
+        const [orgData, comms, ts] = await Promise.all([
           getOrganization(slug),
           getOrgCommunities(slug),
+          getOrgTherapists(slug),
         ]);
         setOrg(orgData);
         setCommunities(comms);
+        setTherapists(ts);
       } catch {
         toast({ title: 'Error', description: 'Failed to load organization data', variant: 'destructive' });
       } finally {
@@ -69,6 +73,7 @@ export default function CreateOrgEventPage() {
         location: form.location.trim() || undefined,
         organizationId: isGeneral ? org?.id : undefined,
         communityId: isGeneral ? undefined : scope,
+        hostId: hostId || undefined,
         eventType: form.eventType,
         format: form.format,
         ageGroup: form.ageGroup.split(',').map(s => s.trim()),
@@ -237,6 +242,21 @@ export default function CreateOrgEventPage() {
             placeholder="Online or physical address"
             className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Host</label>
+          <Select value={hostId || 'none'} onValueChange={(v) => setHostId(v === 'none' ? '' : v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No host assigned</SelectItem>
+              {therapists.map((t) => (
+                <SelectItem key={t.userId} value={t.userId}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

@@ -959,6 +959,7 @@ export class OrganizationsService {
             include: {
                 community: { select: { id: true, name: true, slug: true } },
                 creator: { select: { id: true, name: true, image: true } },
+                host: { select: { id: true, name: true, image: true } },
                 _count: { select: { interests: true } },
             },
             orderBy: { startDate: 'asc' },
