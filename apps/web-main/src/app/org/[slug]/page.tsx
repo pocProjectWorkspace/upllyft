@@ -10,16 +10,20 @@ import {
   getMyFacilities,
   getOrgCommunities,
   getOrgEvents,
+  getOrgActivity,
   type OrgDetails,
   type OrgFacility,
   type OrgCommunity,
   type OrgEvent,
+  type OrgActivityItem,
 } from '@/lib/api/organizations';
 
 interface DashboardStats {
   memberCount: number;
   communityCount: number;
   upcomingEventCount: number;
+  pendingApprovals: number;
+  pendingFamilies: number;
 }
 
 export default function OrgDashboard() {
@@ -29,10 +33,13 @@ export default function OrgDashboard() {
   const [facilities, setFacilities] = useState<OrgFacility[]>([]);
   const [communities, setCommunities] = useState<OrgCommunity[]>([]);
   const [events, setEvents] = useState<OrgEvent[]>([]);
+  const [activity, setActivity] = useState<OrgActivityItem[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     memberCount: 0,
     communityCount: 0,
     upcomingEventCount: 0,
+    pendingApprovals: 0,
+    pendingFamilies: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -59,6 +66,8 @@ export default function OrgDashboard() {
             memberCount: data.memberCount ?? 0,
             communityCount: data.communityCount ?? 0,
             upcomingEventCount: data.upcomingEventCount ?? 0,
+            pendingApprovals: data.pendingApprovals ?? 0,
+            pendingFamilies: data.pendingFamilies ?? 0,
           });
         } catch {
           /* keep zeroed defaults */
@@ -66,9 +75,10 @@ export default function OrgDashboard() {
 
         // Supplementary lists for the dashboard panels.
         try {
-          const [comms, evs] = await Promise.all([getOrgCommunities(slug), getOrgEvents(slug)]);
+          const [comms, evs, act] = await Promise.all([getOrgCommunities(slug), getOrgEvents(slug), getOrgActivity(slug)]);
           setCommunities(comms);
           setEvents(evs);
+          setActivity(act);
         } catch {
           /* leave empty */
         }
@@ -186,6 +196,28 @@ export default function OrgDashboard() {
         />
       </div>
 
+      {(stats.pendingApprovals > 0 || stats.pendingFamilies > 0) && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+          <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="text-sm text-amber-800">
+            <span className="font-medium">Needs your attention.</span>{' '}
+            {stats.pendingApprovals > 0 && (
+              <a href={`/org/${slug}/members`} className="underline">
+                {stats.pendingApprovals} therapist{stats.pendingApprovals === 1 ? '' : 's'} pending review
+              </a>
+            )}
+            {stats.pendingApprovals > 0 && stats.pendingFamilies > 0 && ' · '}
+            {stats.pendingFamilies > 0 && (
+              <a href={`/org/${slug}/families`} className="underline">
+                {stats.pendingFamilies} famil{stats.pendingFamilies === 1 ? 'y' : 'ies'} awaiting access
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Facilities — the org's nurseries / clinics, and the door into each. */}
       {facilities.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
@@ -228,7 +260,21 @@ export default function OrgDashboard() {
       <div className="grid gap-4 lg:grid-cols-7">
         <div className="lg:col-span-4 bg-white rounded-2xl border border-gray-200 p-6">
           <h3 className="font-semibold text-gray-900 mb-3">Recent Activity</h3>
-          <p className="text-sm text-gray-500">Activity feed coming soon...</p>
+          {activity.length === 0 ? (
+            <p className="text-sm text-gray-400">No recent activity.</p>
+          ) : (
+            <ul className="space-y-3">
+              {activity.map((a, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm">
+                  <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: 'var(--org-primary)' }} />
+                  <div className="min-w-0">
+                    <p className="text-gray-800">{a.text}</p>
+                    <p className="text-xs text-gray-400">{new Date(a.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-3">

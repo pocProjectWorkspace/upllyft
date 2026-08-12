@@ -14,6 +14,8 @@ import {
   getOrgTherapists,
   getMyFacilities,
   createOrgCommunity,
+  getOrgCommunityDetail,
+  updateOrgCommunity,
   type OrgTherapistOption,
 } from '@/lib/api/organizations';
 
@@ -43,6 +45,10 @@ export default function CreateOrgCommunityWizard() {
   const router = useRouter();
   const { toast } = useToast();
   const slug = params.slug as string;
+  const [editId, setEditId] = useState<string | null>(null);
+  useEffect(() => {
+    setEditId(new URLSearchParams(window.location.search).get('id'));
+  }, []);
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -65,17 +71,35 @@ export default function CreateOrgCommunityWizard() {
       try {
         const [org, ts] = await Promise.all([getOrganization(slug), getOrgTherapists(slug)]);
         setTherapists(ts);
+        let branchNames: string[] = [];
         try {
           const facs = await getMyFacilities();
-          setBranches(facs.filter((f) => f.organizationId === org.id).map((f) => f.name));
+          branchNames = facs.filter((f) => f.organizationId === org.id).map((f) => f.name);
+          setBranches(branchNames);
         } catch {
           /* branches optional */
+        }
+        if (editId) {
+          try {
+            const d = await getOrgCommunityDetail(slug, editId);
+            setName(d.name);
+            setDescription(d.description);
+            setFocusArea((d.focusArea as DepartmentKey) || '');
+            setPrivacy(d.privacy);
+            setGuidelines(d.guidelines);
+            setModeratorUserIds(d.moderatorUserIds);
+            setAutoAddMatching(false);
+            const branchSet = new Set(branchNames);
+            setEligibleBranches(d.tags.filter((t) => branchSet.has(t)));
+          } catch {
+            toast({ title: 'Error', description: 'Failed to load community', variant: 'destructive' });
+          }
         }
       } catch {
         toast({ title: 'Error', description: 'Failed to load organization', variant: 'destructive' });
       }
     })();
-  }, [slug]);
+  }, [slug, editId]);
 
   // Focus area drives the eligible-specialization list; default to all selected.
   useEffect(() => {
@@ -104,7 +128,7 @@ export default function CreateOrgCommunityWizard() {
     }
     setSaving(true);
     try {
-      await createOrgCommunity(slug, {
+      const payload = {
         name: name.trim(),
         description: description.trim() || undefined,
         focusArea: focusArea || undefined,
@@ -115,8 +139,14 @@ export default function CreateOrgCommunityWizard() {
         moderatorUserIds,
         autoAddMatching,
         publish,
-      });
-      toast({ title: publish ? 'Community published' : 'Draft saved' });
+      };
+      if (editId) {
+        await updateOrgCommunity(slug, editId, payload);
+        toast({ title: publish ? 'Community updated' : 'Draft saved' });
+      } else {
+        await createOrgCommunity(slug, payload);
+        toast({ title: publish ? 'Community published' : 'Draft saved' });
+      }
       router.push(`/org/${slug}/communities`);
     } catch {
       toast({ title: 'Error', description: 'Failed to create community', variant: 'destructive' });
@@ -134,8 +164,8 @@ export default function CreateOrgCommunityWizard() {
           ← Back to Communities
         </button>
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold text-gray-900">New Community</h1>
-          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Draft</span>
+          <h1 className="text-xl font-bold text-gray-900">{editId ? 'Edit Community' : 'New Community'}</h1>
+          {!editId && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Draft</span>}
         </div>
       </div>
 

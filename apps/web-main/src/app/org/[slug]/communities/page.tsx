@@ -97,12 +97,20 @@ export default function OrgCommunitiesPage() {
                   {community.inviteOnly ? 'Invite only' : 'Open enrollment'}
                 </span>
               </div>
-              <a
-                href={`${APP_URLS.community}/communities/${community.id}`}
-                className="block w-full text-center px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                View Community
-              </a>
+              <div className="flex gap-2">
+                <a
+                  href={`/org/${slug}/communities/create?id=${community.id}`}
+                  className="flex-1 text-center px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Edit
+                </a>
+                <a
+                  href={`${APP_URLS.community}/communities/${community.id}`}
+                  className="flex-1 text-center px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  View
+                </a>
+              </div>
             </div>
           ))}
         </div>

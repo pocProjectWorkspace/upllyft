@@ -9,6 +9,7 @@ import {
   suspendOrgMember,
   deactivateOrgMember,
   reactivateOrgMember,
+  approveOrgMember,
   type OrgMember,
 } from '@/lib/api/organizations';
 import { BulkInviteModal } from '@/components/org/bulk-invite-modal';
@@ -26,7 +27,10 @@ export default function OrgMembersPage() {
   // Invite
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('Member');
+  const [inviteRole, setInviteRole] = useState('Therapist');
+  const [inviteName, setInviteName] = useState('');
+  const [inviteBranch, setInviteBranch] = useState('');
+  const [inviteNote, setInviteNote] = useState('');
   const [inviting, setInviting] = useState(false);
 
   // Bulk invite
@@ -59,16 +63,38 @@ export default function OrgMembersPage() {
     if (!inviteEmail) return;
     setInviting(true);
     try {
-      await inviteOrgMember(slug, { email: inviteEmail, role: inviteRole });
+      const isAdmin = inviteRole === 'Org Admin';
+      await inviteOrgMember(slug, {
+        email: inviteEmail,
+        role: isAdmin ? 'Admin' : 'Member',
+        name: inviteName || undefined,
+        branch: inviteBranch || undefined,
+        note: inviteNote || undefined,
+        memberType: isAdmin ? undefined : inviteRole,
+      });
       toast({ title: 'Success', description: 'Invitation sent' });
       setInviteOpen(false);
       setInviteEmail('');
-      setInviteRole('Member');
+      setInviteRole('Therapist');
+      setInviteName('');
+      setInviteBranch('');
+      setInviteNote('');
       fetchMembers();
     } catch (err: any) {
       toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to invite', variant: 'destructive' });
     } finally {
       setInviting(false);
+    }
+  }
+
+  async function handleApprove(member: OrgMember) {
+    try {
+      await approveOrgMember(slug, member.id, true);
+      toast({ title: 'Member approved' });
+      setOpenDropdown(null);
+      fetchMembers();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to approve', variant: 'destructive' });
     }
   }
 
@@ -107,10 +133,12 @@ export default function OrgMembersPage() {
   const statusBadge = (status: OrgMember['status']) => {
     const config: Record<string, { color: 'green' | 'yellow' | 'red' | 'gray' | 'purple'; label: string }> = {
       ACTIVE: { color: 'green', label: 'Active' },
+      INVITED: { color: 'yellow', label: 'Invited' },
+      AWAITING_REVIEW: { color: 'purple', label: 'Awaiting Review' },
       SUSPENDED: { color: 'yellow', label: 'Suspended' },
       DEACTIVATED: { color: 'red', label: 'Deactivated' },
       PENDING: { color: 'gray', label: 'Pending' },
-      REJECTED: { color: 'purple', label: 'Rejected' },
+      REJECTED: { color: 'red', label: 'Rejected' },
     };
     const c = config[status] || { color: 'gray' as const, label: status };
     return <Badge color={c.color}>{c.label}</Badge>;
@@ -147,6 +175,8 @@ export default function OrgMembersPage() {
       <div className="bg-gray-50 rounded-xl p-3 flex flex-wrap items-center gap-4 text-sm text-gray-600">
         <span className="font-medium text-gray-500">Status:</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Active</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> Invited</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500" /> Awaiting Review</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> Suspended</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Deactivated</span>
       </div>
@@ -193,7 +223,7 @@ export default function OrgMembersPage() {
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
                       <div className="flex items-center gap-2">
-                        {m.role === 'ADMIN' ? (
+                        {m.role === 'ADMIN' || m.invited ? (
                           m.user?.name || 'Unknown'
                         ) : (
                           <a href={`/org/${slug}/members/${m.id}`} className="text-teal-700 hover:underline">
@@ -216,7 +246,7 @@ export default function OrgMembersPage() {
                       {m.user?.therapistProfile?.branch || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      {m.role === 'ADMIN' ? (
+                      {m.role === 'ADMIN' || m.invited ? (
                         <span className="text-gray-300">-</span>
                       ) : (
                         <a href={`/org/${slug}/members/${m.id}/holidays`} className="text-teal-600 hover:underline">
@@ -247,7 +277,10 @@ export default function OrgMembersPage() {
                               <button onClick={() => openAction(m, 'deactivate')} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Deactivate</button>
                             </>
                           )}
-                          {(m.status === 'DEACTIVATED' || m.status === 'PENDING') && (
+                          {m.status === 'AWAITING_REVIEW' && (
+                            <button onClick={() => handleApprove(m)} className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50">Approve &amp; activate</button>
+                          )}
+                          {(m.status === 'DEACTIVATED' || m.status === 'PENDING' || m.invited) && (
                             <span className="block px-4 py-2 text-sm text-gray-400">No actions available</span>
                           )}
                         </div>
@@ -268,6 +301,15 @@ export default function OrgMembersPage() {
             <h2 className="text-lg font-semibold text-gray-900">Invite Member</h2>
             <p className="text-sm text-gray-500">Add a user to this organization by email.</p>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full name</label>
+              <input
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                placeholder="Dr. Sarah Thomas"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
                 type="email"
@@ -284,9 +326,30 @@ export default function OrgMembersPage() {
                 onChange={(e) => setInviteRole(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
               >
-                <option value="Member">Member</option>
-                <option value="Admin">Org Admin</option>
+                <option value="Therapist">Therapist</option>
+                <option value="Front Desk">Front Desk</option>
+                <option value="Branch Manager">Branch Manager</option>
+                <option value="Org Admin">Org Admin</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Branch / location</label>
+              <input
+                value={inviteBranch}
+                onChange={(e) => setInviteBranch(e.target.value)}
+                placeholder="e.g. Mumbai, India"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Personal note <span className="text-gray-400 font-normal">(optional)</span></label>
+              <textarea
+                value={inviteNote}
+                onChange={(e) => setInviteNote(e.target.value)}
+                rows={2}
+                placeholder="Added to the invitation email."
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none resize-none"
+              />
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setInviteOpen(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>

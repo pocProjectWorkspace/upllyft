@@ -21,6 +21,8 @@ export interface OrgStats {
   memberCount: number;
   communityCount: number;
   upcomingEventCount: number;
+  pendingApprovals: number;
+  pendingFamilies: number;
 }
 
 export interface MyOrgMembership {
@@ -63,8 +65,9 @@ export interface OrgMember {
   id: string;
   userId: string;
   role: 'ADMIN' | 'MEMBER';
-  status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'REJECTED';
+  status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'REJECTED' | 'INVITED' | 'AWAITING_REVIEW';
   joinedAt: string | null;
+  invited?: boolean;
   user: {
     id: string;
     name: string | null;
@@ -134,6 +137,17 @@ export async function getOrgEvents(slug: string): Promise<OrgEvent[]> {
   return data;
 }
 
+export interface OrgActivityItem {
+  kind: string;
+  text: string;
+  at: string;
+}
+
+export async function getOrgActivity(slug: string): Promise<OrgActivityItem[]> {
+  const { data } = await apiClient.get<OrgActivityItem[]>(`/organizations/${slug}/activity`);
+  return data;
+}
+
 // ── Members ────────────────────────────────────────────────────────
 
 export async function getOrgMembers(slug: string): Promise<OrgMember[]> {
@@ -155,7 +169,7 @@ export async function getOrgMember(
 
 export async function inviteOrgMember(
   slug: string,
-  payload: { email: string; role: string },
+  payload: { email: string; role: string; name?: string; branch?: string; note?: string; memberType?: string },
 ): Promise<void> {
   await apiClient.post(`/organizations/${slug}/members`, payload);
 }
@@ -242,6 +256,8 @@ export interface TherapistProfileData {
   insuranceProvider?: string | null;
   insurancePolicyNumber?: string | null;
   insuranceExpiry?: string | null;
+  slidingScaleAvailable?: boolean;
+  slidingScaleRate?: number | null;
 }
 
 export interface WizardSessionType {
@@ -438,6 +454,30 @@ export async function getOrgFamilies(slug: string): Promise<OrgFamily[]> {
   return data;
 }
 
+export interface FamilyDocument {
+  id: string;
+  title: string;
+  createdAt: string;
+}
+
+export async function listFamilyDocuments(slug: string, caseId: string): Promise<FamilyDocument[]> {
+  const { data } = await apiClient.get<FamilyDocument[]>(`/organizations/${slug}/families/${caseId}/documents`);
+  return data;
+}
+
+export async function uploadFamilyDocument(slug: string, caseId: string, file: File, title: string): Promise<FamilyDocument> {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('title', title);
+  const { data } = await apiClient.post<FamilyDocument>(`/organizations/${slug}/families/${caseId}/documents`, fd);
+  return data;
+}
+
+export async function getFamilyDocumentUrl(slug: string, caseId: string, docId: string): Promise<{ url: string }> {
+  const { data } = await apiClient.get<{ url: string }>(`/organizations/${slug}/families/${caseId}/documents/${docId}/url`);
+  return data;
+}
+
 export async function getOrgFamilyDetail(
   slug: string,
   caseId: string,
@@ -595,6 +635,32 @@ export async function createOrgCommunity(
   return data;
 }
 
+export interface OrgCommunityDetail {
+  id: string;
+  name: string;
+  description: string;
+  focusArea: string;
+  privacy: 'invite' | 'open';
+  guidelines: string;
+  tags: string[];
+  moderatorUserIds: string[];
+  isActive: boolean;
+}
+
+export async function getOrgCommunityDetail(slug: string, id: string): Promise<OrgCommunityDetail> {
+  const { data } = await apiClient.get<OrgCommunityDetail>(`/organizations/${slug}/communities/${id}`);
+  return data;
+}
+
+export async function updateOrgCommunity(
+  slug: string,
+  id: string,
+  payload: CreateOrgCommunityPayload,
+): Promise<OrgCommunity> {
+  const { data } = await apiClient.patch<OrgCommunity>(`/organizations/${slug}/communities/${id}`, payload);
+  return data;
+}
+
 // ── Events (org-scoped) ────────────────────────────────────────────
 
 export async function createOrgEvent(payload: {
@@ -634,6 +700,18 @@ export async function updateOrgSettings(
     `/organizations/${slug}/settings`,
     payload,
   );
+  return data;
+}
+
+export async function uploadOrgAsset(
+  slug: string,
+  type: 'logo' | 'banner',
+  file: File,
+): Promise<{ url: string }> {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('type', type);
+  const { data } = await apiClient.post<{ url: string }>(`/organizations/${slug}/asset`, fd);
   return data;
 }
 

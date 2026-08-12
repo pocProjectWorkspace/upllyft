@@ -98,6 +98,33 @@ export class OrganizationsController {
         return this.organizationsService.createCommunity(slug, body, req.user.id);
     }
 
+    @Get(':slug/communities/:id')
+    @UseGuards(JwtAuthGuard)
+    getCommunityDetail(
+        @Param('slug') slug: string,
+        @Param('id') id: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getCommunityDetail(slug, id, req.user.id);
+    }
+
+    @Patch(':slug/communities/:id')
+    @UseGuards(JwtAuthGuard)
+    updateCommunity(
+        @Param('slug') slug: string,
+        @Param('id') id: string,
+        @Body() body: any,
+        @Request() req: any
+    ) {
+        return this.organizationsService.updateCommunity(slug, id, body, req.user.id);
+    }
+
+    @Get(':slug/activity')
+    @UseGuards(JwtAuthGuard)
+    getRecentActivity(@Param('slug') slug: string, @Request() req: any) {
+        return this.organizationsService.getRecentActivity(slug, req.user.id);
+    }
+
     @Get(':slug/invitations')
     @UseGuards(JwtAuthGuard)
     getPendingInvitations(@Param('slug') slug: string, @Request() req: any) {
@@ -123,7 +150,12 @@ export class OrganizationsController {
         @Request() req: any
     ) {
         const adminId = req.user.id;
-        return this.organizationsService.inviteMember(slug, inviteDto.email, inviteDto.role, adminId);
+        return this.organizationsService.inviteMember(slug, inviteDto.email, inviteDto.role, adminId, {
+            name: inviteDto.name,
+            branch: inviteDto.branch,
+            note: inviteDto.note,
+            memberType: inviteDto.memberType,
+        });
     }
 
     /**
@@ -279,6 +311,55 @@ export class OrganizationsController {
             throw new BadRequestException('No file uploaded');
         }
         return this.organizationsService.uploadMemberCredential(slug, req.user.id, memberId, file, label);
+    }
+
+    /** Settings: upload the org logo or banner (public asset) and persist its URL. */
+    @Post(':slug/asset')
+    @UseGuards(JwtAuthGuard)
+    @UseInterceptors(FileInterceptor('file'))
+    uploadOrgAsset(
+        @Param('slug') slug: string,
+        @UploadedFile() file: any,
+        @Body('type') type: string,
+        @Request() req: any
+    ) {
+        if (!file) {
+            throw new BadRequestException('No file uploaded');
+        }
+        return this.organizationsService.uploadOrgAsset(slug, req.user.id, type === 'banner' ? 'banner' : 'logo', file);
+    }
+
+    @Post(':slug/families/:caseId/documents')
+    @UseGuards(JwtAuthGuard)
+    @UseInterceptors(FileInterceptor('file'))
+    uploadFamilyDocument(
+        @Param('slug') slug: string,
+        @Param('caseId') caseId: string,
+        @UploadedFile() file: any,
+        @Body('title') title: string,
+        @Request() req: any
+    ) {
+        if (!file) {
+            throw new BadRequestException('No file uploaded');
+        }
+        return this.organizationsService.uploadFamilyDocument(slug, req.user.id, caseId, file, title);
+    }
+
+    @Get(':slug/families/:caseId/documents')
+    @UseGuards(JwtAuthGuard)
+    listFamilyDocuments(@Param('slug') slug: string, @Param('caseId') caseId: string, @Request() req: any) {
+        return this.organizationsService.listFamilyDocuments(slug, req.user.id, caseId);
+    }
+
+    @Get(':slug/families/:caseId/documents/:docId/url')
+    @UseGuards(JwtAuthGuard)
+    getFamilyDocumentUrl(
+        @Param('slug') slug: string,
+        @Param('caseId') caseId: string,
+        @Param('docId') docId: string,
+        @Request() req: any
+    ) {
+        return this.organizationsService.getFamilyDocumentUrl(slug, req.user.id, caseId, docId);
     }
 
     /** Add Therapist wizard: list a member's uploaded credentials. */
