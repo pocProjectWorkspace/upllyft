@@ -353,7 +353,6 @@ export class OrganizationsService {
         return this.prisma.community.findMany({
             where: {
                 organizationId: org.id,
-                isActive: true,
             },
             include: {
                 _count: {
@@ -567,7 +566,7 @@ export class OrganizationsService {
                 org.name,
             );
         } catch (error) {
-            console.error('Failed to send invitation email:', error);
+            this.logger.error(`Failed to send invitation email to ${email}: ${error?.message ?? error}`);
         }
 
         return {

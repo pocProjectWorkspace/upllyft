@@ -157,11 +157,18 @@ export async function bulkInviteOrgMembers(
   slug: string,
   members: { email: string; role: string }[],
 ): Promise<{ invited: number; failed: number; errors: string[] }> {
-  const { data } = await apiClient.post(
-    `/organizations/${slug}/members/bulk-invite`,
-    { members },
-  );
-  return data;
+  const { data } = await apiClient.post<{
+    message: string;
+    results: {
+      successful: { email: string; role: string }[];
+      failed: { email: string; role: string; error?: string }[];
+    };
+  }>(`/organizations/${slug}/invitations/confirm-bulk`, { invites: members });
+  return {
+    invited: data.results.successful.length,
+    failed: data.results.failed.length,
+    errors: data.results.failed.map((f) => `${f.email}: ${f.error ?? 'failed'}`),
+  };
 }
 
 export async function suspendOrgMember(

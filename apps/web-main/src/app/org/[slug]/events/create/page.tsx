@@ -53,6 +53,10 @@ export default function CreateOrgEventPage() {
       toast({ title: 'Error', description: 'Title and start date are required', variant: 'destructive' });
       return;
     }
+    if (form.endDate && new Date(form.endDate) < new Date(form.startDate)) {
+      toast({ title: 'Error', description: 'End date must be after the start date', variant: 'destructive' });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -180,9 +184,12 @@ export default function CreateOrgEventPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="WORKSHOP">Workshop</SelectItem>
-                <SelectItem value="SUPPORT_GROUP">Support Group</SelectItem>
-                <SelectItem value="SOCIAL">Social Event</SelectItem>
                 <SelectItem value="WEBINAR">Webinar</SelectItem>
+                <SelectItem value="TRAINING">Training</SelectItem>
+                <SelectItem value="SUPPORT_GROUP">Support Group</SelectItem>
+                <SelectItem value="AWARENESS_CAMPAIGN">Awareness Campaign</SelectItem>
+                <SelectItem value="SOCIAL_SKILLS">Social Skills</SelectItem>
+                <SelectItem value="MUSIC_THERAPY">Music Therapy</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -236,8 +243,9 @@ export default function CreateOrgEventPage() {
           <button type="button" onClick={() => router.back()} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
           <button
             type="submit"
-            disabled={submitting}
-            className="bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl px-6 py-2 text-sm font-medium hover:from-teal-600 hover:to-teal-700 shadow-md disabled:opacity-50"
+            disabled={submitting || !form.title.trim() || !form.startDate}
+            className="rounded-xl px-6 py-2 text-sm font-medium shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'var(--org-gradient)', color: 'var(--org-on-primary)' }}
           >
             {submitting ? 'Creating...' : 'Create Event'}
           </button>

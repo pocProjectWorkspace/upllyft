@@ -67,13 +67,13 @@ export default function OrgCommunitiesPage() {
                 </div>
               </div>
               <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                <span>{community.memberCount} Members</span>
-                <Badge color={community.isActive ? 'green' : 'gray'}>
-                  {community.isActive ? 'Active' : 'Inactive'}
+                <span>{community.memberCount ?? community._count?.members ?? 0} Members</span>
+                <Badge color={community.isActive ? 'green' : 'yellow'}>
+                  {community.isActive ? 'Published' : 'Draft'}
                 </Badge>
               </div>
               <a
-                href={`${APP_URLS.community}/groups/${community.id}`}
+                href={`${APP_URLS.community}/communities/${community.id}`}
                 className="block w-full text-center px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 View Community
