@@ -65,8 +65,9 @@ export interface OrgMember {
   id: string;
   userId: string;
   role: 'ADMIN' | 'MEMBER';
-  status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'REJECTED';
+  status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'REJECTED' | 'INVITED' | 'AWAITING_REVIEW';
   joinedAt: string | null;
+  invited?: boolean;
   user: {
     id: string;
     name: string | null;
@@ -133,6 +134,17 @@ export async function getMyOrganizations(): Promise<MyOrgMembership[]> {
 
 export async function getOrgEvents(slug: string): Promise<OrgEvent[]> {
   const { data } = await apiClient.get<OrgEvent[]>(`/organizations/${slug}/events`);
+  return data;
+}
+
+export interface OrgActivityItem {
+  kind: string;
+  text: string;
+  at: string;
+}
+
+export async function getOrgActivity(slug: string): Promise<OrgActivityItem[]> {
+  const { data } = await apiClient.get<OrgActivityItem[]>(`/organizations/${slug}/activity`);
   return data;
 }
 
@@ -439,6 +451,30 @@ export interface OrgTherapistOption {
 
 export async function getOrgFamilies(slug: string): Promise<OrgFamily[]> {
   const { data } = await apiClient.get<OrgFamily[]>(`/organizations/${slug}/families`);
+  return data;
+}
+
+export interface FamilyDocument {
+  id: string;
+  title: string;
+  createdAt: string;
+}
+
+export async function listFamilyDocuments(slug: string, caseId: string): Promise<FamilyDocument[]> {
+  const { data } = await apiClient.get<FamilyDocument[]>(`/organizations/${slug}/families/${caseId}/documents`);
+  return data;
+}
+
+export async function uploadFamilyDocument(slug: string, caseId: string, file: File, title: string): Promise<FamilyDocument> {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('title', title);
+  const { data } = await apiClient.post<FamilyDocument>(`/organizations/${slug}/families/${caseId}/documents`, fd);
+  return data;
+}
+
+export async function getFamilyDocumentUrl(slug: string, caseId: string, docId: string): Promise<{ url: string }> {
+  const { data } = await apiClient.get<{ url: string }>(`/organizations/${slug}/families/${caseId}/documents/${docId}/url`);
   return data;
 }
 

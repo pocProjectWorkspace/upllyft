@@ -333,7 +333,7 @@ export class OrganizationsService {
     async getMembers(slug: string, userId: string) {
         const org = await this.findOne(slug);
         await this.assertMember(org.id, userId);
-        return this.prisma.organizationMember.findMany({
+        const members = await this.prisma.organizationMember.findMany({
             where: { organizationId: org.id },
             include: {
                 user: {
@@ -349,6 +349,29 @@ export class OrganizationsService {
                 }
             },
         });
+        // Pending invitations surface as read-only "Invited" rows.
+        const invitations = await this.prisma.organizationInvitation.findMany({
+            where: { organizationId: org.id, status: 'PENDING', expiresAt: { gt: new Date() } },
+            select: { id: true, email: true, name: true, role: true, branch: true },
+        });
+        const invitedRows = invitations.map((inv) => ({
+            id: `inv-${inv.id}`,
+            userId: '',
+            role: inv.role,
+            status: 'INVITED' as const,
+            joinedAt: null,
+            invited: true,
+            user: {
+                id: '',
+                name: inv.name ?? inv.email,
+                email: inv.email,
+                image: null,
+                role: '',
+                verificationStatus: 'PENDING',
+                therapistProfile: inv.branch ? { branch: inv.branch } : null,
+            },
+        }));
+        return [...members, ...invitedRows];
     }
 
     async getCommunities(slug: string) {
@@ -495,6 +518,25 @@ export class OrganizationsService {
                 ...(data.publish !== undefined ? { isActive: data.publish !== false } : {}),
             },
         });
+    }
+
+    /** Recent org activity — synthesized from recent communities/events/members/intakes. */
+    async getRecentActivity(slug: string, userId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, userId);
+        const [communities, events, members, cases] = await Promise.all([
+            this.prisma.community.findMany({ where: { organizationId: org.id }, orderBy: { createdAt: 'desc' }, take: 5, select: { name: true, createdAt: true } }),
+            this.prisma.event.findMany({ where: { OR: [{ organizationId: org.id }, { community: { organizationId: org.id } }] }, orderBy: { createdAt: 'desc' }, take: 5, select: { title: true, createdAt: true } }),
+            this.prisma.organizationMember.findMany({ where: { organizationId: org.id }, orderBy: { createdAt: 'desc' }, take: 5, select: { createdAt: true, user: { select: { name: true } } } }),
+            this.prisma.case.findMany({ where: { organizationId: org.id }, orderBy: { createdAt: 'desc' }, take: 5, select: { createdAt: true, child: { select: { firstName: true } } } }),
+        ]);
+        const items = [
+            ...communities.map((c) => ({ kind: 'community', text: `Community created — ${c.name}`, at: c.createdAt })),
+            ...events.map((e) => ({ kind: 'event', text: `Event published — ${e.title}`, at: e.createdAt })),
+            ...members.map((m) => ({ kind: 'member', text: `${m.user?.name ?? 'A member'} joined the team`, at: m.createdAt })),
+            ...cases.map((c) => ({ kind: 'intake', text: `New intake — ${c.child?.firstName ?? 'a family'}`, at: c.createdAt })),
+        ];
+        items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+        return items.slice(0, 8);
     }
 
     async updateMemberStatus(
@@ -807,7 +849,7 @@ export class OrganizationsService {
                     userId,
                     organizationId: invitation.organizationId,
                     role: invitation.role,
-                    status: 'ACTIVE',
+                    status: 'AWAITING_REVIEW',
                     joinedAt: new Date(),
                 },
                 include: {
@@ -1609,6 +1651,69 @@ export class OrganizationsService {
             data: type === 'logo' ? { logo: publicUrl } : { banner: publicUrl },
         });
         return { url: publicUrl };
+    }
+
+    private async assertOrgCase(slug: string, adminId: string, caseId: string) {
+        const org = await this.getOrgAndAssertAdmin(slug, adminId);
+        const kase = await this.prisma.case.findFirst({ where: { id: caseId, organizationId: org.id }, select: { id: true } });
+        if (!kase) {
+            throw new NotFoundException('Family not found');
+        }
+        return kase;
+    }
+
+    /** Upload an intake/supporting document for a family's case (private bucket). */
+    async uploadFamilyDocument(slug: string, adminId: string, caseId: string, file: any, title: string) {
+        await this.assertOrgCase(slug, adminId, caseId);
+        const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (!file || !allowed.includes(file.mimetype)) {
+            throw new BadRequestException('Invalid file type. Only PDF, JPEG and PNG are allowed.');
+        }
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!url || !key) {
+            throw new BadRequestException('Supabase is not configured.');
+        }
+        const supabase = createClient(url, key);
+        const path = `case-docs/${caseId}/${Date.now()}-${file.originalname}`;
+        const { error } = await supabase.storage.from('credentials').upload(path, file.buffer, { contentType: file.mimetype, upsert: false });
+        if (error) {
+            throw new BadRequestException(`Upload failed: ${error.message}`);
+        }
+        return this.prisma.caseDocument.create({
+            data: { caseId, type: 'OTHER', title: title || file.originalname, fileUrl: path, createdById: adminId },
+            select: { id: true, title: true, createdAt: true },
+        });
+    }
+
+    /** List a family's uploaded intake documents. */
+    async listFamilyDocuments(slug: string, adminId: string, caseId: string) {
+        await this.assertOrgCase(slug, adminId, caseId);
+        return this.prisma.caseDocument.findMany({
+            where: { caseId, type: 'OTHER' },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, title: true, createdAt: true },
+        });
+    }
+
+    /** Signed URL (1h) to view a family document. */
+    async getFamilyDocumentUrl(slug: string, adminId: string, caseId: string, docId: string) {
+        await this.assertOrgCase(slug, adminId, caseId);
+        const doc = await this.prisma.caseDocument.findFirst({ where: { id: docId, caseId }, select: { fileUrl: true } });
+        if (!doc || !doc.fileUrl) {
+            throw new NotFoundException('Document not found');
+        }
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!url || !key) {
+            throw new BadRequestException('Supabase is not configured.');
+        }
+        const supabase = createClient(url, key);
+        const { data, error } = await supabase.storage.from('credentials').createSignedUrl(doc.fileUrl, 3600);
+        if (error || !data) {
+            throw new BadRequestException('Could not generate document link.');
+        }
+        return { url: data.signedUrl };
     }
 
     /** List a member's uploaded credential documents (for the wizard). */

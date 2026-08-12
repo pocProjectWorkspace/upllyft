@@ -15,9 +15,13 @@ import {
   assignOrgFamilyTherapist,
   grantOrgFamilyAccess,
   createOrgFamilyIntakeLink,
+  listFamilyDocuments,
+  uploadFamilyDocument,
+  getFamilyDocumentUrl,
   type OrgFamily,
   type OrgFamilyDetail,
   type OrgTherapistOption,
+  type FamilyDocument,
 } from '@/lib/api/organizations';
 
 function fmtDate(d?: string | null) {
@@ -50,6 +54,8 @@ export default function FamiliesPage() {
   const [assignTo, setAssignTo] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [granting, setGranting] = useState(false);
+  const [documents, setDocuments] = useState<FamilyDocument[]>([]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   async function loadFamilies() {
     try {
@@ -75,6 +81,7 @@ export default function FamiliesPage() {
       const d = await getOrgFamilyDetail(slug, caseId);
       setDetail(d);
       setAssignTo(d.primaryTherapist?.id ?? '');
+      try { setDocuments(await listFamilyDocuments(slug, caseId)); } catch { setDocuments([]); }
     } catch {
       toast({ title: 'Error', description: 'Failed to load family', variant: 'destructive' });
     } finally {
@@ -135,6 +142,32 @@ export default function FamiliesPage() {
       });
     } finally {
       setGranting(false);
+    }
+  }
+
+  async function handleDocUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !selectedId) return;
+    setUploadingDoc(true);
+    try {
+      await uploadFamilyDocument(slug, selectedId, file, file.name);
+      setDocuments(await listFamilyDocuments(slug, selectedId));
+      toast({ title: 'Document uploaded' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Upload failed', variant: 'destructive' });
+    } finally {
+      setUploadingDoc(false);
+      e.target.value = '';
+    }
+  }
+
+  async function handleViewDoc(docId: string) {
+    if (!selectedId) return;
+    try {
+      const { url } = await getFamilyDocumentUrl(slug, selectedId, docId);
+      window.open(url, '_blank', 'noopener');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Could not open document', variant: 'destructive' });
     }
   }
 
@@ -309,6 +342,29 @@ export default function FamiliesPage() {
                   </div>
                 ) : (
                   <p className="text-sm text-gray-400">No intake submitted yet.</p>
+                )}
+              </div>
+
+              {/* Documents */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900">Uploaded documents</h3>
+                  <label className="text-xs font-medium cursor-pointer hover:underline" style={{ color: 'var(--org-primary)' }}>
+                    {uploadingDoc ? 'Uploading…' : '+ Upload'}
+                    <input type="file" accept=".pdf,image/*" className="hidden" onChange={handleDocUpload} disabled={uploadingDoc} />
+                  </label>
+                </div>
+                {documents.length === 0 ? (
+                  <p className="text-sm text-gray-400">No documents yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {documents.map((d) => (
+                      <li key={d.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-gray-800 truncate">{d.title}</span>
+                        <button onClick={() => handleViewDoc(d.id)} className="text-xs font-medium hover:underline shrink-0" style={{ color: 'var(--org-primary)' }}>View</button>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 

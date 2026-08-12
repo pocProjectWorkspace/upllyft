@@ -10,10 +10,12 @@ import {
   getMyFacilities,
   getOrgCommunities,
   getOrgEvents,
+  getOrgActivity,
   type OrgDetails,
   type OrgFacility,
   type OrgCommunity,
   type OrgEvent,
+  type OrgActivityItem,
 } from '@/lib/api/organizations';
 
 interface DashboardStats {
@@ -31,6 +33,7 @@ export default function OrgDashboard() {
   const [facilities, setFacilities] = useState<OrgFacility[]>([]);
   const [communities, setCommunities] = useState<OrgCommunity[]>([]);
   const [events, setEvents] = useState<OrgEvent[]>([]);
+  const [activity, setActivity] = useState<OrgActivityItem[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     memberCount: 0,
     communityCount: 0,
@@ -72,9 +75,10 @@ export default function OrgDashboard() {
 
         // Supplementary lists for the dashboard panels.
         try {
-          const [comms, evs] = await Promise.all([getOrgCommunities(slug), getOrgEvents(slug)]);
+          const [comms, evs, act] = await Promise.all([getOrgCommunities(slug), getOrgEvents(slug), getOrgActivity(slug)]);
           setCommunities(comms);
           setEvents(evs);
+          setActivity(act);
         } catch {
           /* leave empty */
         }
@@ -256,7 +260,21 @@ export default function OrgDashboard() {
       <div className="grid gap-4 lg:grid-cols-7">
         <div className="lg:col-span-4 bg-white rounded-2xl border border-gray-200 p-6">
           <h3 className="font-semibold text-gray-900 mb-3">Recent Activity</h3>
-          <p className="text-sm text-gray-500">Activity feed coming soon...</p>
+          {activity.length === 0 ? (
+            <p className="text-sm text-gray-400">No recent activity.</p>
+          ) : (
+            <ul className="space-y-3">
+              {activity.map((a, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm">
+                  <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: 'var(--org-primary)' }} />
+                  <div className="min-w-0">
+                    <p className="text-gray-800">{a.text}</p>
+                    <p className="text-xs text-gray-400">{new Date(a.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-3">

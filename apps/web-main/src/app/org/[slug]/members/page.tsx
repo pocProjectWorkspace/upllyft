@@ -9,6 +9,7 @@ import {
   suspendOrgMember,
   deactivateOrgMember,
   reactivateOrgMember,
+  approveOrgMember,
   type OrgMember,
 } from '@/lib/api/organizations';
 import { BulkInviteModal } from '@/components/org/bulk-invite-modal';
@@ -86,6 +87,17 @@ export default function OrgMembersPage() {
     }
   }
 
+  async function handleApprove(member: OrgMember) {
+    try {
+      await approveOrgMember(slug, member.id, true);
+      toast({ title: 'Member approved' });
+      setOpenDropdown(null);
+      fetchMembers();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to approve', variant: 'destructive' });
+    }
+  }
+
   function openAction(member: OrgMember, action: StatusAction) {
     setActionMember(member);
     setActionType(action);
@@ -121,10 +133,12 @@ export default function OrgMembersPage() {
   const statusBadge = (status: OrgMember['status']) => {
     const config: Record<string, { color: 'green' | 'yellow' | 'red' | 'gray' | 'purple'; label: string }> = {
       ACTIVE: { color: 'green', label: 'Active' },
+      INVITED: { color: 'yellow', label: 'Invited' },
+      AWAITING_REVIEW: { color: 'purple', label: 'Awaiting Review' },
       SUSPENDED: { color: 'yellow', label: 'Suspended' },
       DEACTIVATED: { color: 'red', label: 'Deactivated' },
       PENDING: { color: 'gray', label: 'Pending' },
-      REJECTED: { color: 'purple', label: 'Rejected' },
+      REJECTED: { color: 'red', label: 'Rejected' },
     };
     const c = config[status] || { color: 'gray' as const, label: status };
     return <Badge color={c.color}>{c.label}</Badge>;
@@ -161,6 +175,8 @@ export default function OrgMembersPage() {
       <div className="bg-gray-50 rounded-xl p-3 flex flex-wrap items-center gap-4 text-sm text-gray-600">
         <span className="font-medium text-gray-500">Status:</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Active</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> Invited</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500" /> Awaiting Review</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> Suspended</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Deactivated</span>
       </div>
@@ -207,7 +223,7 @@ export default function OrgMembersPage() {
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
                       <div className="flex items-center gap-2">
-                        {m.role === 'ADMIN' ? (
+                        {m.role === 'ADMIN' || m.invited ? (
                           m.user?.name || 'Unknown'
                         ) : (
                           <a href={`/org/${slug}/members/${m.id}`} className="text-teal-700 hover:underline">
@@ -230,7 +246,7 @@ export default function OrgMembersPage() {
                       {m.user?.therapistProfile?.branch || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      {m.role === 'ADMIN' ? (
+                      {m.role === 'ADMIN' || m.invited ? (
                         <span className="text-gray-300">-</span>
                       ) : (
                         <a href={`/org/${slug}/members/${m.id}/holidays`} className="text-teal-600 hover:underline">
@@ -261,7 +277,10 @@ export default function OrgMembersPage() {
                               <button onClick={() => openAction(m, 'deactivate')} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Deactivate</button>
                             </>
                           )}
-                          {(m.status === 'DEACTIVATED' || m.status === 'PENDING') && (
+                          {m.status === 'AWAITING_REVIEW' && (
+                            <button onClick={() => handleApprove(m)} className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50">Approve &amp; activate</button>
+                          )}
+                          {(m.status === 'DEACTIVATED' || m.status === 'PENDING' || m.invited) && (
                             <span className="block px-4 py-2 text-sm text-gray-400">No actions available</span>
                           )}
                         </div>
