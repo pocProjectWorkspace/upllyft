@@ -157,7 +157,7 @@ export async function getOrgMember(
 
 export async function inviteOrgMember(
   slug: string,
-  payload: { email: string; role: string },
+  payload: { email: string; role: string; name?: string; branch?: string; note?: string; memberType?: string },
 ): Promise<void> {
   await apiClient.post(`/organizations/${slug}/members`, payload);
 }

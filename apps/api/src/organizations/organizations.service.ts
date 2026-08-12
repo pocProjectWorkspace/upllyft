@@ -481,7 +481,7 @@ export class OrganizationsService {
      * Invite a member to the organization
      * Handles both existing and non-existing users
      */
-    async inviteMember(slug: string, email: string, role: string, adminId: string) {
+    async inviteMember(slug: string, email: string, role: string, adminId: string, extra?: { name?: string; branch?: string; note?: string; memberType?: string }) {
         const org = await this.findOne(slug);
 
         const adminMember = await this.prisma.organizationMember.findUnique({
@@ -546,6 +546,10 @@ export class OrganizationsService {
                 email,
                 organizationId: org.id,
                 role: role.toUpperCase() as OrganizationRole,
+                name: extra?.name,
+                branch: extra?.branch,
+                note: extra?.note,
+                memberType: extra?.memberType,
                 token,
                 status: 'PENDING',
                 invitedById: adminId,

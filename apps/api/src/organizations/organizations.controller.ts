@@ -123,7 +123,12 @@ export class OrganizationsController {
         @Request() req: any
     ) {
         const adminId = req.user.id;
-        return this.organizationsService.inviteMember(slug, inviteDto.email, inviteDto.role, adminId);
+        return this.organizationsService.inviteMember(slug, inviteDto.email, inviteDto.role, adminId, {
+            name: inviteDto.name,
+            branch: inviteDto.branch,
+            note: inviteDto.note,
+            memberType: inviteDto.memberType,
+        });
     }
 
     /**

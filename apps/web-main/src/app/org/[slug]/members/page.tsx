@@ -26,7 +26,10 @@ export default function OrgMembersPage() {
   // Invite
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('Member');
+  const [inviteRole, setInviteRole] = useState('Therapist');
+  const [inviteName, setInviteName] = useState('');
+  const [inviteBranch, setInviteBranch] = useState('');
+  const [inviteNote, setInviteNote] = useState('');
   const [inviting, setInviting] = useState(false);
 
   // Bulk invite
@@ -59,11 +62,22 @@ export default function OrgMembersPage() {
     if (!inviteEmail) return;
     setInviting(true);
     try {
-      await inviteOrgMember(slug, { email: inviteEmail, role: inviteRole });
+      const isAdmin = inviteRole === 'Org Admin';
+      await inviteOrgMember(slug, {
+        email: inviteEmail,
+        role: isAdmin ? 'Admin' : 'Member',
+        name: inviteName || undefined,
+        branch: inviteBranch || undefined,
+        note: inviteNote || undefined,
+        memberType: isAdmin ? undefined : inviteRole,
+      });
       toast({ title: 'Success', description: 'Invitation sent' });
       setInviteOpen(false);
       setInviteEmail('');
-      setInviteRole('Member');
+      setInviteRole('Therapist');
+      setInviteName('');
+      setInviteBranch('');
+      setInviteNote('');
       fetchMembers();
     } catch (err: any) {
       toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to invite', variant: 'destructive' });
@@ -268,6 +282,15 @@ export default function OrgMembersPage() {
             <h2 className="text-lg font-semibold text-gray-900">Invite Member</h2>
             <p className="text-sm text-gray-500">Add a user to this organization by email.</p>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full name</label>
+              <input
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                placeholder="Dr. Sarah Thomas"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
                 type="email"
@@ -284,9 +307,30 @@ export default function OrgMembersPage() {
                 onChange={(e) => setInviteRole(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
               >
-                <option value="Member">Member</option>
-                <option value="Admin">Org Admin</option>
+                <option value="Therapist">Therapist</option>
+                <option value="Front Desk">Front Desk</option>
+                <option value="Branch Manager">Branch Manager</option>
+                <option value="Org Admin">Org Admin</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Branch / location</label>
+              <input
+                value={inviteBranch}
+                onChange={(e) => setInviteBranch(e.target.value)}
+                placeholder="e.g. Mumbai, India"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Personal note <span className="text-gray-400 font-normal">(optional)</span></label>
+              <textarea
+                value={inviteNote}
+                onChange={(e) => setInviteNote(e.target.value)}
+                rows={2}
+                placeholder="Added to the invitation email."
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none resize-none"
+              />
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setInviteOpen(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class InviteMemberDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -11,4 +11,24 @@ export class InviteMemberDto {
   @IsString()
   @IsNotEmpty()
   role: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  branch?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @ApiProperty({ required: false, description: 'Therapist / Front Desk / Branch Manager' })
+  @IsOptional()
+  @IsString()
+  memberType?: string;
 }
