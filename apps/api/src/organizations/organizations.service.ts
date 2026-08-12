@@ -28,6 +28,8 @@ interface SaveTherapistProfileInput {
     insuranceProvider?: string;
     insurancePolicyNumber?: string;
     insuranceExpiry?: string;
+    slidingScaleAvailable?: boolean;
+    slidingScaleRate?: number;
 }
 import { randomBytes, createHash } from 'crypto';
 import { AppLoggerService } from '../common/logging';
@@ -1675,6 +1677,8 @@ export class OrganizationsService {
             insuranceProvider: data.insuranceProvider,
             insurancePolicyNumber: data.insurancePolicyNumber,
             insuranceExpiry: data.insuranceExpiry ? new Date(data.insuranceExpiry) : undefined,
+            slidingScaleAvailable: data.slidingScaleAvailable,
+            slidingScaleRate: data.slidingScaleRate,
         };
 
         const profile = await this.prisma.therapistProfile.upsert({

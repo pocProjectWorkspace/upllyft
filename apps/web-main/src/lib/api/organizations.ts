@@ -242,6 +242,8 @@ export interface TherapistProfileData {
   insuranceProvider?: string | null;
   insurancePolicyNumber?: string | null;
   insuranceExpiry?: string | null;
+  slidingScaleAvailable?: boolean;
+  slidingScaleRate?: number | null;
 }
 
 export interface WizardSessionType {

@@ -74,6 +74,7 @@ interface WizardForm {
   // Fees
   fees: FeeRow[];
   slidingScale: boolean;
+  slidingScaleRate: string;
   // Schedule
   sessionDuration: number;
   buffer: number;
@@ -121,6 +122,7 @@ function initialForm(member?: OrgMember): WizardForm {
     insuranceExpiry: '',
     fees: [emptyFee()],
     slidingScale: false,
+    slidingScaleRate: '',
     sessionDuration: 60,
     buffer: 15,
     mode: 'in-person',
@@ -382,6 +384,8 @@ export default function AddTherapistWizard() {
                 insuranceProvider: p.insuranceProvider ?? '',
                 insurancePolicy: p.insurancePolicyNumber ?? '',
                 insuranceExpiry: p.insuranceExpiry ? p.insuranceExpiry.slice(0, 10) : '',
+                slidingScale: p.slidingScaleAvailable ?? false,
+                slidingScaleRate: p.slidingScaleRate != null ? String(p.slidingScaleRate) : '',
                 fees: feesFromSessionTypes(detail?.sessionTypes ?? [], deptKey),
                 availability: slotsToGrid(detail?.availability ?? []),
               }
@@ -422,6 +426,8 @@ export default function AddTherapistWizard() {
       insuranceProvider: form.insuranceProvider || undefined,
       insurancePolicyNumber: form.insurancePolicy || undefined,
       insuranceExpiry: form.insuranceExpiry || undefined,
+      slidingScaleAvailable: form.slidingScale,
+      slidingScaleRate: form.slidingScaleRate ? Number(form.slidingScaleRate) : undefined,
     });
   }
 
@@ -840,10 +846,25 @@ export default function AddTherapistWizard() {
             <button onClick={addFeeRow} className="text-sm font-medium text-teal-600 hover:text-teal-700">
               + Add another service
             </button>
-            <label className="flex items-center gap-2 text-sm text-gray-700 pt-2">
-              <input type="checkbox" checked={form.slidingScale} onChange={(e) => set('slidingScale', e.target.checked)} />
-              Offer a sliding-scale / insurance-covered rate
-            </label>
+            <div className="pt-2 space-y-2">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={form.slidingScale} onChange={(e) => set('slidingScale', e.target.checked)} />
+                <span className="text-sm font-medium text-gray-900">Sliding scale / insurance-covered rate</span>
+              </label>
+              <p className="text-xs text-gray-500">Offer a reduced rate for eligible clients or insurance partners.</p>
+              {form.slidingScale && (
+                <div className="max-w-xs">
+                  <label className="block text-xs text-gray-500 mb-1">Reduced rate ({currency})</label>
+                  <input
+                    type="number"
+                    value={form.slidingScaleRate}
+                    onChange={(e) => set('slidingScaleRate', e.target.value)}
+                    placeholder="e.g. 1500"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
 
