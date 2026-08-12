@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same PR
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # prisma generate reads the datasource block; it does not connect, but the
+      # env var must resolve. A dummy value is fine for generate/type-check/build.
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # version is read from the root package.json "packageManager" field
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @upllyft/api prisma:generate
+
+      # Blocking gate: the repo is type-check clean today; keep it that way.
+      - name: Type-check
+        run: pnpm type-check
+
+      # Non-blocking for now — promote to required once each is green in CI.
+      # (lint is not yet enforced repo-wide; build compiles all apps and is slower.)
+      - name: Lint
+        run: pnpm lint
+        continue-on-error: true
+
+      - name: Build
+        run: pnpm build
+        continue-on-error: true

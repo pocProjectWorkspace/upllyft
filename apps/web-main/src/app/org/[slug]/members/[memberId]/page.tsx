@@ -74,6 +74,7 @@ interface WizardForm {
   // Fees
   fees: FeeRow[];
   slidingScale: boolean;
+  slidingScaleRate: string;
   // Schedule
   sessionDuration: number;
   buffer: number;
@@ -121,6 +122,7 @@ function initialForm(member?: OrgMember): WizardForm {
     insuranceExpiry: '',
     fees: [emptyFee()],
     slidingScale: false,
+    slidingScaleRate: '',
     sessionDuration: 60,
     buffer: 15,
     mode: 'in-person',
@@ -382,6 +384,8 @@ export default function AddTherapistWizard() {
                 insuranceProvider: p.insuranceProvider ?? '',
                 insurancePolicy: p.insurancePolicyNumber ?? '',
                 insuranceExpiry: p.insuranceExpiry ? p.insuranceExpiry.slice(0, 10) : '',
+                slidingScale: p.slidingScaleAvailable ?? false,
+                slidingScaleRate: p.slidingScaleRate != null ? String(p.slidingScaleRate) : '',
                 fees: feesFromSessionTypes(detail?.sessionTypes ?? [], deptKey),
                 availability: slotsToGrid(detail?.availability ?? []),
               }
@@ -422,6 +426,8 @@ export default function AddTherapistWizard() {
       insuranceProvider: form.insuranceProvider || undefined,
       insurancePolicyNumber: form.insurancePolicy || undefined,
       insuranceExpiry: form.insuranceExpiry || undefined,
+      slidingScaleAvailable: form.slidingScale,
+      slidingScaleRate: form.slidingScaleRate ? Number(form.slidingScaleRate) : undefined,
     });
   }
 
@@ -571,20 +577,17 @@ export default function AddTherapistWizard() {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <button
-            onClick={() => router.push(`/org/${slug}/members`)}
-            className="text-sm text-gray-500 hover:text-gray-700 mb-1"
-          >
-            ← Back to Members
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">
-            {form.name || member?.user?.email || 'Member'}
-          </h1>
-          <p className="text-sm text-gray-500">{member?.user?.email}</p>
+      <div>
+        <p className="text-sm text-gray-500 mb-1">
+          <a href={`/org/${slug}/members`} className="hover:underline">Members</a>
+          <span className="text-gray-300"> / </span>
+          <span className="text-gray-700">{form.name || member?.user?.email || 'Member'}</span>
+        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="text-xl font-bold text-gray-900">{form.name || member?.user?.email || 'Member'}</h1>
+          {member && <Badge color={member.status === 'ACTIVE' ? 'green' : 'yellow'}>{member.status}</Badge>}
         </div>
-        {member && <Badge color={member.status === 'ACTIVE' ? 'green' : 'yellow'}>{member.status}</Badge>}
+        <p className="text-sm text-gray-500 mt-0.5">{member?.user?.email}</p>
       </div>
 
       {/* Stepper */}
@@ -843,10 +846,25 @@ export default function AddTherapistWizard() {
             <button onClick={addFeeRow} className="text-sm font-medium text-teal-600 hover:text-teal-700">
               + Add another service
             </button>
-            <label className="flex items-center gap-2 text-sm text-gray-700 pt-2">
-              <input type="checkbox" checked={form.slidingScale} onChange={(e) => set('slidingScale', e.target.checked)} />
-              Offer a sliding-scale / insurance-covered rate
-            </label>
+            <div className="pt-2 space-y-2">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={form.slidingScale} onChange={(e) => set('slidingScale', e.target.checked)} />
+                <span className="text-sm font-medium text-gray-900">Sliding scale / insurance-covered rate</span>
+              </label>
+              <p className="text-xs text-gray-500">Offer a reduced rate for eligible clients or insurance partners.</p>
+              {form.slidingScale && (
+                <div className="max-w-xs">
+                  <label className="block text-xs text-gray-500 mb-1">Reduced rate ({currency})</label>
+                  <input
+                    type="number"
+                    value={form.slidingScaleRate}
+                    onChange={(e) => set('slidingScaleRate', e.target.value)}
+                    placeholder="e.g. 1500"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -941,20 +959,24 @@ export default function AddTherapistWizard() {
             </p>
             {(
               [
-                ['profile', 'Profile complete'],
-                ['licence', 'Licence verified'],
-                ['insurance', 'Insurance on file'],
-                ['fees', 'Fees confirmed'],
-                ['availability', 'Availability published'],
+                ['profile', 'Profile complete', 'Basic info, department & bio filled in'],
+                ['licence', 'Licence verified', 'Cross-checked against the issuing authority'],
+                ['insurance', 'Insurance on file', 'Malpractice / indemnity policy recorded'],
+                ['fees', 'Fees confirmed', 'Services & per-duration rates set'],
+                ['availability', 'Availability published', 'Weekly schedule & timezone set'],
               ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700">
+            ).map(([key, label, subtext]) => (
+              <label key={key} className="flex items-start gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700">
                 <input
                   type="checkbox"
+                  className="mt-0.5"
                   checked={checks[key]}
                   onChange={(e) => setChecks((c) => ({ ...c, [key]: e.target.checked }))}
                 />
-                {label}
+                <span>
+                  <span className="block font-medium text-gray-900">{label}</span>
+                  <span className="text-xs text-gray-500">{subtext}</span>
+                </span>
               </label>
             ))}
           </div>

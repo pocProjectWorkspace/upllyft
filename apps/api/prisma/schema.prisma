@@ -185,6 +185,10 @@ model User {
   ownedIncidents        CaseIncident[]  @relation("IncidentOwner")
   externalSharesCreated ExternalShare[] @relation("ExternalShareCreator")
 
+  // Org admin (Tranche D): events this user hosts + org resources they uploaded
+  hostedEvents          Event[]         @relation("EventHost")
+  uploadedResources     OrgResource[]   @relation("OrgResourceUploader")
+
   // Verified contributor
   isVerifiedContributor Boolean   @default(false)
   verifiedContributorAt DateTime?
@@ -380,13 +384,16 @@ model Event {
   updatedAt               DateTime        @updatedAt
   feedPostId              String?         @unique
   organizationId          String?
+  hostId                  String?
   community               Community?      @relation(fields: [communityId], references: [id], onDelete: Cascade)
   creator                 User            @relation("EventCreator", fields: [createdBy], references: [id])
   feedPost                Post?           @relation("EventPost", fields: [feedPostId], references: [id])
   organization            Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  host                    User?           @relation("EventHost", fields: [hostId], references: [id])
   interests               EventInterest[]
 
   @@index([communityId])
+  @@index([hostId])
   @@index([organizationId])
   @@index([startDate])
   @@index([status])
@@ -1477,6 +1484,7 @@ model Organization {
   marketplaceSettings  MarketplaceSettings?
   sessionTypes         SessionType[]
   therapistLinks       TherapistOrganizationLink[]
+  resources            OrgResource[]
 
   // Case management relations
   cases             Case[]
@@ -1495,12 +1503,33 @@ model Organization {
   @@index([kind])
 }
 
+/// Org-scoped documents/resources uploaded by an org admin (Resources feature).
+model OrgResource {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  fileUrl        String
+  fileType       String?
+  fileSize       Int?
+  category       String?
+  uploadedById   String
+  uploadedBy     User         @relation("OrgResourceUploader", fields: [uploadedById], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+}
+
 model OrganizationMember {
   id             String             @id @default(cuid())
   userId         String
   organizationId String
   role           OrganizationRole   @default(MEMBER)
   status         OrganizationStatus @default(ACTIVE)
+  memberType     String?
+  branch         String?
   joinedAt       DateTime?
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
@@ -1518,6 +1547,10 @@ model OrganizationInvitation {
   email          String
   organizationId String
   role           OrganizationRole         @default(MEMBER)
+  name           String?
+  branch         String?
+  note           String?
+  memberType     String?
   token          String                   @unique
   status         OrganizationInviteStatus @default(PENDING)
   invitedById    String
@@ -1762,6 +1795,8 @@ model TherapistProfile {
   department               String?
   phone                    String?
   branch                   String?
+  slidingScaleAvailable    Boolean                     @default(false)
+  slidingScaleRate         Float?
   country                  String?
   qualification            String?
   university               String?
@@ -2610,6 +2645,8 @@ enum OrganizationStatus {
   REJECTED
   SUSPENDED
   DEACTIVATED
+  INVITED
+  AWAITING_REVIEW
 }
 
 enum OrganizationInviteStatus {

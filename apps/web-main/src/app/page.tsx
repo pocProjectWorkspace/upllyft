@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { ParentDashboard } from '@/components/dashboard/parent-dashboard';
 import { TherapistDashboard } from '@/components/dashboard/therapist-dashboard';
 import { getOnboardingStatus } from '@/lib/api/profiles';
+import { getMyOrganizations } from '@/lib/api/organizations';
 
 export default function DashboardPage() {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -35,6 +36,20 @@ export default function DashboardPage() {
       window.location.href = APP_URLS.community;
     }
   }, [isLoading, isAuthenticated, user, onboardingChecked]);
+
+  // Org admins (role ORGANIZATION) land on their org Hub, not the parent dashboard.
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user && user.role === 'ORGANIZATION') {
+      getMyOrganizations()
+        .then((orgs) => {
+          const primary = orgs.find((o) => o.role === 'ADMIN') ?? orgs[0];
+          if (primary) router.replace(`/org/${primary.organization.slug}/hub`);
+        })
+        .catch(() => {
+          /* no org membership resolved — fall through to the default dashboard */
+        });
+    }
+  }, [isLoading, isAuthenticated, user, router]);
 
   // Check onboarding status for parent users
   useEffect(() => {

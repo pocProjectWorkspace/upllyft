@@ -25,6 +25,34 @@ function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function safeDbHost(url: string): string {
+  try {
+    return new URL(url).host || '(unparseable)';
+  } catch {
+    return '(unparseable)';
+  }
+}
+
+// This seed unconditionally deleteMany()s ~15 tables (posts, communities, Q&A,
+// events, notifications) before inserting. It must never run against production,
+// where prod holds real testers' children. Require an explicit, per-run opt-in so
+// a stray prod DATABASE_URL in .env cannot wipe live data.
+function assertDestructiveSeedAllowed(): void {
+  const url = process.env.DATABASE_URL ?? '';
+  if (process.env.SEED_ALLOW_DESTRUCTIVE !== '1') {
+    console.error(
+      '\n🛑 REFUSING TO RUN: this is a DESTRUCTIVE seed — it deletes all community, ' +
+        'Q&A, event and notification data before inserting.\n' +
+        '   Re-run with SEED_ALLOW_DESTRUCTIVE=1 ONLY after confirming DATABASE_URL is a dev/local database.\n' +
+        `   Current DATABASE_URL host: ${safeDbHost(url)}\n`,
+    );
+    process.exit(1);
+  }
+  console.warn(
+    `⚠️  Destructive seed authorized via SEED_ALLOW_DESTRUCTIVE=1 → target host: ${safeDbHost(url)}\n`,
+  );
+}
+
 // ========================================
 // SECTION 1: USERS DATA
 // ========================================
@@ -858,6 +886,8 @@ To all the parents working on "small" things - keep going. The breakthrough will
 
 async function main() {
   console.log('🌱 Starting Phase 1 Comprehensive Seed...\n');
+
+  assertDestructiveSeedAllowed();
 
   try {
     // Connect to database

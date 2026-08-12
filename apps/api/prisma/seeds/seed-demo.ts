@@ -22,7 +22,10 @@ const prisma = new PrismaClient();
 const audit: any = { log: () => {} };
 const config = new ConfigService();
 
-const PASSWORD = 'Demo@1234';
+const PASSWORD = process.env.DEMO_SEED_PASSWORD ?? '';
+if (!PASSWORD) {
+  throw new Error('DEMO_SEED_PASSWORD is not set — refusing to seed demo accounts with a hardcoded password. Set it in the environment (see apps/api/.env.example).');
+}
 const THERAPIST_EMAIL = 'therapist@upllyft.demo';
 const ADMIN_EMAIL = 'admin@upllyft.demo';
 const PARENT_EMAIL = 'parent@upllyft.demo';

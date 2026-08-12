@@ -6,10 +6,18 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private configService: ConfigService) {
+    const jwtSecret = configService.get<string>('JWT_SECRET');
+    if (!jwtSecret) {
+      // Fail loudly rather than verifying tokens against a guessable fallback,
+      // which would let anyone forge a valid (e.g. admin) JWT.
+      throw new Error(
+        'JWT_SECRET is not set — refusing to start. Set JWT_SECRET in the environment.',
+      );
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'default-secret-key',
+      secretOrKey: jwtSecret,
     });
   }
 
