@@ -6,6 +6,7 @@ import { useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
 import { BookingShell } from '@/components/booking-shell';
 import { RegionGate } from '@/components/region-gate';
 import { useSearchTherapists } from '@/hooks/use-marketplace';
+import { useShortlistIds, useToggleShortlist } from '@/hooks/use-shortlist';
 import { formatCurrency } from '@/lib/utils';
 import type { TherapistSearchFilters, TherapistProfile } from '@/lib/api/marketplace';
 import {
@@ -186,6 +187,9 @@ function MarketplacePageContent() {
   const [minRating, setMinRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [page, setPage] = useState(1);
+  // Discovery fit context (from /find-care): child screening match or a picked concern.
+  const [fitChildId, setFitChildId] = useState('');
+  const [fitConcern, setFitConcern] = useState('');
 
   // Read incoming URL filters ONCE so the redirect effect below can
   // short-circuit when a Mira deep-link arrives.
@@ -194,7 +198,9 @@ function MarketplacePageContent() {
       searchParams.get('specialization') ||
       searchParams.get('search') ||
       searchParams.get('therapistId') ||
-      searchParams.get('minRating')
+      searchParams.get('minRating') ||
+      searchParams.get('childId') ||
+      searchParams.get('concern')
     );
   }, [searchParams]);
 
@@ -220,6 +226,10 @@ function MarketplacePageContent() {
       const parsed = Number(urlMinRating);
       if (!Number.isNaN(parsed)) setMinRating(parsed);
     }
+    const urlChildId = searchParams.get('childId');
+    const urlConcern = searchParams.get('concern');
+    if (urlChildId) setFitChildId(urlChildId);
+    if (urlConcern) setFitConcern(urlConcern);
     // Intentionally run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -232,6 +242,16 @@ function MarketplacePageContent() {
   useEffect(() => {
     if (serviceModel === 'CLINIC_DIRECTORY' && !urlHasIncomingFilter) {
       router.replace('/clinics');
+      return;
+    }
+    // UAE model is clinic-first: a fit-context arrival (childId/concern, no explicit
+    // therapist filter) belongs on the clinic directory, params intact.
+    if (serviceModel === 'CLINIC_DIRECTORY') {
+      const sp = new URLSearchParams(window.location.search);
+      const onlyFitParams =
+        (sp.get('childId') || sp.get('concern')) &&
+        !sp.get('specialization') && !sp.get('search') && !sp.get('therapistId');
+      if (onlyFitParams) router.replace(`/clinics?${sp.toString()}`);
     }
   }, [serviceModel, router, urlHasIncomingFilter]);
 
@@ -248,6 +268,8 @@ function MarketplacePageContent() {
     search: debouncedSearch || undefined,
     specialization: specialization || undefined,
     minRating: minRating > 0 ? minRating : undefined,
+    childId: fitChildId || undefined,
+    concern: fitConcern || undefined,
     page,
     limit: ITEMS_PER_PAGE,
   };
@@ -255,6 +277,12 @@ function MarketplacePageContent() {
   const { data, isLoading } = useSearchTherapists(filters);
   const rawTherapists = data?.therapists ?? [];
   const totalPages = data?.totalPages ?? 1;
+  const needs = data?.needs;
+  const inFitMode = !!needs && needs.source !== 'none';
+  const strongCount = rawTherapists.filter((t) => t.match?.tier === 'strong').length;
+  const savedIds = useShortlistIds();
+  const toggleSave = useToggleShortlist();
+  const isParent = user?.role === 'USER';
 
   // Client-side sort (relevance = default API order)
   const therapists = useMemo<TherapistProfile[]>(() => {
@@ -396,6 +424,49 @@ function MarketplacePageContent() {
           chipText="Help me find the right therapist for my child"
         />
 
+        {/* Fit context — honest about where the ranking comes from */}
+        {inFitMode && needs?.source === 'screening' && (
+          <div className="rounded-2xl border border-teal-200 bg-teal-50/60 px-5 py-4">
+            <p className="text-sm font-semibold text-teal-900">
+              Matched to the screening — {strongCount} strong {strongCount === 1 ? 'fit' : 'fits'}
+            </p>
+            <p className="text-xs text-teal-800/70 mt-0.5">
+              &ldquo;Strong fit&rdquo; simply means the professional&rsquo;s discipline addresses a
+              flagged area from the screening. No scores, no percentages — on purpose.
+            </p>
+          </div>
+        )}
+        {inFitMode && needs?.source === 'self_reported' && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/60 px-5 py-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex-1 min-w-[240px]">
+              <p className="text-sm font-semibold text-amber-900">
+                A starting point, based on what you told us — not a screening
+              </p>
+              <p className="text-xs text-amber-800/70 mt-0.5">
+                These professionals often help with what you described. A 5-minute screening
+                unlocks confident, flag-based matching.
+              </p>
+            </div>
+            <a
+              href={APP_URLS.screening}
+              className="text-sm font-semibold text-amber-900 underline underline-offset-2 whitespace-nowrap"
+            >
+              Add the screening →
+            </a>
+          </div>
+        )}
+
+        {/* India model: therapists first, clinics alongside — one quiet cross-link */}
+        {serviceModel !== 'CLINIC_DIRECTORY' && isParent && (
+          <a
+            href={`/clinics${typeof window !== 'undefined' ? window.location.search : ''}`}
+            className="block rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 hover:border-teal-300 transition-colors"
+          >
+            Prefer one team for everything?{' '}
+            <span className="font-semibold text-teal-700">See multi-disciplinary clinics →</span>
+          </a>
+        )}
+
         {/* Results */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -451,7 +522,51 @@ function MarketplacePageContent() {
                     key={therapist.id}
                     className="rounded-2xl overflow-hidden hover:shadow-lg transition-shadow duration-200"
                   >
-                    <div className="p-6">
+                    <div className="p-6 relative">
+                      {isParent && (
+                        <button
+                          onClick={() => toggleSave.mutate({ therapistId: therapist.id })}
+                          aria-label={savedIds.has(therapist.id) ? 'Remove from saved' : 'Save therapist'}
+                          className={`absolute top-4 right-4 p-1.5 rounded-lg transition-colors ${
+                            savedIds.has(therapist.id) ? 'text-rose-500' : 'text-gray-300 hover:text-rose-400'
+                          }`}
+                        >
+                          <svg className="w-5 h-5" fill={savedIds.has(therapist.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        </button>
+                      )}
+                      {therapist.match && therapist.match.tier !== 'none' && (
+                        <div className="mb-3">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${
+                              therapist.match.tier === 'strong'
+                                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                : therapist.match.tier === 'likely'
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : 'bg-slate-50 text-slate-500 border border-slate-200'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                therapist.match.tier === 'strong'
+                                  ? 'bg-teal-500'
+                                  : therapist.match.tier === 'likely'
+                                    ? 'bg-amber-500'
+                                    : 'bg-slate-400'
+                              }`}
+                            />
+                            {therapist.match.tier === 'strong'
+                              ? 'STRONG FIT'
+                              : therapist.match.tier === 'likely'
+                                ? 'LIKELY A FIT'
+                                : 'ALSO RELEVANT'}
+                          </span>
+                          {therapist.match.reason && (
+                            <p className="text-xs text-gray-500 mt-1.5">{therapist.match.reason}</p>
+                          )}
+                        </div>
+                      )}
                       {/* Avatar + Name */}
                       <div className="flex items-start gap-4 mb-4">
                         <Avatar src={avatarUrl || undefined} name={name} size="xl" className="border-2 border-teal-100" />

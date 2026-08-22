@@ -12,6 +12,8 @@ import {
   useCreateBooking,
 } from '@/hooks/use-marketplace';
 import { formatCurrency, formatDuration } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { getMyChildren } from '@/lib/api/find-care';
 import type { SessionType, SessionPricing as SessionPricingType } from '@/lib/api/marketplace';
 import { format } from 'date-fns';
 import {
@@ -174,6 +176,12 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const { data: myChildren } = useQuery({ queryKey: ['find-care', 'children'], queryFn: getMyChildren });
+  const [childId, setChildId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('upllyft_selected_child') : null,
+  );
+  const selectedChildId =
+    childId && myChildren?.some((c) => c.id === childId) ? childId : myChildren?.[0]?.id ?? null;
 
   const { data: therapist, isLoading: loadingProfile } = useTherapistProfile(therapistId);
   const { data: sessionTypes, isLoading: loadingTypes } = useTherapistSessionTypes(therapistId);
@@ -241,6 +249,7 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
         startDateTime: selectedSlot,
         timezone,
         patientNotes: notes || undefined,
+        childId: selectedChildId || undefined,
       },
       {
         onSuccess: () => {
@@ -470,6 +479,34 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
                   </div>
 
                   <Separator />
+
+                  {/* Who the session is for */}
+                  {(myChildren?.length ?? 0) > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Who is this session for?
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {myChildren!.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => setChildId(c.id)}
+                            className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                              c.id === selectedChildId
+                                ? 'bg-teal-600 border-teal-600 text-white'
+                                : 'bg-white border-gray-200 text-gray-600 hover:border-teal-300'
+                            }`}
+                          >
+                            {c.firstName}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1.5">
+                        Linking the session to your child keeps their care history in one place.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Notes */}
                   <div>

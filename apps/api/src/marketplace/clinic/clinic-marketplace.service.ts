@@ -1,18 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import {
+  classifyClinicDisciplines,
+  matchClinic,
+  tierRank,
+  type ChildNeeds,
+} from '../matching/matching.util';
 
 @Injectable()
 export class ClinicMarketplaceService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async searchClinics(params: {
-    search?: string;
-    specialization?: string;
-    country?: string;
-    page: number;
-    limit: number;
-  }) {
+  async searchClinics(
+    params: {
+      search?: string;
+      specialization?: string;
+      country?: string;
+      page: number;
+      limit: number;
+    },
+    needs?: ChildNeeds,
+  ) {
     const where: Prisma.ClinicWhereInput = { isPublic: true };
 
     if (params.country) {
@@ -31,6 +40,7 @@ export class ClinicMarketplaceService {
     }
 
     const skip = (params.page - 1) * params.limit;
+    const fitMode = !!needs && needs.source !== 'none';
 
     const [clinics, total] = await Promise.all([
       this.prisma.clinic.findMany({
@@ -38,19 +48,38 @@ export class ClinicMarketplaceService {
         include: {
           _count: { select: { therapists: true } },
         },
-        skip,
-        take: params.limit,
+        // In fit mode tier-first ranking spans the whole result set, so the page window
+        // is applied after the in-memory sort (clinic counts are small).
+        ...(fitMode ? {} : { skip, take: params.limit }),
         orderBy: { rating: 'desc' },
       }),
       this.prisma.clinic.count({ where }),
     ]);
 
+    const withMatch = clinics.map((c) => ({
+      ...c,
+      match: needs ? matchClinic(classifyClinicDisciplines(c.specializations), needs) : undefined,
+    }));
+
+    const results = fitMode
+      ? withMatch
+          .sort(
+            (a, b) =>
+              tierRank(a.match!.tier) - tierRank(b.match!.tier) ||
+              (b.rating ?? 0) - (a.rating ?? 0),
+          )
+          .slice(skip, skip + params.limit)
+      : withMatch;
+
     return {
-      clinics,
+      clinics: results,
       total,
       page: params.page,
       limit: params.limit,
       totalPages: Math.ceil(total / params.limit),
+      needs: needs
+        ? { source: needs.source, flaggedDomains: needs.flaggedDomains, concern: needs.concern }
+        : undefined,
     };
   }
 

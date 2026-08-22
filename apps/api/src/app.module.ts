@@ -100,6 +100,7 @@ import { FacilitiesModule } from './facilities/facilities.module';
 import { NurseryModule } from './nursery/nursery.module';
 import { ChildClaimsModule } from './child-claims/child-claims.module';
 import { ObservationsModule } from './observations/observations.module';
+import { MomentsModule } from './moments/moments.module';
 import { ConcernsModule } from './concerns/concerns.module';
 import { SupportPlansModule } from './support-plans/support-plans.module';
 import { DevelopmentalReviewsModule } from './developmental-reviews/developmental-reviews.module';
@@ -111,6 +112,7 @@ import { AuditModule } from './audit/audit.module';
 import { RetentionModule } from './retention/retention.module';
 import { ClinicModule } from './clinic/clinic.module';
 import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace.module';
+import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
 
 
 @Module({
@@ -176,6 +178,7 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     PackageModule,
     DisputeModule,
     ClinicMarketplaceModule,
+    ShortlistModule,
     BannerAdsModule,
 
     // Case management
@@ -224,6 +227,7 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     NurseryModule,
     ChildClaimsModule,
     ObservationsModule,
+    MomentsModule,
     ConcernsModule,
     SupportPlansModule,
     DevelopmentalReviewsModule,

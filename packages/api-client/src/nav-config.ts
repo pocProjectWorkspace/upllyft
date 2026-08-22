@@ -41,6 +41,12 @@ export function getNavItems(
     { label: 'Hub', app: 'main', href: APP_URLS.main },
   ];
 
+  // Everyday Moments lives inside the main app (/moments) but is a distinct parent
+  // destination — same pattern as the Nursery tab below. Parents (USER) only.
+  if (role === 'USER') {
+    items.push({ label: 'Moments', app: 'main', href: `${APP_URLS.main}/moments` });
+  }
+
   if (isProfessional || isAdmin || isSuperAdmin) {
     items.push({ label: 'Cases', app: 'cases', href: APP_URLS.cases });
   }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useRegion, APP_URLS, useAuth } from '@upllyft/api-client';
 import { BookingShell } from '@/components/booking-shell';
 import { useSearchClinics } from '@/hooks/use-clinics';
+import { useShortlistIds, useToggleShortlist } from '@/hooks/use-shortlist';
 import { formatCurrency } from '@/lib/utils';
 import type { ClinicSearchFilters } from '@/lib/api/clinics';
 import { Card, Badge, Avatar, Skeleton, Input, Button, MiraNudge } from '@upllyft/ui';
@@ -129,6 +130,17 @@ export default function ClinicsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [specialization, setSpecialization] = useState('');
   const [page, setPage] = useState(1);
+  // Discovery fit context (from /find-care): child screening match or a picked concern.
+  const [fitChildId, setFitChildId] = useState('');
+  const [fitConcern, setFitConcern] = useState('');
+
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const urlChildId = sp.get('childId');
+    const urlConcern = sp.get('concern');
+    if (urlChildId) setFitChildId(urlChildId);
+    if (urlConcern) setFitConcern(urlConcern);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -142,6 +154,8 @@ export default function ClinicsPage() {
     search: debouncedSearch || undefined,
     specialization: specialization || undefined,
     country: region?.country,
+    childId: fitChildId || undefined,
+    concern: fitConcern || undefined,
     page,
     limit: ITEMS_PER_PAGE,
   };
@@ -149,6 +163,13 @@ export default function ClinicsPage() {
   const { data, isLoading } = useSearchClinics(filters);
   const clinics = data?.clinics ?? [];
   const totalPages = data?.totalPages ?? 1;
+  const needs = data?.needs;
+  const inFitMode = !!needs && needs.source !== 'none';
+  const strongCount = clinics.filter((c) => c.match?.tier === 'strong').length;
+  const savedIds = useShortlistIds();
+  const toggleSave = useToggleShortlist();
+  const { user } = useAuth();
+  const isParent = user?.role === 'USER';
 
   return (
     <BookingShell>
@@ -201,6 +222,38 @@ export default function ClinicsPage() {
           chipText="Help me find the right clinic"
         />
 
+        {/* Fit context — honest about where the ranking comes from */}
+        {inFitMode && needs?.source === 'screening' && (
+          <div className="rounded-2xl border border-teal-200 bg-teal-50/60 px-5 py-4">
+            <p className="text-sm font-semibold text-teal-900">
+              Matched to the screening — {strongCount} strong {strongCount === 1 ? 'fit' : 'fits'}
+            </p>
+            <p className="text-xs text-teal-800/70 mt-0.5">
+              &ldquo;Strong fit&rdquo; means the clinic&rsquo;s team addresses a flagged area from
+              the screening. No scores, no percentages — on purpose.
+            </p>
+          </div>
+        )}
+        {inFitMode && needs?.source === 'self_reported' && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/60 px-5 py-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex-1 min-w-[240px]">
+              <p className="text-sm font-semibold text-amber-900">
+                A starting point, based on what you told us — not a screening
+              </p>
+              <p className="text-xs text-amber-800/70 mt-0.5">
+                These clinics often help with what you described. A 5-minute screening unlocks
+                confident, flag-based matching.
+              </p>
+            </div>
+            <a
+              href={APP_URLS.screening}
+              className="text-sm font-semibold text-amber-900 underline underline-offset-2 whitespace-nowrap"
+            >
+              Add the screening →
+            </a>
+          </div>
+        )}
+
         {/* Results */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -224,7 +277,51 @@ export default function ClinicsPage() {
                   key={clinic.id}
                   className="rounded-2xl overflow-hidden hover:shadow-lg transition-shadow duration-200"
                 >
-                  <div className="p-6">
+                  <div className="p-6 relative">
+                    {isParent && (
+                      <button
+                        onClick={() => toggleSave.mutate({ clinicId: clinic.id })}
+                        aria-label={savedIds.has(clinic.id) ? 'Remove from saved' : 'Save clinic'}
+                        className={`absolute top-4 right-4 p-1.5 rounded-lg transition-colors ${
+                          savedIds.has(clinic.id) ? 'text-rose-500' : 'text-gray-300 hover:text-rose-400'
+                        }`}
+                      >
+                        <svg className="w-5 h-5" fill={savedIds.has(clinic.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                      </button>
+                    )}
+                    {clinic.match && clinic.match.tier !== 'none' && (
+                      <div className="mb-3">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${
+                            clinic.match.tier === 'strong'
+                              ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                              : clinic.match.tier === 'likely'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : 'bg-slate-50 text-slate-500 border border-slate-200'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              clinic.match.tier === 'strong'
+                                ? 'bg-teal-500'
+                                : clinic.match.tier === 'likely'
+                                  ? 'bg-amber-500'
+                                  : 'bg-slate-400'
+                            }`}
+                          />
+                          {clinic.match.tier === 'strong'
+                            ? 'STRONG FIT'
+                            : clinic.match.tier === 'likely'
+                              ? 'LIKELY A FIT'
+                              : 'ALSO RELEVANT'}
+                        </span>
+                        {clinic.match.reason && (
+                          <p className="text-xs text-gray-500 mt-1.5">{clinic.match.reason}</p>
+                        )}
+                      </div>
+                    )}
                     {/* Logo + Name */}
                     <div className="flex items-start gap-4 mb-4">
                       <Avatar

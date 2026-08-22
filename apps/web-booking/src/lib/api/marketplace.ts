@@ -36,6 +36,7 @@ export interface TherapistProfile {
   acceptingBookings: boolean;
   startingPrice?: number;
   user?: { id: string; name: string; email: string; image?: string };
+  match?: ProviderMatch;
 }
 
 export interface SessionType {
@@ -142,6 +143,7 @@ export interface TherapistSearchResult {
   page: number;
   limit: number;
   totalPages: number;
+  needs?: DiscoveryNeeds;
 }
 
 export interface TherapistSearchFilters {
@@ -150,8 +152,26 @@ export interface TherapistSearchFilters {
   language?: string;
   minRating?: number;
   maxPrice?: number;
+  /** Guardian-only: tier-match results against this child's screening flags */
+  childId?: string;
+  /** Parent-picked concern id (talking/sounds/feelings/moving/notsure) → soft matches */
+  concern?: string;
   page?: number;
   limit?: number;
+}
+
+export type MatchTier = 'strong' | 'likely' | 'also' | 'none';
+
+export interface ProviderMatch {
+  tier: MatchTier;
+  /** One plain-language "why" line, or null */
+  reason: string | null;
+}
+
+export interface DiscoveryNeeds {
+  source: 'screening' | 'self_reported' | 'none';
+  flaggedDomains: string[];
+  concern: string | null;
 }
 
 export interface TherapistAnalytics {
@@ -188,6 +208,8 @@ export interface CreateBookingDto {
   timezone: string;
   patientNotes?: string;
   patientFiles?: string[];
+  /** Which child the session is for (guardian-verified server-side) */
+  childId?: string;
 }
 
 export interface RejectBookingDto {
@@ -283,6 +305,8 @@ export async function searchTherapists(filters?: TherapistSearchFilters): Promis
   if (filters?.language) params.language = filters.language;
   if (filters?.minRating) params.minRating = String(filters.minRating);
   if (filters?.maxPrice) params.maxPrice = String(filters.maxPrice);
+  if (filters?.childId) params.childId = filters.childId;
+  if (filters?.concern) params.concern = filters.concern;
   if (filters?.page) params.page = String(filters.page);
   if (filters?.limit) params.limit = String(filters.limit);
   const res = await apiClient.get('/marketplace/therapists', { params });

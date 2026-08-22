@@ -163,6 +163,8 @@ model User {
   claimedChildClaims   ChildClaim[]              @relation("ClaimedChildClaims")
   assessmentsAnswered  Assessment[]              @relation("AssessmentRespondent")
   observationsAuthored Observation[]             @relation("ObservationAuthor")
+  momentsAuthored      Moment[]                  @relation("MomentAuthor")
+  shortlistEntries     ShortlistEntry[]          @relation("UserShortlist")
   concernsRaised       Concern[]                 @relation("ConcernRaiser")
   createdSupportPlans  SupportPlan[]             @relation("CreatedSupportPlans")
   supportReviews       SupportReview[]           @relation("SupportPlanReviewer")
@@ -1411,6 +1413,9 @@ model Child {
   convertedFromLead                     Lead?                     @relation("LeadConversion")
   claims                                ChildClaim[]              @relation("ChildClaims")
   observations                          Observation[]             @relation("ChildObservations")
+  moments                               Moment[]                  @relation("ChildMoments")
+  bookings                              Booking[]                 @relation("ChildBookings")
+  miraInsights                          MiraInsight[]             @relation("ChildMiraInsights")
   concerns                              Concern[]                 @relation("ChildConcerns")
   supportPlans                          SupportPlan[]             @relation("ChildSupportPlans")
   developmentalReviews                  DevelopmentalReview[]     @relation("ChildDevReviews")
@@ -1829,6 +1834,7 @@ model TherapistProfile {
   primaryCases    Case[]          @relation("PrimaryTherapistCases")
   caseAssignments CaseTherapist[] @relation("CaseTherapistAssignments")
 
+  shortlistedBy            ShortlistEntry[]            @relation("ShortlistedTherapist")
   @@index([userId])
   @@index([isActive])
   @@index([acceptingBookings])
@@ -2000,6 +2006,11 @@ model Booking {
   receptionistNotes String?
   clinicId          String?
 
+  // WHICH CHILD the session is for. Nullable — bookings pre-date children here, and an
+  // adult can book for themselves. SetNull: removing a child must not delete the
+  // financial/booking record.
+  childId String?
+
   // --- UAE Phase 2: modality + payer route + financial clearance ---
   modality              SessionModality?
   paymentRoute          PayerType                @default(SELF_PAY)
@@ -2016,6 +2027,7 @@ model Booking {
   sessionType            SessionType                    @relation(fields: [sessionTypeId], references: [id])
   therapist              TherapistProfile               @relation(fields: [therapistId], references: [id])
   clinic                 Clinic?                        @relation("ClinicBookings", fields: [clinicId], references: [id])
+  child                  Child?                         @relation("ChildBookings", fields: [childId], references: [id], onDelete: SetNull)
   disputes               SessionDispute[]
   ratings                SessionRating[]
   caseSession            CaseSession?
@@ -2023,6 +2035,7 @@ model Booking {
 
   @@index([patientId])
   @@index([therapistId])
+  @@index([childId])
   @@index([sessionTypeId])
   @@index([organizationId])
   @@index([status])
@@ -4677,6 +4690,7 @@ model Clinic {
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
 
+  shortlistedBy    ShortlistEntry[]   @relation("ShortlistedClinic")
   @@index([adminId])
   @@index([organizationId])
   @@map("clinics")
@@ -5447,4 +5461,124 @@ model HandoverRecord {
   @@index([childId, status])
   @@index([facilityId, status])
   @@map("handover_records")
+}
+
+// ─── Everyday Moments — parent capture + Mira insight layer ──────────────────
+
+enum MomentCategory {
+  WENT_WELL /// "Something went well"
+  DIFFICULT /// "Something was difficult"
+  CHANGED /// "Something changed"
+  MILESTONE /// "A first / milestone"
+}
+
+enum MomentCaptureVia {
+  TEXT
+  VOICE
+}
+
+/// A small, real-life observation a PARENT captures about their own child.
+///
+/// Deliberately NOT an `Observation`. An observation is staff-authored and anchored to a
+/// `ChildAffiliation` so the consent gate applies by construction — but a parent needs no
+/// consent to record their own child, and a moment must exist for children with no
+/// facility affiliation at all. The two models share only the 8-domain vocabulary, so
+/// moments and observations can corroborate the same screening domains without blurring
+/// who may write what.
+///
+/// The only mandatory content is the text itself ("Nothing to fill in — just what you
+/// told us"). Category, place and domain tags are proposed by Mira at capture time and
+/// confirmed by the parent — the system never auto-commits an interpretation.
+model Moment {
+  id      String @id @default(cuid())
+  childId String
+  child   Child  @relation("ChildMoments", fields: [childId], references: [id], onDelete: Cascade)
+
+  /// WHO captured it. SetNull so deleting an account does not erase the child's history.
+  createdById String?
+  createdBy   User?   @relation("MomentAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  text        String
+  category    MomentCategory?
+  capturedVia MomentCaptureVia @default(TEXT)
+  place       String?
+  /// When it happened, as told by the parent — feed and insights order by this.
+  occurredAt  DateTime         @default(now())
+
+  /// Same 8-domain vocabulary the screening uses (speechLanguage, sensoryProcessing, …),
+  /// parent-confirmed from Mira's proposal.
+  domainTags String[] @default([])
+
+  /// Mira's confirmed interpretation at capture time (what was heard, follow-up answers).
+  interpretation Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([childId, occurredAt])
+  @@index([childId, createdAt])
+  @@map("moments")
+}
+
+enum MiraInsightType {
+  RECURRING_CHALLENGE /// a pattern of difficulty worth watching
+  EMERGING_PROGRESS /// a skill appearing in more places / more often
+  STRATEGY_WORKS /// something that keeps helping across settings
+}
+
+enum MiraInsightStatus {
+  NEW
+  WATCHING /// parent chose "keep watching"
+  SHARED /// parent shared it with the care team
+  DISMISSED
+}
+
+/// A pattern Mira surfaced across a child's recent moments. Volume-governed (only a few
+/// at once) and never a conclusion — every insight is phrased as something to consider,
+/// and nothing becomes visible to anyone but the guardian unless they share it.
+model MiraInsight {
+  id      String @id @default(cuid())
+  childId String
+  child   Child  @relation("ChildMiraInsights", fields: [childId], references: [id], onDelete: Cascade)
+
+  type       MiraInsightType
+  title      String
+  body       String
+  whatHelped String?
+  whyMatters String?
+  /// Where the pattern showed up (Home, Nursery, Community, …).
+  settings   String[] @default([])
+  /// The moments the pattern was drawn from.
+  sourceMomentIds String[] @default([])
+
+  status      MiraInsightStatus @default(NEW)
+  generatedAt DateTime          @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([childId, status])
+  @@index([childId, generatedAt])
+  @@map("mira_insights")
+}
+
+/// A parent's saved providers ("shortlist"). One row per (user, provider); compare is a
+/// client-side view over these. Deliberately user-scoped, not child-scoped — a save is a
+/// bookmark, and splitting per child would just fragment it.
+model ShortlistEntry {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("UserShortlist", fields: [userId], references: [id], onDelete: Cascade)
+
+  therapistId String?
+  therapist   TherapistProfile? @relation("ShortlistedTherapist", fields: [therapistId], references: [id], onDelete: Cascade)
+  clinicId    String?
+  clinic      Clinic?           @relation("ShortlistedClinic", fields: [clinicId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, therapistId])
+  @@unique([userId, clinicId])
+  @@index([userId])
+  @@map("shortlist_entries")
 }
