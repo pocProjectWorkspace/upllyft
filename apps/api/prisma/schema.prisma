@@ -165,6 +165,7 @@ model User {
   observationsAuthored Observation[]             @relation("ObservationAuthor")
   momentsAuthored      Moment[]                  @relation("MomentAuthor")
   shortlistEntries     ShortlistEntry[]          @relation("UserShortlist")
+  libraryResources     LibraryResource[]         @relation("LibraryResourceUploader")
   concernsRaised       Concern[]                 @relation("ConcernRaiser")
   createdSupportPlans  SupportPlan[]             @relation("CreatedSupportPlans")
   supportReviews       SupportReview[]           @relation("SupportPlanReviewer")
@@ -1504,6 +1505,7 @@ model Organization {
   kind       OrgKind    @default(CLINIC_GROUP)
   facilities Facility[]
 
+  libraryResources LibraryResource[] @relation("OrgLibraryResources")
   @@index([slug])
   @@index([kind])
 }
@@ -5581,4 +5583,46 @@ model ShortlistEntry {
   @@unique([userId, clinicId])
   @@index([userId])
   @@map("shortlist_entries")
+}
+
+// ─── Library resources — admin/org-uploaded files for the Resources app ──────
+
+enum LibraryResourceScope {
+  PLATFORM /// visible to every user on the platform
+  ORGANIZATION /// visible to members of the owning organization only
+}
+
+/// A file a platform admin or an org admin uploads for families to use — guides,
+/// printable worksheets, templates, videos. Deliberately NOT a `Worksheet`: worksheets
+/// are AI-generated, versioned, reviewable clinical-ish artifacts; this is a plain
+/// tagged file with scoped visibility.
+model LibraryResource {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+
+  /// What kind of resource this is (GUIDE, WORKSHEET, VIDEO, ARTICLE, TEMPLATE, OTHER).
+  /// Validated app-side so the list can evolve without a migration.
+  resourceType String
+  tags         String[] @default([])
+
+  fileUrl  String
+  fileName String
+  mimeType String
+  fileSize Int
+
+  scope          LibraryResourceScope
+  organizationId String?
+  organization   Organization? @relation("OrgLibraryResources", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  uploadedById String?
+  uploadedBy   User?   @relation("LibraryResourceUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scope, createdAt])
+  @@index([organizationId])
+  @@index([resourceType])
+  @@map("library_resources")
 }

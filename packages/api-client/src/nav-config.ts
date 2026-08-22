@@ -120,6 +120,7 @@ export function getNavItems(
 
   const resourcesChildren: GlobalNavChild[] = [
     { label: 'My Library', href: R },
+    { label: 'Resource Library', href: `${R}/library` },
     { label: 'Create', href: `${R}/create` },
     { label: 'Community', href: `${R}/community` },
     ...(isParent
