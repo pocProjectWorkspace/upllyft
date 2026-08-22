@@ -451,7 +451,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
           </a>
 
           <a
-            href={APP_URLS.booking}
+            href={`${APP_URLS.booking}/find-care`}
             className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 group transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(59,130,246,0.2)] relative"
           >
             {recommendedStep === 'booking' && (
@@ -512,7 +512,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Upcoming Sessions</h3>
-            <a href={APP_URLS.booking} className="text-sm text-teal-600 font-medium hover:text-teal-700">
+            <a href={`${APP_URLS.booking}/bookings`} className="text-sm text-teal-600 font-medium hover:text-teal-700">
               View All
             </a>
           </div>

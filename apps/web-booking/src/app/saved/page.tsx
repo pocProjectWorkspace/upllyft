@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Avatar, Button, Card, Skeleton } from '@upllyft/ui';
 import { BookingShell } from '@/components/booking-shell';
 import { useShortlist, useToggleShortlist } from '@/hooks/use-shortlist';
@@ -15,11 +15,25 @@ const MAX_COMPARE = 3;
  * shortlist (not from result cards) and covers the essentials only — no factor
  * matrices.
  */
-export default function SavedPage() {
+function SavedContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: entries, isLoading } = useShortlist();
   const toggle = useToggleShortlist();
   const [compareIds, setCompareIds] = useState<string[]>([]);
+
+  // Arriving from Discovery's "Compare selected" — preselect those providers.
+  useEffect(() => {
+    const pre = searchParams.get('compare');
+    if (!pre || !entries) return;
+    const wanted = new Set(pre.split(','));
+    const ids = entries
+      .filter((e) => (e.therapistId && wanted.has(e.therapistId)) || (e.clinicId && wanted.has(e.clinicId)))
+      .map((e) => e.id)
+      .slice(0, MAX_COMPARE);
+    if (ids.length >= 2) setCompareIds(ids);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries]);
 
   const list = entries ?? [];
   const comparing = list.filter((e) => compareIds.includes(e.id));
@@ -220,5 +234,13 @@ export default function SavedPage() {
         )}
       </div>
     </BookingShell>
+  );
+}
+
+export default function SavedPage() {
+  return (
+    <Suspense fallback={null}>
+      <SavedContent />
+    </Suspense>
   );
 }
