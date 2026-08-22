@@ -34,6 +34,7 @@ export class BookingController {
             dto.timezone,
             dto.patientNotes,
             dto.patientFiles,
+            dto.childId,
         );
     }
 

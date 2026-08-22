@@ -164,6 +164,7 @@ model User {
   assessmentsAnswered  Assessment[]              @relation("AssessmentRespondent")
   observationsAuthored Observation[]             @relation("ObservationAuthor")
   momentsAuthored      Moment[]                  @relation("MomentAuthor")
+  shortlistEntries     ShortlistEntry[]          @relation("UserShortlist")
   concernsRaised       Concern[]                 @relation("ConcernRaiser")
   createdSupportPlans  SupportPlan[]             @relation("CreatedSupportPlans")
   supportReviews       SupportReview[]           @relation("SupportPlanReviewer")
@@ -1413,6 +1414,7 @@ model Child {
   claims                                ChildClaim[]              @relation("ChildClaims")
   observations                          Observation[]             @relation("ChildObservations")
   moments                               Moment[]                  @relation("ChildMoments")
+  bookings                              Booking[]                 @relation("ChildBookings")
   miraInsights                          MiraInsight[]             @relation("ChildMiraInsights")
   concerns                              Concern[]                 @relation("ChildConcerns")
   supportPlans                          SupportPlan[]             @relation("ChildSupportPlans")
@@ -1832,6 +1834,7 @@ model TherapistProfile {
   primaryCases    Case[]          @relation("PrimaryTherapistCases")
   caseAssignments CaseTherapist[] @relation("CaseTherapistAssignments")
 
+  shortlistedBy            ShortlistEntry[]            @relation("ShortlistedTherapist")
   @@index([userId])
   @@index([isActive])
   @@index([acceptingBookings])
@@ -2003,6 +2006,11 @@ model Booking {
   receptionistNotes String?
   clinicId          String?
 
+  // WHICH CHILD the session is for. Nullable — bookings pre-date children here, and an
+  // adult can book for themselves. SetNull: removing a child must not delete the
+  // financial/booking record.
+  childId String?
+
   // --- UAE Phase 2: modality + payer route + financial clearance ---
   modality              SessionModality?
   paymentRoute          PayerType                @default(SELF_PAY)
@@ -2019,6 +2027,7 @@ model Booking {
   sessionType            SessionType                    @relation(fields: [sessionTypeId], references: [id])
   therapist              TherapistProfile               @relation(fields: [therapistId], references: [id])
   clinic                 Clinic?                        @relation("ClinicBookings", fields: [clinicId], references: [id])
+  child                  Child?                         @relation("ChildBookings", fields: [childId], references: [id], onDelete: SetNull)
   disputes               SessionDispute[]
   ratings                SessionRating[]
   caseSession            CaseSession?
@@ -2026,6 +2035,7 @@ model Booking {
 
   @@index([patientId])
   @@index([therapistId])
+  @@index([childId])
   @@index([sessionTypeId])
   @@index([organizationId])
   @@index([status])
@@ -4680,6 +4690,7 @@ model Clinic {
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
 
+  shortlistedBy    ShortlistEntry[]   @relation("ShortlistedClinic")
   @@index([adminId])
   @@index([organizationId])
   @@map("clinics")
@@ -5549,4 +5560,25 @@ model MiraInsight {
   @@index([childId, status])
   @@index([childId, generatedAt])
   @@map("mira_insights")
+}
+
+/// A parent's saved providers ("shortlist"). One row per (user, provider); compare is a
+/// client-side view over these. Deliberately user-scoped, not child-scoped — a save is a
+/// bookmark, and splitting per child would just fragment it.
+model ShortlistEntry {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("UserShortlist", fields: [userId], references: [id], onDelete: Cascade)
+
+  therapistId String?
+  therapist   TherapistProfile? @relation("ShortlistedTherapist", fields: [therapistId], references: [id], onDelete: Cascade)
+  clinicId    String?
+  clinic      Clinic?           @relation("ShortlistedClinic", fields: [clinicId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, therapistId])
+  @@unique([userId, clinicId])
+  @@index([userId])
+  @@map("shortlist_entries")
 }

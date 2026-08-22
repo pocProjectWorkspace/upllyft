@@ -21,6 +21,11 @@ export class CreateBookingDto {
     @IsString({ each: true })
     @IsOptional()
     patientFiles?: string[];
+
+    /** Which child the session is for (guardian-verified server-side). */
+    @IsString()
+    @IsOptional()
+    childId?: string;
 }
 
 export class RejectBookingDto {

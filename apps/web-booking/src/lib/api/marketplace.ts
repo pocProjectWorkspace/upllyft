@@ -208,6 +208,8 @@ export interface CreateBookingDto {
   timezone: string;
   patientNotes?: string;
   patientFiles?: string[];
+  /** Which child the session is for (guardian-verified server-side) */
+  childId?: string;
 }
 
 export interface RejectBookingDto {

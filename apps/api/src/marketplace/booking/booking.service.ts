@@ -27,7 +27,25 @@ export class BookingService {
         timezone: string,
         patientNotes?: string,
         patientFiles?: string[],
+        childId?: string,
     ) {
+        // A booking may name which child it is for — but only the child's own guardian
+        // can make that link.
+        if (childId) {
+            const child = await this.prisma.child.findUnique({
+                where: { id: childId },
+                select: { profile: { select: { userId: true } } },
+            });
+            if (!child) throw new BadRequestException('Child not found');
+            if (child.profile?.userId !== patientId) {
+                const guardian = await this.prisma.guardian.findFirst({
+                    where: { childId, userId: patientId, hasAuthorityToConsent: true },
+                    select: { id: true },
+                });
+                if (!guardian) throw new BadRequestException('You do not have access to this child');
+            }
+        }
+
         // Validate therapist exists and is active
         const therapist = await this.prisma.therapistProfile.findUnique({
             where: { id: therapistId },
@@ -117,6 +135,7 @@ export class BookingService {
                 currency: pricing.currency,
                 patientNotes,
                 patientFiles: patientFiles || [],
+                childId: childId || null,
                 acceptanceDeadline: addHours(new Date(), 4),
             },
         });

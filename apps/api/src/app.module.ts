@@ -112,6 +112,7 @@ import { AuditModule } from './audit/audit.module';
 import { RetentionModule } from './retention/retention.module';
 import { ClinicModule } from './clinic/clinic.module';
 import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace.module';
+import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
 
 
 @Module({
@@ -177,6 +178,7 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     PackageModule,
     DisputeModule,
     ClinicMarketplaceModule,
+    ShortlistModule,
     BannerAdsModule,
 
     // Case management
