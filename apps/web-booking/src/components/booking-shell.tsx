@@ -1,15 +1,13 @@
 'use client';
 
-import { useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader } from '@upllyft/ui';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 export function BookingShell({ children }: { children: ReactNode }) {
   const { user, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
-  const { serviceModel } = useRegion();
 
   if (isLoading) {
     return (
@@ -24,44 +22,9 @@ export function BookingShell({ children }: { children: ReactNode }) {
     return null;
   }
 
-  const isTherapist = user.role === 'THERAPIST';
-  const isAdmin = user.role === 'ADMIN';
-  const isClinicDirectory = serviceModel === 'CLINIC_DIRECTORY';
-
-  const patientLocal = isClinicDirectory
-    ? [
-        { label: 'Find Care', href: '/find-care', active: pathname === '/find-care' },
-        { label: 'Browse', href: '/discovery', active: pathname === '/discovery' },
-        { label: 'Saved', href: '/saved', active: pathname === '/saved' },
-        { label: 'My Bookings', href: '/bookings', active: pathname.startsWith('/bookings') },
-        { label: 'Invoices', href: '/invoices', active: pathname.startsWith('/invoices') },
-      ]
-    : [
-        { label: 'Find Care', href: '/find-care', active: pathname === '/find-care' },
-        { label: 'Browse', href: '/discovery', active: pathname === '/discovery' },
-        { label: 'Saved', href: '/saved', active: pathname === '/saved' },
-        { label: 'My Bookings', href: '/bookings', active: pathname.startsWith('/bookings') },
-        { label: 'Invoices', href: '/invoices', active: pathname.startsWith('/invoices') },
-      ];
-
-  const therapistLocal = [
-    { label: 'Dashboard', href: '/therapist/dashboard', active: pathname === '/therapist/dashboard' },
-    { label: 'Bookings & Availability', href: '/therapist/bookings', active: pathname === '/therapist/bookings' || pathname === '/therapist/availability' },
-    { label: 'Earnings', href: '/therapist/earnings', active: pathname === '/therapist/earnings' },
-    { label: 'Pricing', href: '/therapist/pricing', active: pathname === '/therapist/pricing' },
-  ];
-
-  const adminLocal = [
-    { label: 'Find Therapists', href: '/', active: pathname === '/' },
-    { label: 'Settings', href: '/admin/settings', active: pathname === '/admin/settings' },
-    { label: 'Commissions', href: '/admin/commissions', active: pathname === '/admin/commissions' },
-  ];
-
-  const localNavItems = isAdmin ? adminLocal : isTherapist ? therapistLocal : patientLocal;
-
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="booking" localNavItems={localNavItems} />
+      <AppHeader currentApp="booking" />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {children}
       </main>

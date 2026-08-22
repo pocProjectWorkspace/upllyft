@@ -2,13 +2,12 @@
 
 import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader } from '@upllyft/ui';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 export function ScreeningShell({ children }: { children: ReactNode }) {
   const { user, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   if (isLoading) {
     return (
@@ -23,17 +22,9 @@ export function ScreeningShell({ children }: { children: ReactNode }) {
     return null;
   }
 
-  const localNavItems = [
-    { label: 'My Screenings', href: '/', active: pathname === '/' },
-    { label: 'Insights', href: '/insights', active: pathname.startsWith('/insights') },
-    ...(user.role === 'THERAPIST'
-      ? [{ label: 'Shared With Me', href: '/shared', active: pathname === '/shared' }]
-      : []),
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="screening" localNavItems={localNavItems} />
+      <AppHeader currentApp="screening" />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {children}
       </main>
