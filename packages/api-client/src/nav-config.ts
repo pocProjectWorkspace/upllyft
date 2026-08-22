@@ -64,7 +64,12 @@ export function getNavItems(
   items.push(
     { label: 'Feed', app: 'community', href: APP_URLS.community },
     { label: 'Screening', app: 'screening', href: APP_URLS.screening },
-    { label: 'Booking', app: 'booking', href: APP_URLS.booking },
+    // A parent's entry to booking is the adaptive Find Care screen, not the raw browse
+    // grid — it reads what's known about the child and routes accordingly. Professionals
+    // land on the marketplace as before.
+    role === 'USER'
+      ? { label: 'Booking', app: 'booking', href: `${APP_URLS.booking}/find-care` }
+      : { label: 'Booking', app: 'booking', href: APP_URLS.booking },
     { label: 'Resources', app: 'resources', href: APP_URLS.resources },
   );
 
