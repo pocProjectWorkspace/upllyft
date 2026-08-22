@@ -100,6 +100,7 @@ import { FacilitiesModule } from './facilities/facilities.module';
 import { NurseryModule } from './nursery/nursery.module';
 import { ChildClaimsModule } from './child-claims/child-claims.module';
 import { ObservationsModule } from './observations/observations.module';
+import { MomentsModule } from './moments/moments.module';
 import { ConcernsModule } from './concerns/concerns.module';
 import { SupportPlansModule } from './support-plans/support-plans.module';
 import { DevelopmentalReviewsModule } from './developmental-reviews/developmental-reviews.module';
@@ -224,6 +225,7 @@ import { ClinicMarketplaceModule } from './marketplace/clinic/clinic-marketplace
     NurseryModule,
     ChildClaimsModule,
     ObservationsModule,
+    MomentsModule,
     ConcernsModule,
     SupportPlansModule,
     DevelopmentalReviewsModule,
