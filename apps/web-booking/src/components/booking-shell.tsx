@@ -30,11 +30,13 @@ export function BookingShell({ children }: { children: ReactNode }) {
 
   const patientLocal = isClinicDirectory
     ? [
+        { label: 'Find Care', href: '/find-care', active: pathname === '/find-care' },
         { label: 'Find Clinics', href: '/clinics', active: pathname === '/clinics' || pathname.startsWith('/clinics/') },
         { label: 'My Bookings', href: '/bookings', active: pathname.startsWith('/bookings') },
         { label: 'Invoices', href: '/invoices', active: pathname.startsWith('/invoices') },
       ]
     : [
+        { label: 'Find Care', href: '/find-care', active: pathname === '/find-care' },
         { label: 'Find Therapists', href: '/', active: pathname === '/' },
         { label: 'My Bookings', href: '/bookings', active: pathname.startsWith('/bookings') },
         { label: 'Invoices', href: '/invoices', active: pathname.startsWith('/invoices') },

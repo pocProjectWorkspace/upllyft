@@ -1,5 +1,7 @@
 import { apiClient } from '@upllyft/api-client';
 
+import type { ProviderMatch, DiscoveryNeeds } from './marketplace';
+
 export interface ClinicSummary {
   id: string;
   name: string;
@@ -14,6 +16,7 @@ export interface ClinicSummary {
   totalReviews: number;
   specializations: string[];
   _count: { therapists: number };
+  match?: ProviderMatch;
 }
 
 export interface TherapistInClinic {
@@ -35,6 +38,7 @@ export interface ClinicDetail extends ClinicSummary {
 }
 
 export interface ClinicSearchResult {
+  needs?: DiscoveryNeeds;
   clinics: ClinicSummary[];
   total: number;
   page: number;
@@ -46,6 +50,10 @@ export interface ClinicSearchFilters {
   search?: string;
   specialization?: string;
   country?: string;
+  /** Guardian-only: tier-match results against this child's screening flags */
+  childId?: string;
+  /** Parent-picked concern id → soft matches */
+  concern?: string;
   page?: number;
   limit?: number;
 }
@@ -55,6 +63,8 @@ export async function searchClinics(filters?: ClinicSearchFilters): Promise<Clin
   if (filters?.search) params.search = filters.search;
   if (filters?.specialization) params.specialization = filters.specialization;
   if (filters?.country) params.country = filters.country;
+  if (filters?.childId) params.childId = filters.childId;
+  if (filters?.concern) params.concern = filters.concern;
   if (filters?.page) params.page = String(filters.page);
   if (filters?.limit) params.limit = String(filters.limit);
   const { data } = await apiClient.get<ClinicSearchResult>('/marketplace/clinics', { params });

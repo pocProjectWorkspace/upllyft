@@ -7,6 +7,8 @@ import {
     AddAvailabilityExceptionDto,
     GetAvailableSlotsDto
 } from '../booking/dto/booking.dto';
+import { MatchingService } from '../matching/matching.service';
+import { classifyDiscipline, matchTherapist, tierRank } from '../matching/matching.util';
 
 @Controller('marketplace/therapists')
 @UseGuards(JwtAuthGuard)
@@ -14,16 +16,25 @@ export class TherapistProfileController {
     constructor(
         private prisma: PrismaService,
         private availabilityService: AvailabilityService,
+        private matchingService: MatchingService,
     ) { }
 
     /**
-     * Search/List all therapists
+     * Search/List all therapists.
+     *
+     * With `childId` (guardian-only) or `concern`, each result carries a
+     * `match: { tier, reason }` — screening-backed 'strong', self-reported 'likely',
+     * neutral 'also'/'none' — and fit-sorting puts strong fits first. Without them
+     * this is the same rating-sorted browse it always was.
      */
     @Get()
     async searchTherapists(
+        @Req() req: any,
         @Query('specialization') specialization?: string,
         @Query('language') language?: string,
         @Query('minRating') minRating?: string,
+        @Query('childId') childId?: string,
+        @Query('concern') concern?: string,
         @Query('page') page = '1',
         @Query('limit') limit = '20',
     ) {
@@ -54,6 +65,9 @@ export class TherapistProfileController {
             };
         }
 
+        const needs = await this.matchingService.resolveNeeds(req.user, childId, concern);
+        const fitMode = needs.source !== 'none';
+
         const [therapists, total] = await Promise.all([
             this.prisma.therapistProfile.findMany({
                 where,
@@ -70,8 +84,10 @@ export class TherapistProfileController {
                         where: { isActive: true },
                     },
                 },
-                skip,
-                take: limitNum,
+                // Fit mode ranks tier-first across the whole result set, so tier must be
+                // computed before pagination. Result counts are small enough (tens, not
+                // thousands) that fetching the page window after an in-memory sort is fine.
+                ...(fitMode ? {} : { skip, take: limitNum }),
                 orderBy: {
                     overallRating: 'desc',
                 },
@@ -79,12 +95,24 @@ export class TherapistProfileController {
             this.prisma.therapistProfile.count({ where }),
         ]);
 
+        const withMatch = therapists.map((t) => ({
+            ...t,
+            match: matchTherapist(classifyDiscipline(t.title, t.specializations), needs),
+        }));
+
+        const results = fitMode
+            ? withMatch
+                .sort((a, b) => tierRank(a.match.tier) - tierRank(b.match.tier) || (b.overallRating ?? 0) - (a.overallRating ?? 0))
+                .slice(skip, skip + limitNum)
+            : withMatch;
+
         return {
-            therapists,
+            therapists: results,
             total,
             page: pageNum,
             limit: limitNum,
             totalPages: Math.ceil(total / limitNum),
+            needs: { source: needs.source, flaggedDomains: needs.flaggedDomains, concern: needs.concern },
         };
     }
 
