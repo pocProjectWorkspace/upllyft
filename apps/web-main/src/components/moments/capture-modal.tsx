@@ -30,6 +30,8 @@ export function CaptureModal({ childId, childName, open, onClose }: CaptureModal
   const [interpretation, setInterpretation] = useState<MomentInterpretation | null>(null);
   const [listening, setListening] = useState(false);
   const [usedVoice, setUsedVoice] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   const interpret = useInterpretMoment(childId);
@@ -47,6 +49,8 @@ export function CaptureModal({ childId, childName, open, onClose }: CaptureModal
       setDomainTags([]);
       setPlace('');
       setInterpretation(null);
+      setSpeechError(null);
+      setSaveError(false);
       stopListening();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -58,6 +62,8 @@ export function CaptureModal({ childId, childName, open, onClose }: CaptureModal
     const rec = new Recognition();
     rec.continuous = true;
     rec.interimResults = false;
+    rec.lang = navigator.language || 'en-US';
+    setSpeechError(null);
     rec.onresult = (e: any) => {
       let heard = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -67,7 +73,16 @@ export function CaptureModal({ childId, childName, open, onClose }: CaptureModal
       // parent falls back to typing without losing anything.
       if (heard) setText((t) => (t ? `${t} ${heard}` : heard).trim());
     };
-    rec.onerror = () => setListening(false);
+    rec.onerror = (e: any) => {
+      setListening(false);
+      // Whatever was already transcribed stays in the textarea — the parent falls back
+      // to typing without losing anything (the handoff's required failure mode).
+      setSpeechError(
+        e?.error === 'not-allowed' || e?.error === 'service-not-allowed'
+          ? 'I need microphone permission for that — check the browser prompt, or just type.'
+          : "I couldn't hear that. Try again, or just type — either works.",
+      );
+    };
     rec.onend = () => setListening(false);
     rec.start();
     recognitionRef.current = rec;
@@ -99,15 +114,20 @@ export function CaptureModal({ childId, childName, open, onClose }: CaptureModal
   }
 
   async function handleSave() {
-    await create.mutateAsync({
-      text: text.trim(),
-      category: category ?? undefined,
-      capturedVia: usedVoice ? 'VOICE' : 'TEXT',
-      place: place.trim() || undefined,
-      domainTags,
-      interpretation: interpretation ? { whatHeard: interpretation.whatHeard } : undefined,
-    });
-    onClose();
+    setSaveError(false);
+    try {
+      await create.mutateAsync({
+        text: text.trim(),
+        category: category ?? undefined,
+        capturedVia: usedVoice ? 'VOICE' : 'TEXT',
+        place: place.trim() || undefined,
+        domainTags,
+        interpretation: interpretation ? { whatHeard: interpretation.whatHeard } : undefined,
+      });
+      onClose();
+    } catch {
+      setSaveError(true);
+    }
   }
 
   function toggleDomain(d: string) {
@@ -166,6 +186,11 @@ export function CaptureModal({ childId, childName, open, onClose }: CaptureModal
                   Most parents take about 15 seconds. You can stop mid-sentence.
                 </p>
               </div>
+              {speechError && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                  {speechError}
+                </p>
+              )}
 
               <div className="mt-5">
                 <p className="text-[11px] font-semibold tracking-wide text-gray-400 mb-2">OR START WITH</p>
@@ -266,6 +291,11 @@ export function CaptureModal({ childId, childName, open, onClose }: CaptureModal
                 />
               </div>
 
+              {saveError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-4">
+                  That didn&apos;t save — nothing was lost. Please try again in a moment.
+                </p>
+              )}
               <div className="flex gap-3 mt-6">
                 <Button variant="outline" className="flex-1" onClick={() => setStep('input')}>
                   Back
