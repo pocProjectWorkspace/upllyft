@@ -461,7 +461,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">Session fee</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {formatCurrency(booking.sessionPrice, booking.currency)}
+                  {formatCurrency(booking.subtotal, booking.currency)}
                 </span>
               </div>
               <Separator />
@@ -475,7 +475,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               <div className="flex items-center justify-between">
                 <span className="text-base font-semibold text-gray-900">Total</span>
                 <span className="text-lg font-bold text-teal-600">
-                  {formatCurrency(booking.sessionPrice + booking.platformFee, booking.currency)}
+                  {formatCurrency(booking.subtotal + booking.platformFee, booking.currency)}
                 </span>
               </div>
             </div>
@@ -489,10 +489,10 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               {/* CONFIRMED: Join Session + Reschedule + Cancel */}
               {booking.status === 'CONFIRMED' && (
                 <>
-                  {booking.meetLink && (
+                  {booking.googleMeetLink && (
                     <Button
                       className="rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white"
-                      onClick={() => window.open(booking.meetLink!, '_blank')}
+                      onClick={() => window.open(booking.googleMeetLink!, '_blank')}
                     >
                       <VideoIcon className="w-4 h-4 mr-2" />
                       Join Session

@@ -38,7 +38,11 @@ export const invoiceStatusColors: Record<InvoiceStatus, string> = {
 export const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 export const dayNamesShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function formatCurrency(amount: number, currency = 'USD'): string {
+export function formatCurrency(amount: number | null | undefined, currency = 'USD'): string {
+  // Intl formats undefined/null as "NaN", which shipped to users as "₹NaN" on
+  // booking and earnings screens. A missing amount is unknown, not zero — show a
+  // dash so the gap is visible instead of looking like a broken calculation.
+  if (typeof amount !== 'number' || !Number.isFinite(amount)) return '—';
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 }
 

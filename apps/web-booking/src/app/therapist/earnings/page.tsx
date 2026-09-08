@@ -88,11 +88,11 @@ function aggregateMonthlyEarnings(bookings: Booking[]): { month: string; earning
 
   for (const booking of bookings) {
     if (booking.status !== 'COMPLETED') continue;
-    const d = new Date(booking.completedAt || booking.endDateTime);
+    const d = new Date(booking.sessionCompletedAt || booking.endDateTime);
     const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
     const entry = months.find((m) => m.month === label);
     if (entry) {
-      entry.earnings += booking.therapistPayout;
+      entry.earnings += booking.therapistAmount;
       entry.count += 1;
     }
   }
@@ -315,13 +315,13 @@ export default function TherapistEarningsPage() {
                           {booking.patient?.name || 'Unknown'}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {booking.sessionType?.name} &middot; {formatDate(booking.completedAt || booking.endDateTime)}
+                          {booking.sessionType?.name} &middot; {formatDate(booking.sessionCompletedAt || booking.endDateTime)}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-green-600">
-                        +{formatCurrency(booking.therapistPayout, booking.currency)}
+                        +{formatCurrency(booking.therapistAmount, booking.currency)}
                       </p>
                       <p className="text-xs text-gray-400">
                         Fee: {formatCurrency(booking.platformFee, booking.currency)}
