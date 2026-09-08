@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useAuth } from '@upllyft/api-client';
+import { useAuth, firstNameOf } from '@upllyft/api-client';
 import { useMira } from './mira-context';
 import { MiraAvatar } from './mira-avatar';
 import { MiraMessageBubble, TypingIndicator } from './mira-messages';
@@ -194,7 +194,7 @@ export function MiraPanel() {
               <div className="flex-1 overflow-y-auto px-4 py-4 bg-gray-50">
                 {messages.length === 0 && !isLoading ? (
                   <WelcomeState
-                    userName={user.name || undefined}
+                    userName={user.name ? firstNameOf(user.name, user.email) : undefined}
                     children={children}
                     childId={childId}
                     setChildId={setChildId}

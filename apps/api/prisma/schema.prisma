@@ -1309,6 +1309,9 @@ model UserProfile {
   userId                  String    @unique
   fullName                String?
   relationshipToChild     String?
+  /// When `relationshipToChild` is "Parent", the specific tie the guardian has to
+  /// the child (Mother, Father, Grandmother, ...). Null for every other relationship.
+  relationshipDetail      String?
   phoneNumber             String?
   alternatePhone          String?
   email                   String?
@@ -1339,6 +1342,7 @@ model Child {
   id                                    String                    @id @default(cuid())
   profileId                             String
   firstName                             String
+  lastName                              String?
   nickname                              String?
   dateOfBirth                           DateTime
   gender                                String

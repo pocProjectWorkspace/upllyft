@@ -75,7 +75,11 @@ export function ChildFormWizard({ mode, childId, child }: ChildFormWizardProps) 
 
   // ---- Basic info ----
   const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
+  // Preferred name mirrors the first name until the parent types their own, so the
+  // field is never blank but a deliberate choice is never overwritten.
+  const [nicknameTouched, setNicknameTouched] = useState(false);
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState('');
   const [birthOrder, setBirthOrder] = useState('');
@@ -136,7 +140,9 @@ export function ChildFormWizard({ mode, childId, child }: ChildFormWizardProps) 
   useEffect(() => {
     if (child && !initialized) {
       setFirstName(child.firstName || '');
+      setLastName(child.lastName || '');
       setNickname(child.nickname || '');
+      setNicknameTouched(!!child.nickname);
       setDateOfBirth(child.dateOfBirth?.split('T')[0] || '');
       setGender(child.gender || '');
       setBirthOrder(child.birthOrder || '');
@@ -192,6 +198,7 @@ export function ChildFormWizard({ mode, childId, child }: ChildFormWizardProps) 
   // ---- Build child payload ----
   function buildChildData() {
     const data: Record<string, unknown> = { firstName, dateOfBirth, gender, hasCondition };
+    if (lastName) data.lastName = lastName;
     if (nickname) data.nickname = nickname;
     if (birthOrder) data.birthOrder = birthOrder;
     if (nationality) data.nationality = nationality;
@@ -640,11 +647,35 @@ export function ChildFormWizard({ mode, childId, child }: ChildFormWizardProps) 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className={labelClass}>First Name *</label>
-                <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required className={inputClass} />
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => {
+                    setFirstName(e.target.value);
+                    if (!nicknameTouched) setNickname(e.target.value);
+                  }}
+                  required
+                  className={inputClass}
+                />
               </div>
               <div>
-                <label className={labelClass}>Nickname</label>
-                <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} className={inputClass} />
+                <label className={labelClass}>Last Name</label>
+                <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className={inputClass} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className={labelClass}>Preferred Name</label>
+                <input
+                  type="text"
+                  value={nickname}
+                  onChange={(e) => {
+                    setNicknameTouched(true);
+                    setNickname(e.target.value);
+                  }}
+                  className={inputClass}
+                />
               </div>
             </div>
 

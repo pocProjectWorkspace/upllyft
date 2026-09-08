@@ -4,6 +4,7 @@ export interface Child {
   id: string;
   profileId: string;
   firstName: string;
+  lastName?: string;
   nickname?: string;
   dateOfBirth: string;
   gender: string;
@@ -76,6 +77,8 @@ export interface UserProfile {
   userId: string;
   fullName?: string;
   relationshipToChild?: string;
+  // Nullable on write: clearing it must reach the API, and updateProfile() strips ''.
+  relationshipDetail?: string | null;
   phoneNumber?: string;
   email?: string;
   city?: string;

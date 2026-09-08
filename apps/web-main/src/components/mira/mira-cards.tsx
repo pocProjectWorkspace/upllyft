@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { APP_URLS } from '@upllyft/api-client';
 import type { MiraCard, MiraAction } from '@/lib/api/mira';
 
@@ -30,26 +31,28 @@ export function MiraCardRenderer({ card }: { card: MiraCard }) {
   }
 }
 
-function TherapistCard({ data }: { data: any }) {
-  // Build booking URL: prefer a direct profile link, otherwise
-  // fall back to the marketplace pre-filtered by specialization or name
-  // so the user always lands on relevant results instead of a blank page.
-  let bookingUrl: string;
+// Build booking URL: prefer a direct profile link, otherwise
+// fall back to the marketplace pre-filtered by specialization or name
+// so the user always lands on relevant results instead of a blank page.
+function therapistBookingUrl(data: any): string {
   if (data.therapistProfileId) {
-    bookingUrl = `${APP_URLS.booking}/therapists/${data.therapistProfileId}`;
-  } else {
-    const params = new URLSearchParams();
-    const firstSpec = Array.isArray(data.specialization) && data.specialization.length > 0
-      ? data.specialization[0]
-      : null;
-    if (firstSpec) params.set('specialization', firstSpec);
-    else if (data.name) params.set('search', data.name);
-    const queryString = params.toString();
-    bookingUrl = queryString ? `${APP_URLS.booking}?${queryString}` : APP_URLS.booking;
+    return `${APP_URLS.booking}/therapists/${data.therapistProfileId}`;
   }
+  const params = new URLSearchParams();
+  const firstSpec = Array.isArray(data.specialization) && data.specialization.length > 0
+    ? data.specialization[0]
+    : null;
+  if (firstSpec) params.set('specialization', firstSpec);
+  else if (data.name) params.set('search', data.name);
+  const queryString = params.toString();
+  return queryString ? `${APP_URLS.booking}?${queryString}` : APP_URLS.booking;
+}
+
+function TherapistCardBody({ data }: { data: any }) {
+  const bookingUrl = therapistBookingUrl(data);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-3 mt-3">
+    <>
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0">
           <span className="text-sm font-semibold text-teal-700">
@@ -84,6 +87,49 @@ function TherapistCard({ data }: { data: any }) {
           className="text-xs bg-teal-500 text-white px-3 py-1 rounded-full hover:bg-teal-600 font-medium"
         >
           Book Session
+        </a>
+      </div>
+    </>
+  );
+}
+
+function TherapistCard({ data }: { data: any }) {
+  // Mira surfaces one therapist by name; `alternates` carries the other matches
+  // she found so the parent can compare rather than take the first suggestion.
+  const alternates: any[] = Array.isArray(data.alternates) ? data.alternates : [];
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-3 mt-3">
+      <TherapistCardBody data={data} />
+
+      {expanded && alternates.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
+          {alternates.map((alt, i) => (
+            <div key={alt.id ?? i} className={i > 0 ? 'pt-3 border-t border-gray-100' : undefined}>
+              <TherapistCardBody data={alt} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mt-3 pt-2 border-t border-gray-100">
+        {alternates.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-xs text-teal-600 hover:text-teal-700 font-medium cursor-pointer"
+          >
+            {expanded ? 'Show fewer' : `View ${alternates.length} more therapist${alternates.length > 1 ? 's' : ''}`}
+          </button>
+        )}
+        <a
+          href={`${APP_URLS.booking}/find-care`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+        >
+          Browse all therapists<ExternalIcon />
         </a>
       </div>
     </div>

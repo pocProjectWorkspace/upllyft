@@ -20,6 +20,15 @@ export enum RelationshipType {
   OTHER = 'Other',
 }
 
+/** Only meaningful when `relationshipToChild` is PARENT. */
+export enum RelationshipDetail {
+  MOTHER = 'Mother',
+  FATHER = 'Father',
+  GRANDFATHER = 'Grandfather',
+  GRANDMOTHER = 'Grandmother',
+  RELATIVE = 'Relative',
+}
+
 export enum CommunicationPreference {
   EMAIL = 'Email',
   SMS = 'SMS',
@@ -42,6 +51,14 @@ export class CreateProfileDto {
   @IsEnum(RelationshipType)
   @IsOptional()
   relationshipToChild?: RelationshipType;
+
+  @ApiPropertyOptional({
+    description: 'Specific tie to the child; only set when relationshipToChild is Parent',
+    enum: RelationshipDetail
+  })
+  @IsEnum(RelationshipDetail)
+  @IsOptional()
+  relationshipDetail?: RelationshipDetail;
 
   @ApiPropertyOptional({ description: 'Primary phone number' })
   @ValidateIf(o => o.phoneNumber && o.phoneNumber.length > 0)

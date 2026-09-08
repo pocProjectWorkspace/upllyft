@@ -1,7 +1,7 @@
 'use client';
 
 import type { User } from '@upllyft/types';
-import { APP_URLS } from '@upllyft/api-client';
+import { APP_URLS, firstNameOf } from '@upllyft/api-client';
 import { Card, Avatar, Badge, Skeleton, Popover, PopoverTrigger, PopoverContent } from '@upllyft/ui';
 import { useMyProfile, useUpcomingBookings, useRecentFeedPosts, useLastMiraConversation } from '@/hooks/use-dashboard';
 import { calculateAge, type OnboardingData } from '@/lib/api/profiles';
@@ -57,7 +57,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
     }
   }, [selectedChild]);
 
-  const displayName = user.name || user.email?.split('@')[0] || 'Parent';
+  const displayName = firstNameOf(user.name, user.email, 'Parent');
   const onboardingData = profile?.onboardingData as OnboardingData | null | undefined;
   const recommendedStep = onboardingData?.recommendedNextStep;
 

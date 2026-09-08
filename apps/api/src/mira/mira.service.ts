@@ -959,7 +959,11 @@ Insights: ${this.appUrls.screening}/insights`);
             const match = ctx.therapists.find((t) =>
               card.data?.name ? t.name?.toLowerCase().includes(card.data.name.toLowerCase()) : true,
             ) || ctx.therapists[0];
-            cards.push({ type: 'therapist', data: match });
+            // Mira names one therapist, but the context already holds the other
+            // relevant matches. Ship them alongside so the panel can offer
+            // "View more" instead of dead-ending the parent on a single name.
+            const alternates = ctx.therapists.filter((t) => t.id !== match.id);
+            cards.push({ type: 'therapist', data: { ...match, alternates } });
           }
           break;
         case 'community':
@@ -1011,29 +1015,51 @@ Insights: ${this.appUrls.screening}/insights`);
     for (const action of aiActions) {
       if (!action.label) continue;
 
-      // Resolve URLs based on action type
-      let url = action.url || '';
       const type = action.type || 'resource';
+      // The model is told to leave `url` empty, but it invents plausible-looking
+      // paths anyway (e.g. /find-therapist) which 404 for the parent. Only trust a
+      // model-supplied URL when it points at one of our own apps; otherwise derive
+      // the destination from the action type so every action lands somewhere real.
+      const url = this.resolveActionUrl(action.url, type, ctx);
 
-      if (type === 'booking' && ctx.therapists?.[0]?.therapistProfileId) {
-        url = url || `${this.appUrls.booking}/therapists/${ctx.therapists[0].therapistProfileId}`;
-      } else if (type === 'community' && ctx.communities?.[0]?.slug) {
-        url = url || `${this.appUrls.community}/communities/${ctx.communities[0].slug}`;
-      } else if (type === 'screening') {
-        url = url || this.appUrls.screening;
-      } else if (type === 'insight') {
-        url = url || `${this.appUrls.screening}/insights`;
-      } else if (type === 'resource') {
-        url = url || this.appUrls.resources;
-      }
-
-      // Only include actions with valid URLs
       if (url) {
         actions.push({ label: action.label, url, type });
       }
     }
 
     return actions;
+  }
+
+  /**
+   * Every Mira action must resolve to a route we actually serve. A model-supplied
+   * URL is only honoured when it sits under one of our app origins; anything else
+   * falls back to the canonical destination for the action type.
+   */
+  private resolveActionUrl(rawUrl: unknown, type: string, ctx: MiraContext): string {
+    const origins = Object.values(this.appUrls);
+    if (typeof rawUrl === 'string' && rawUrl.trim()) {
+      const candidate = rawUrl.trim();
+      if (origins.some((origin) => candidate.startsWith(origin))) return candidate;
+    }
+
+    switch (type) {
+      case 'booking':
+        return ctx.therapists?.[0]?.therapistProfileId
+          ? `${this.appUrls.booking}/therapists/${ctx.therapists[0].therapistProfileId}`
+          : `${this.appUrls.booking}/find-care`;
+      case 'community':
+        return ctx.communities?.[0]?.slug
+          ? `${this.appUrls.community}/communities/${ctx.communities[0].slug}`
+          : this.appUrls.community;
+      case 'screening':
+        return this.appUrls.screening;
+      case 'insight':
+        return `${this.appUrls.screening}/insights`;
+      case 'resource':
+        return this.appUrls.resources;
+      default:
+        return '';
+    }
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────

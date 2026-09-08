@@ -41,7 +41,13 @@ export class AddChildDto {
   @MaxLength(50)
   firstName: string;
 
-  @ApiPropertyOptional({ description: 'Child\'s nickname' })
+  @ApiPropertyOptional({ description: 'Child\'s last name' })
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  lastName?: string;
+
+  @ApiPropertyOptional({ description: 'Child\'s preferred name (nickname)' })
   @IsString()
   @IsOptional()
   @MaxLength(50)

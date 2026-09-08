@@ -1,7 +1,7 @@
 'use client';
 
 import type { User } from '@upllyft/types';
-import { APP_URLS } from '@upllyft/api-client';
+import { APP_URLS, firstNameOf } from '@upllyft/api-client';
 import { Card, Avatar, Badge, Skeleton } from '@upllyft/ui';
 import { useTherapistAnalytics, useMyBookings } from '@/hooks/use-dashboard';
 import { useMemo } from 'react';
@@ -101,7 +101,7 @@ export function TherapistDashboard({ user }: TherapistDashboardProps) {
   const { data: analytics, isLoading: analyticsLoading } = useTherapistAnalytics();
   const { data: allBookings, isLoading: bookingsLoading } = useMyBookings();
 
-  const displayName = user.name || user.email?.split('@')[0] || 'Therapist';
+  const displayName = firstNameOf(user.name, user.email, 'Therapist');
 
   const { todaySessions, pendingRequests, upcomingSessions } = useMemo(() => {
     if (!allBookings) return { todaySessions: [], pendingRequests: [], upcomingSessions: [] };
