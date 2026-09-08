@@ -67,8 +67,8 @@ export function getNavItems(
       href: `${M}/moments`,
       children: [
         { label: 'Everyday Moments', href: `${M}/moments` },
-        { label: 'Mira has noticed', href: `${M}/moments/insights` },
         { label: 'Progress', href: `${M}/moments/progress` },
+        { label: 'Mira has noticed', href: `${M}/moments/insights` },
       ],
     });
   }

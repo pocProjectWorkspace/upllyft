@@ -155,6 +155,10 @@ export default function ProfilePage() {
               <h2 className="text-base font-semibold text-gray-900 mb-4">Contact Information</h2>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
+                  <p className="text-gray-500">Full Name</p>
+                  <p className="text-gray-900 font-medium">{profile?.fullName || user.name || 'Not set'}</p>
+                </div>
+                <div>
                   <p className="text-gray-500">Email</p>
                   <p className="text-gray-900 font-medium">{user.email}</p>
                 </div>
@@ -162,15 +166,37 @@ export default function ProfilePage() {
                   <p className="text-gray-500">Phone</p>
                   <p className="text-gray-900 font-medium">{profile?.phoneNumber || user.phone || 'Not set'}</p>
                 </div>
-                <div>
-                  <p className="text-gray-500">Location</p>
-                  <p className="text-gray-900 font-medium">
-                    {[profile?.city, profile?.state, profile?.country].filter(Boolean).join(', ') || 'Not set'}
-                  </p>
-                </div>
+                {user.role === 'USER' && (
+                  <div>
+                    <p className="text-gray-500">Relationship to Child</p>
+                    <p className="text-gray-900 font-medium">
+                      {profile?.relationshipToChild
+                        ? profile.relationshipDetail
+                          ? `${profile.relationshipToChild} · ${profile.relationshipDetail}`
+                          : profile.relationshipToChild
+                        : 'Not set'}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-gray-500">Occupation</p>
                   <p className="text-gray-900 font-medium">{profile?.occupation || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Education Level</p>
+                  <p className="text-gray-900 font-medium">{profile?.educationLevel || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">City</p>
+                  <p className="text-gray-900 font-medium">{profile?.city || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">State</p>
+                  <p className="text-gray-900 font-medium">{profile?.state || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Country</p>
+                  <p className="text-gray-900 font-medium">{profile?.country || 'Not set'}</p>
                 </div>
               </div>
             </Card>

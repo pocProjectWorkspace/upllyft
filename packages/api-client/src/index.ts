@@ -6,6 +6,7 @@ export { useRequireAuth, useRedirectIfAuthenticated } from './hooks/useRequireAu
 export { useNotifications, type UseNotificationsReturn } from './hooks/useNotifications';
 export { useRegion, type RegionContextValue } from './hooks/useRegion';
 export { APP_URLS, getNavItems, type AppName, type GlobalNavItem } from './nav-config';
+export { firstNameOf } from './display-name';
 export type { Notification, NotificationsResponse } from './notifications';
 export {
   getNotifications,

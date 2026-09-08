@@ -201,11 +201,11 @@ function BookingCard({ booking }: { booking: Booking }) {
               >
                 View Details
               </Button>
-              {booking.status === 'CONFIRMED' && booking.meetLink && (
+              {booking.status === 'CONFIRMED' && booking.googleMeetLink && (
                 <Button
                   size="sm"
                   className="rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white"
-                  onClick={() => window.open(booking.meetLink!, '_blank')}
+                  onClick={() => window.open(booking.googleMeetLink!, '_blank')}
                 >
                   <VideoIcon className="w-3.5 h-3.5 mr-1" />
                   Join Session

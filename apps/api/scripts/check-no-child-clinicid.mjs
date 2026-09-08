@@ -48,6 +48,10 @@ const BASELINE = new Map([
   ['admin/admin.service.ts', 'platform admin: clinic CRUD + data export'],
   ['clinic/clinic.service.ts', 'Clinic entity CRUD'],
   ['clinic-tracking/clinic-tracking.service.ts', 'Booking.clinicId, not Child.clinicId'],
+  [
+    'marketplace/shortlist/shortlist.controller.ts',
+    'ShortlistEntry.clinicId — a parent shortlisting a Clinic. No Child involved.',
+  ],
   ['clinic-orchestration/lead.service.ts', 'Lead.clinicId'],
   ['clinic-orchestration/triage.service.ts', 'Clinic-scoped triage queue'],
   ['clinic-orchestration/ehr-export.service.ts', 'EhrExport.clinicId'],

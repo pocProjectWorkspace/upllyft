@@ -91,18 +91,21 @@ export interface Booking {
   status: BookingStatus;
   patientNotes?: string;
   patientFiles?: string[];
-  meetLink?: string;
+  googleMeetLink?: string;
   calendarEventId?: string;
-  sessionPrice: number;
+  // These names mirror the Prisma `Booking` columns the API returns verbatim.
+  // They were previously `sessionPrice`/`therapistPayout`, which no endpoint has
+  // ever sent — every read came back undefined and rendered as "NaN".
+  subtotal: number;
   platformFee: number;
-  therapistPayout: number;
+  therapistAmount: number;
   currency: string;
   paymentStatus: PaymentStatus;
-  paymentIntentId?: string;
+  stripePaymentIntentId?: string;
   cancellationReason?: string;
   cancelledBy?: string;
   cancelledAt?: string;
-  completedAt?: string;
+  sessionCompletedAt?: string;
   acceptanceDeadline?: string;
   createdAt: string;
   updatedAt: string;

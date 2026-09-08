@@ -23,6 +23,7 @@ export default function EditProfilePage() {
     occupation: '',
     educationLevel: '',
     relationshipToChild: '',
+    relationshipDetail: '',
   });
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -42,6 +43,7 @@ export default function EditProfilePage() {
         occupation: profile.occupation || '',
         educationLevel: profile.educationLevel || '',
         relationshipToChild: profile.relationshipToChild || '',
+        relationshipDetail: profile.relationshipDetail || '',
       });
     }
   }, [profile, user?.name]);
@@ -61,7 +63,13 @@ export default function EditProfilePage() {
   const displayName = user.name || user.email?.split('@')[0] || 'User';
 
   function handleChange(field: string, value: string) {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+      // The specific tie only applies to "Parent" — drop a stale value rather than
+      // saving e.g. relationship "Guardian" with detail "Mother".
+      ...(field === 'relationshipToChild' && value !== 'Parent' ? { relationshipDetail: '' } : {}),
+    }));
     setSuccess(false);
   }
 
@@ -72,7 +80,12 @@ export default function EditProfilePage() {
     setSuccess(false);
 
     try {
-      await updateProfile(formData);
+      await updateProfile({
+        ...formData,
+        // Explicit null (not '') so a cleared value is actually persisted —
+        // updateProfile() drops empty strings from the payload.
+        relationshipDetail: formData.relationshipDetail || null,
+      });
       await queryClient.invalidateQueries({ queryKey: ['profile'] });
       setSuccess(true);
     } catch (err: any) {
@@ -236,6 +249,24 @@ export default function EditProfilePage() {
                       <SelectItem value="Guardian">Guardian</SelectItem>
                       <SelectItem value="Caregiver">Caregiver</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {user.role === 'USER' && formData.relationshipToChild === 'Parent' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Which parent/guardian</label>
+                  <Select value={formData.relationshipDetail} onValueChange={(v) => handleChange('relationshipDetail', v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Mother">Mother</SelectItem>
+                      <SelectItem value="Father">Father</SelectItem>
+                      <SelectItem value="Grandfather">Grandfather</SelectItem>
+                      <SelectItem value="Grandmother">Grandmother</SelectItem>
+                      <SelectItem value="Relative">Relative</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

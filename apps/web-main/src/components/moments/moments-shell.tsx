@@ -30,8 +30,8 @@ export function useMomentsChild() {
 
 const TABS = [
   { label: 'Everyday Moments', href: '/moments' },
-  { label: 'Mira has noticed', href: '/moments/insights' },
   { label: 'Progress', href: '/moments/progress' },
+  { label: 'Mira has noticed', href: '/moments/insights' },
 ];
 
 /**

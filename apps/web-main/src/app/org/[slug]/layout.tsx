@@ -106,7 +106,13 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
   const params = useParams();
   const slug = params.slug as string;
   const pathname = usePathname();
+  const { user } = useAuth();
   const [org, setOrg] = useState<OrgDetails | null>(null);
+
+  // For an ORGANIZATION account the org workspace *is* the app: "/" bounces them
+  // straight back here, so the link was a loop. Platform admins do have a home
+  // dashboard to return to, so they keep it.
+  const showBackToApp = user?.role !== 'ORGANIZATION';
 
   useEffect(() => {
     if (slug) {
@@ -172,17 +178,19 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="p-3 border-t border-gray-100">
-            <a
-              href="/"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-            >
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
-              </svg>
-              <span>Back to App</span>
-            </a>
-          </div>
+          {showBackToApp && (
+            <div className="p-3 border-t border-gray-100">
+              <a
+                href="/"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+              >
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                </svg>
+                <span>Back to App</span>
+              </a>
+            </div>
+          )}
         </aside>
 
         {/* Main */}
