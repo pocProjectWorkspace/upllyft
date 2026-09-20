@@ -12,6 +12,29 @@ export class UsersService {
   constructor(private prisma: PrismaService) { }
 
   async getProfileWithStats(userId: string, viewerId?: string) {
+    // Kick off the recent-posts query now so it runs in parallel with the user lookup.
+    const recentPostsPromise = this.prisma.post.findMany({
+      where: {
+        authorId: userId,
+        isPublished: true,
+      },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        type: true,
+        createdAt: true,
+        upvotes: true,
+        _count: {
+          select: {
+            comments: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -86,28 +109,8 @@ export class UsersService {
     // Simple badges based on existing data
     const badges = this.calculateBadges(user);
 
-    // Get recent posts
-    const recentPosts = await this.prisma.post.findMany({
-      where: {
-        authorId: userId,
-        isPublished: true,
-      },
-      select: {
-        id: true,
-        title: true,
-        content: true,
-        type: true,
-        createdAt: true,
-        upvotes: true,
-        _count: {
-          select: {
-            comments: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    });
+    // Recent posts (started above, in parallel with the user lookup)
+    const recentPosts = await recentPostsPromise;
 
     const userClinic = user.adminOfClinic || user.therapistProfile?.clinic || null;
 

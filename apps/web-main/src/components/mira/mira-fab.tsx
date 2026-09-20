@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '@upllyft/api-client';
-import { useMira } from './mira-context';
+import { useMiraOpen } from './mira-context';
 
 export function MiraFab() {
-  const { isOpen, toggle } = useMira();
+  const { isOpen, toggle } = useMiraOpen();
   const { isAuthenticated } = useAuth();
   const [showPulse, setShowPulse] = useState(true);
   const [showTooltip, setShowTooltip] = useState(false);

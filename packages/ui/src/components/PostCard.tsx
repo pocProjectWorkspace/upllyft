@@ -1,4 +1,5 @@
 import { Avatar } from './Avatar';
+import { NavLink } from './NavLink';
 
 export interface PostCardAuthor {
   name: string;
@@ -64,9 +65,9 @@ export function PostCard({
       {/* Content */}
       <div className="mt-3">
         {href ? (
-          <a href={href} className="block">
+          <NavLink href={href} className="block">
             <p className="text-sm text-gray-700 whitespace-pre-line line-clamp-4">{content}</p>
-          </a>
+          </NavLink>
         ) : (
           <p className="text-sm text-gray-700 whitespace-pre-line line-clamp-4">{content}</p>
         )}

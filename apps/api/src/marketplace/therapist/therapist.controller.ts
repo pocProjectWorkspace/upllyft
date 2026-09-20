@@ -87,7 +87,8 @@ export class TherapistProfileController {
                 // Fit mode ranks tier-first across the whole result set, so tier must be
                 // computed before pagination. Result counts are small enough (tens, not
                 // thousands) that fetching the page window after an in-memory sort is fine.
-                ...(fitMode ? {} : { skip, take: limitNum }),
+                // Fit mode sorts in memory, so cap the candidate set instead of fetching every profile.
+                ...(fitMode ? { skip: 0, take: 200 as number } : { skip, take: limitNum }),
                 orderBy: {
                     overallRating: 'desc',
                 },

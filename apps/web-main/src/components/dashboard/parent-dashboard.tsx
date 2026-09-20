@@ -6,7 +6,7 @@ import { Card, Avatar, Badge, Skeleton, Popover, PopoverTrigger, PopoverContent 
 import { useMyProfile, useUpcomingBookings, useRecentFeedPosts, useLastMiraConversation } from '@/hooks/use-dashboard';
 import { calculateAge, type OnboardingData } from '@/lib/api/profiles';
 import { useState, useEffect, useRef } from 'react';
-import { useMira } from '@/components/mira/mira-context';
+import { useMiraOpen } from '@/components/mira/mira-context';
 
 const SELECTED_CHILD_KEY = 'upllyft_selected_child';
 
@@ -21,7 +21,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
   const { data: upcomingSessions, isLoading: sessionsLoading } = useUpcomingBookings();
   const { data: recentPosts, isLoading: feedLoading } = useRecentFeedPosts();
   const { data: lastConversation } = useLastMiraConversation();
-  const mira = useMira();
+  const mira = useMiraOpen();
   const [selectedChildId, setSelectedChildId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(SELECTED_CHILD_KEY);

@@ -214,8 +214,6 @@ export class QuestionsService {
         ];
       }
 
-      console.log('📋 Where clause:', JSON.stringify(where, null, 2));
-
       // Build orderBy
       const orderBy = this.buildSortOrder(sort);
 
@@ -694,33 +692,30 @@ export class QuestionsService {
   }
 
   private async addUserDataToQuestions(questions: any[], userId: string) {
-    return Promise.all(
-      questions.map(async (question) => {
-        const [isFollowing, userAnswer] = await Promise.all([
-          this.prisma.questionFollower.findUnique({
-            where: {
-              questionId_userId: {
-                questionId: question.id,
-                userId,
-              },
-            },
-          }),
-          this.prisma.answer.findFirst({
-            where: {
-              questionId: question.id,
-              authorId: userId,
-            },
-          }),
-        ]);
+    if (questions.length === 0) return questions;
+    const questionIds = questions.map((q) => q.id);
 
-        return {
-          ...question,
-          isFollowing: !!isFollowing,
-          hasUserAnswered: !!userAnswer,
-          isAuthor: question.authorId === userId,
-        };
-      })
-    );
+    // Two batched queries instead of two queries per question.
+    const [follows, answers] = await Promise.all([
+      this.prisma.questionFollower.findMany({
+        where: { userId, questionId: { in: questionIds } },
+        select: { questionId: true },
+      }),
+      this.prisma.answer.findMany({
+        where: { authorId: userId, questionId: { in: questionIds } },
+        select: { questionId: true },
+        distinct: ['questionId'],
+      }),
+    ]);
+    const followed = new Set(follows.map((f) => f.questionId));
+    const answered = new Set(answers.map((a) => a.questionId));
+
+    return questions.map((question) => ({
+      ...question,
+      isFollowing: followed.has(question.id),
+      hasUserAnswered: answered.has(question.id),
+      isAuthor: question.authorId === userId,
+    }));
   }
 
   private async findAndLinkRelatedQuestions(questionId: string) {

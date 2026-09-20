@@ -100,19 +100,9 @@ export class QuestionsController {
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Get all questions with filters' })
   async findAll(@Query() filters: QuestionFiltersDto, @Request() req: any) {
-    console.log('📋 QuestionsController.findAll called with filters:', filters);
     const userId = req.user?.id;
-    console.log('👤 User ID:', userId);
 
-    const result = await this.questionsService.findAll(filters, userId);
-
-    console.log('✅ QuestionsController returning:', {
-      questionsCount: result.questions?.length || 0,
-      total: result.total,
-      hasQuestions: !!result.questions,
-    });
-
-    return result;
+    return this.questionsService.findAll(filters, userId);
   }
 
   @Patch(':id')

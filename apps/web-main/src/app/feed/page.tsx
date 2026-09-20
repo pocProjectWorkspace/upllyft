@@ -2,7 +2,8 @@
 
 import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
 import { AppHeader, Skeleton, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getPosts, type PostFilters } from '@/lib/api/posts';
 import { PostCard } from '@/components/feed/post-card';
@@ -87,12 +88,19 @@ export default function FeedPage() {
   const [view, setView] = useState<FeedView>('for-you');
   const [sort, setSort] = useState<SortBy>('recent');
   const [search, setSearch] = useState('');
+  // Debounce the search term so typing does not fire a request per keystroke
+  // (and discard the already-loaded infinite-scroll pages each time).
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
   const observerRef = useRef<HTMLDivElement>(null);
 
   const filters: PostFilters = {
     sort,
     limit: 10,
-    ...(search && { search }),
+    ...(debouncedSearch && { search: debouncedSearch }),
   };
 
   const {
@@ -101,15 +109,17 @@ export default function FeedPage() {
     hasNextPage,
     isFetchingNextPage,
     isLoading,
-    refetch,
   } = useInfiniteQuery({
-    queryKey: ['posts', view, sort, search],
+    queryKey: ['posts', view, sort, debouncedSearch],
     queryFn: ({ pageParam = 1 }) => getPosts({ ...filters, page: pageParam }),
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.page + 1 : undefined,
     initialPageParam: 1,
     enabled: isAuthenticated,
   });
+
+  // Flatten the infinite-scroll pages once per data change, not on every render.
+  const posts = useMemo(() => data?.pages.flatMap((page) => page.posts) ?? [], [data]);
 
   const { data: topBannerAds } = useInfiniteQuery({
     queryKey: ['bannerAds', 'BANNER_TOP'],
@@ -157,7 +167,6 @@ export default function FeedPage() {
   if (!user) return null;
 
   const displayName = user.name || user.email?.split('@')[0] || 'User';
-  const posts = data?.pages.flatMap((page) => page.posts) || [];
   const topBanners = topBannerAds?.pages?.[0] || [];
   const feedBanners = feedBannerAds?.pages?.[0] || [];
 
@@ -182,7 +191,7 @@ export default function FeedPage() {
 
           <nav className="px-2">
             {sidebarNav.map((item) => (
-              <a
+              <Link
                 key={item.label}
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-r-lg ${item.active
@@ -195,7 +204,7 @@ export default function FeedPage() {
               >
                 <span className={item.active ? 'text-pink-600' : ''}>{item.icon}</span>
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
@@ -311,7 +320,8 @@ export default function FeedPage() {
 
                 return (
                   <div key={post.id} className="space-y-6">
-                    <PostCard post={post} onVoteChange={() => refetch()} />
+                    {/* PostCard applies the vote optimistically; refetching every loaded page here was redundant. */}
+                    <PostCard post={post} />
                     {shouldShowAd && feedAd && (
                       <FeedAd ad={feedAd} />
                     )}

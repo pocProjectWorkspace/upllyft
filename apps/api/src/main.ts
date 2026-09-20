@@ -7,6 +7,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import session from 'express-session';
 import passport from 'passport';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import { json, urlencoded } from 'express';
 
 async function bootstrap() {
@@ -47,6 +48,19 @@ if (!sessionSecret && nodeEnv === 'production') {
   app.setGlobalPrefix('api', {
     exclude: ['health', ''],
   });
+
+  // Response compression (gzip/deflate) for JSON and text bodies over 1 KB.
+  // SSE streams (text/event-stream) are excluded so tokens are not buffered.
+  app.use(
+    compression({
+      threshold: 1024,
+      filter: (req, res) => {
+        const type = String(res.getHeader('Content-Type') || '');
+        if (type.includes('text/event-stream')) return false;
+        return compression.filter(req, res);
+      },
+    }),
+  );
 
   // Cookie parser
   app.use(cookieParser(sessionSecret));

@@ -12,7 +12,7 @@ import { CacheModule } from '@nestjs/cache-manager';
   imports: [
     PrismaModule,
     CacheModule.register({
-      ttl: 300, // 5 minutes cache
+      ttl: 300_000, // 5 minutes (cache-manager v5 uses milliseconds)
       max: 100, // maximum number of items in cache
     }),
   ],

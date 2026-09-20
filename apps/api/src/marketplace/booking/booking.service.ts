@@ -488,6 +488,7 @@ export class BookingService {
 
         return this.prisma.booking.findMany({
             where,
+            take: 100,
             include: {
                 therapist: {
                     include: {
@@ -516,6 +517,7 @@ export class BookingService {
 
         return this.prisma.booking.findMany({
             where,
+            take: 100,
             include: {
                 patient: {
                     select: { id: true, name: true, image: true },

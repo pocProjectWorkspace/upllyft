@@ -49,42 +49,47 @@ export default function QuestionnairePage() {
   const storageKey = `screening-draft-${id}-tier${tier}`;
   const restoredRef = useRef(false);
 
-  const [currentDomainIndex, setCurrentDomainIndex] = useState(() => {
-    if (typeof window === 'undefined') return 0;
+  // Read and parse the saved draft at most once per mount (both initializers
+  // below share it instead of each parsing localStorage separately).
+  const savedDraftRef = useRef<{ domainIndex?: number; responses?: Record<string, AnswerType> } | null | undefined>(undefined);
+  const readSavedDraft = () => {
+    if (savedDraftRef.current !== undefined) return savedDraftRef.current;
+    if (typeof window === 'undefined') return null;
     try {
       const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed.domainIndex || 0;
-      }
-    } catch { /* ignore */ }
-    return 0;
-  });
+      savedDraftRef.current = saved ? JSON.parse(saved) : null;
+    } catch {
+      savedDraftRef.current = null;
+    }
+    return savedDraftRef.current;
+  };
+
+  const [currentDomainIndex, setCurrentDomainIndex] = useState(() => readSavedDraft()?.domainIndex || 0);
 
   const [responses, setResponses] = useState<Record<string, AnswerType>>(() => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        restoredRef.current = true;
-        return parsed.responses || {};
-      }
-    } catch { /* ignore */ }
+    const draft = readSavedDraft();
+    if (draft?.responses) {
+      restoredRef.current = true;
+      return draft.responses;
+    }
     return {};
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
 
-  // Save progress to localStorage whenever responses or domain changes
+  // Save progress to localStorage whenever responses or domain changes.
+  // Debounced so a burst of taps does one serialised write, not one per tap.
   useEffect(() => {
-    try {
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({ responses, domainIndex: currentDomainIndex }),
-      );
-    } catch { /* storage full or unavailable */ }
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify({ responses, domainIndex: currentDomainIndex }),
+        );
+      } catch { /* storage full or unavailable */ }
+    }, 400);
+    return () => clearTimeout(t);
   }, [responses, currentDomainIndex, storageKey]);
 
   // Clear storage after successful submission

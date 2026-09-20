@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Card } from './Card';
+import { NavLink } from './NavLink';
 
 export interface ModuleCardProps {
   icon: ReactNode;
@@ -20,7 +21,7 @@ export function ModuleCard({
 }: ModuleCardProps) {
   return (
     <Card hover className={`p-6 group ${className}`}>
-      <a href={href} className="block">
+      <NavLink href={href} className="block">
         <div
           className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white mb-4`}
         >
@@ -30,7 +31,7 @@ export function ModuleCard({
           {title}
         </h3>
         <p className="mt-1 text-sm text-gray-500">{description}</p>
-      </a>
+      </NavLink>
     </Card>
   );
 }

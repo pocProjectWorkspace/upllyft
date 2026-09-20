@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AdminShell } from '@/components/admin-shell';
 import { Avatar } from '@upllyft/ui';
+import { APP_URLS } from '@upllyft/api-client';
 import {
   getConsolidatedSchedule,
   type ConsolidatedSchedule,
@@ -406,7 +407,7 @@ export default function SchedulePage() {
                               className={`border-r border-gray-50 last:border-r-0 ${color.bg} border-l-2 ${color.border} px-2 py-1.5 cursor-pointer hover:opacity-80 transition-opacity`}
                               style={slots > 1 ? { gridRow: `span ${slots}` } : undefined}
                               onClick={() => {
-                                window.location.href = `http://localhost:3004/bookings/${appt.id}`;
+                                window.location.href = `${APP_URLS.booking}/bookings/${appt.id}`;
                               }}
                             >
                               <p className={`text-xs font-medium ${color.text} truncate`}>

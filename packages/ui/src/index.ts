@@ -183,3 +183,5 @@ export { MiraNudge, type MiraNudgeProps } from './mira-nudge';
 export { AppHeader, type AppHeaderProps, type NavItem } from './layouts/AppHeader';
 export { Sidebar, type SidebarProps, type SidebarItem } from './layouts/Sidebar';
 export { PageContainer, type PageContainerProps } from './layouts/PageContainer';
+
+export { NavLink, type NavLinkProps } from './components/NavLink';

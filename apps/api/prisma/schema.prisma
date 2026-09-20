@@ -204,6 +204,7 @@ model User {
   @@index([preferredLanguage])
   @@index([resetPasswordToken])
   @@index([googleId])
+  @@index([updatedAt])
 }
 
 model Community {
@@ -465,6 +466,7 @@ model Post {
   @@index([category])
   @@index([type])
   @@index([createdAt(sort: Desc)])
+  @@index([isPublished, createdAt(sort: Desc)])
   @@index([moderationStatus])
   @@index([communityId])
   @@index([containsCrisisKeywords])
@@ -781,6 +783,7 @@ model Notification {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, read])
   @@index([read])
   @@index([createdAt])
 }

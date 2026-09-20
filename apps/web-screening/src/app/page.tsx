@@ -38,16 +38,15 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@upllyft/ui';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  Legend,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 import { ScreeningShell } from '@/components/screening-shell';
+
+// recharts (~100 KB gzip) is only needed once a child has 2+ screenings, so
+// load the chart on demand instead of in the home page's first-load bundle.
+const ProgressLineChart = dynamic(() => import('@/components/progress-line-chart'), {
+  ssr: false,
+  loading: () => <Skeleton className="w-full h-full rounded-xl" />,
+});
 import {
   useUserChildren,
   useChildAssessments,
@@ -583,27 +582,6 @@ const DOMAIN_CHART_COLORS: Record<string, string> = {
   visionHearing: '#6366f1',
 };
 
-// ── Custom Tooltip for chart ──
-
-function ChartTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-3 text-sm">
-      <p className="font-semibold text-gray-900 mb-2">{label}</p>
-      {payload.map((entry: any) => (
-        <div key={entry.dataKey} className="flex items-center gap-2">
-          <span
-            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: entry.color }}
-          />
-          <span className="text-gray-600">{entry.name}:</span>
-          <span className="font-medium text-gray-900">{entry.value}%</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ── Progress History (Longitudinal Chart) ──
 
 function ProgressHistory({ childId }: { childId: string }) {
@@ -713,53 +691,12 @@ function ProgressHistory({ childId }: { childId: string }) {
 
       {/* Line Chart */}
       <div className="h-72 mb-4">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 12, fill: '#6b7280' }}
-              tickLine={false}
-              axisLine={{ stroke: '#e5e7eb' }}
-            />
-            <YAxis
-              domain={[0, 100]}
-              tick={{ fontSize: 12, fill: '#6b7280' }}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(v) => `${v}%`}
-            />
-            <RechartsTooltip content={<ChartTooltip />} />
-            <Legend
-              wrapperStyle={{ fontSize: '12px' }}
-              iconType="circle"
-              iconSize={8}
-            />
-            {/* Total Score line — bolder and dashed */}
-            <Line
-              type="monotone"
-              dataKey="totalScore"
-              name="Total Score"
-              stroke="#111827"
-              strokeWidth={3}
-              strokeDasharray="6 3"
-              dot={{ r: 4, fill: '#111827' }}
-              activeDot={{ r: 6 }}
-            />
-            {/* Domain lines */}
-            {Array.from(allDomainIds).map((domainId) => (
-              <Line
-                key={domainId}
-                type="monotone"
-                dataKey={domainId}
-                name={domainNameMap[domainId] || domainId}
-                stroke={DOMAIN_CHART_COLORS[domainId] || '#9ca3af'}
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                activeDot={{ r: 5 }}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+        <ProgressLineChart
+          chartData={chartData}
+          domainIds={Array.from(allDomainIds)}
+          domainNameMap={domainNameMap}
+          colors={DOMAIN_CHART_COLORS}
+        />
       </div>
 
       {/* Score Delta Callout */}

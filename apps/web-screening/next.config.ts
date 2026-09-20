@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@upllyft/ui", "@upllyft/api-client", "@upllyft/types"],
   experimental: {
     proxyTimeout: 120_000,
+    // Import only the icons/components actually used instead of the whole barrel.
+    optimizePackageImports: ["lucide-react", "@upllyft/ui"],
   },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRequireAuth } from '@upllyft/api-client';
+import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 
@@ -155,7 +156,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               pathname === item.href ||
               (item.href !== '/admin' && pathname.startsWith(item.href));
             return (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isActive
@@ -165,7 +166,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               >
                 <span className="flex-shrink-0">{item.icon}</span>
                 <span>{item.label}</span>
-              </a>
+              </Link>
             );
           })}
         </nav>

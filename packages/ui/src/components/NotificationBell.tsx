@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useNotifications, type Notification } from '@upllyft/api-client';
+import { useNotifications, useNavigation, type Notification } from '@upllyft/api-client';
 import {
   Bell,
   MessageSquare,
@@ -68,11 +68,13 @@ function NotificationItem({
   onDelete: (id: string) => void;
 }) {
   const Icon = getNotificationIcon(notification.type);
+  const { go } = useNavigation();
 
   const handleClick = () => {
     if (!notification.read) onRead(notification.id);
     if (notification.actionUrl) {
-      window.location.href = notification.actionUrl;
+      // Soft navigation for same-app targets; full navigation only across apps.
+      go(notification.actionUrl);
     }
   };
 

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -84,7 +85,7 @@ export function CaseDetailSidebar({ caseId, caseData }: CaseDetailSidebarProps) 
           const href = item.segment ? `/${caseId}/${item.segment}` : `/${caseId}`;
           const isActive = activeSegment === item.segment;
           return (
-            <a
+            <Link
               key={item.segment || 'overview'}
               href={href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
@@ -95,7 +96,7 @@ export function CaseDetailSidebar({ caseId, caseData }: CaseDetailSidebarProps) 
             >
               <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-teal-600' : ''}`} />
               <span>{item.label}</span>
-            </a>
+            </Link>
           );
         })}
       </div>
@@ -106,13 +107,13 @@ export function CaseDetailSidebar({ caseId, caseData }: CaseDetailSidebarProps) 
     <aside className="w-64 bg-white border-r border-gray-200 min-h-[calc(100vh-64px)] flex flex-col shrink-0 sticky top-16">
       {/* Back to Cases */}
       <div className="p-4 border-b border-gray-100">
-        <a
+        <Link
           href="/"
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Cases
-        </a>
+        </Link>
       </div>
 
       {/* Patient Info */}

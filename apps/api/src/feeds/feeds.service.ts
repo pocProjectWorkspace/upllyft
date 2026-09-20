@@ -76,7 +76,7 @@ export class FeedsService {
     }
 
     // Cache the result
-    await this.cacheManager.set(cacheKey, result, 300); // 5 minutes
+    await this.cacheManager.set(cacheKey, result, 300_000); // 5 minutes (ms in cache-manager v5)
     
     return result;
   }

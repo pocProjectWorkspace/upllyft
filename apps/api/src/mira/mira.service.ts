@@ -527,6 +527,7 @@ Return ONLY valid JSON with these four keys:
     const conversations = await this.prisma.miraConversation.findMany({
       where: { userId },
       orderBy: { updatedAt: 'desc' },
+      take: 30,
       include: {
         messages: {
           orderBy: { createdAt: 'desc' },

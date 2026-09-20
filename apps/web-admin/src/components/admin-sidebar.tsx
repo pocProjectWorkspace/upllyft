@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@upllyft/api-client';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -104,7 +105,7 @@ export function AdminSidebar() {
           }
 
           return (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isActive
@@ -114,7 +115,7 @@ export function AdminSidebar() {
             >
               <span className="flex-shrink-0">{item.icon}</span>
               <span>{item.label}</span>
-            </a>
+            </Link>
           );
         })}
       </nav>

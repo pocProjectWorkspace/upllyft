@@ -173,7 +173,7 @@ export class PersonalizationService {
       (engagementScore * preferences.engagementWeight / 100) +
       (authorScore * 0.1); // Fixed 10% weight for author
     
-    await this.cacheManager.set(cacheKey, finalScore, 300); // Cache for 5 minutes
+    await this.cacheManager.set(cacheKey, finalScore, 300_000); // Cache for 5 minutes (ms in cache-manager v5)
     return finalScore;
   }
 

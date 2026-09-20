@@ -12,6 +12,10 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@upllyft/ui", "@upllyft/api-client", "@upllyft/types"],
+  experimental: {
+    // Import only the icons/components actually used instead of the whole barrel.
+    optimizePackageImports: ["lucide-react", "@upllyft/ui"],
+  },
   async headers() {
     return [
       {

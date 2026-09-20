@@ -18,7 +18,7 @@ import { CacheModule } from '@nestjs/cache-manager';
     AiModule,
     FeedsModule,
     CacheModule.register({
-      ttl: 300, // 5 minutes
+      ttl: 300_000, // 5 minutes (cache-manager v5 uses milliseconds)
       max: 1000,
     }),
   ],

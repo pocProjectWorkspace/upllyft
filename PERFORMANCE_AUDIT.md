@@ -351,6 +351,27 @@ Impact scale: H = user-visible seconds or major bytes on every page; M = noticea
 
 ---
 
+## 7a. Phase 1 implementation results (2026-09-21, branch `perf/phase-1`)
+
+All Phase 1 items except #12 (direct API calls) were implemented; #12 is wired but opt-in via `NEXT_PUBLIC_API_DIRECT=1` because it changes production topology. Measured on the same machine and database as §2, same admin account.
+
+| Measurement | Before | After |
+|---|---|---|
+| Header click "Hub" from `/feed` (production build) | full document load: 13 JS, 6 API calls incl. `/auth/me`, ~4–5 s | **soft navigation: 0 documents, 0 JS, 0 `/auth/me`, 4 data calls** |
+| `GET /feeds/personalized?limit=10` | 4.92 s, 39 statements, every call | 1.92 s / 14 statements cold; **4 ms / 3 statements cached** |
+| `GET /admin/stats` | 4.17 s, 4 serial tiers | **0.89 s**, 19 statements in one tier |
+| `GET /profile/me` | 1.64 s | 0.99 s |
+| `GET /questions?limit=20` | 2 extra statements per question | 11 statements total |
+| API response encoding | none (raw JSON) | `Content-Encoding: br`; `/auth/me` 3,553 → 1,462 B, `/posts` 28,732 → 9,350 B on the wire |
+| `embedding Float[]` fetched from Postgres | on every user/post/question/answer read | never, unless a query opts in (global Prisma `omit`) |
+| `Mira.png` | 1,687,819 B ×6 | **33,853 B** ×6 |
+| Indexes | — | `Notification(userId, read)`, `Post(isPublished, createdAt DESC)`, `User(updatedAt)` created (live on the branch DB, migration file added) |
+| Type-checks | — | API, `@upllyft/ui`, `@upllyft/api-client`, all 7 web apps pass; web-main production build passes |
+
+Not changed by Phase 1 (by design, Phase 2): `/auth/me` itself is still ~1.9 s and still gates first paint; `NotificationBell` still refetches `unread-count` on soft navigation because the header is mounted per page (#22).
+
+Follow-ups required before merge: run `pnpm install` to record `compression` (added) and `lottie-react` (removed) in `pnpm-lock.yaml`; the `apps/api/node_modules/compression` junction is a local workaround. The API has no unit tests covering the touched services (only one spec file exists in the whole API).
+
 ## 8. What I measured vs. estimated
 
 **Measured:** all build times and output sizes (§2.1); chunk sizes and gzip sizes (§2.2); request counts, bytes, and API waterfalls on dev and production builds (§2.3, §2.4); API latency, raw payload sizes and response headers (§2.4); DB statement counts per endpoint via `pg_stat_statements` deltas (§2.4); DB round-trip latency; static-asset cache headers; dependency versions per workspace; all repo-wide counts (`'use client'`, `next/link`, `useQuery`, `React.memo`, `<img>`, etc.).

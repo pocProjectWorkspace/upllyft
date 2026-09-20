@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useAuth, getNavItems, APP_URLS, type AppName } from '@upllyft/api-client';
+import { useAuth, useNavigation, getNavItems, APP_URLS, type AppName } from '@upllyft/api-client';
 import { Avatar } from '../components/Avatar';
 import {
   DropdownMenu,
@@ -35,6 +35,10 @@ export interface AppHeaderProps {
 
 export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, messagesHref, unreadMessages = 0 }: AppHeaderProps) {
   const { user, isAuthenticated, logout } = useAuth();
+  // The host app's client-side Link. Same-origin hrefs (including absolute
+  // APP_URLS.* pointing at the current app) become soft navigations; links to
+  // other apps stay ordinary browser navigations.
+  const { Link } = useNavigation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -87,6 +91,11 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
   const orgUrl = `${APP_URLS.main}/org`;
   const mayHaveOrg = user.role !== 'USER';
 
+  const closeMenus = () => {
+    setMenuOpen(false);
+    setMobileNavOpen(false);
+  };
+
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -111,9 +120,9 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
             </button>
 
             {logo || (
-              <a href={logoHref} className="flex items-center gap-2 flex-shrink-0">
+              <Link href={logoHref} className="flex items-center gap-2 flex-shrink-0">
                 <img src="/logo.png" alt="Upllyft" className="h-7 md:h-8 w-auto" />
-              </a>
+              </Link>
             )}
 
             {/* Desktop navigation — items with sub-destinations open a dropdown;
@@ -128,9 +137,9 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                 }`;
                 if (!item.children || item.children.length === 0) {
                   return (
-                    <a key={item.label} href={item.href} className={pillClass}>
+                    <Link key={item.label} href={item.href} className={pillClass}>
                       {item.label}
-                    </a>
+                    </Link>
                   );
                 }
                 return (
@@ -144,12 +153,12 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                     <DropdownMenuContent align="start" className="min-w-[13rem]">
                       {item.children.map((child) => (
                         <DropdownMenuItem key={child.href} asChild>
-                          <a
+                          <Link
                             href={child.href}
                             className="w-full cursor-pointer px-3 py-2 text-sm text-gray-700 focus:bg-teal-50 focus:text-teal-700"
                           >
                             {child.label}
-                          </a>
+                          </Link>
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -160,7 +169,7 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                 <>
                   <div className="w-px h-5 bg-gray-200 mx-1 flex-shrink-0" />
                   {localNavItems.map((item) => (
-                    <a
+                    <Link
                       key={item.href}
                       href={item.href}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
@@ -170,7 +179,7 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                       }`}
                     >
                       {item.label}
-                    </a>
+                    </Link>
                   ))}
                 </>
               )}
@@ -184,7 +193,7 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
 
             {/* Messages Icon */}
             {messagesHref && (
-              <a
+              <Link
                 href={messagesHref}
                 className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label={`Messages${unreadMessages > 0 ? ` (${unreadMessages} unread)` : ''}`}
@@ -197,7 +206,7 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                     {unreadMessages > 99 ? '99+' : unreadMessages}
                   </span>
                 )}
-              </a>
+              </Link>
             )}
 
             {/* Notification Bell */}
@@ -227,44 +236,44 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                   </div>
 
                   {/* Menu Items */}
-                  <div className="py-1">
-                    <a href={profileUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
+                  <div className="py-1" onClick={closeMenus}>
+                    <Link href={profileUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                       <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                       Profile
-                    </a>
+                    </Link>
                     {!isOneVoiceUser && (
                       <>
-                        <a href={bookmarksUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
+                        <Link href={bookmarksUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                           <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                           </svg>
                           Bookmarks
-                        </a>
-                        <a href={invitationsUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
+                        </Link>
+                        <Link href={invitationsUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                           <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                           </svg>
                           Invitations
-                        </a>
+                        </Link>
                       </>
                     )}
                     {mayHaveOrg && !isOneVoiceUser && (
-                      <a href={orgUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
+                      <Link href={orgUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                         <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                         My Organisation
-                      </a>
+                      </Link>
                     )}
-                    <a href={settingsUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
+                    <Link href={settingsUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
                       <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                       Settings
-                    </a>
+                    </Link>
                   </div>
 
                   {/* Sign Out */}
@@ -289,12 +298,12 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
       {/* Mobile navigation drawer */}
       {mobileNavOpen && (
         <div className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-md">
-          <nav className="max-w-7xl mx-auto px-4 py-3 space-y-1">
+          <nav className="max-w-7xl mx-auto px-4 py-3 space-y-1" onClick={closeMenus}>
             {globalNav.map((item) => {
               const isActive = item.app === currentApp;
               if (!item.children || item.children.length === 0) {
                 return (
-                  <a
+                  <Link
                     key={item.label}
                     href={item.href}
                     className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -304,7 +313,7 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                     }`}
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 );
               }
               return (
@@ -313,13 +322,13 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                     {item.label}
                   </p>
                   {item.children.map((child) => (
-                    <a
+                    <Link
                       key={child.href}
                       href={child.href}
                       className="block pl-6 pr-3 py-2 rounded-lg text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                     >
                       {child.label}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               );
@@ -328,7 +337,7 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
               <>
                 <div className="h-px bg-gray-200 my-2" />
                 {localNavItems.map((item) => (
-                  <a
+                  <Link
                     key={item.href}
                     href={item.href}
                     className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -338,7 +347,7 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                     }`}
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 ))}
               </>
             )}
