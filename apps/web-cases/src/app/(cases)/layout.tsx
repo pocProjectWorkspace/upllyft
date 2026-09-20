@@ -23,7 +23,7 @@ export default function CasesAppLayout({ children }: { children: ReactNode }) {
   }
 
   // Professional-only app
-  if (user.role !== 'THERAPIST' && user.role !== 'EDUCATOR' && user.role !== 'ADMIN') {
+  if (user.role !== 'THERAPIST' && user.role !== 'EDUCATOR' && user.role !== 'ADMIN' && user.role !== 'SUPERADMIN') {
     router.replace(APP_URLS.booking);
     return null;
   }

@@ -23,7 +23,7 @@ export default function OrganizationCommissionsPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!isAuthenticated || user?.role !== 'ADMIN') {
+    if (!isAuthenticated || (user?.role !== 'ADMIN' && user?.role !== 'SUPERADMIN')) {
       router.replace('/');
       return;
     }

@@ -525,7 +525,10 @@ export class AdminService {
 
   // Keep existing methods...
   async getUsers(query: any) {
-    const { role, status, page = 1, limit = 20 } = query;
+    const { role, status } = query;
+    // Query params arrive as strings; Prisma requires Int for skip/take.
+    const page = Math.max(1, parseInt(query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
     const skip = (page - 1) * limit;
 
     const where: any = {};

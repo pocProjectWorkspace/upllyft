@@ -20,7 +20,7 @@ export default function ContributorsPage() {
   const [bio, setBio] = useState('');
 
   const contributors = data?.data ?? [];
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'MODERATOR';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN' || user?.role === 'MODERATOR';
 
   function handleApply(e: React.FormEvent) {
     e.preventDefault();

@@ -234,7 +234,7 @@ function DetailPostMenu({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  const canManage = userId === authorId || userRole === 'ADMIN' || userRole === 'MODERATOR';
+  const canManage = userId === authorId || userRole === 'ADMIN' || userRole === 'SUPERADMIN' || userRole === 'MODERATOR';
 
   return (
     <div className="relative" ref={menuRef}>

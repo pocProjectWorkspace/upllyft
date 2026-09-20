@@ -71,7 +71,7 @@ const allNavItems: NavItem[] = [
 export function AdminSidebar() {
   const { user } = useAuth();
   const pathname = usePathname();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
 
   const visibleItems = allNavItems.filter(
     (item) => !item.adminOnly || isAdmin,

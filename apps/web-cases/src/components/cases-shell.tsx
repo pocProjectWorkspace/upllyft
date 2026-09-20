@@ -26,7 +26,7 @@ export function CasesShell({ children }: { children: ReactNode }) {
     return null;
   }
 
-  if (user.role !== 'THERAPIST' && user.role !== 'EDUCATOR' && user.role !== 'ADMIN') {
+  if (user.role !== 'THERAPIST' && user.role !== 'EDUCATOR' && user.role !== 'ADMIN' && user.role !== 'SUPERADMIN') {
     router.replace(APP_URLS.booking);
     return null;
   }

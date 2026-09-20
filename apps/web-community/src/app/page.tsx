@@ -138,7 +138,7 @@ function PostMenu({
   }, [open]);
 
   const isAuthor = userId === post.authorId;
-  const isMod = userRole === 'ADMIN' || userRole === 'MODERATOR';
+  const isMod = userRole === 'ADMIN' || userRole === 'SUPERADMIN' || userRole === 'MODERATOR';
   const canManage = isAuthor || isMod;
 
   const handleCopyLink = () => {

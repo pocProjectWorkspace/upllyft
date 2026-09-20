@@ -24,7 +24,7 @@ export function RoleGuard({ children }: { children: ReactNode }) {
     return null;
   }
 
-  if (user.role !== 'ADMIN' && user.role !== 'THERAPIST') {
+  if (user.role !== 'ADMIN' && user.role !== 'SUPERADMIN' && user.role !== 'THERAPIST') {
     if (typeof window !== 'undefined') {
       window.location.href = APP_URLS.main;
     }
