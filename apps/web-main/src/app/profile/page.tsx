@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Card, Avatar, Badge, Skeleton, ProgressRing } from '@upllyft/ui';
+import { Card, Avatar, Badge, Skeleton, ProgressRing } from '@upllyft/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useMyProfile } from '@/hooks/use-dashboard';
 import { calculateAge, getMySocialProfile } from '@/lib/api/profiles';
@@ -44,7 +44,6 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         {profileLoading ? (

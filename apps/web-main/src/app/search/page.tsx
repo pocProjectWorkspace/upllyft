@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Avatar, Badge, Card, Skeleton } from '@upllyft/ui';
+import { Avatar, Badge, Card, Skeleton } from '@upllyft/ui';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { searchPosts, getTrendingSearches, type SearchResult, type SearchFilters } from '@/lib/api/search';
@@ -132,7 +132,6 @@ function SearchContent() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* Search Bar */}

@@ -1,37 +1,30 @@
 'use client';
 
 import { useAuth, APP_URLS } from '@upllyft/api-client';
-import { AppHeader } from '@upllyft/ui';
-import { useRouter } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { AppHeader, PageSkeleton } from '@upllyft/ui';
+import { useEffect, type ReactNode } from 'react';
+
+const PROFESSIONAL_ROLES = new Set(['THERAPIST', 'EDUCATOR', 'ADMIN', 'SUPERADMIN']);
 
 export default function CasesAppLayout({ children }: { children: ReactNode }) {
   const { user, isLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
+  const allowed = !!user && PROFESSIONAL_ROLES.has(user.role as string);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !user) {
-    router.replace(`${APP_URLS.main}/login`);
-    return null;
-  }
-
-  // Professional-only app
-  if (user.role !== 'THERAPIST' && user.role !== 'EDUCATOR' && user.role !== 'ADMIN' && user.role !== 'SUPERADMIN') {
-    router.replace(APP_URLS.booking);
-    return null;
-  }
+  // Redirects run in an effect (not during render) so they fire exactly once.
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isAuthenticated || !user) {
+      window.location.replace(`${APP_URLS.main}/login`);
+    } else if (!allowed) {
+      // Professional-only app
+      window.location.replace(APP_URLS.booking);
+    }
+  }, [isLoading, isAuthenticated, user, allowed]);
 
   return (
     <div className="min-h-screen bg-gray-50/50">
       <AppHeader currentApp="cases" />
-      {children}
+      {isLoading || !allowed ? <PageSkeleton /> : children}
     </div>
   );
 }

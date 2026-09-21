@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
-import { AppHeader, Skeleton } from '@upllyft/ui';
+import { Skeleton } from '@upllyft/ui';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getPosts } from '@/lib/api/posts';
 import { PostCard } from '@/components/feed/post-card';
@@ -58,7 +58,6 @@ export default function BookmarksPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
         <h1 className="text-xl font-bold text-gray-900 mb-6">Bookmarks</h1>
 

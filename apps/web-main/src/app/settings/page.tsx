@@ -1,7 +1,7 @@
 'use client';
 
 import { apiClient, useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Card, Switch, useToast } from '@upllyft/ui';
+import { Card, Switch, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getMyOrganizations, type MyOrgMembership } from '@/lib/api/organizations';
@@ -132,7 +132,6 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <h1 className="text-xl font-bold text-gray-900 mb-6">Settings</h1>

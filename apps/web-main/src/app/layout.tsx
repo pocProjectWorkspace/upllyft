@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from "./providers";
 import { ToastProvider } from "./toast-provider";
+import { AppFrame } from "@/components/app-frame";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -52,7 +53,7 @@ export default function RootLayout({
           }}
         />
         <Providers>
-          {children}
+          <AppFrame>{children}</AppFrame>
           <ToastProvider />
         </Providers>
       </body>

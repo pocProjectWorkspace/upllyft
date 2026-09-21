@@ -185,3 +185,4 @@ export { Sidebar, type SidebarProps, type SidebarItem } from './layouts/Sidebar'
 export { PageContainer, type PageContainerProps } from './layouts/PageContainer';
 
 export { NavLink, type NavLinkProps } from './components/NavLink';
+export { PageSkeleton, type PageSkeletonProps } from './components/PageSkeleton';

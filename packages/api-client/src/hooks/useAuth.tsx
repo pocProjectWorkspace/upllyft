@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -23,6 +24,8 @@ export interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** True while a background revalidation of the cached user is in flight. */
+  isRevalidating: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (payload: authApi.RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
@@ -36,10 +39,78 @@ interface AuthProviderProps {
   baseURL?: string;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Cached user snapshot (stale-while-revalidate across page loads)    */
+/* ------------------------------------------------------------------ */
+
+const USER_CACHE_KEY = 'upllyft_user';
+const USER_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+interface CachedUser {
+  user: User;
+  savedAt: number;
+}
+
+function readCachedUser(): User | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedUser;
+    if (!parsed?.user?.id || typeof parsed.savedAt !== 'number') return null;
+    if (Date.now() - parsed.savedAt > USER_CACHE_TTL_MS) return null;
+    return parsed.user;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUser(user: User | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (user) {
+      localStorage.setItem(USER_CACHE_KEY, JSON.stringify({ user, savedAt: Date.now() } satisfies CachedUser));
+    } else {
+      localStorage.removeItem(USER_CACHE_KEY);
+    }
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** Decode a JWT's `exp` claim without verifying it. Returns true when expired or undecodable. */
+function isJwtExpired(token: string, skewSeconds = 30): boolean {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return true;
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    if (typeof json.exp !== 'number') return false;
+    return json.exp * 1000 <= Date.now() + skewSeconds * 1000;
+  } catch {
+    return true;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+
 export function AuthProvider({ children, baseURL }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Hydrate from the snapshot synchronously so returning users see the
+  // authenticated shell on first paint; the network revalidates in the
+  // background. The snapshot is only trusted when auth tokens are present.
+  const [user, setUserState] = useState<User | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const { accessToken, refreshToken } = getStoredTokens();
+    if (!accessToken && !refreshToken) return null;
+    return readCachedUser();
+  });
+  const [isLoading, setIsLoading] = useState(() => user === null);
+  const [isRevalidating, setIsRevalidating] = useState(false);
   const initialized = useRef(false);
+
+  const setUser = useCallback((next: User | null) => {
+    setUserState(next);
+    writeCachedUser(next);
+  }, []);
 
   useEffect(() => {
     if (initialized.current) return;
@@ -53,12 +124,8 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
       const { accessToken, refreshToken } = getStoredTokens();
 
       // Hydrate in-memory token state immediately (sync)
-      if (accessToken) {
-        setAuthToken(accessToken);
-      }
-      if (refreshToken) {
-        setRefreshToken(refreshToken);
-      }
+      if (accessToken) setAuthToken(accessToken);
+      if (refreshToken) setRefreshToken(refreshToken);
 
       // No tokens at all — not authenticated
       if (!accessToken && !refreshToken) {
@@ -67,25 +134,32 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
         return;
       }
 
-      // Try to fetch current user with existing token
-      if (accessToken) {
+      const hadSnapshot = user !== null;
+      if (hadSnapshot) setIsRevalidating(true);
+
+      // If the access token is already expired, skip the /auth/me call that
+      // would 401 and go straight to refresh (saves one round trip).
+      const accessUsable = !!accessToken && !isJwtExpired(accessToken);
+
+      if (accessUsable) {
         try {
           const userData = await authApi.getCurrentUser();
           setUser(userData);
           setIsLoading(false);
+          setIsRevalidating(false);
           return;
         } catch {
-          // Token expired — fall through to refresh
+          // Token rejected — fall through to refresh
         }
       }
 
-      // Attempt token refresh
       if (refreshToken) {
         try {
           await authApi.refreshToken(refreshToken);
           const userData = await authApi.getCurrentUser();
           setUser(userData);
           setIsLoading(false);
+          setIsRevalidating(false);
           return;
         } catch {
           clearStoredTokens();
@@ -94,25 +168,27 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
 
       setUser(null);
       setIsLoading(false);
+      setIsRevalidating(false);
     };
 
     initAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseURL]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { user } = await authApi.login({ email, password });
     setUser(user);
-  }, []);
+  }, [setUser]);
 
   const register = useCallback(async (payload: authApi.RegisterPayload) => {
     const { user } = await authApi.register(payload);
     setUser(user);
-  }, []);
+  }, [setUser]);
 
   const logout = useCallback(async () => {
     await authApi.logout();
     setUser(null);
-  }, []);
+  }, [setUser]);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -121,7 +197,7 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
     } catch {
       // If refresh fails, don't clear user — caller can handle
     }
-  }, []);
+  }, [setUser]);
 
   // Apply a per-origin theme marker to <html> so CSS can skin the
   // app differently for users provisioned via external SSO partners.
@@ -139,21 +215,21 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
     }
   }, [user]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        register,
-        logout,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      isLoading,
+      isAuthenticated: !!user,
+      isRevalidating,
+      login,
+      register,
+      logout,
+      refreshUser,
+    }),
+    [user, isLoading, isRevalidating, login, register, logout, refreshUser],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

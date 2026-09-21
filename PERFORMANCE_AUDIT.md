@@ -372,6 +372,25 @@ Not changed by Phase 1 (by design, Phase 2): `/auth/me` itself is still ~1.9 s a
 
 Follow-ups required before merge: run `pnpm install` to record `compression` (added) and `lottie-react` (removed) in `pnpm-lock.yaml`; the `apps/api/node_modules/compression` junction is a local workaround. The API has no unit tests covering the touched services (only one spec file exists in the whole API).
 
+## 7b. Phase 2 implementation results (2026-09-21, branch `perf/phase-1`)
+
+Implemented items #22, #23, #24 (header into layouts, skeleton loading instead of spinner gates, auth in a cache).
+
+**What changed**
+
+- Every app's root layout now mounts a persistent `AppFrame` with the header (community's frame also owns the floating SOS button and crisis dialog; admin's owns the sidebar). The per-page `*Shell` wrappers were kept as thin auth guards with a content-only skeleton, so the 68 pages that use them needed no edits. web-main's 20 direct `<AppHeader>` renders were removed; the header is hidden on auth/onboarding routes and on `/admin` and `/org`, which have their own chrome.
+- `AuthProvider` hydrates synchronously from a stored snapshot of the last known user (24 h TTL, only when tokens exist) and revalidates `/auth/me` in the background; it skips the doomed `/auth/me` call when the access token is already expired and goes straight to refresh. `AppHeader` renders a same-height placeholder while a cold session resolves.
+- `loading.tsx` added to all seven apps; dashboard, feed, shells, the web-admin role guard and the web-cases layout show content skeletons instead of full-screen spinners; render-time `router.replace` calls moved into effects. The dashboard's onboarding check runs in parallel with the dashboard queries and is cached for 30 min.
+
+**Measured (production build of web-main, same machine/DB)**
+
+| Scenario | Phase 1 | Phase 2 |
+|---|---|---|
+| Full reload of dashboard, returning user | header + content after `/auth/me` (~2.2 s); data calls start after it (second tier at ~2.4 s) | header and content in the DOM at the first 250 ms sample; **all 6 API calls start together at +76 ms** (`/auth/me` no longer gates them) |
+| Header "Hub" click from `/feed` | soft nav, 4 API calls incl. `unread-count` (header remounted) | soft nav, **3 API calls, no `unread-count`** (header persists) |
+| Header "Admin" click | soft nav, 5 admin calls | soft nav, 5 admin calls, no `unread-count` |
+| Type-checks / builds | — | API, both packages, all 7 apps pass; web-main and web-community production builds pass |
+
 ## 8. What I measured vs. estimated
 
 **Measured:** all build times and output sizes (§2.1); chunk sizes and gzip sizes (§2.2); request counts, bytes, and API waterfalls on dev and production builds (§2.3, §2.4); API latency, raw payload sizes and response headers (§2.4); DB statement counts per endpoint via `pg_stat_statements` deltas (§2.4); DB round-trip latency; static-asset cache headers; dependency versions per workspace; all repo-wide counts (`'use client'`, `next/link`, `useQuery`, `React.memo`, `<img>`, etc.).

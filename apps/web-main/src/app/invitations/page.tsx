@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Button, Card, useToast } from '@upllyft/ui';
+import { Button, Card, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import {
   getMyInvitations,
@@ -97,7 +97,6 @@ export default function InvitationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Invitations</h1>

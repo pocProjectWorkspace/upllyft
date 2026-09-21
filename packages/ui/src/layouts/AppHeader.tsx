@@ -34,7 +34,7 @@ export interface AppHeaderProps {
 }
 
 export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, messagesHref, unreadMessages = 0 }: AppHeaderProps) {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   // The host app's client-side Link. Same-origin hrefs (including absolute
   // APP_URLS.* pointing at the current app) become soft navigations; links to
   // other apps stay ordinary browser navigations.
@@ -64,6 +64,28 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // While the session is being resolved on a cold load, keep the header's
+  // space with a lightweight placeholder so the page does not jump.
+  if (isLoading && !user) {
+    return (
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100" aria-busy="true">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-14 md:h-16">
+            <div className="flex items-center gap-8">
+              <img src="/logo.png" alt="Upllyft" className="h-7 md:h-8 w-auto" />
+              <div className="hidden md:flex items-center gap-2">
+                {[72, 56, 64, 80].map((w, i) => (
+                  <span key={i} className="h-6 rounded-lg bg-gray-100 animate-pulse" style={{ width: w }} />
+                ))}
+              </div>
+            </div>
+            <span className="h-8 w-8 rounded-full bg-gray-100 animate-pulse" />
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   if (!isAuthenticated || !user) return null;
 

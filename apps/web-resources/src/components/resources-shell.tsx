@@ -1,33 +1,26 @@
 'use client';
 
+import { useEffect, type ReactNode } from 'react';
 import { useAuth, APP_URLS } from '@upllyft/api-client';
-import { AppHeader } from '@upllyft/ui';
-import { useRouter } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { PageSkeleton } from '@upllyft/ui';
 
+/**
+ * Page-level wrapper. The header now lives in the root layout's AppFrame;
+ * this only guards authentication and provides the content container,
+ * showing a skeleton (not a blank screen) while the session resolves.
+ */
 export function ResourcesShell({ children }: { children: ReactNode }) {
   const { user, isLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || !user)) {
+      window.location.replace(`${APP_URLS.main}/login`);
+    }
+  }, [isLoading, isAuthenticated, user]);
+
+  if (isLoading || !isAuthenticated || !user) {
+    return <PageSkeleton />;
   }
 
-  if (!isAuthenticated || !user) {
-    router.replace(`${APP_URLS.main}/login`);
-    return null;
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="resources" />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {children}
-      </main>
-    </div>
-  );
+  return <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">{children}</main>;
 }

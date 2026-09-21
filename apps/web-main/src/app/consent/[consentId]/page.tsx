@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useRequireAuth } from '@upllyft/api-client';
 import { apiClient } from '@upllyft/api-client';
-import { AppHeader } from '@upllyft/ui';
+
 
 export default function ConsentSignPage() {
   const params = useParams();
@@ -63,7 +63,6 @@ export default function ConsentSignPage() {
   if (alreadySigned) {
     return (
       <div className="min-h-screen bg-gray-50/50">
-        <AppHeader currentApp="main" />
         <main className="max-w-lg mx-auto px-4 py-16 text-center">
           <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,7 +89,6 @@ export default function ConsentSignPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50/50">
-        <AppHeader currentApp="main" />
         <main className="max-w-lg mx-auto px-4 py-16 text-center">
           <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">!</span>

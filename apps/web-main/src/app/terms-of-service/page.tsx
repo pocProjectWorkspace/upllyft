@@ -1,6 +1,6 @@
 'use client';
 
-import { AppHeader } from '@upllyft/ui';
+
 
 const sections = [
   {
@@ -94,7 +94,6 @@ const sections = [
 export default function TermsOfServicePage() {
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-8">

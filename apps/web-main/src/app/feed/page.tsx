@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
-import { AppHeader, Skeleton, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
+import { Skeleton, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -156,15 +156,19 @@ export default function FeedPage() {
     return () => observer.disconnect();
   }, [handleObserver]);
 
-  if (!isReady) {
+  if (!isReady || !user) {
+    // Session still resolving: keep the page frame and show a feed skeleton
+    // (the header is already mounted by the root layout).
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gray-50/50">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-48 rounded-2xl" />
+          ))}
+        </div>
       </div>
     );
   }
-
-  if (!user) return null;
 
   const displayName = user.name || user.email?.split('@')[0] || 'User';
   const topBanners = topBannerAds?.pages?.[0] || [];
@@ -172,7 +176,6 @@ export default function FeedPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <div className="flex">
         {/* Left Sidebar */}
