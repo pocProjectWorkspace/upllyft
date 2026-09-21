@@ -65,26 +65,34 @@ if (!sessionSecret && nodeEnv === 'production') {
   // Cookie parser
   app.use(cookieParser(sessionSecret));
 
-  // Session configuration - Simple and working
-  app.use(
-    session({
-      secret: sessionSecret,
-      name: 'session',
-      resave: false,
-      saveUninitialized: false,
-      cookie: {
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        httpOnly: true,
-        secure: nodeEnv === 'production',
-        sameSite: nodeEnv === 'production' ? 'none' : 'lax',
-      },
-    }),
-  );
-  logger.log('✅ Session middleware configured');
+  // Session configuration. The API is JWT-authenticated; server sessions are
+  // only needed by the Google OAuth handshake and the registration captcha,
+  // so the session store and passport.session() are mounted on those route
+  // prefixes only instead of running (and allocating) on every request.
+  const sessionMiddleware = session({
+    secret: sessionSecret,
+    name: 'session',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      httpOnly: true,
+      secure: nodeEnv === 'production',
+      sameSite: nodeEnv === 'production' ? 'none' : 'lax',
+    },
+  });
+  const SESSION_PATHS = ['/api/auth', '/api/captcha'];
+  for (const path of SESSION_PATHS) {
+    app.use(path, sessionMiddleware);
+  }
+  logger.log(`✅ Session middleware configured for ${SESSION_PATHS.join(', ')}`);
 
-  // Initialize Passport
+  // Initialize Passport (JWT strategy needs initialize on every route; the
+  // session-backed user deserialisation only on the OAuth routes).
   app.use(passport.initialize());
-  app.use(passport.session());
+  for (const path of SESSION_PATHS) {
+    app.use(path, passport.session());
+  }
   app.use(json({ limit: '10mb' }));
   app.use(urlencoded({ extended: true, limit: '10mb' }));
 

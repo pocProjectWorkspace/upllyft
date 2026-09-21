@@ -197,13 +197,10 @@ model User {
   verifiedContributorAt DateTime?
   contributorBio        String?
 
-  @@index([email])
   @@index([role])
   @@index([verificationStatus])
   @@index([state, city])
   @@index([preferredLanguage])
-  @@index([resetPasswordToken])
-  @@index([googleId])
   @@index([updatedAt])
 }
 
@@ -401,6 +398,7 @@ model Event {
   @@index([organizationId])
   @@index([startDate])
   @@index([status])
+  @@index([status, isCancelled, startDate])
   @@index([eventType])
   @@index([city, state])
   @@index([createdBy])
@@ -469,6 +467,7 @@ model Post {
   @@index([isPublished, createdAt(sort: Desc)])
   @@index([moderationStatus])
   @@index([communityId])
+  @@index([communityId, createdAt(sort: Desc)])
   @@index([containsCrisisKeywords])
   @@index([needsReview])
 }
@@ -549,6 +548,7 @@ model FeedInteraction {
 
   @@index([userId, timestamp])
   @@index([postId, action])
+  @@index([userId, action])
 }
 
 model PostView {
@@ -786,6 +786,7 @@ model Notification {
   @@index([userId, read])
   @@index([read])
   @@index([createdAt])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model VerificationDoc {
@@ -1106,6 +1107,8 @@ model Question {
 
   @@index([authorId])
   @@index([status])
+  @@index([moderationStatus])
+  @@index([moderationStatus, status])
   @@index([category])
   @@index([lastActivityAt])
   @@index([answerCount])
@@ -1847,6 +1850,7 @@ model TherapistProfile {
   @@index([userId])
   @@index([isActive])
   @@index([acceptingBookings])
+  @@index([isActive, acceptingBookings, overallRating(sort: Desc)])
   @@index([overallRating])
   @@map("therapist_profiles")
 }
@@ -2048,6 +2052,8 @@ model Booking {
   @@index([sessionTypeId])
   @@index([organizationId])
   @@index([status])
+  @@index([therapistId, status])
+  @@index([patientId, status])
   @@index([startDateTime])
   @@index([paymentStatus])
   @@index([trackingStatus])
@@ -2920,6 +2926,8 @@ model Case {
   @@index([childId])
   @@index([primaryTherapistId])
   @@index([status])
+  @@index([primaryTherapistId, status])
+  @@index([createdAt(sort: Desc)])
   @@index([organizationId])
   @@map("cases")
 }
@@ -2938,6 +2946,7 @@ model CaseTherapist {
   @@unique([caseId, therapistId])
   @@index([caseId])
   @@index([therapistId])
+  @@index([therapistId, removedAt])
   @@map("case_therapists")
 }
 
@@ -4465,6 +4474,7 @@ model MiraConversation {
   @@index([userId])
   @@index([childId])
   @@index([updatedAt])
+  @@index([userId, updatedAt(sort: Desc)])
   @@map("mira_conversations")
 }
 

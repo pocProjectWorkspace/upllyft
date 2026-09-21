@@ -391,6 +391,18 @@ Implemented items #22, #23, #24 (header into layouts, skeleton loading instead o
 | Header "Admin" click | soft nav, 5 admin calls | soft nav, 5 admin calls, no `unread-count` |
 | Type-checks / builds | — | API, both packages, all 7 apps pass; web-main and web-community production builds pass |
 
+## 7c. Phase 2 backend items (2026-09-21, branch `perf/phase-1`)
+
+Implemented #26 (single Prisma client), #25 partially (session store scoped), and #29 (remaining composite indexes).
+
+| Item | Change | Verification |
+|---|---|---|
+| Four `PrismaClient` instances | Removed the duplicate `PrismaService` registrations from `app.module.ts`, `billing.module.ts` and `organizations.module.ts`; the global `PrismaModule` is now the only provider | Boot log prints "Database connected successfully" **once** (was 4×); all routes still resolve their Prisma dependency; smoke test 33/36 unchanged |
+| `express-session` MemoryStore + `passport.session()` on every request | Both are now mounted only under `/api/auth` and `/api/captcha`, the only prefixes whose controllers read `@Session()` (Google OAuth handshake, registration captcha, logout). `passport.initialize()` stays global for the JWT strategy | Captcha endpoints still 200 and set the session cookie; Google OAuth routes are under `/api/auth`; logout 200; non-auth routes send no `Set-Cookie` |
+| Remaining composite indexes | 13 indexes added: `Notification(userId, createdAt)`, `Post(communityId, createdAt)`, `Event(status, isCancelled, startDate)`, `FeedInteraction(userId, action)`, `Question(moderationStatus)`, `Question(moderationStatus, status)`, `therapist_profiles(isActive, acceptingBookings, overallRating)`, `bookings(therapistId, status)`, `bookings(patientId, status)`, `cases(primaryTherapistId, status)`, `cases(createdAt)`, `case_therapists(therapistId, removedAt)`, `mira_conversations(userId, updatedAt)`. Three indexes that duplicated `@unique` constraints on `User` (`email`, `resetPasswordToken`, `googleId`) dropped | Created `CONCURRENTLY` on the branch DB; `prisma migrate diff` shows schema and DB agree (only the pre-existing unrelated extras remain); migration file added |
+
+Not done from #25: the 10 MB JSON/urlencoded body limits are unchanged (which routes legitimately need large bodies was not established) and the `ExcludeFieldsInterceptor` is kept because it still strips `originalContent`. Not done from Phase 2: #27 (feed scoring batching), #28 (web-admin data fetching), #30 (Socket.IO Redis adapter, infra), #31 (`next/image`), #32 (uploads), #33 (list memoisation).
+
 ## 8. What I measured vs. estimated
 
 **Measured:** all build times and output sizes (§2.1); chunk sizes and gzip sizes (§2.2); request counts, bytes, and API waterfalls on dev and production builds (§2.3, §2.4); API latency, raw payload sizes and response headers (§2.4); DB statement counts per endpoint via `pg_stat_statements` deltas (§2.4); DB round-trip latency; static-asset cache headers; dependency versions per workspace; all repo-wide counts (`'use client'`, `next/link`, `useQuery`, `React.memo`, `<img>`, etc.).

@@ -9,7 +9,6 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 
 // Services
 import { ClinicalInsightsService } from './agents/clinical-insights.service';
-import { PrismaService } from './prisma/prisma.service';
 import { AppService } from './app.service';
 
 // Controllers
@@ -254,7 +253,8 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
     AppService,
     ClinicalInsightsService,
     ConfigService,
-    PrismaService,
+    // PrismaService is provided once by the global PrismaModule; registering it
+    // here again created a second PrismaClient (and connection pool).
     EngagementMetricsTask, // Task needs access to PrismaService and PostsService
     CredentialExpiryTask, // Phase 0 (UAE): daily licence-expiry derivation
     PreAuthExpiryTask, // Phase 2 (UAE): daily pre-authorisation expiry/exhaustion
