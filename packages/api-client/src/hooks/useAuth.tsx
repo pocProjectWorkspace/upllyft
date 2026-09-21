@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -94,22 +95,31 @@ function isJwtExpired(token: string, skewSeconds = 30): boolean {
 /* ------------------------------------------------------------------ */
 
 export function AuthProvider({ children, baseURL }: AuthProviderProps) {
-  // Hydrate from the snapshot synchronously so returning users see the
-  // authenticated shell on first paint; the network revalidates in the
-  // background. The snapshot is only trusted when auth tokens are present.
-  const [user, setUserState] = useState<User | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const { accessToken, refreshToken } = getStoredTokens();
-    if (!accessToken && !refreshToken) return null;
-    return readCachedUser();
-  });
-  const [isLoading, setIsLoading] = useState(() => user === null);
+  // Initial state must match the server-rendered HTML (no user), so the
+  // snapshot is applied in a layout effect right after mount — before the
+  // browser paints — rather than in the state initializer. Returning users
+  // therefore still see the authenticated shell on first paint without any
+  // network round trip, and there is no hydration mismatch.
+  const [user, setUserState] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRevalidating, setIsRevalidating] = useState(false);
   const initialized = useRef(false);
+  const snapshotRef = useRef<User | null>(null);
 
   const setUser = useCallback((next: User | null) => {
     setUserState(next);
     writeCachedUser(next);
+  }, []);
+
+  useLayoutEffect(() => {
+    const { accessToken, refreshToken } = getStoredTokens();
+    if (!accessToken && !refreshToken) return;
+    const cached = readCachedUser();
+    if (cached) {
+      snapshotRef.current = cached;
+      setUserState(cached);
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -134,7 +144,7 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
         return;
       }
 
-      const hadSnapshot = user !== null;
+      const hadSnapshot = snapshotRef.current !== null;
       if (hadSnapshot) setIsRevalidating(true);
 
       // If the access token is already expired, skip the /auth/me call that

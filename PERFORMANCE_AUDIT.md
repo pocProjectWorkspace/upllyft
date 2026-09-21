@@ -403,6 +403,38 @@ Implemented #26 (single Prisma client), #25 partially (session store scoped), an
 
 Not done from #25: the 10 MB JSON/urlencoded body limits are unchanged (which routes legitimately need large bodies was not established) and the `ExcludeFieldsInterceptor` is kept because it still strips `originalContent`. Not done from Phase 2: #27 (feed scoring batching), #28 (web-admin data fetching), #30 (Socket.IO Redis adapter, infra), #31 (`next/image`), #32 (uploads), #33 (list memoisation).
 
+## 7d. Phase 3, step 1: Community merged into the Hub (2026-09-21, branch `perf/phase-1`)
+
+First app folded into web-main per option (b). The standalone `apps/web-community` is untouched and still deployable; the merged copy is opt-in until cutover.
+
+**How it was done**
+
+- Routes copied to `apps/web-main/src/app/community/**` (so every former community URL is now `/community/<same path>`; the community app's own `/community/[slug]` section lives at `/community/community/[slug]`). Components, hooks and API modules copied to `apps/web-main/src/community/{components,hooks,lib/api}` to avoid the three file-name collisions with web-main, with `@/…` imports rewritten to `@/community/…`.
+- Root-relative navigation targets inside the copied pages (`href`, `router.push/replace`, `redirect`, Open Graph `url`) were rewritten with the `/community` prefix; API client calls were left untouched. One remaining plain anchor converted to `next/link`.
+- `app/community/layout.tsx` adds the community metadata plus a `CommunityFrame` (floating SOS button + crisis dialog); the shared header comes from the root `AppFrame`, which now reports `currentApp="community"` under `/community` so the "Feed" pill highlights correctly.
+- Pink/rose theme tokens and the OneVoice override block merged into web-main's `globals.css`; `react-markdown` added to web-main.
+- `APP_URLS.community` resolves to `${main}/community` when `NEXT_PUBLIC_COMMUNITY_MERGED=1` (set for web-main's local env; added to `turbo.json` globalEnv). The old app gained an opt-in `NEXT_PUBLIC_COMMUNITY_MOVED_TO=<hub origin>` redirect that sends every old URL to `<hub>/community/<path>`.
+- Fixed a hydration mismatch (React error 418) that the Phase 2 auth snapshot introduced: the cached user is now applied in a layout effect after mount instead of in the state initialiser, which keeps first paint instant without diverging from the server HTML.
+
+**Measured (production build of web-main)**
+
+| Scenario | Before (separate apps) | After (merged) |
+|---|---|---|
+| Header "Feed" click from the Hub dashboard | full document load of the community app on another origin, re-hydrate, re-auth | **soft navigation: 0 documents, 6 route chunks, 6 data calls, no `/auth/me`** |
+| Feed → Events → Hub | two full loads | all soft: 0 documents, ≤1 data call each |
+| Console/runtime errors during the flow | 1 (hydration) | **0** |
+| All top-level community routes | — | 200 on the merged app |
+| Build | — | web-main builds with 22 community routes; type-checks pass for web-main, web-community, api-client |
+
+**Cutover checklist (when ready to retire community.safehaven-upllyft.com)**
+
+1. Set `NEXT_PUBLIC_COMMUNITY_MERGED=1` on every web app's Vercel project (all apps link to community through `APP_URLS`), redeploy.
+2. Set `NEXT_PUBLIC_COMMUNITY_MOVED_TO=https://app.safehaven-upllyft.com` on the web-community project, redeploy; it now 308-redirects everything.
+3. Update the API's `FRONTEND_URL`/CORS list if it referenced the community origin for OAuth return or notification `actionUrl`s.
+4. Once traffic on the old origin is zero, delete `apps/web-community` and make the merged path the default in `nav-config.ts`.
+
+Next apps to fold, in the same pattern: screening and booking (parent journey), then resources, cases, admin (the last two need the `/admin` name collision resolved: web-main's `/admin` console vs the clinic admin app).
+
 ## 8. What I measured vs. estimated
 
 **Measured:** all build times and output sizes (§2.1); chunk sizes and gzip sizes (§2.2); request counts, bytes, and API waterfalls on dev and production builds (§2.3, §2.4); API latency, raw payload sizes and response headers (§2.4); DB statement counts per endpoint via `pg_stat_statements` deltas (§2.4); DB round-trip latency; static-asset cache headers; dependency versions per workspace; all repo-wide counts (`'use client'`, `next/link`, `useQuery`, `React.memo`, `<img>`, etc.).

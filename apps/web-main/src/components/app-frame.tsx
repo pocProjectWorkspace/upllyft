@@ -1,6 +1,7 @@
 'use client';
 
 import { AppHeader } from '@upllyft/ui';
+import type { AppName } from '@upllyft/api-client';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
@@ -17,6 +18,10 @@ const NO_HEADER_PREFIXES = [
   '/org',
 ];
 
+// Sections of other products that have been merged into this app. The header
+// highlights them as their own product even though they share the origin.
+const MERGED_SECTIONS: Array<[prefix: string, app: AppName]> = [['/community', 'community']];
+
 /**
  * Persistent application frame mounted once in the root layout. The header
  * lives here (instead of inside every page) so soft navigations keep it
@@ -25,10 +30,12 @@ const NO_HEADER_PREFIXES = [
 export function AppFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname() || '/';
   const hideHeader = NO_HEADER_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const currentApp: AppName =
+    MERGED_SECTIONS.find(([p]) => pathname === p || pathname.startsWith(`${p}/`))?.[1] ?? 'main';
 
   return (
     <>
-      {!hideHeader && <AppHeader currentApp="main" />}
+      {!hideHeader && <AppHeader currentApp={currentApp} />}
       {children}
     </>
   );

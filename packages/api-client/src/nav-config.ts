@@ -1,8 +1,20 @@
 const isProd = process.env.NODE_ENV === 'production';
 
+const MAIN_URL = process.env.NEXT_PUBLIC_APP_MAIN_URL || (isProd ? 'https://app.safehaven-upllyft.com' : 'http://localhost:3000');
+
+/**
+ * Community has been merged into the hub app under `/community`. While the
+ * standalone web-community deployment is still being kept warm, the merged
+ * location is opt-in via NEXT_PUBLIC_COMMUNITY_MERGED=1; once the cutover is
+ * done this flag becomes the default.
+ */
+const COMMUNITY_MERGED = process.env.NEXT_PUBLIC_COMMUNITY_MERGED === '1';
+
 export const APP_URLS = {
-  main: process.env.NEXT_PUBLIC_APP_MAIN_URL || (isProd ? 'https://app.safehaven-upllyft.com' : 'http://localhost:3000'),
-  community: process.env.NEXT_PUBLIC_APP_COMMUNITY_URL || (isProd ? 'https://community.safehaven-upllyft.com' : 'http://localhost:3002'),
+  main: MAIN_URL,
+  community: COMMUNITY_MERGED
+    ? `${MAIN_URL}/community`
+    : process.env.NEXT_PUBLIC_APP_COMMUNITY_URL || (isProd ? 'https://community.safehaven-upllyft.com' : 'http://localhost:3002'),
   screening: process.env.NEXT_PUBLIC_APP_SCREENING_URL || (isProd ? 'https://screening.safehaven-upllyft.com' : 'http://localhost:3003'),
   booking: process.env.NEXT_PUBLIC_APP_BOOKING_URL || (isProd ? 'https://booking.safehaven-upllyft.com' : 'http://localhost:3004'),
   resources: process.env.NEXT_PUBLIC_APP_RESOURCES_URL || (isProd ? 'https://resources.safehaven-upllyft.com' : 'http://localhost:3005'),

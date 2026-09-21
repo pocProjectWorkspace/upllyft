@@ -20,7 +20,21 @@ const nextConfig: NextConfig = {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
   async redirects() {
+    // Once the community section is served from the hub app (web-main under
+    // /community), set NEXT_PUBLIC_COMMUNITY_MOVED_TO=https://app.example.com
+    // on this deployment and every old community URL redirects there.
+    const movedTo = process.env.NEXT_PUBLIC_COMMUNITY_MOVED_TO;
+    const moved = movedTo
+      ? [
+          {
+            source: "/:path*",
+            destination: `${movedTo.replace(/\/$/, "")}/community/:path*`,
+            permanent: true,
+          },
+        ]
+      : [];
     return [
+      ...moved,
       {
         // OAuth must hit the backend directly (not proxied) so session cookies work
         source: "/api/auth/google",
