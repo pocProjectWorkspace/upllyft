@@ -241,3 +241,9 @@ html[data-theme="onevoice"] .bg-gradient-to-br.from-teal-400.to-teal-600 {
 
 /* Progress rings on the screening page use currentColor for stroke,
    so any .text-teal-* override above will propagate to them. */
+
+/* ── Merged from web-admin (clinic admin sidebar) ─────────────── */
+.sidebar-active {
+  background: linear-gradient(90deg, rgba(13, 148, 136, 0.1) 0%, transparent 100%);
+  border-left: 3px solid #0d9488;
+}
