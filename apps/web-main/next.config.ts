@@ -15,6 +15,9 @@ const nextConfig: NextConfig = {
   experimental: {
     // Import only the icons/components actually used instead of the whole barrel.
     optimizePackageImports: ["lucide-react", "@upllyft/ui"],
+    // Screening report generation can exceed the default 30 s proxy timeout
+    // (carried over from the former web-screening app).
+    proxyTimeout: 120_000,
   },
   async headers() {
     return [

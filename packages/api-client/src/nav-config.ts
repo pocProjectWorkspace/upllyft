@@ -3,23 +3,42 @@ const isProd = process.env.NODE_ENV === 'production';
 const MAIN_URL = process.env.NEXT_PUBLIC_APP_MAIN_URL || (isProd ? 'https://app.safehaven-upllyft.com' : 'http://localhost:3000');
 
 /**
- * Community has been merged into the hub app under `/community`. While the
- * standalone web-community deployment is still being kept warm, the merged
- * location is opt-in via NEXT_PUBLIC_COMMUNITY_MERGED=1; once the cutover is
- * done this flag becomes the default.
+ * The product apps are being merged into the hub app one section at a time
+ * (community -> /community, screening -> /screening, booking -> /booking,
+ * resources -> /resources, cases -> /cases, clinic admin -> /clinic).
+ * While the standalone deployments are kept warm, each merged location is
+ * opt-in: NEXT_PUBLIC_MERGED_APPS="community,screening,..." (or "all").
+ * NEXT_PUBLIC_COMMUNITY_MERGED=1 is honoured for backward compatibility.
  */
-const COMMUNITY_MERGED = process.env.NEXT_PUBLIC_COMMUNITY_MERGED === '1';
+const mergedList = (process.env.NEXT_PUBLIC_MERGED_APPS || '').split(',').map((s) => s.trim()).filter(Boolean);
+const mergedAll = mergedList.includes('all');
+function isMerged(app: string): boolean {
+  if (mergedAll || mergedList.includes(app)) return true;
+  return app === 'community' && process.env.NEXT_PUBLIC_COMMUNITY_MERGED === '1';
+}
+/** Path prefix of each merged section inside the hub app. */
+export const MERGED_PREFIX = {
+  community: '/community',
+  screening: '/screening',
+  booking: '/booking',
+  resources: '/resources',
+  cases: '/cases',
+  admin: '/clinic',
+} as const;
+
+function appUrl(app: keyof typeof MERGED_PREFIX, envValue: string | undefined, prodHost: string, devPort: number): string {
+  if (isMerged(app)) return `${MAIN_URL}${MERGED_PREFIX[app]}`;
+  return envValue || (isProd ? `https://${prodHost}` : `http://localhost:${devPort}`);
+}
 
 export const APP_URLS = {
   main: MAIN_URL,
-  community: COMMUNITY_MERGED
-    ? `${MAIN_URL}/community`
-    : process.env.NEXT_PUBLIC_APP_COMMUNITY_URL || (isProd ? 'https://community.safehaven-upllyft.com' : 'http://localhost:3002'),
-  screening: process.env.NEXT_PUBLIC_APP_SCREENING_URL || (isProd ? 'https://screening.safehaven-upllyft.com' : 'http://localhost:3003'),
-  booking: process.env.NEXT_PUBLIC_APP_BOOKING_URL || (isProd ? 'https://booking.safehaven-upllyft.com' : 'http://localhost:3004'),
-  resources: process.env.NEXT_PUBLIC_APP_RESOURCES_URL || (isProd ? 'https://resources.safehaven-upllyft.com' : 'http://localhost:3005'),
-  cases: process.env.NEXT_PUBLIC_APP_CASES_URL || (isProd ? 'https://cases.safehaven-upllyft.com' : 'http://localhost:3006'),
-  admin: process.env.NEXT_PUBLIC_APP_ADMIN_URL || (isProd ? 'https://admin.safehaven-upllyft.com' : 'http://localhost:3007'),
+  community: appUrl('community', process.env.NEXT_PUBLIC_APP_COMMUNITY_URL, 'community.safehaven-upllyft.com', 3002),
+  screening: appUrl('screening', process.env.NEXT_PUBLIC_APP_SCREENING_URL, 'screening.safehaven-upllyft.com', 3003),
+  booking: appUrl('booking', process.env.NEXT_PUBLIC_APP_BOOKING_URL, 'booking.safehaven-upllyft.com', 3004),
+  resources: appUrl('resources', process.env.NEXT_PUBLIC_APP_RESOURCES_URL, 'resources.safehaven-upllyft.com', 3005),
+  cases: appUrl('cases', process.env.NEXT_PUBLIC_APP_CASES_URL, 'cases.safehaven-upllyft.com', 3006),
+  admin: appUrl('admin', process.env.NEXT_PUBLIC_APP_ADMIN_URL, 'admin.safehaven-upllyft.com', 3007),
 } as const;
 
 export type AppName = keyof typeof APP_URLS;

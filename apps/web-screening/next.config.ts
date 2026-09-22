@@ -21,7 +21,15 @@ const nextConfig: NextConfig = {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
   async redirects() {
+    // Once this section is served from the hub app (web-main under /screening),
+    // set NEXT_PUBLIC_SCREENING_MOVED_TO=https://app.example.com on this
+    // deployment and every old URL redirects there.
+    const movedTo = process.env.NEXT_PUBLIC_SCREENING_MOVED_TO;
+    const moved = movedTo
+      ? [{ source: "/:path*", destination: `${movedTo.replace(/\/$/, "")}/screening/:path*`, permanent: true }]
+      : [];
     return [
+      ...moved,
       {
         // OAuth must hit the backend directly (not proxied) so session cookies work
         source: "/api/auth/google",
