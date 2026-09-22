@@ -433,7 +433,40 @@ First app folded into web-main per option (b). The standalone `apps/web-communit
 3. Update the API's `FRONTEND_URL`/CORS list if it referenced the community origin for OAuth return or notification `actionUrl`s.
 4. Once traffic on the old origin is zero, delete `apps/web-community` and make the merged path the default in `nav-config.ts`.
 
-Next apps to fold, in the same pattern: screening and booking (parent journey), then resources, cases, admin (the last two need the `/admin` name collision resolved: web-main's `/admin` console vs the clinic admin app).
+## 7e. Phase 3 complete: all six product apps merged into the Hub (2026-09-22, branch `perf/phase-1`)
+
+Screening, booking, resources, cases and clinic admin were folded in after community, one commit each, with the same mechanics (§7d). The standalone apps are untouched and still deployable; every merged section is opt-in via `NEXT_PUBLIC_MERGED_APPS` until cutover.
+
+| Former app | Hub prefix | Routes | Notes |
+|---|---|---|---|
+| web-community | `/community` | 22 | floating SOS + crisis dialog in the section layout |
+| web-screening | `/screening` | 8 | `proxyTimeout: 120_000` carried over; recharts added; progress-ring CSS + OneVoice teal overrides merged |
+| web-booking | `/booking` | 22 | date-fns, react-error-boundary added |
+| web-resources | `/resources` | 10 | — |
+| web-cases | `/cases` | 37 | `(cases)`/`(nursery)` route groups preserved; the `(cases)` layout no longer renders its own header; react-hook-form, zod 3, @hookform/resolvers 3 added |
+| web-admin (clinic) | **`/clinic`** | 11 | prefix chosen because `/admin` is the hub's platform console; section layout provides the persistent clinic sidebar |
+
+`APP_URLS.<app>` (`packages/api-client/src/nav-config.ts`) resolves to `${main}<prefix>` when `NEXT_PUBLIC_MERGED_APPS` lists the app (or `all`); the root `AppFrame` maps each prefix to `currentApp` for the header pill. Each standalone app has an opt-in `NEXT_PUBLIC_<APP>_MOVED_TO=<hub origin>` permanent redirect for cutover.
+
+**Measured (production build of web-main, one browser session, header navigation through every section)**
+
+| Tour step | Full-document loads | `/auth/me` calls |
+|---|---|---|
+| Hub → Cases → Feed (community) → Screening → Booking → Resources → Hub | **0** (was 6) | **0** (was 6) |
+| Console/runtime errors over the tour | **0** | |
+| Route sweep (every top-level route in all six sections) | all **200** | |
+| Merged hub bundle | 212 chunks, 1,981 KB gzip **in total**, shared runtime downloaded once (was 7 apps × ~450–560 KB gzip each, runtime downloaded per app) | |
+| Type-checks | web-main, api-client, ui and all six standalone apps pass; web-main production build passes after every step | |
+
+**Preserved behaviour (by construction):** page code, hooks, API modules and forms were copied verbatim with only import paths and navigation prefixes rewritten; per-page shells still guard auth exactly as before; role guards unchanged; the platform admin console at `/admin` and the org workspace at `/org` keep their own chrome.
+
+**Cutover checklist (per app, or all at once)**
+
+1. On every web project in Vercel set `NEXT_PUBLIC_MERGED_APPS=all` and redeploy (all cross-app links now target the hub).
+2. On each standalone project set `NEXT_PUBLIC_<APP>_MOVED_TO=https://app.safehaven-upllyft.com` and redeploy; old URLs 308-redirect to the hub.
+3. Update the API `CORS_EXTRA_ORIGINS`/`FRONTEND_URL` and any notification `actionUrl` builders that referenced the old origins.
+4. Run `pnpm install` at the repo root and commit `pnpm-lock.yaml` (seven dependencies were added to web-main by hand; locally they are junction-linked from the pnpm store).
+5. After traffic on the old origins is zero: delete `apps/web-*` (except web-main and landing), their Vercel projects, and make the hub prefixes the default in `nav-config.ts`.
 
 ## 8. What I measured vs. estimated
 
