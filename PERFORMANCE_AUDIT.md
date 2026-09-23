@@ -468,6 +468,42 @@ Screening, booking, resources, cases and clinic admin were folded in after commu
 4. Run `pnpm install` at the repo root and commit `pnpm-lock.yaml` (seven dependencies were added to web-main by hand; locally they are junction-linked from the pnpm store).
 5. After traffic on the old origins is zero: delete `apps/web-*` (except web-main and landing), their Vercel projects, and make the hub prefixes the default in `nav-config.ts`.
 
+## 7f. Phase 2 leftovers: feed scoring batched (#27), clinic on TanStack Query (#28) (2026-09-23, branch `perf/phase-1`)
+
+Also on this date: cutover step 4 from §7e is done (`pnpm install` run, `pnpm-lock.yaml` committed, verified with `pnpm install --frozen-lockfile --offline`), and the API gained a unit-test `jest.config.js` (there was none, so `pnpm --filter @upllyft/api test` could not transpile TypeScript at all; the one pre-existing spec was also broken by a missing `PrismaService` provider and is fixed).
+
+**#27 Personalized feed (`GET /feeds/personalized?view=FOR_YOU`)**
+
+- `PersonalizationService.computeInterests()` is a read-only replacement for what the GET used to call: one `feedInteraction.findMany` selecting only `action`, `timestamp`, `post.category`, `post.tags` (previously `include: { post: true }` pulled whole post rows). The `UserInterests` upserts that ran inside every GET now happen only on the interaction write path (`FeedsService.trackInteraction`), which already called the recalculation asynchronously.
+- `PersonalizationService.scorePosts()` scores all candidates in one batch: preferences once, follows once (`followingId IN (...)`), and per-author positive-interaction counts in one `GROUP BY` raw query. Previously each candidate ran `userInterests.findMany` + `userPreferences.findUnique` + `follow.findUnique` + `feedInteraction.count` (4 statements per post, plus a `userPreferences.create` on first sight), and the per-post score cache entries competed with the feed entries in a 100-slot LRU.
+- `FeedAlgorithmService` now sorts by score before applying diversity (the "Sort by score" step was commented but never executed) and the diversity pass defers over-limit posts to a later window instead of dropping them (the old `splice(indexOf(post))` on an array that did not contain the post removed the last placed post instead).
+- Engagement scoring reads `_count.comments` / `_count.bookmarks` / `viewCount`, the fields the candidate queries actually return; it previously read `commentCount`, `bookmarkCount` and `views`, which are undefined on those rows, so engagement was effectively upvotes only.
+- New spec `feed-algorithm.service.spec.ts` (4 tests) pins the statement budget (≤ 9 Prisma calls for 30 candidates), no writes on a GET, no per-post lookups, no dropped candidates across pages, and that followed authors outrank strangers.
+
+Measured (admin account, Supabase branch DB, `pg_stat_statements` delta per request, pooler bookkeeping excluded):
+
+| | Statements for the feed | Wall time cold | Wall time cached |
+|---|---|---|---|
+| Before (§7a, same account) | 14 with 3 candidates; grows 4 per candidate (+1 upsert per interest category) | 1.92 s at 136 ms DB round trip | 4 ms |
+| After | **9, independent of candidate count** (interests 1, candidate stages 4 incl. the follow lookup, preferences 1, follows 1, author counts 1; + the guard's `User` lookup) | 2.4 s at **~720 ms** DB round trip on the day of measurement (`SELECT 1` = 714–734 ms; `view=RECENT` with 2 statements took 1.38 s on the same connection) | 4 ms |
+
+The wall-time columns are not comparable across rows because the network round trip to the branch DB was ~5× slower on 2026-09-23 than on 2026-09-21; the cold path is now ~3 round trips above the trivial `RECENT` feed. The statement column is the durable result: a user with 30 candidates and 5 interest categories used to cost ~130 statements per cold feed and now costs 9.
+
+Found while measuring: `view=TRENDING` returned 500 because the raw SQL in `getTrendingFeed` referenced `p.views` (a relation, not a column); fixed to `p."viewCount"` and the query verified against the DB.
+
+**#28 Clinic section (`/clinic`, formerly web-admin)**
+
+All eleven pages fetched with hand-rolled `useEffect` + `useState` loaders (26 sites; only the credentials tab used TanStack Query). They now use `useQuery` with keys from `apps/web-main/src/clinic/lib/query-keys.ts`:
+
+- list pages (patients, therapists, schedule, reports, outcomes) use `placeholderData: keepPreviousData` so filter changes do not blank the table;
+- the tracking board uses `refetchInterval` for its 30 s poll and writes optimistic status edits into the query cache (`setQueryData`) so the next poll reconciles them;
+- detail pages fetch tab data lazily via `enabled` and refresh after mutations with `refetch()`/`setQueryData()`;
+- therapist options are shared between patients and outcomes with a 5-minute `staleTime`.
+
+The remaining `useEffect`s are the two search debounces and the settings form seed. Verification: web-main and API type-checks pass; `jest` on the API: 2 suites, 5 tests pass. Not measured in a browser (no clinic-role account with data was available in this session).
+
+Still open from Phase 2: #30 (Socket.IO Redis adapter, infra), #31 (`next/image`, 39 `<img>` sites in web-main), #32 (uploads to Supabase storage), #33 (list memoisation/virtualisation), and the rest of #25 (body limits, interceptor). Phase 3: #35 (server-rendered first paint), #36 (server-side auth redirects; `proxy.ts` was deleted in Phase 1, so this now means a new `proxy.ts`/middleware).
+
 ## 8. What I measured vs. estimated
 
 **Measured:** all build times and output sizes (§2.1); chunk sizes and gzip sizes (§2.2); request counts, bytes, and API waterfalls on dev and production builds (§2.3, §2.4); API latency, raw payload sizes and response headers (§2.4); DB statement counts per endpoint via `pg_stat_statements` deltas (§2.4); DB round-trip latency; static-asset cache headers; dependency versions per workspace; all repo-wide counts (`'use client'`, `next/link`, `useQuery`, `React.memo`, `<img>`, etc.).
