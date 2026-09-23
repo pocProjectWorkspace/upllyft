@@ -38,6 +38,14 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 interface AuthProviderProps {
   children: ReactNode;
   baseURL?: string;
+  /**
+   * A promise started on the server (root layout reads the auth cookie and
+   * calls /auth/me there) and streamed to the client. When it resolves with
+   * a user we adopt it and skip the client-side /auth/me round trip; when it
+   * resolves null (no cookie, API slow, token rejected) we fall back to the
+   * normal client flow. It must never reject.
+   */
+  serverUser?: Promise<User | null> | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -94,7 +102,7 @@ function isJwtExpired(token: string, skewSeconds = 30): boolean {
 
 /* ------------------------------------------------------------------ */
 
-export function AuthProvider({ children, baseURL }: AuthProviderProps) {
+export function AuthProvider({ children, baseURL, serverUser }: AuthProviderProps) {
   // Initial state must match the server-rendered HTML (no user), so the
   // snapshot is applied in a layout effect right after mount — before the
   // browser paints — rather than in the state initializer. Returning users
@@ -151,6 +159,18 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
       // would 401 and go straight to refresh (saves one round trip).
       const accessUsable = !!accessToken && !isJwtExpired(accessToken);
 
+      if (accessUsable && serverUser) {
+        // The server already asked /auth/me with this cookie; its answer
+        // arrives in the same HTML stream, so waiting costs no extra request.
+        const fromServer = await serverUser.catch(() => null);
+        if (fromServer) {
+          setUser(fromServer);
+          setIsLoading(false);
+          setIsRevalidating(false);
+          return;
+        }
+      }
+
       if (accessUsable) {
         try {
           const userData = await authApi.getCurrentUser();
@@ -183,7 +203,7 @@ export function AuthProvider({ children, baseURL }: AuthProviderProps) {
 
     initAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseURL]);
+  }, [baseURL, serverUser]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { user } = await authApi.login({ email, password });

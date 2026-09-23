@@ -527,6 +527,24 @@ Security note: the first cut allowed any https host in `images.remotePatterns`, 
 
 **#35 (server-rendered authenticated shell) — assessed, not started.** The measurement that decides it: `/auth/me` costs 1.8 s server-side today (DB round trip ~720 ms from this machine, §7f), while the Phase 2 client snapshot paints the authenticated shell at the first 250 ms sample for returning users. Reading the cookie in the root layout and awaiting `/auth/me` there would make every route dynamic and push first byte behind that call, i.e. a regression for the common case. It becomes worthwhile once the API and database are co-located (question 2 in §9) or `/auth/me` is served from a cache; until then the right first step is the one #36 now provides (no shell shipped to logged-out visitors). Remaining Phase 2/3 items after this section: #30 (Redis adapter, infra decision), #35, and cutover steps 1–3 and 5 (§7e).
 
+## 7h. #35 — server-started auth, streamed (2026-09-24, branch `perf/phase-1`)
+
+Implemented on request, in the one shape that does not regress first byte: the server starts `/auth/me` but never waits for it.
+
+- `apps/web-main/src/app/layout.tsx` is now an async server component. It reads the `upllyft_access_token` cookie, and if the token is present and not locally expired, starts `fetchServerUser(token)` (`src/lib/server-user.ts`: server-to-API `GET /auth/me` with the Bearer token, `cache: 'no-store'`, 2.5 s timeout via `SERVER_AUTH_TIMEOUT_MS`, resolves `null` on any failure, never rejects). The **promise**, not the result, is passed to `<Providers serverUser>` → `<AuthProvider serverUser>`, so React streams the shell immediately and the resolved user lands in a later chunk of the same response.
+- `AuthProvider` (`packages/api-client/src/hooks/useAuth.tsx`) still hydrates from the localStorage snapshot in a layout effect (Phase 2), so returning users paint the authenticated shell before any network. During init, if the access token is usable and a `serverUser` promise exists, it awaits that instead of calling `/auth/me` from the browser; a `null` (no cookie, API slow, 401) falls through to the unchanged client flow (client `/auth/me`, then refresh). Standalone apps and mobile are unaffected (prop is optional).
+- Consequence: every route is now dynamic (`ƒ`) because the root layout reads cookies; `/sitemap.xml` and `/robots.txt` stay static. This is an authenticated app whose pages were `'use client'` shells, so nothing user-facing was CDN-cached before.
+
+Measured (production build, real admin session cookie; the branch DB was unusually slow: login 13 s, direct `/auth/me` 10.4 s cold then ~2 s):
+
+| Request | TTFB | Total | Notes |
+|---|---|---|---|
+| `GET /` with cookie, 1st | 47 ms | 2.57 s | server `/auth/me` exceeded the 2.5 s timeout → `null` streamed; client falls back (HTML 15.8 KB) |
+| `GET /` with cookie, 2nd/3rd | 15–18 ms | 1.9–2.0 s | user streamed in the same response (HTML 19.7 KB, email present once) — the browser's own `/auth/me` call is skipped |
+| `GET /login` no cookie | 16 ms | 16 ms | unchanged |
+
+Read: first byte is unchanged (15–50 ms) in every case, so the Phase 2 instant paint is preserved; what moved is *where* the `/auth/me` round trip happens (server→API instead of browser→proxy→API), and the response stays open until it resolves or times out. The win is bounded by API latency, exactly as §7g predicted: when `/auth/me` is ~1 s in production the user arrives ~1 s into the stream with no client request; when it is slower than the timeout the client path runs as before. Tune `SERVER_AUTH_TIMEOUT_MS` per environment. "First data" (dashboard queries) is still fetched client-side; prefetching it server-side is the next step once the API is co-located with the database.
+
 ## 8. What I measured vs. estimated
 
 **Measured:** all build times and output sizes (§2.1); chunk sizes and gzip sizes (§2.2); request counts, bytes, and API waterfalls on dev and production builds (§2.3, §2.4); API latency, raw payload sizes and response headers (§2.4); DB statement counts per endpoint via `pg_stat_statements` deltas (§2.4); DB round-trip latency; static-asset cache headers; dependency versions per workspace; all repo-wide counts (`'use client'`, `next/link`, `useQuery`, `React.memo`, `<img>`, etc.).
