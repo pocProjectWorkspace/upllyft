@@ -12,16 +12,24 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   images: {
-    // User content (avatars, banners, worksheet previews) is served from
-    // Supabase storage, Google avatars and arbitrary https URLs entered by
-    // admins, so allow any https host; localhost for dev uploads.
+    // The optimizer only fetches from hosts we control or trust (enforced
+    // here for /_next/image). Images from any other host are rendered
+    // `unoptimized` by components/app-image.tsx (see lib/image-hosts.ts),
+    // so an admin-entered URL never makes this server fetch an arbitrary origin.
     remotePatterns: [
-      { protocol: 'https', hostname: '**' },
-      { protocol: 'http', hostname: 'localhost' },
-      { protocol: 'http', hostname: '127.0.0.1' },
+      { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: 'flagcdn.com' },
+      ...(process.env.NODE_ENV !== 'production'
+        ? [
+            { protocol: 'http' as const, hostname: 'localhost' },
+            { protocol: 'http' as const, hostname: '127.0.0.1' },
+          ]
+        : []),
     ],
     formats: ['image/avif', 'image/webp'],
   },
+
   transpilePackages: ["@upllyft/ui", "@upllyft/api-client", "@upllyft/types"],
   experimental: {
     // Import only the icons/components actually used instead of the whole barrel.

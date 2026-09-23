@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import Image from '@/components/app-image';
 import { useAuth, useRedirectIfAuthenticated, apiClient } from '@upllyft/api-client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
 import Link from 'next/link';

@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import Image from '@/components/app-image';
 import { apiClient } from '@upllyft/api-client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';

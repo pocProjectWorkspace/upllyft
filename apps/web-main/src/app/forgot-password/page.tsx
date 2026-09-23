@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import Image from '@/components/app-image';
 import { apiClient } from '@upllyft/api-client';
 import { useState } from 'react';
 

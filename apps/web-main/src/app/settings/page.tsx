@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import Image from '@/components/app-image';
 import { apiClient, useRequireAuth } from '@upllyft/api-client';
 import { Card, Switch, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';

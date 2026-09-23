@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import Image from '@/components/app-image';
 import { useEffect, useRef, useState } from 'react';
 import { trackBannerAdImpression, trackBannerAdClick } from '@/lib/api/banner-ads';
 import type { BannerAd } from '@/lib/api/admin';

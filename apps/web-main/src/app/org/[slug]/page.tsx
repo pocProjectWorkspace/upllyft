@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import Image from '@/components/app-image';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Badge, Skeleton } from '@upllyft/ui';

@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import Image from '@/components/app-image';
 import type { User } from '@upllyft/types';
 import { APP_URLS, firstNameOf } from '@upllyft/api-client';
 import { Card, Avatar, Badge, Skeleton, Popover, PopoverTrigger, PopoverContent } from '@upllyft/ui';

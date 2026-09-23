@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import Image from '@/components/app-image';
 import { Skeleton } from '@upllyft/ui';
 import { APP_URLS } from '@upllyft/api-client';
 import { useRelevantPosts } from '@/screening/hooks/use-assessments';
