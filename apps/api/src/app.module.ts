@@ -25,7 +25,6 @@ import { UsersModule } from './users/users.module';
 import { LoggingModule, LoggingInterceptor } from './common/logging';
 
 // Response interceptors
-import { ExcludeFieldsInterceptor } from './common/interceptors';
 
 // Feature modules
 import { PostsModule } from './posts/posts.module';
@@ -269,11 +268,6 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
-    },
-    // Exclude sensitive fields (embedding, etc.) from responses
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: ExcludeFieldsInterceptor,
     },
   ],
 })

@@ -93,8 +93,16 @@ if (!sessionSecret && nodeEnv === 'production') {
   for (const path of SESSION_PATHS) {
     app.use(path, passport.session());
   }
-  app.use(json({ limit: '10mb' }));
-  app.use(urlencoded({ extended: true, limit: '10mb' }));
+  // Body limits. Files go through multer (multipart), and the web/mobile
+  // clients never send data URLs as JSON, so 1 MB covers every JSON route.
+  // Admin bulk imports keep the old 10 MB ceiling; these must be mounted
+  // before the global parser so they win for their prefix.
+  const LARGE_BODY_PATHS = ['/api/crisis', '/api/admin'];
+  for (const path of LARGE_BODY_PATHS) {
+    app.use(path, json({ limit: '10mb' }));
+  }
+  app.use(json({ limit: '1mb' }));
+  app.use(urlencoded({ extended: true, limit: '1mb' }));
 
   // Passport serialization (required for Google OAuth session flow)
   passport.serializeUser((user: any, done: any) => {

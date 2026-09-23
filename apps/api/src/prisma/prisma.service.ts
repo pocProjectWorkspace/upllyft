@@ -20,7 +20,9 @@ export class PrismaService
         user: { embedding: true },
         post: { embedding: true },
         question: { embedding: true },
-        answer: { embedding: true },
+        // originalContent holds the pre-redaction text; it is written by
+        // AnswersService and never read back, so keep it out of every query.
+        answer: { embedding: true, originalContent: true },
       },
     });
   }
