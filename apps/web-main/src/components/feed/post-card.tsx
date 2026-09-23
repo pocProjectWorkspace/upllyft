@@ -5,7 +5,7 @@ import type { Post } from '@/lib/api/posts';
 
 type FeedDensity = 'compact' | 'comfortable' | 'spacious';
 import { votePost, bookmarkPost, unbookmarkPost } from '@/lib/api/posts';
-import { useState } from 'react';
+import { useState , memo } from 'react';
 
 interface PostCardProps {
   post: Post;
@@ -20,7 +20,7 @@ const typeBadgeConfig: Record<string, { bg: string; text: string; label: string 
   RESOURCE: { bg: 'bg-teal-100', text: 'text-teal-700', label: 'Resource' },
 };
 
-export function PostCard({ post, onVoteChange, density = 'comfortable' }: PostCardProps) {
+export const PostCard = memo(function PostCard({ post, onVoteChange, density = 'comfortable' }: PostCardProps) {
   const [localUpvotes, setLocalUpvotes] = useState(post.upvotes);
   const [isLiked, setIsLiked] = useState(post.userVote === 'up');
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
@@ -157,7 +157,7 @@ export function PostCard({ post, onVoteChange, density = 'comfortable' }: PostCa
       </div>
     </article>
   );
-}
+});
 
 function getTimeAgo(dateStr: string): string {
   const date = new Date(dateStr);

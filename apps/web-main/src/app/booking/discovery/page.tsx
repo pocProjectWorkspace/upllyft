@@ -1,6 +1,7 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import Image from 'next/image';
+import { Suspense, memo, useCallback, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiClient, useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
@@ -152,17 +153,20 @@ function DiscoveryContent() {
 
   const strongCount = rows.filter((r) => r.match?.tier === 'strong').length;
 
-  function toggleCompare(row: Row) {
-    setCompareSel((sel) => {
-      if (sel.includes(row.key)) return sel.filter((k) => k !== row.key);
-      if (sel.length >= 3) return sel;
-      // Compare is reached from the shortlist, so comparing implies saving.
-      if (!savedIds.has(row.id)) {
-        toggleSave.mutate(row.kind === 'THERAPIST' ? { therapistId: row.id } : { clinicId: row.id });
-      }
-      return [...sel, row.key];
-    });
-  }
+  const toggleCompare = useCallback(
+    (row: Row) => {
+      setCompareSel((sel) => {
+        if (sel.includes(row.key)) return sel.filter((k) => k !== row.key);
+        if (sel.length >= 3) return sel;
+        // Compare is reached from the shortlist, so comparing implies saving.
+        if (!savedIds.has(row.id)) {
+          toggleSave.mutate(row.kind === 'THERAPIST' ? { therapistId: row.id } : { clinicId: row.id });
+        }
+        return [...sel, row.key];
+      });
+    },
+    [savedIds, toggleSave],
+  );
 
   function goCompare() {
     const ids = compareSel
@@ -402,129 +406,19 @@ function DiscoveryContent() {
                 const saved = savedIds.has(r.id);
                 const comparing = compareSel.includes(r.key);
                 return (
-                  <div key={r.key} className="bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col hover:shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-shadow">
-                    {/* Tier band */}
-                    {tier ? (
-                      <div className={`flex items-center justify-between px-4 py-2.5 border-b ${tier.band}`}>
-                        <div className="flex items-center gap-2">
-                          <span className={`w-[7px] h-[7px] rounded-full ${tier.dot}`} />
-                          <span className={`text-xs font-extrabold ${tier.fg}`}>{tier.label}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[11.5px] font-bold opacity-75 ${tier.fg}`}>{r.kind}</span>
-                          <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-white text-teal-700 border border-teal-100">
-                            ON UPLLYFT
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between px-4 py-2.5 border-b bg-slate-50 border-slate-100">
-                        <span className="text-[11.5px] font-bold text-slate-500">{r.kind}</span>
-                        <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-white text-teal-700 border border-teal-100">
-                          ON UPLLYFT
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Identity row */}
-                    <div className="p-4 flex gap-3">
-                      {r.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={r.image} alt="" className="w-[52px] h-[52px] rounded-2xl object-cover flex-none" />
-                      ) : (
-                        <div className={`w-[52px] h-[52px] rounded-2xl text-white grid place-items-center text-base font-extrabold flex-none ${avatarColor(r.name)}`}>
-                          {initials(r.name)}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-base font-bold tracking-tight text-gray-900 truncate">{r.name}</span>
-                          <span className="text-[11px] text-blue-600 font-extrabold flex-none">✓</span>
-                        </div>
-                        <div className="text-[13px] text-slate-500 truncate">{r.role}</div>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-[12.5px] text-amber-500 tracking-widest">
-                            {'★'.repeat(Math.round(r.rating || 0)).padEnd(5, '☆')}
-                          </span>
-                          <span className="text-[12.5px] font-bold text-gray-900">{r.rating.toFixed(1)}</span>
-                          <span className="text-[12.5px] text-slate-400">({r.reviews})</span>
-                        </div>
-                      </div>
-                      {isParent && (
-                        <button
-                          onClick={() => toggleSave.mutate(r.kind === 'THERAPIST' ? { therapistId: r.id } : { clinicId: r.id })}
-                          aria-label={saved ? 'Remove from saved' : 'Save'}
-                          className={`w-8 h-8 rounded-[9px] border border-gray-200 bg-white text-sm flex-none leading-none transition-colors ${
-                            saved ? 'text-rose-500' : 'text-slate-300 hover:text-rose-400'
-                          }`}
-                        >
-                          ♥
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Why line */}
-                    {inFit && r.match?.reason && (
-                      <div className="px-4 flex items-start gap-2">
-                        <span className="w-4 h-4 rounded-full flex-none mt-[1px] bg-teal-100 text-teal-700 text-[9px] font-black grid place-items-center leading-none">
-                          ✓
-                        </span>
-                        <span className="text-[12.5px] text-slate-700 leading-snug">{r.match.reason}</span>
-                      </div>
-                    )}
-
-                    {/* Tags */}
-                    {r.tags.length > 0 && (
-                      <div className="px-4 pt-3 flex gap-1.5 flex-wrap">
-                        {r.tags.map((t) => (
-                          <span key={t} className="text-[11.5px] font-semibold px-2 py-1 rounded-md bg-blue-50 text-blue-600">
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Footer */}
-                    <div className="px-4 pb-4 mt-auto">
-                      <div className="flex items-center gap-3 text-[12.5px] text-slate-500 py-3 border-t border-slate-100 mt-3 flex-wrap">
-                        {r.price != null && (
-                          <span>
-                            <strong className="text-gray-900">{formatCurrency(r.price, currency)}</strong> / session
-                          </span>
-                        )}
-                        {r.metaBits.map((m) => (
-                          <span key={m}>{m}</span>
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
-                        {isParent && (
-                          <button
-                            onClick={() => toggleCompare(r)}
-                            aria-label="Compare"
-                            className={`w-10 rounded-[10px] border text-[15px] font-bold leading-none transition-colors ${
-                              comparing
-                                ? 'bg-teal-600 border-teal-600 text-white'
-                                : 'bg-white border-gray-200 text-slate-500 hover:border-teal-400'
-                            }`}
-                          >
-                            ⇄
-                          </button>
-                        )}
-                        <button
-                          onClick={() => router.push(r.kind === 'THERAPIST' ? `/booking/therapists/${r.id}` : `/booking/clinics/${r.id}`)}
-                          className="flex-1 border border-gray-200 bg-white text-gray-900 py-2.5 rounded-[10px] text-[13.5px] font-semibold hover:border-teal-400 transition-colors"
-                        >
-                          View profile
-                        </button>
-                        <button
-                          onClick={() => router.push(r.kind === 'THERAPIST' ? `/booking/book/${r.id}` : `/booking/clinics/${r.id}`)}
-                          className="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-2.5 rounded-[10px] text-[13.5px] font-bold transition-colors"
-                        >
-                          {r.kind === 'THERAPIST' ? 'Book session' : 'See the team'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <ResultCard
+                    key={r.key}
+                    r={r}
+                    tier={tier}
+                    saved={saved}
+                    comparing={comparing}
+                    isParent={isParent}
+                    inFit={inFit}
+                    currency={currency}
+                    toggleSave={toggleSave}
+                    toggleCompare={toggleCompare}
+                    router={router}
+                  />
                 );
               })}
             </div>
@@ -534,6 +428,159 @@ function DiscoveryContent() {
     </div>
   );
 }
+
+type ResultCardProps = {
+  r: Row;
+  tier: (typeof TIER_STYLES)[keyof typeof TIER_STYLES] | null;
+  saved: boolean;
+  comparing: boolean;
+  isParent: boolean;
+  inFit: boolean;
+  currency: Parameters<typeof formatCurrency>[1];
+  toggleSave: ReturnType<typeof useToggleShortlist>;
+  toggleCompare: (row: Row) => void;
+  router: ReturnType<typeof useRouter>;
+};
+
+/** One discovery result. Memoised so filter/compare state changes re-render only the cards whose props changed. */
+const ResultCard = memo(function ResultCard({
+  r,
+  tier,
+  saved,
+  comparing,
+  isParent,
+  inFit,
+  currency,
+  toggleSave,
+  toggleCompare,
+  router,
+}: ResultCardProps) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col hover:shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-shadow">
+      {/* Tier band */}
+      {tier ? (
+        <div className={`flex items-center justify-between px-4 py-2.5 border-b ${tier.band}`}>
+          <div className="flex items-center gap-2">
+            <span className={`w-[7px] h-[7px] rounded-full ${tier.dot}`} />
+            <span className={`text-xs font-extrabold ${tier.fg}`}>{tier.label}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-[11.5px] font-bold opacity-75 ${tier.fg}`}>{r.kind}</span>
+            <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-white text-teal-700 border border-teal-100">
+              ON UPLLYFT
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-4 py-2.5 border-b bg-slate-50 border-slate-100">
+          <span className="text-[11.5px] font-bold text-slate-500">{r.kind}</span>
+          <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-white text-teal-700 border border-teal-100">
+            ON UPLLYFT
+          </span>
+        </div>
+      )}
+
+      {/* Identity row */}
+      <div className="p-4 flex gap-3">
+        {r.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <Image src={r.image} alt="" className="w-[52px] h-[52px] rounded-2xl object-cover flex-none" width={52} height={52} />
+        ) : (
+          <div className={`w-[52px] h-[52px] rounded-2xl text-white grid place-items-center text-base font-extrabold flex-none ${avatarColor(r.name)}`}>
+            {initials(r.name)}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-base font-bold tracking-tight text-gray-900 truncate">{r.name}</span>
+            <span className="text-[11px] text-blue-600 font-extrabold flex-none">✓</span>
+          </div>
+          <div className="text-[13px] text-slate-500 truncate">{r.role}</div>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="text-[12.5px] text-amber-500 tracking-widest">
+              {'★'.repeat(Math.round(r.rating || 0)).padEnd(5, '☆')}
+            </span>
+            <span className="text-[12.5px] font-bold text-gray-900">{r.rating.toFixed(1)}</span>
+            <span className="text-[12.5px] text-slate-400">({r.reviews})</span>
+          </div>
+        </div>
+        {isParent && (
+          <button
+            onClick={() => toggleSave.mutate(r.kind === 'THERAPIST' ? { therapistId: r.id } : { clinicId: r.id })}
+            aria-label={saved ? 'Remove from saved' : 'Save'}
+            className={`w-8 h-8 rounded-[9px] border border-gray-200 bg-white text-sm flex-none leading-none transition-colors ${
+              saved ? 'text-rose-500' : 'text-slate-300 hover:text-rose-400'
+            }`}
+          >
+            ♥
+          </button>
+        )}
+      </div>
+
+      {/* Why line */}
+      {inFit && r.match?.reason && (
+        <div className="px-4 flex items-start gap-2">
+          <span className="w-4 h-4 rounded-full flex-none mt-[1px] bg-teal-100 text-teal-700 text-[9px] font-black grid place-items-center leading-none">
+            ✓
+          </span>
+          <span className="text-[12.5px] text-slate-700 leading-snug">{r.match.reason}</span>
+        </div>
+      )}
+
+      {/* Tags */}
+      {r.tags.length > 0 && (
+        <div className="px-4 pt-3 flex gap-1.5 flex-wrap">
+          {r.tags.map((t) => (
+            <span key={t} className="text-[11.5px] font-semibold px-2 py-1 rounded-md bg-blue-50 text-blue-600">
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="px-4 pb-4 mt-auto">
+        <div className="flex items-center gap-3 text-[12.5px] text-slate-500 py-3 border-t border-slate-100 mt-3 flex-wrap">
+          {r.price != null && (
+            <span>
+              <strong className="text-gray-900">{formatCurrency(r.price, currency)}</strong> / session
+            </span>
+          )}
+          {r.metaBits.map((m) => (
+            <span key={m}>{m}</span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          {isParent && (
+            <button
+              onClick={() => toggleCompare(r)}
+              aria-label="Compare"
+              className={`w-10 rounded-[10px] border text-[15px] font-bold leading-none transition-colors ${
+                comparing
+                  ? 'bg-teal-600 border-teal-600 text-white'
+                  : 'bg-white border-gray-200 text-slate-500 hover:border-teal-400'
+              }`}
+            >
+              ⇄
+            </button>
+          )}
+          <button
+            onClick={() => router.push(r.kind === 'THERAPIST' ? `/booking/therapists/${r.id}` : `/booking/clinics/${r.id}`)}
+            className="flex-1 border border-gray-200 bg-white text-gray-900 py-2.5 rounded-[10px] text-[13.5px] font-semibold hover:border-teal-400 transition-colors"
+          >
+            View profile
+          </button>
+          <button
+            onClick={() => router.push(r.kind === 'THERAPIST' ? `/booking/book/${r.id}` : `/booking/clinics/${r.id}`)}
+            className="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-2.5 rounded-[10px] text-[13.5px] font-bold transition-colors"
+          >
+            {r.kind === 'THERAPIST' ? 'Book session' : 'See the team'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function DiscoveryPage() {
   return (

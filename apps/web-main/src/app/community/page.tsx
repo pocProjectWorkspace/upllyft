@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect , memo, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@upllyft/api-client';
@@ -279,7 +279,7 @@ function PostMenu({
   );
 }
 
-function PostCard({ post }: { post: Post }) {
+const PostCard = memo(function PostCard({ post }: { post: Post }) {
   const router = useRouter();
   const { user } = useAuth();
   const votePost = useVotePost();
@@ -505,7 +505,7 @@ function PostCard({ post }: { post: Post }) {
       />
     </Card>
   );
-}
+});
 
 function PostCardSkeleton() {
   return (
@@ -530,7 +530,7 @@ function PostCardSkeleton() {
 
 // ===== Question Feed Components =====
 
-function QuestionFeedCard({ question }: { question: Question }) {
+const QuestionFeedCard = memo(function QuestionFeedCard({ question }: { question: Question }) {
   const statusBadge = question.hasAcceptedAnswer
     ? { label: 'Answered', color: 'green' as const }
     : { label: 'Unanswered', color: 'gray' as const };
@@ -637,7 +637,7 @@ function QuestionFeedCard({ question }: { question: Question }) {
       </div>
     </Card>
   );
-}
+});
 
 function QuestionFeedSection({
   sort,
@@ -1020,7 +1020,7 @@ export default function CommunityFeedPage() {
     isFetchingNextPage,
   } = useInfinitePosts(filters);
 
-  const allPosts = data?.pages.flatMap((page) => page.posts) ?? [];
+  const allPosts = useMemo(() => data?.pages.flatMap((page) => page.posts) ?? [], [data]);
 
   return (
     <CommunityShell>
