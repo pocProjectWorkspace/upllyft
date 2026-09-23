@@ -5,10 +5,12 @@ import { NotificationService, NotificationType } from '../notification/notificat
 import { VerificationStatus, Role } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { StorageService } from '../common/storage/storage.service';
+import { detectContentType } from '../common/storage/file-type';
 
 /** Private bucket shared with organisation credentials. */
 const VERIFICATION_BUCKET = 'credentials';
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
+const DOCUMENT_MIMES = ['application/pdf', 'image/jpeg', 'image/png'] as const;
 
 @Injectable()
 export class VerificationService {
@@ -36,11 +38,13 @@ export class VerificationService {
   async uploadDocuments(userId: string, files: Express.Multer.File[], dto: any) {
     const uploadPromises = files.map(async (file) => {
       const safeName = file.originalname.replace(/[^\w.-]+/g, '_');
+      // Content-type is derived from the bytes, never from the client.
+      const contentType = detectContentType(file.buffer, file.originalname, file.mimetype, DOCUMENT_MIMES);
       const objectPath = await this.storage.uploadPrivate(
         VERIFICATION_BUCKET,
         `verification/${userId}/${uuidv4()}-${safeName}`,
         file.buffer,
-        file.mimetype,
+        contentType,
       );
 
       return this.prisma.verificationDoc.create({

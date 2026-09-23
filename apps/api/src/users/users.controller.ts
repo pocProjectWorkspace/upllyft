@@ -25,6 +25,9 @@ import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { randomBytes } from 'crypto';
 import { StorageService } from '../common/storage/storage.service';
+import { detectContentType } from '../common/storage/file-type';
+
+const AVATAR_MIMES = ['image/jpeg', 'image/png', 'image/gif'] as const;
 
 @Controller('users')
 export class UsersController {
@@ -105,8 +108,10 @@ export class UsersController {
 
     // Stored in Supabase (public `avatars` bucket); local ./uploads had no
     // static handler, so the old `/uploads/avatars/...` URLs never resolved.
+    // Content-type is derived from the bytes, never from the client.
+    const contentType = detectContentType(file.buffer, file.originalname, file.mimetype, AVATAR_MIMES);
     const objectPath = `${req.user.id}/${randomBytes(16).toString('hex')}${extname(file.originalname).toLowerCase()}`;
-    const imageUrl = await this.storage.uploadPublic('avatars', objectPath, file.buffer, file.mimetype);
+    const imageUrl = await this.storage.uploadPublic('avatars', objectPath, file.buffer, contentType);
     await this.usersService.updateAvatar(req.user.id, imageUrl);
 
     return { url: imageUrl, message: 'Avatar uploaded successfully' };
