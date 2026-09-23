@@ -2,45 +2,52 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService, NotificationType } from '../notification/notification.service';
-import { ConfigService } from '@nestjs/config';
 import { VerificationStatus, Role } from '@prisma/client';
-import * as path from 'path';
-import * as fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
+import { StorageService } from '../common/storage/storage.service';
+
+/** Private bucket shared with organisation credentials. */
+const VERIFICATION_BUCKET = 'credentials';
+const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 @Injectable()
 export class VerificationService {
-  private uploadDir: string;
-
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationService,
-    private configService: ConfigService,
-  ) {
-    this.uploadDir = this.configService.get<string>('UPLOAD_DIR', './uploads');
-    this.ensureUploadDir();
-  }
+    private storage: StorageService,
+  ) {}
 
-  private async ensureUploadDir() {
-    try {
-      await fs.mkdir(path.join(this.uploadDir, 'verification'), { recursive: true });
-    } catch (error) {
-      console.error('Error creating upload directory:', error);
-    }
+  /**
+   * Documents live in a private bucket; `fileUrl` holds the storage path.
+   * Replace it with a short-lived signed URL before returning to clients.
+   * Legacy rows that still point at `/uploads/...` are returned unchanged.
+   */
+  private async withSignedUrls<T extends { fileUrl: string }>(docs: T[]): Promise<T[]> {
+    return Promise.all(
+      docs.map(async (doc) => {
+        if (!StorageService.isStoragePath(doc.fileUrl)) return doc;
+        const signed = await this.storage.signedUrl(VERIFICATION_BUCKET, doc.fileUrl, SIGNED_URL_TTL_SECONDS);
+        return signed ? { ...doc, fileUrl: signed } : doc;
+      }),
+    );
   }
 
   async uploadDocuments(userId: string, files: Express.Multer.File[], dto: any) {
     const uploadPromises = files.map(async (file) => {
-      const fileName = `${uuidv4()}-${file.originalname}`;
-      const filePath = path.join(this.uploadDir, 'verification', fileName);
-
-      await fs.writeFile(filePath, file.buffer);
+      const safeName = file.originalname.replace(/[^\w.-]+/g, '_');
+      const objectPath = await this.storage.uploadPrivate(
+        VERIFICATION_BUCKET,
+        `verification/${userId}/${uuidv4()}-${safeName}`,
+        file.buffer,
+        file.mimetype,
+      );
 
       return this.prisma.verificationDoc.create({
         data: {
           userId,
           type: dto.documentType || 'license',
-          fileUrl: `/uploads/verification/${fileName}`,
+          fileUrl: objectPath,
           status: VerificationStatus.PENDING,
         },
       });
@@ -71,10 +78,11 @@ export class VerificationService {
   }
 
   async getUserDocuments(userId: string) {
-    return this.prisma.verificationDoc.findMany({
+    const docs = await this.prisma.verificationDoc.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+    return this.withSignedUrls(docs);
   }
 
   async getUserVerificationStatus(userId: string) {
@@ -130,8 +138,12 @@ export class VerificationService {
       }),
     ]);
 
+    const usersWithUrls = await Promise.all(
+      users.map(async (u) => ({ ...u, verificationDocs: await this.withSignedUrls(u.verificationDocs) })),
+    );
+
     return {
-      users,
+      users: usersWithUrls,
       pagination: {
         page,
         limit,
@@ -163,7 +175,8 @@ export class VerificationService {
       throw new NotFoundException('Document not found');
     }
 
-    return document;
+    const [signed] = await this.withSignedUrls([document]);
+    return signed;
   }
 
   async updateDocumentStatus(id: string, dto: any, reviewerId: string) {

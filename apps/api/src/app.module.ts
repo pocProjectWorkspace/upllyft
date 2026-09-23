@@ -17,6 +17,7 @@ import { AppController } from './app.controller';
 
 // Core modules
 import { PrismaModule } from './prisma/prisma.module';
+import { StorageModule } from './common/storage/storage.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 
@@ -140,6 +141,7 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
 
     // Core modules
     PrismaModule,
+    StorageModule,
     AuthModule,
     UsersModule,
 

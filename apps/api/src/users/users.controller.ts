@@ -21,12 +21,17 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateUserProfileDto } from './dto/update-profile.dto';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname } from 'path';
+import { randomBytes } from 'crypto';
+import { StorageService } from '../common/storage/storage.service';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly storage: StorageService,
+  ) { }
 
   // Get current user profile
   @Get('me')
@@ -80,16 +85,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('image', {
-      storage: diskStorage({
-        destination: './uploads/avatars',
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
-          cb(null, `${randomName}${extname(file.originalname)}`);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
           return cb(new BadRequestException('Only image files are allowed!'), false);
@@ -107,7 +103,10 @@ export class UsersController {
       throw new BadRequestException('No file uploaded');
     }
 
-    const imageUrl = `/uploads/avatars/${file.filename}`;
+    // Stored in Supabase (public `avatars` bucket); local ./uploads had no
+    // static handler, so the old `/uploads/avatars/...` URLs never resolved.
+    const objectPath = `${req.user.id}/${randomBytes(16).toString('hex')}${extname(file.originalname).toLowerCase()}`;
+    const imageUrl = await this.storage.uploadPublic('avatars', objectPath, file.buffer, file.mimetype);
     await this.usersService.updateAvatar(req.user.id, imageUrl);
 
     return { url: imageUrl, message: 'Avatar uploaded successfully' };
