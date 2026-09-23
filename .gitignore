@@ -50,3 +50,6 @@ test-validation.ts
 
 # binary planning docs — keep internal docs out of the public repo
 *.docx
+
+# headroom SessionStart hook scratch files (per-machine)
+.claude/.headroom_wrap_*
