@@ -1,18 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import { PatientStatusBadge } from '@/clinic/components/patient-status-badge';
 import { AssignTherapistModal } from '@/clinic/components/assign-therapist-modal';
 import { NewPatientModal } from '@/clinic/components/new-patient-modal';
 import { Avatar } from '@upllyft/ui';
-import {
-  getPatients,
-  getTherapists,
-  type PatientListItem,
-  type TherapistOption,
-  type PaginatedResponse,
-} from '@/clinic/lib/admin-api';
+import { getPatients, getTherapists } from '@/clinic/lib/admin-api';
+import { clinicKeys } from '@/clinic/lib/query-keys';
 import {
   Search,
   Plus,
@@ -66,14 +62,11 @@ function timeAgo(dateStr: string | null): string {
 }
 
 export default function PatientsPage() {
-  const [result, setResult] = useState<PaginatedResponse<PatientListItem> | null>(null);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [therapistFilter, setTherapistFilter] = useState('');
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
-  const [therapists, setTherapists] = useState<TherapistOption[]>([]);
 
   // Assign modal state
   const [assignChild, setAssignChild] = useState<{ id: string; name: string } | null>(null);
@@ -84,31 +77,28 @@ export default function PatientsPage() {
   // View mode: table or intake cards
   const isIntakeView = statusFilter.length === 1 && statusFilter[0] === 'INTAKE';
 
-  const fetchPatients = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getPatients({
-        page,
-        limit: 20,
-        search: search || undefined,
-        status: statusFilter.length > 0 ? statusFilter as any : undefined,
-        therapistId: therapistFilter || undefined,
-      });
-      setResult(data);
-    } catch {
-      setResult({ data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } });
-    } finally {
-      setLoading(false);
-    }
-  }, [search, statusFilter, therapistFilter, page]);
+  const patientParams = {
+    page,
+    limit: 20,
+    search: search || undefined,
+    status: statusFilter.length > 0 ? (statusFilter as any) : undefined,
+    therapistId: therapistFilter || undefined,
+  };
+  const patientsQuery = useQuery({
+    queryKey: clinicKeys.patients(patientParams),
+    queryFn: () => getPatients(patientParams),
+    placeholderData: keepPreviousData,
+  });
+  const result = patientsQuery.data ?? null;
+  const loading = patientsQuery.isPending;
+  const fetchPatients = () => patientsQuery.refetch();
 
-  useEffect(() => {
-    fetchPatients();
-  }, [fetchPatients]);
-
-  useEffect(() => {
-    getTherapists().then(setTherapists).catch(() => { });
-  }, []);
+  const therapistsQuery = useQuery({
+    queryKey: clinicKeys.therapistOptions(),
+    queryFn: getTherapists,
+    staleTime: 5 * 60 * 1000,
+  });
+  const therapists = therapistsQuery.data ?? [];
 
   // Debounced search
   const [searchInput, setSearchInput] = useState('');

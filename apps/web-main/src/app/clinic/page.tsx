@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@upllyft/api-client';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import {
@@ -13,12 +13,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Skeleton } from '@upllyft/ui';
-import {
-  getDashboardSummary,
-  getTodaySessions,
-  type DashboardSummary,
-  type DashboardSession,
-} from '@/clinic/lib/admin-api';
+import { getDashboardSummary, getTodaySessions } from '@/clinic/lib/admin-api';
+import { clinicKeys } from '@/clinic/lib/query-keys';
 
 const quickLinks = [
   {
@@ -58,27 +54,17 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
 
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [sessions, setSessions] = useState<DashboardSession[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const [sumData, sessData] = await Promise.all([
-          getDashboardSummary(),
-          getTodaySessions(),
-        ]);
-        setSummary(sumData);
-        setSessions(sessData);
-      } catch (e) {
-        console.error('Dashboard load failed', e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const summaryQuery = useQuery({
+    queryKey: clinicKeys.dashboardSummary(),
+    queryFn: getDashboardSummary,
+  });
+  const sessionsQuery = useQuery({
+    queryKey: clinicKeys.todaySessions(),
+    queryFn: getTodaySessions,
+  });
+  const summary = summaryQuery.data ?? null;
+  const sessions = sessionsQuery.data ?? [];
+  const loading = summaryQuery.isPending || sessionsQuery.isPending;
 
   const stats = [
     {

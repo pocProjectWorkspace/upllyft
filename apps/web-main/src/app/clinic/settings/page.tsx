@@ -1,12 +1,16 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import { getClinic, updateClinic, type ClinicDetail } from '@/clinic/lib/admin-api';
+import { clinicKeys } from '@/clinic/lib/query-keys';
 import { Building2, Save, Mail, Phone, MapPin, FileText, CheckCircle2, Palette } from 'lucide-react';
 
 export default function SettingsPage() {
-    const [clinic, setClinic] = useState<ClinicDetail | null>(null);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+    const clinicQuery = useQuery({ queryKey: clinicKeys.clinic(), queryFn: getClinic });
+    const clinic: ClinicDetail | null = clinicQuery.data ?? null;
+    const loading = clinicQuery.isPending;
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -25,31 +29,24 @@ export default function SettingsPage() {
         accentColor: '#14b8a6',
     });
 
+    // Seed the form once the clinic record arrives
     useEffect(() => {
-        async function fetchClinicInfo() {
-            try {
-                const data = await getClinic();
-                setClinic(data);
-                setFormData({
-                    name: data.name || '',
-                    address: data.address || '',
-                    phone: data.phone || '',
-                    email: data.email || '',
-                    licenseNo: data.licenseNo || '',
-                    logoUrl: data.logoUrl || '',
-                    bannerUrl: data.bannerUrl || '',
-                    primaryColor: data.primaryColor || '#0d9488',
-                    secondaryColor: data.secondaryColor || '#f0fdfa',
-                    accentColor: data.accentColor || '#14b8a6',
-                });
-            } catch (err) {
-                setError('Failed to load clinic information.');
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchClinicInfo();
-    }, []);
+        if (clinicQuery.isError) setError('Failed to load clinic information.');
+        const data = clinicQuery.data;
+        if (!data) return;
+        setFormData({
+            name: data.name || '',
+            address: data.address || '',
+            phone: data.phone || '',
+            email: data.email || '',
+            licenseNo: data.licenseNo || '',
+            logoUrl: data.logoUrl || '',
+            bannerUrl: data.bannerUrl || '',
+            primaryColor: data.primaryColor || '#0d9488',
+            secondaryColor: data.secondaryColor || '#f0fdfa',
+            accentColor: data.accentColor || '#14b8a6',
+        });
+    }, [clinicQuery.data, clinicQuery.isError]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -65,7 +62,7 @@ export default function SettingsPage() {
 
         try {
             const updated = await updateClinic(formData);
-            setClinic(updated);
+            queryClient.setQueryData(clinicKeys.clinic(), updated);
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (err: any) {

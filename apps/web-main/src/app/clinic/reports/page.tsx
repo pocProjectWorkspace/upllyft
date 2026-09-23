@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import {
   getClinicRevenue,
@@ -9,6 +10,7 @@ import {
   type TherapistRevenueResponse,
   type RevenuePeriod,
 } from '@/clinic/lib/admin-api';
+import { clinicKeys } from '@/clinic/lib/query-keys';
 import {
   DollarSign,
   Calendar,
@@ -50,51 +52,29 @@ const PERIOD_LABELS: Record<RevenuePeriod, string> = {
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<RevenuePeriod>('this_month');
-  const [revenue, setRevenue] = useState<ClinicRevenueResponse | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // Therapist detail slide-over
   const [selectedTherapistId, setSelectedTherapistId] = useState<string | null>(null);
-  const [therapistRevenue, setTherapistRevenue] = useState<TherapistRevenueResponse | null>(null);
-  const [therapistLoading, setTherapistLoading] = useState(false);
 
   // Sort state for therapist table
   const [sortBy, setSortBy] = useState<'invoiced' | 'sessions'>('invoiced');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  useEffect(() => {
-    fetchRevenue();
-  }, [period]);
+  const revenueQuery = useQuery({
+    queryKey: clinicKeys.clinicRevenue(period),
+    queryFn: () => getClinicRevenue(period),
+    placeholderData: keepPreviousData,
+  });
+  const revenue: ClinicRevenueResponse | null = revenueQuery.data ?? null;
+  const loading = revenueQuery.isPending;
 
-  useEffect(() => {
-    if (selectedTherapistId) {
-      fetchTherapistRevenue(selectedTherapistId);
-    }
-  }, [selectedTherapistId, period]);
-
-  const fetchRevenue = async () => {
-    setLoading(true);
-    try {
-      const data = await getClinicRevenue(period);
-      setRevenue(data);
-    } catch {
-      // handled by empty state
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTherapistRevenue = async (therapistId: string) => {
-    setTherapistLoading(true);
-    try {
-      const data = await getTherapistRevenue(therapistId, period);
-      setTherapistRevenue(data);
-    } catch {
-      setTherapistRevenue(null);
-    } finally {
-      setTherapistLoading(false);
-    }
-  };
+  const therapistRevenueQuery = useQuery({
+    queryKey: clinicKeys.therapistRevenue(selectedTherapistId ?? '', period),
+    queryFn: () => getTherapistRevenue(selectedTherapistId as string, period),
+    enabled: !!selectedTherapistId,
+  });
+  const therapistRevenue: TherapistRevenueResponse | null = therapistRevenueQuery.data ?? null;
+  const therapistLoading = !!selectedTherapistId && therapistRevenueQuery.isPending;
 
   const sortedTherapists = revenue?.byTherapist
     ? [...revenue.byTherapist].sort((a, b) => {
@@ -294,7 +274,6 @@ export default function ReportsPage() {
           loading={therapistLoading}
           onClose={() => {
             setSelectedTherapistId(null);
-            setTherapistRevenue(null);
           }}
         />
       )}

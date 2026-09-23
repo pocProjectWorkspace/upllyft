@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import { PatientStatusBadge } from '@/clinic/components/patient-status-badge';
@@ -14,6 +15,7 @@ import {
   type PatientDetail,
   type PatientOutcomeDetail,
 } from '@/clinic/lib/admin-api';
+import { clinicKeys } from '@/clinic/lib/query-keys';
 import {
   ArrowLeft,
   Calendar,
@@ -108,37 +110,31 @@ const DOMAIN_COLORS: Record<string, string> = {
 export default function PatientDetailPage() {
   const params = useParams();
   const childId = params.id as string;
-  const [patient, setPatient] = useState<PatientDetail | null>(null);
-  const [outcomeData, setOutcomeData] = useState<PatientOutcomeDetail | null>(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('demographics');
   const [statusDropdown, setStatusDropdown] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
 
-  const fetchPatient = async () => {
-    setLoading(true);
-    try {
-      const data = await getPatientDetail(childId);
-      setPatient(data);
-    } catch {
-      setPatient(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const queryClient = useQueryClient();
+  const patientQuery = useQuery({
+    queryKey: clinicKeys.patientDetail(childId),
+    queryFn: () => getPatientDetail(childId),
+    enabled: !!childId,
+  });
+  const patient: PatientDetail | null = patientQuery.data ?? null;
+  const loading = patientQuery.isPending;
+  const fetchPatient = () => patientQuery.refetch();
+  const setPatient = (updater: (prev: PatientDetail | null) => PatientDetail | null) =>
+    queryClient.setQueryData<PatientDetail | null>(clinicKeys.patientDetail(childId), (prev) =>
+      updater(prev ?? null),
+    );
 
-  useEffect(() => {
-    if (childId) fetchPatient();
-  }, [childId]);
-
-  // Lazy-load outcome data when tab is first selected
-  useEffect(() => {
-    if (activeTab === 'outcomes' && !outcomeData && childId) {
-      getPatientOutcomeDetail(childId)
-        .then(setOutcomeData)
-        .catch(() => setOutcomeData(null));
-    }
-  }, [activeTab, childId]);
+  // Outcome data is only fetched once the tab is first selected
+  const outcomeQuery = useQuery({
+    queryKey: clinicKeys.patientOutcome(childId),
+    queryFn: () => getPatientOutcomeDetail(childId),
+    enabled: activeTab === 'outcomes' && !!childId,
+  });
+  const outcomeData: PatientOutcomeDetail | null = outcomeQuery.data ?? null;
 
   const handleStatusChange = async (newStatus: string) => {
     if (!patient) return;

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import { Avatar } from '@upllyft/ui';
@@ -13,6 +14,7 @@ import {
   type ScheduleAppointment,
   type CredentialStatus,
 } from '@/clinic/lib/admin-api';
+import { clinicKeys } from '@/clinic/lib/query-keys';
 import {
   ArrowLeft,
   Mail,
@@ -120,77 +122,48 @@ export default function TherapistDetailPage() {
   const params = useParams();
   const therapistId = params.id as string;
 
-  const [therapist, setTherapist] = useState<TherapistDetail | null>(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('caseload');
   const [editScheduleOpen, setEditScheduleOpen] = useState(false);
   const [editSessionTypesOpen, setEditSessionTypesOpen] = useState(false);
-  const [sessionTypes, setSessionTypes] = useState<SessionType[]>([]);
-  const [loadingSessionTypes, setLoadingSessionTypes] = useState(false);
 
   // Schedule state
   const [weekRef, setWeekRef] = useState(new Date());
-  const [weekAppointments, setWeekAppointments] = useState<ScheduleAppointment[]>([]);
-  const [loadingSchedule, setLoadingSchedule] = useState(false);
 
-  const fetchTherapist = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getTherapistDetail(therapistId);
-      setTherapist(data);
-    } catch {
-      setTherapist(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [therapistId]);
+  const therapistQuery = useQuery({
+    queryKey: clinicKeys.therapistDetail(therapistId),
+    queryFn: () => getTherapistDetail(therapistId),
+    enabled: !!therapistId,
+  });
+  const therapist: TherapistDetail | null = therapistQuery.data ?? null;
+  const loading = therapistQuery.isPending;
+  const fetchTherapist = () => therapistQuery.refetch();
 
-  useEffect(() => {
-    fetchTherapist();
-  }, [fetchTherapist]);
+  // Week appointments: fetched only while the schedule tab is active
+  const weekRange = (() => {
+    const dates = getWeekDates(weekRef);
+    return {
+      startDate: dates[0].toISOString().split('T')[0],
+      endDate: dates[6].toISOString().split('T')[0],
+    };
+  })();
+  const weekQuery = useQuery({
+    queryKey: clinicKeys.therapistSchedule(therapistId, weekRange),
+    queryFn: () => getTherapistSchedule(therapistId, weekRange),
+    enabled: activeTab === 'schedule' && !!therapistId,
+  });
+  const weekAppointments: ScheduleAppointment[] = weekQuery.data ?? [];
+  const loadingSchedule = activeTab === 'schedule' && weekQuery.isPending;
 
-  // Fetch week appointments when schedule tab is active or week changes
-  const fetchWeekSchedule = useCallback(async () => {
-    if (!therapistId) return;
-    setLoadingSchedule(true);
-    const weekDates = getWeekDates(weekRef);
-    const startDate = weekDates[0].toISOString().split('T')[0];
-    const endDate = weekDates[6].toISOString().split('T')[0];
-    try {
-      const data = await getTherapistSchedule(therapistId, { startDate, endDate });
-      setWeekAppointments(data);
-    } catch {
-      setWeekAppointments([]);
-    } finally {
-      setLoadingSchedule(false);
-    }
-  }, [therapistId, weekRef]);
-
-  useEffect(() => {
-    if (activeTab === 'schedule') {
-      fetchWeekSchedule();
-    }
-  }, [activeTab, fetchWeekSchedule]);
-
-  // Fetch session types when sessions tab is active
-  const fetchSessionTypes = useCallback(async () => {
-    if (!therapist) return;
-    setLoadingSessionTypes(true);
-    try {
-      const data = await getTherapistSessionTypes(therapist.userId);
-      setSessionTypes(data);
-    } catch {
-      setSessionTypes([]);
-    } finally {
-      setLoadingSessionTypes(false);
-    }
-  }, [therapist]);
-
-  useEffect(() => {
-    if (activeTab === 'sessions') {
-      fetchSessionTypes();
-    }
-  }, [activeTab, fetchSessionTypes]);
+  // Session types: fetched only while the sessions tab is active
+  const therapistUserId = therapist?.userId ?? '';
+  const sessionTypesQuery = useQuery({
+    queryKey: clinicKeys.therapistSessionTypes(therapistUserId),
+    queryFn: () => getTherapistSessionTypes(therapistUserId),
+    enabled: activeTab === 'sessions' && !!therapistUserId,
+  });
+  const sessionTypes: SessionType[] = sessionTypesQuery.data ?? [];
+  const loadingSessionTypes = activeTab === 'sessions' && sessionTypesQuery.isPending;
+  const fetchSessionTypes = () => sessionTypesQuery.refetch();
 
   const weekDates = getWeekDates(weekRef);
 
@@ -687,8 +660,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png';
 
 function CredentialDocuments({ therapistId }: { therapistId: string }) {
-  const [credentials, setCredentials] = useState<Credential[]>([]);
-  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -699,20 +670,17 @@ function CredentialDocuments({ therapistId }: { therapistId: string }) {
   const [label, setLabel] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
 
-  const fetchCredentials = async () => {
-    try {
-      const data = await getTherapistCredentials(therapistId);
-      setCredentials(data);
-    } catch {
-      setCredentials([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCredentials();
-  }, [therapistId]);
+  const queryClient = useQueryClient();
+  const credentialsKey = clinicKeys.therapistCredentials(therapistId);
+  const credentialsQuery = useQuery({
+    queryKey: credentialsKey,
+    queryFn: () => getTherapistCredentials(therapistId),
+  });
+  const credentials: Credential[] = credentialsQuery.data ?? [];
+  const loading = credentialsQuery.isPending;
+  const fetchCredentials = () => credentialsQuery.refetch();
+  const setCredentials = (updater: (prev: Credential[]) => Credential[]) =>
+    queryClient.setQueryData<Credential[]>(credentialsKey, (prev) => updater(prev ?? []));
 
   const resetForm = () => {
     setFile(null);

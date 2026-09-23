@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import { AddTherapistModal } from '@/clinic/components/add-therapist-modal';
 import { Avatar } from '@upllyft/ui';
@@ -10,6 +11,7 @@ import {
   type CredentialStatus,
   type AvailabilityStatus,
 } from '@/clinic/lib/admin-api';
+import { clinicKeys } from '@/clinic/lib/query-keys';
 import {
   Search,
   Filter,
@@ -80,8 +82,6 @@ function AvailabilityBadge({ status }: { status: AvailabilityStatus }) {
 }
 
 export default function TherapistsPage() {
-  const [therapists, setTherapists] = useState<TherapistListItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [addTherapistOpen, setAddTherapistOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -90,31 +90,25 @@ export default function TherapistsPage() {
   const [credentialFilter, setCredentialFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
+  const directoryParams = {
+    search: search || undefined,
+    specialty: specialtyFilter || undefined,
+    availability: (availabilityFilter as AvailabilityStatus) || undefined,
+    credentialStatus: (credentialFilter as CredentialStatus) || undefined,
+  };
+  const therapistsQuery = useQuery({
+    queryKey: clinicKeys.therapistDirectory(directoryParams),
+    queryFn: () => getTherapistDirectory(directoryParams),
+    placeholderData: keepPreviousData,
+  });
+  const therapists: TherapistListItem[] = therapistsQuery.data ?? [];
+  const loading = therapistsQuery.isPending;
+  const fetchTherapists = () => therapistsQuery.refetch();
+
   // Extract unique specialties from therapists
   const allSpecialties = Array.from(
     new Set(therapists.flatMap((t) => t.specializations)),
   ).sort();
-
-  const fetchTherapists = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getTherapistDirectory({
-        search: search || undefined,
-        specialty: specialtyFilter || undefined,
-        availability: (availabilityFilter as AvailabilityStatus) || undefined,
-        credentialStatus: (credentialFilter as CredentialStatus) || undefined,
-      });
-      setTherapists(data);
-    } catch {
-      setTherapists([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, specialtyFilter, availabilityFilter, credentialFilter]);
-
-  useEffect(() => {
-    fetchTherapists();
-  }, [fetchTherapists]);
 
   // Debounced search
   useEffect(() => {

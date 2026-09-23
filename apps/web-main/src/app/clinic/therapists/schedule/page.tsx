@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import { Avatar } from '@upllyft/ui';
 import { APP_URLS } from '@upllyft/api-client';
@@ -10,6 +11,7 @@ import {
   type ScheduleTherapist,
   type ScheduleAppointment,
 } from '@/clinic/lib/admin-api';
+import { clinicKeys } from '@/clinic/lib/query-keys';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -138,8 +140,6 @@ function getSpanningAppointment(
 }
 
 export default function SchedulePage() {
-  const [schedule, setSchedule] = useState<ConsolidatedSchedule | null>(null);
-  const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -148,35 +148,28 @@ export default function SchedulePage() {
     return currentDate.toISOString().split('T')[0];
   }, [currentDate]);
 
-  const fetchSchedule = useCallback(async () => {
-    setLoading(true);
-    try {
-      if (viewMode === 'week') {
-        // Get the week range
-        const day = currentDate.getDay();
-        const start = new Date(currentDate);
-        start.setDate(start.getDate() - day);
-        const end = new Date(start);
-        end.setDate(end.getDate() + 6);
-        const data = await getConsolidatedSchedule({
-          startDate: start.toISOString().split('T')[0],
-          endDate: end.toISOString().split('T')[0],
-        });
-        setSchedule(data);
-      } else {
-        const data = await getConsolidatedSchedule({ date: dateString });
-        setSchedule(data);
-      }
-    } catch {
-      setSchedule(null);
-    } finally {
-      setLoading(false);
+  const scheduleParams = useMemo(() => {
+    if (viewMode === 'week') {
+      const day = currentDate.getDay();
+      const start = new Date(currentDate);
+      start.setDate(start.getDate() - day);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0],
+      };
     }
-  }, [dateString, viewMode, currentDate]);
+    return { date: dateString };
+  }, [viewMode, currentDate, dateString]);
 
-  useEffect(() => {
-    fetchSchedule();
-  }, [fetchSchedule]);
+  const scheduleQuery = useQuery({
+    queryKey: clinicKeys.consolidatedSchedule(scheduleParams),
+    queryFn: () => getConsolidatedSchedule(scheduleParams),
+    placeholderData: keepPreviousData,
+  });
+  const schedule: ConsolidatedSchedule | null = scheduleQuery.data ?? null;
+  const loading = scheduleQuery.isPending;
 
   const prevDay = () => {
     const d = new Date(currentDate);

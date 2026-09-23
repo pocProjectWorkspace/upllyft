@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import {
   getTrackingAppointments,
@@ -8,6 +9,7 @@ import {
   type TrackingAppointment,
   type TrackingStatusType,
 } from '@/clinic/lib/admin-api';
+import { clinicKeys } from '@/clinic/lib/query-keys';
 import {
   CalendarDays,
   ChevronLeft,
@@ -574,13 +576,35 @@ function DateSelector({
 // --- Main Page ---
 
 export default function TrackingPage() {
-  const [appointments, setAppointments] = useState<TrackingAppointment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [expandedCard, setExpandedCard] = useState<TrackingAppointment | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+
+  const queryClient = useQueryClient();
+  const trackingKey = clinicKeys.tracking(formatDateParam(selectedDate));
+  const appointmentsQuery = useQuery({
+    queryKey: trackingKey,
+    queryFn: () => getTrackingAppointments(formatDateParam(selectedDate)),
+    refetchInterval: POLL_INTERVAL,
+  });
+  const appointments = appointmentsQuery.data ?? [];
+  const loading = appointmentsQuery.isPending;
+  const error = appointmentsQuery.error
+    ? (appointmentsQuery.error as any)?.message || 'Failed to load appointments'
+    : null;
+  const lastRefresh = new Date(appointmentsQuery.dataUpdatedAt || Date.now());
+
+  // Local (optimistic) edits go straight into the query cache so the next
+  // poll reconciles them with the server.
+  const setAppointments = useCallback(
+    (updater: (prev: TrackingAppointment[]) => TrackingAppointment[]) =>
+      queryClient.setQueryData<TrackingAppointment[]>(trackingKey, (prev) => updater(prev ?? [])),
+    [queryClient, trackingKey],
+  );
+  const fetchAppointments = useCallback(
+    (_showLoader = false) => appointmentsQuery.refetch(),
+    [appointmentsQuery.refetch],
+  );
 
   // Build therapist → color index map
   const therapistColorMap = useMemo(() => {
@@ -589,32 +613,6 @@ export default function TrackingPage() {
     unique.forEach((id, i) => map.set(id, i));
     return map;
   }, [appointments]);
-
-  // Fetch appointments
-  const fetchAppointments = useCallback(async (showLoader = false) => {
-    if (showLoader) setLoading(true);
-    setError(null);
-    try {
-      const data = await getTrackingAppointments(formatDateParam(selectedDate));
-      setAppointments(data);
-      setLastRefresh(new Date());
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load appointments');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedDate]);
-
-  // Initial load + date change
-  useEffect(() => {
-    fetchAppointments(true);
-  }, [fetchAppointments]);
-
-  // Polling every 30s
-  useEffect(() => {
-    const interval = setInterval(() => fetchAppointments(false), POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchAppointments]);
 
   // Handle status change with optimistic update
   const handleStatusChange = useCallback(

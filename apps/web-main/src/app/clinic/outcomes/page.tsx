@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import {
@@ -15,6 +16,7 @@ import {
   type PatientOutcomeRow,
   type TherapistOption,
 } from '@/clinic/lib/admin-api';
+import { clinicKeys } from '@/clinic/lib/query-keys';
 import {
   Users,
   Calendar,
@@ -71,59 +73,32 @@ function formatDate(dateStr: string | null): string {
 
 export default function OutcomesPage() {
   const router = useRouter();
-  const [summary, setSummary] = useState<ClinicOutcomeSummary | null>(null);
-  const [goalData, setGoalData] = useState<GoalProgressData | null>(null);
-  const [screeningData, setScreeningData] = useState<ScreeningTrendsData | null>(null);
-  const [patients, setPatients] = useState<PatientOutcomeRow[]>([]);
-  const [therapists, setTherapists] = useState<TherapistOption[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const [sortBy, setSortBy] = useState('firstName');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [therapistFilter, setTherapistFilter] = useState('');
 
-  useEffect(() => {
-    fetchAll();
-  }, []);
+  const summaryQuery = useQuery({ queryKey: clinicKeys.outcomeSummary(), queryFn: getClinicOutcomeSummary });
+  const goalQuery = useQuery({ queryKey: clinicKeys.goalProgress(), queryFn: getGoalProgress });
+  const screeningQuery = useQuery({ queryKey: clinicKeys.screeningTrends(), queryFn: getScreeningTrends });
+  const therapistsQuery = useQuery({
+    queryKey: clinicKeys.therapistOptions(),
+    queryFn: getTherapists,
+    staleTime: 5 * 60 * 1000,
+  });
+  const patientParams = { sortBy, sortOrder, therapistId: therapistFilter || undefined };
+  const patientsQuery = useQuery({
+    queryKey: clinicKeys.patientOutcomes(patientParams),
+    queryFn: () => getPatientOutcomes(patientParams),
+    placeholderData: keepPreviousData,
+  });
 
-  useEffect(() => {
-    fetchPatients();
-  }, [sortBy, sortOrder, therapistFilter]);
-
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [s, g, sc, p, t] = await Promise.all([
-        getClinicOutcomeSummary(),
-        getGoalProgress(),
-        getScreeningTrends(),
-        getPatientOutcomes({ sortBy, sortOrder, therapistId: therapistFilter || undefined }),
-        getTherapists(),
-      ]);
-      setSummary(s);
-      setGoalData(g);
-      setScreeningData(sc);
-      setPatients(p);
-      setTherapists(t);
-    } catch {
-      // errors handled by empty state
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPatients = async () => {
-    try {
-      const p = await getPatientOutcomes({
-        sortBy,
-        sortOrder,
-        therapistId: therapistFilter || undefined,
-      });
-      setPatients(p);
-    } catch {
-      // handled
-    }
-  };
+  const summary: ClinicOutcomeSummary | null = summaryQuery.data ?? null;
+  const goalData: GoalProgressData | null = goalQuery.data ?? null;
+  const screeningData: ScreeningTrendsData | null = screeningQuery.data ?? null;
+  const patients: PatientOutcomeRow[] = patientsQuery.data ?? [];
+  const therapists: TherapistOption[] = therapistsQuery.data ?? [];
+  const loading =
+    summaryQuery.isPending || goalQuery.isPending || screeningQuery.isPending || patientsQuery.isPending;
 
   const toggleSort = (col: string) => {
     if (sortBy === col) {
