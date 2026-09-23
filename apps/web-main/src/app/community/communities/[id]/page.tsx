@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -355,7 +356,7 @@ function EventsTab({ communityId }: { communityId: string }) {
         <Link key={event.id} href={`/community/events/${event.id}`}>
           <Card hover className="overflow-hidden">
             {event.coverImage ? (
-              <img src={event.coverImage} alt={event.title} className="w-full h-32 object-cover" />
+              <Image src={event.coverImage} alt={event.title} className="w-full h-32 object-cover" width={1200} height={128} sizes="(max-width: 768px) 100vw, 640px" />
             ) : (
               <div className="w-full h-32 bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
                 <svg className="w-8 h-8 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -520,10 +521,13 @@ export default function CommunityDetailPage() {
       <div className="mb-6">
         <div className="relative rounded-2xl overflow-hidden">
           {community.bannerImage ? (
-            <img
+            <Image
               src={community.bannerImage}
               alt={`${community.name} banner`}
               className="w-full h-56 object-cover"
+              width={1200}
+              height={224}
+              sizes="(max-width: 768px) 100vw, 640px"
             />
           ) : (
             <div className={`w-full h-56 bg-gradient-to-r ${typeGradient(community.type)}`} />

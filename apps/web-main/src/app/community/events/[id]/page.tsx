@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -118,7 +119,7 @@ export default function EventDetailPage() {
 
         {/* Cover image */}
         {event.coverImage ? (
-          <img src={event.coverImage} alt={event.title} className="w-full h-64 sm:h-80 object-cover rounded-2xl" />
+          <Image src={event.coverImage} alt={event.title} className="w-full h-64 sm:h-80 object-cover rounded-2xl" width={1200} height={256} sizes="(max-width: 768px) 100vw, 640px" />
         ) : (
           <div className="w-full h-64 sm:h-80 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center">
             <svg className="w-16 h-16 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">

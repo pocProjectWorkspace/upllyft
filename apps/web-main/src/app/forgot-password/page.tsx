@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { apiClient } from '@upllyft/api-client';
 import { useState } from 'react';
 
@@ -56,7 +57,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <img src="/logo.png" alt="Upllyft" className="h-12 w-auto" />
+            <Image src="/logo.png" alt="Upllyft" className="h-12 w-auto" width={88} height={48} priority />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Forgot Password</h1>
           <p className="text-gray-500 mt-1">Enter your email and we&apos;ll send you a reset link</p>

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCases } from '@/cases/hooks/use-cases';
@@ -39,10 +40,13 @@ export function CaseListView() {
           style={{ backgroundColor: clinic.primaryColor ?? '#0f766e' }}
         >
           {clinic.bannerUrl && (
-            <img
+            <Image
               src={clinic.bannerUrl ?? undefined}
               alt={`${clinic.name} Banner`}
               className="absolute inset-0 w-full h-full object-cover opacity-90 mix-blend-overlay"
+              width={1200}
+              height={800}
+              sizes="(max-width: 768px) 100vw, 640px"
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -50,10 +54,13 @@ export function CaseListView() {
           <div className="absolute bottom-0 left-0 p-6 flex items-end gap-4 w-full">
             {clinic.logoUrl && (
               <div className="w-16 h-16 md:w-20 md:h-20 bg-white rounded-lg p-1.5 shadow-lg shrink-0">
-                <img
+                <Image
                   src={clinic.logoUrl ?? undefined}
                   alt={`${clinic.name} Logo`}
                   className="w-full h-full object-contain rounded-md"
+                  width={160}
+                  height={160}
+                  sizes="80px"
                 />
               </div>
             )}

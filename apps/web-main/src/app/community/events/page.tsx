@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import Link from 'next/link';
 import { CommunityShell } from '@/community/components/community-shell';
@@ -84,10 +85,13 @@ function EventCard({ event }: { event: CommunityEvent }) {
       {/* Cover image or gradient placeholder */}
       <Link href={`/community/events/${event.id}`}>
         {event.coverImage ? (
-          <img
+          <Image
             src={event.coverImage}
             alt={event.title}
             className="w-full h-40 object-cover"
+            width={1200}
+            height={160}
+            sizes="(max-width: 768px) 100vw, 640px"
           />
         ) : (
           <div className="w-full h-40 bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Badge, Skeleton } from '@upllyft/ui';
@@ -125,7 +126,7 @@ export default function OrgDashboard() {
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         {org.banner ? (
           <div className="h-48 w-full" style={{ background: 'var(--org-gradient)' }}>
-            <img src={org.banner} alt={`${org.name} banner`} className="w-full h-full object-cover" />
+            <Image src={org.banner} alt={`${org.name} banner`} className="w-full h-full object-cover" width={1200} height={800} sizes="(max-width: 768px) 100vw, 640px" />
           </div>
         ) : (
           <div className="h-32 w-full" style={{ background: 'var(--org-gradient)' }} />
@@ -134,7 +135,7 @@ export default function OrgDashboard() {
           <div className="flex items-start gap-4">
             {org.logo ? (
               <div className="w-20 h-20 rounded-xl border-4 border-white bg-white overflow-hidden shadow-lg flex-shrink-0">
-                <img src={org.logo} alt={org.name} className="w-full h-full object-cover" />
+                <Image src={org.logo} alt={org.name} className="w-full h-full object-cover" width={160} height={160} sizes="80px" />
               </div>
             ) : (
               <div

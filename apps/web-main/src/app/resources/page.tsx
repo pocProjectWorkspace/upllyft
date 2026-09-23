@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, APP_URLS } from '@upllyft/api-client';
@@ -169,7 +170,7 @@ export default function MyLibraryPage() {
                 {/* Preview image or fallback */}
                 <div className="aspect-[4/3] bg-gradient-to-br from-teal-50 to-teal-100 flex items-center justify-center relative">
                   {ws.previewUrl ? (
-                    <img src={ws.previewUrl} alt={ws.title} className="w-full h-full object-cover" />
+                    <Image src={ws.previewUrl} alt={ws.title} className="w-full h-full object-cover" width={1200} height={800} sizes="(max-width: 768px) 100vw, 640px" />
                   ) : (
                     <div className="w-16 h-16 bg-white rounded-2xl shadow flex items-center justify-center">
                       <svg className="w-8 h-8 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

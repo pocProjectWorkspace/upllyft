@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { trackBannerAdImpression, trackBannerAdClick } from '@/lib/api/banner-ads';
 import type { BannerAd } from '@/lib/api/admin';
@@ -47,12 +48,15 @@ export function FeedAd({ ad, className = '' }: FeedAdProps) {
             <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-white font-medium z-10">
                 Promoted
             </div>
-            <img
+            <Image
                 src={ad.imageUrl}
                 alt={ad.title}
                 className="w-full h-auto object-cover"
                 style={{ maxHeight: ad.placement === 'BANNER_TOP' ? '120px' : '250px' }}
-            />
+                width={1200}
+                height={800}
+                sizes="(max-width: 768px) 100vw, 640px"
+              />
         </div>
     );
 }

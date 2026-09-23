@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRequireAuth } from '@upllyft/api-client';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
@@ -146,7 +147,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <aside className="w-60 bg-white border-r border-gray-100 flex flex-col fixed inset-y-0 left-0 z-40">
         <div className="p-4 border-b border-gray-100">
           <a href="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Upllyft" className="h-8 w-auto" />
+            <Image src="/logo.png" alt="Upllyft" className="h-8 w-auto" width={59} height={32} priority />
           </a>
           <p className="mt-1 text-xs text-gray-500">Admin Console</p>
         </div>

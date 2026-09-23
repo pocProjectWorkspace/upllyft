@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useAuth, useRedirectIfAuthenticated, apiClient } from '@upllyft/api-client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
 import Link from 'next/link';
@@ -220,7 +221,7 @@ export default function RegisterPage() {
         <div className="w-full max-w-md mx-auto">
           {/* Logo */}
           <div className="flex items-center gap-2.5 mb-10">
-            <img src="/logo.png" alt="Upllyft" className="h-10 w-auto" />
+            <Image src="/logo.png" alt="Upllyft" className="h-10 w-auto" width={73} height={40} priority />
           </div>
 
           {/* Heading */}

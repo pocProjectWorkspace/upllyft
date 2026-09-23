@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import {
     Card,
@@ -133,7 +134,7 @@ export default function ClinicsPage() {
                                     <TableCell>
                                         <div className="flex items-center gap-3">
                                             {clinic.logoUrl ? (
-                                                <img src={clinic.logoUrl} alt={clinic.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100" />
+                                                <Image src={clinic.logoUrl} alt={clinic.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100" width={40} height={40} />
                                             ) : (
                                                 <div
                                                     className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-medium"

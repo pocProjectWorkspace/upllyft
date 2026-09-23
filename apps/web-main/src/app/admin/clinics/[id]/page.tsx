@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { use } from 'react';
 import { useRouter } from 'next/navigation';
@@ -123,18 +124,21 @@ export default function ClinicDetailsPage({ params }: { params: Promise<{ id: st
                 style={{ backgroundColor: clinic.primaryColor ?? '#0f766e' }}
             >
                 {clinic.bannerUrl && (
-                    <img
+                    <Image
                         src={clinic.bannerUrl}
                         alt="Banner"
                         className="absolute inset-0 w-full h-full object-cover opacity-90 mix-blend-overlay"
-                    />
+                        width={1200}
+                        height={800}
+                        sizes="(max-width: 768px) 100vw, 640px"
+                      />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
                 <div className="absolute bottom-0 left-0 p-6 flex items-end gap-5 w-full">
                     {clinic.logoUrl ? (
                         <div className="w-20 h-20 bg-white rounded-lg p-1.5 shadow-lg shrink-0">
-                            <img src={clinic.logoUrl} alt="Logo" className="w-full h-full object-contain rounded-md" />
+                            <Image src={clinic.logoUrl} alt="Logo" className="w-full h-full object-contain rounded-md" width={160} height={160} sizes="80px" />
                         </div>
                     ) : (
                         <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-lg flex items-center justify-center border border-white/30 shadow-lg shrink-0 text-white font-bold text-2xl">
@@ -219,7 +223,7 @@ export default function ClinicDetailsPage({ params }: { params: Promise<{ id: st
                                     <div key={t.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50/50">
                                         <div className="flex items-center gap-3">
                                             {t.user.image ? (
-                                                <img src={t.user.image} alt={t.user.name} className="w-8 h-8 rounded-full border border-gray-200" />
+                                                <Image src={t.user.image} alt={t.user.name} className="w-8 h-8 rounded-full border border-gray-200" width={32} height={32} />
                                             ) : (
                                                 <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-700 flex flex-shrink-0 items-center justify-center font-bold text-xs">
                                                     {t.user.name?.charAt(0) || t.user.email.charAt(0).toUpperCase()}

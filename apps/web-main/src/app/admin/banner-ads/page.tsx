@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import {
   Card,
@@ -254,10 +255,12 @@ export default function BannerAdsPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {ad.imageUrl ? (
-                          <img
+                          <Image
                             src={ad.imageUrl}
                             alt=""
                             className="w-12 h-8 rounded object-cover bg-gray-100"
+                            width={48}
+                            height={32}
                           />
                         ) : (
                           <div className="w-12 h-8 rounded bg-gray-100" />
@@ -352,7 +355,7 @@ export default function BannerAdsPage() {
               <Label>Image URL</Label>
               <Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
               {form.imageUrl && (
-                <img src={form.imageUrl} alt="Preview" className="w-full h-24 object-cover rounded-lg bg-gray-100" />
+                <Image src={form.imageUrl} alt="Preview" className="w-full h-24 object-cover rounded-lg bg-gray-100" width={1200} height={96} sizes="(max-width: 768px) 100vw, 640px" />
               )}
             </div>
             <div className="space-y-2">

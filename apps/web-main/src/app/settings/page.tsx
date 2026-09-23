@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { apiClient, useRequireAuth } from '@upllyft/api-client';
 import { Card, Switch, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
@@ -264,7 +265,7 @@ export default function SettingsPage() {
                       className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-teal-300 hover:bg-teal-50/40 transition-colors"
                     >
                       {org.logo ? (
-                        <img src={org.logo} alt={org.name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                        <Image src={org.logo} alt={org.name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" width={36} height={36} />
                       ) : (
                         <div
                           className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"

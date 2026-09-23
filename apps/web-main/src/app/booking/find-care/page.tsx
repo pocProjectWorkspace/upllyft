@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -370,7 +371,7 @@ export default function FindCarePage() {
             <div className="mt-5 rounded-2xl border border-gray-200 bg-white px-6 py-5 flex items-center gap-4">
               <div className="w-11 h-11 rounded-full bg-teal-50 border border-teal-100 flex-none overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/Mira.png" alt="" className="w-full h-full object-cover" />
+                <Image src="/Mira.png" alt="" className="w-full h-full object-cover" width={128} height={128} />
               </div>
               <div className="flex-1">
                 <div className="text-[14.5px] font-bold text-gray-900">

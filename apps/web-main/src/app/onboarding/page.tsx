@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
 import { useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
@@ -26,11 +27,12 @@ const COUNTRIES = [
 function CountryFlag({ code, className }: { code: string; className?: string }) {
   const lower = code.toLowerCase();
   return (
-    <img
+    <Image
       src={`https://flagcdn.com/h40/${lower}.png`}
-      srcSet={`https://flagcdn.com/h80/${lower}.png 2x`}
       alt={`${code} flag`}
       className={className}
+      width={53}
+      height={40}
     />
   );
 }

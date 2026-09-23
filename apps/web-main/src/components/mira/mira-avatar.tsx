@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 export function MiraAvatar({
   size = 'md',
   thinking = false,
@@ -19,11 +20,13 @@ export function MiraAvatar({
         style={{ margin: '-3px' }}
       />
       {/* Avatar */}
-      <img
+      <Image
         src="/Mira.png"
         alt="Mira"
         className={`${sizeMap[size]} rounded-full object-cover relative`}
         style={{ animation: 'mira-float 3s ease-in-out infinite' }}
+        width={128}
+        height={128}
       />
     </div>
   );

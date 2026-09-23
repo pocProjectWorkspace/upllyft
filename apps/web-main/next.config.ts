@@ -11,6 +11,17 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  images: {
+    // User content (avatars, banners, worksheet previews) is served from
+    // Supabase storage, Google avatars and arbitrary https URLs entered by
+    // admins, so allow any https host; localhost for dev uploads.
+    remotePatterns: [
+      { protocol: 'https', hostname: '**' },
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'http', hostname: '127.0.0.1' },
+    ],
+    formats: ['image/avif', 'image/webp'],
+  },
   transpilePackages: ["@upllyft/ui", "@upllyft/api-client", "@upllyft/types"],
   experimental: {
     // Import only the icons/components actually used instead of the whole barrel.

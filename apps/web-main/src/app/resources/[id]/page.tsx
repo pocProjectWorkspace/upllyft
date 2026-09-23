@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@upllyft/api-client';
@@ -279,7 +280,7 @@ export default function WorksheetDetailPage() {
                     {worksheet.images.map((img) => (
                       <Card key={img.id} className="overflow-hidden">
                         {img.status === 'COMPLETED' ? (
-                          <img src={img.imageUrl} alt={img.altText} className="w-full h-48 object-cover" />
+                          <Image src={img.imageUrl} alt={img.altText} className="w-full h-48 object-cover" width={1200} height={192} sizes="(max-width: 768px) 100vw, 640px" />
                         ) : (
                           <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
                             {img.status === 'GENERATING' ? (
