@@ -56,6 +56,14 @@ Then set env var and deploy:
 vercel env add NEXT_PUBLIC_API_URL production
 # When prompted for value, paste: https://upllyftapi-production.up.railway.app
 
+# web-main only: the root layout starts /auth/me on the server and streams
+# the user (PERFORMANCE_AUDIT.md §7h). This caps how long it waits before
+# handing off to the client. Set on 2026-09-24; lower to 1000 once the API
+# and database are in the same region. Optional: API_INTERNAL_URL if the
+# server should reach the API on a private hostname instead of the public one.
+vercel env add SERVER_AUTH_TIMEOUT_MS production
+# value: 1500
+
 vercel --prod
 ```
 
