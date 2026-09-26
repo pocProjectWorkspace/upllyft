@@ -500,7 +500,7 @@ export default function SchedulePage() {
                         {t.appointments.slice(0, 5).map((a) => (
                           <a
                             key={a.id}
-                            href={`http://localhost:3004/bookings/${a.id}`}
+                            href={`/booking/bookings/${a.id}`}
                             className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition-colors"
                           >
                             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${color.dot}`} />
@@ -536,7 +536,7 @@ export default function SchedulePage() {
                 return (
                   <a
                     key={a.id}
-                    href={`http://localhost:3004/bookings/${a.id}`}
+                    href={`/booking/bookings/${a.id}`}
                     className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50/50 transition-colors"
                   >
                     {/* Time */}

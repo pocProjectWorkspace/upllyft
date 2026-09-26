@@ -1,7 +1,9 @@
 // apps/api/src/app.module.ts
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { resolveRedisUrl } from './common/redis/redis.config';
+import { RedisThrottlerStorage } from './common/redis/redis-throttler.storage';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -132,11 +134,26 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
       envFilePath: ['.env', '../.env'],
     }),
 
-    // Rate limiting
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+    // Rate limiting. Counters live in Redis when it is configured so the limit
+    // is shared across replicas; otherwise in-process (PERFORMANCE_AUDIT.md #30).
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => {
+        const throttlers = [{ ttl: 60000, limit: 100 }];
+        const redisUrl = resolveRedisUrl(config);
+        if (!redisUrl) return { throttlers };
+        const storage = new RedisThrottlerStorage(redisUrl);
+        try {
+          await storage.connect();
+          return { throttlers, storage };
+        } catch (err) {
+          new Logger('ThrottlerModule').warn(
+            `Redis unavailable (${(err as Error).message}); throttler stays in-process`,
+          );
+          return { throttlers };
+        }
+      },
+    }),
 
     // Core modules
     PrismaModule,

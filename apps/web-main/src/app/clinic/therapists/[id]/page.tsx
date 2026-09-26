@@ -472,7 +472,7 @@ export default function TherapistDetailPage() {
                     weekAppointments.map((a) => (
                       <a
                         key={a.id}
-                        href={`http://localhost:3004/bookings/${a.id}`}
+                        href={`/booking/bookings/${a.id}`}
                         className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50/50 transition-colors"
                       >
                         <div className="w-16 text-center">

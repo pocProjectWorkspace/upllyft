@@ -28,13 +28,8 @@ out
 coverage
 
 # ── Frontend apps (not needed for API deployment) ──
-apps/web-admin
-apps/web-booking
-apps/web-cases
-apps/web-community
 apps/web-main
-apps/web-resources
-apps/web-screening
+apps/landing
 apps/mobile
 
 # ── Shared packages (required by Dockerfile COPY steps) ──

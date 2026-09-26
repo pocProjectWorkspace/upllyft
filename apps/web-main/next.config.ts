@@ -2,6 +2,16 @@ import type { NextConfig } from "next";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+const HUB_ORIGIN = process.env.NEXT_PUBLIC_APP_MAIN_URL || "https://app.safehaven-upllyft.com";
+const LEGACY_HOSTS = [
+  { host: "community.safehaven-upllyft.com", prefix: "/community" },
+  { host: "screening.safehaven-upllyft.com", prefix: "/screening" },
+  { host: "booking.safehaven-upllyft.com", prefix: "/booking" },
+  { host: "resources.safehaven-upllyft.com", prefix: "/resources" },
+  { host: "cases.safehaven-upllyft.com", prefix: "/cases" },
+  { host: "admin.safehaven-upllyft.com", prefix: "/clinic" },
+];
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -54,6 +64,15 @@ const nextConfig: NextConfig = {
         destination: `${API_URL}/api/auth/google`,
         permanent: false,
       },
+      // Retired standalone origins (PERFORMANCE_AUDIT.md §7e cutover). Once each
+      // old subdomain is attached to this Vercel project, every URL on it
+      // 308-redirects to the same path under the hub prefix.
+      ...LEGACY_HOSTS.map(({ host, prefix }) => ({
+        source: "/:path*",
+        has: [{ type: "host" as const, value: host }],
+        destination: `${HUB_ORIGIN}${prefix}/:path*`,
+        permanent: true,
+      })),
     ];
   },
   async rewrites() {

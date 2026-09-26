@@ -9,6 +9,8 @@ import passport from 'passport';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import { json, urlencoded } from 'express';
+import { resolveRedisUrl } from './common/redis/redis.config';
+import { RedisIoAdapter } from './common/redis/redis-io.adapter';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -48,6 +50,22 @@ if (!sessionSecret && nodeEnv === 'production') {
   app.setGlobalPrefix('api', {
     exclude: ['health', ''],
   });
+
+  // Socket.IO across replicas: when Redis is configured, room emits are
+  // fanned out over Redis pub/sub so a notification raised on one API
+  // instance reaches sockets on every instance (PERFORMANCE_AUDIT.md #30).
+  const redisUrl = resolveRedisUrl(configService);
+  if (redisUrl) {
+    const ioAdapter = new RedisIoAdapter(app, redisUrl);
+    try {
+      await ioAdapter.connect();
+      app.useWebSocketAdapter(ioAdapter);
+    } catch (err) {
+      logger.warn(`Redis unavailable (${(err as Error).message}); Socket.IO stays in-process`);
+    }
+  } else {
+    logger.log('REDIS_URL / REDIS_HOST not set; Socket.IO and throttler stay in-process (single replica only)');
+  }
 
   // Response compression (gzip/deflate) for JSON and text bodies over 1 KB.
   // SSE streams (text/event-stream) are excluded so tokens are not buffered.
@@ -129,13 +147,8 @@ if (!sessionSecret && nodeEnv === 'production') {
     origin: [
       /\.upllyft\.com$/,
       /\.safehaven-upllyft\.com$/,
-      'http://localhost:3000',
-      'http://localhost:3002',
-      'http://localhost:3003',
-      'http://localhost:3004',
-      'http://localhost:3005',
-      'http://localhost:3006',
-      'http://localhost:3007',
+      'http://localhost:3000', // web-main (the hub; all product sections live under it)
+      'http://localhost:3008', // landing
       ...extraOrigins,
     ],
     credentials: true,
