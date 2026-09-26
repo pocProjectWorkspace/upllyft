@@ -49,39 +49,40 @@ export class AdminService {
   }
 
   async getDashboardStats() {
+    // All eight counts are independent; run them in one round-trip tier.
     const [
       totalUsers,
       totalPosts,
       totalComments,
       totalCommunities,
       totalOrganizations,
+      activeUsers,
+      pendingVerifications,
+      flaggedContent,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.post.count(),
       this.prisma.comment.count(),
       this.prisma.community.count({ where: { isActive: true } }),
       this.prisma.organization.count(),
-    ]);
-
-    // Active users in last 24 hours
-    const activeUsers = await this.prisma.user.count({
-      where: {
-        updatedAt: {
-          gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      // Active users in last 24 hours
+      this.prisma.user.count({
+        where: {
+          updatedAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          },
         },
-      },
-    });
-
-    const pendingVerifications = await this.prisma.user.count({
-      where: {
-        verificationStatus: 'PENDING',
-        role: { in: [Role.THERAPIST, Role.EDUCATOR, Role.ORGANIZATION] },
-      },
-    });
-
-    const flaggedContent = await this.prisma.post.count({
-      where: { moderationStatus: ModerationStatus.FLAGGED },
-    });
+      }),
+      this.prisma.user.count({
+        where: {
+          verificationStatus: 'PENDING',
+          role: { in: [Role.THERAPIST, Role.EDUCATOR, Role.ORGANIZATION] },
+        },
+      }),
+      this.prisma.post.count({
+        where: { moderationStatus: ModerationStatus.FLAGGED },
+      }),
+    ]);
 
     // AI usage - count from AI-related tables if they exist
     const aiUsage = Math.floor(Math.random() * 1000); // Mock for now
@@ -525,7 +526,10 @@ export class AdminService {
 
   // Keep existing methods...
   async getUsers(query: any) {
-    const { role, status, page = 1, limit = 20 } = query;
+    const { role, status } = query;
+    // Query params arrive as strings; Prisma requires Int for skip/take.
+    const page = Math.max(1, parseInt(query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
     const skip = (page - 1) * limit;
 
     const where: any = {};

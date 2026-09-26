@@ -2,6 +2,7 @@ import { Card } from './Card';
 import { Avatar } from './Avatar';
 import { Badge } from './Badge';
 import { Button } from './Button';
+import { NavLink } from './NavLink';
 
 export interface TherapistCardProps {
   name: string;
@@ -92,7 +93,7 @@ export function TherapistCard({
   if (href) {
     return (
       <Card hover className={`p-5 ${className}`}>
-        <a href={href} className="block">{content}</a>
+        <NavLink href={href} className="block">{content}</NavLink>
       </Card>
     );
   }

@@ -1,8 +1,9 @@
 'use client';
 
 import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
-import { AppHeader, Skeleton, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Skeleton, Avatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@upllyft/ui';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getPosts, type PostFilters } from '@/lib/api/posts';
 import { PostCard } from '@/components/feed/post-card';
@@ -87,12 +88,19 @@ export default function FeedPage() {
   const [view, setView] = useState<FeedView>('for-you');
   const [sort, setSort] = useState<SortBy>('recent');
   const [search, setSearch] = useState('');
+  // Debounce the search term so typing does not fire a request per keystroke
+  // (and discard the already-loaded infinite-scroll pages each time).
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
   const observerRef = useRef<HTMLDivElement>(null);
 
   const filters: PostFilters = {
     sort,
     limit: 10,
-    ...(search && { search }),
+    ...(debouncedSearch && { search: debouncedSearch }),
   };
 
   const {
@@ -101,15 +109,17 @@ export default function FeedPage() {
     hasNextPage,
     isFetchingNextPage,
     isLoading,
-    refetch,
   } = useInfiniteQuery({
-    queryKey: ['posts', view, sort, search],
+    queryKey: ['posts', view, sort, debouncedSearch],
     queryFn: ({ pageParam = 1 }) => getPosts({ ...filters, page: pageParam }),
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.page + 1 : undefined,
     initialPageParam: 1,
     enabled: isAuthenticated,
   });
+
+  // Flatten the infinite-scroll pages once per data change, not on every render.
+  const posts = useMemo(() => data?.pages.flatMap((page) => page.posts) ?? [], [data]);
 
   const { data: topBannerAds } = useInfiniteQuery({
     queryKey: ['bannerAds', 'BANNER_TOP'],
@@ -146,24 +156,26 @@ export default function FeedPage() {
     return () => observer.disconnect();
   }, [handleObserver]);
 
-  if (!isReady) {
+  if (!isReady || !user) {
+    // Session still resolving: keep the page frame and show a feed skeleton
+    // (the header is already mounted by the root layout).
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gray-50/50">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-48 rounded-2xl" />
+          ))}
+        </div>
       </div>
     );
   }
 
-  if (!user) return null;
-
   const displayName = user.name || user.email?.split('@')[0] || 'User';
-  const posts = data?.pages.flatMap((page) => page.posts) || [];
   const topBanners = topBannerAds?.pages?.[0] || [];
   const feedBanners = feedBannerAds?.pages?.[0] || [];
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <div className="flex">
         {/* Left Sidebar */}
@@ -182,7 +194,7 @@ export default function FeedPage() {
 
           <nav className="px-2">
             {sidebarNav.map((item) => (
-              <a
+              <Link
                 key={item.label}
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-r-lg ${item.active
@@ -195,7 +207,7 @@ export default function FeedPage() {
               >
                 <span className={item.active ? 'text-pink-600' : ''}>{item.icon}</span>
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
@@ -311,7 +323,8 @@ export default function FeedPage() {
 
                 return (
                   <div key={post.id} className="space-y-6">
-                    <PostCard post={post} onVoteChange={() => refetch()} />
+                    {/* PostCard applies the vote optimistically; refetching every loaded page here was redundant. */}
+                    <PostCard post={post} />
                     {shouldShowAd && feedAd && (
                       <FeedAd ad={feedAd} />
                     )}

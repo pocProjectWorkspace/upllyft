@@ -1,0 +1,508 @@
+import { apiClient } from '@upllyft/api-client';
+
+// ── Enums ──
+
+export type BookingStatus =
+  | 'PENDING_PAYMENT'
+  | 'PENDING_ACCEPTANCE'
+  | 'CONFIRMED'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'COMPLETED'
+  | 'NO_SHOW';
+
+export type PaymentStatus = 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED' | 'REFUNDED';
+export type TherapistApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type AccessLevel = 'VIEW' | 'ANNOTATE';
+
+// ── Types ──
+
+export interface TherapistProfile {
+  id: string;
+  userId: string;
+  bio: string;
+  credentials: string[];
+  specializations: string[];
+  yearsExperience: number;
+  title: string;
+  profileImage?: string;
+  languages: string[];
+  defaultTimezone: string;
+  overallRating: number;
+  totalSessions: number;
+  totalRatings: number;
+  stripeAccountId?: string;
+  isActive: boolean;
+  acceptingBookings: boolean;
+  startingPrice?: number;
+  user?: { id: string; name: string; email: string; image?: string };
+  match?: ProviderMatch;
+}
+
+export interface SessionType {
+  id: string;
+  therapistId: string;
+  name: string;
+  description?: string;
+  duration: number;
+  isActive: boolean;
+  setBy?: string | null; // 'admin' | 'therapist' — provenance
+  edited?: boolean; // therapist edited an admin-authored type
+}
+
+export interface SessionPricing {
+  id: string;
+  therapistId: string;
+  sessionTypeId: string;
+  price: number;
+  currency: string;
+  organizationId?: string;
+  sessionType?: SessionType;
+}
+
+export interface TherapistAvailability {
+  id: string;
+  therapistId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+  isActive: boolean;
+}
+
+export interface AvailabilityException {
+  id: string;
+  therapistId: string;
+  date: string;
+  type: 'UNAVAILABLE' | 'AVAILABLE';
+  startTime?: string;
+  endTime?: string;
+  reason?: string;
+}
+
+export interface Booking {
+  id: string;
+  patientId: string;
+  therapistId: string;
+  sessionTypeId: string;
+  startDateTime: string;
+  endDateTime: string;
+  timezone: string;
+  status: BookingStatus;
+  patientNotes?: string;
+  patientFiles?: string[];
+  googleMeetLink?: string;
+  calendarEventId?: string;
+  // These names mirror the Prisma `Booking` columns the API returns verbatim.
+  // They were previously `sessionPrice`/`therapistPayout`, which no endpoint has
+  // ever sent — every read came back undefined and rendered as "NaN".
+  subtotal: number;
+  platformFee: number;
+  therapistAmount: number;
+  currency: string;
+  paymentStatus: PaymentStatus;
+  stripePaymentIntentId?: string;
+  cancellationReason?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
+  sessionCompletedAt?: string;
+  acceptanceDeadline?: string;
+  createdAt: string;
+  updatedAt: string;
+  patient?: { id: string; name: string; email: string; image?: string };
+  therapist?: TherapistProfile;
+  sessionType?: SessionType;
+  ratings?: SessionRating[];
+}
+
+export interface SessionRating {
+  id: string;
+  bookingId: string;
+  userId: string;
+  therapistId: string;
+  rating: number;
+  review?: string;
+  isAnonymous: boolean;
+  categories?: {
+    professionalism?: number;
+    communication?: number;
+    helpfulness?: number;
+    engagement?: number;
+    punctuality?: number;
+  };
+  wouldRecommend?: boolean;
+  createdAt: string;
+}
+
+export interface AvailableSlot {
+  startTime: string;
+  endTime: string;
+  available: boolean;
+}
+
+export interface TherapistSearchResult {
+  therapists: TherapistProfile[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  needs?: DiscoveryNeeds;
+}
+
+export interface TherapistSearchFilters {
+  search?: string;
+  specialization?: string;
+  language?: string;
+  minRating?: number;
+  maxPrice?: number;
+  /** Guardian-only: tier-match results against this child's screening flags */
+  childId?: string;
+  /** Parent-picked concern id (talking/sounds/feelings/moving/notsure) → soft matches */
+  concern?: string;
+  page?: number;
+  limit?: number;
+}
+
+export type MatchTier = 'strong' | 'likely' | 'also' | 'none';
+
+export interface ProviderMatch {
+  tier: MatchTier;
+  /** One plain-language "why" line, or null */
+  reason: string | null;
+}
+
+export interface DiscoveryNeeds {
+  source: 'screening' | 'self_reported' | 'none';
+  flaggedDomains: string[];
+  concern: string | null;
+}
+
+export interface TherapistAnalytics {
+  totalBookings: number;
+  totalRevenue: number;
+  averageRating: number;
+  completionRate: number;
+  pendingRequests: number;
+  upcomingSessions: number;
+}
+
+export interface RatingStats {
+  averageRating: number;
+  totalRatings: number;
+  distribution: Record<string, number>;
+  categories?: Record<string, number>;
+  recommendationRate?: number;
+}
+
+export interface StripeAccountStatus {
+  hasAccount: boolean;
+  accountId?: string;
+  chargesEnabled?: boolean;
+  payoutsEnabled?: boolean;
+  detailsSubmitted?: boolean;
+}
+
+// ── DTOs ──
+
+export interface CreateBookingDto {
+  therapistId: string;
+  sessionTypeId: string;
+  startDateTime: string;
+  timezone: string;
+  patientNotes?: string;
+  patientFiles?: string[];
+  /** Which child the session is for (guardian-verified server-side) */
+  childId?: string;
+}
+
+export interface RejectBookingDto {
+  reason: string;
+}
+
+export interface CancelBookingDto {
+  reason?: string;
+}
+
+export interface RescheduleBookingDto {
+  startDateTime: string;
+  timezone: string;
+}
+
+export interface RateSessionDto {
+  rating: number;
+  reviewText?: string;
+  categories?: {
+    professionalism?: number;
+    communication?: number;
+    helpfulness?: number;
+    engagement?: number;
+    punctuality?: number;
+  };
+  wouldRecommend?: boolean;
+  isAnonymous?: boolean;
+}
+
+export interface SetAvailabilityDto {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+}
+
+export interface AddAvailabilityExceptionDto {
+  date: string;
+  type: 'AVAILABLE' | 'BLOCKED';
+  startTime?: string;
+  endTime?: string;
+  reason?: string;
+}
+
+export interface CreateTherapistProfileDto {
+  bio: string;
+  title: string;
+  credentials: string[];
+  specializations: string[];
+  yearsExperience: number;
+  languages: string[];
+  defaultTimezone: string;
+}
+
+export interface UpdateTherapistProfileDto {
+  bio?: string;
+  title?: string;
+  credentials?: string[];
+  specializations?: string[];
+  yearsExperience?: number;
+  languages?: string[];
+  defaultTimezone?: string;
+  profileImage?: string;
+  acceptingBookings?: boolean;
+}
+
+export interface CreateSessionTypeDto {
+  name: string;
+  description?: string;
+  duration: number;
+}
+
+export interface UpdateSessionTypeDto {
+  name?: string;
+  description?: string;
+  duration?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateSessionPricingDto {
+  sessionTypeId: string;
+  price: number;
+  currency?: string;
+}
+
+// ── API Functions ──
+
+// Therapist Search & Profiles
+export async function searchTherapists(filters?: TherapistSearchFilters): Promise<TherapistSearchResult> {
+  const params: Record<string, string> = {};
+  if (filters?.search) params.search = filters.search;
+  if (filters?.specialization) params.specialization = filters.specialization;
+  if (filters?.language) params.language = filters.language;
+  if (filters?.minRating) params.minRating = String(filters.minRating);
+  if (filters?.maxPrice) params.maxPrice = String(filters.maxPrice);
+  if (filters?.childId) params.childId = filters.childId;
+  if (filters?.concern) params.concern = filters.concern;
+  if (filters?.page) params.page = String(filters.page);
+  if (filters?.limit) params.limit = String(filters.limit);
+  const res = await apiClient.get('/marketplace/therapists', { params });
+  return res.data;
+}
+
+export async function getTherapistProfile(therapistId: string): Promise<TherapistProfile> {
+  const res = await apiClient.get(`/marketplace/therapists/${therapistId}`);
+  return res.data;
+}
+
+export async function getMyTherapistProfile(): Promise<TherapistProfile> {
+  const res = await apiClient.get('/marketplace/therapists/me/profile');
+  return res.data;
+}
+
+export async function createTherapistProfile(data: CreateTherapistProfileDto): Promise<TherapistProfile> {
+  const res = await apiClient.post('/marketplace/therapists/me/profile', data);
+  return res.data;
+}
+
+export async function updateTherapistProfile(data: UpdateTherapistProfileDto): Promise<TherapistProfile> {
+  const res = await apiClient.patch('/marketplace/therapists/me/profile', data);
+  return res.data;
+}
+
+// Session Types & Pricing
+export async function getTherapistSessionTypes(therapistId: string): Promise<SessionType[]> {
+  const res = await apiClient.get(`/marketplace/therapists/${therapistId}/session-types`);
+  return res.data;
+}
+
+export async function getMySessionTypes(): Promise<SessionType[]> {
+  const res = await apiClient.get('/marketplace/therapists/me/session-types');
+  return res.data;
+}
+
+export async function createSessionType(data: CreateSessionTypeDto): Promise<SessionType> {
+  const res = await apiClient.post('/marketplace/therapists/me/session-types', data);
+  return res.data;
+}
+
+export async function updateSessionType(sessionTypeId: string, data: UpdateSessionTypeDto): Promise<SessionType> {
+  const res = await apiClient.patch(`/marketplace/therapists/me/session-types/${sessionTypeId}`, data);
+  return res.data;
+}
+
+export async function deleteSessionType(sessionTypeId: string): Promise<void> {
+  await apiClient.delete(`/marketplace/therapists/me/session-types/${sessionTypeId}`);
+}
+
+export async function getSessionPricing(therapistId: string): Promise<SessionPricing[]> {
+  const res = await apiClient.get(`/marketplace/therapists/${therapistId}/pricing`);
+  return res.data;
+}
+
+export async function getMyPricing(): Promise<SessionPricing[]> {
+  const res = await apiClient.get('/marketplace/therapists/me/pricing');
+  return res.data;
+}
+
+export async function updateSessionPricing(data: UpdateSessionPricingDto): Promise<SessionPricing> {
+  const res = await apiClient.post('/marketplace/therapists/me/pricing', data);
+  return res.data;
+}
+
+// Availability
+export async function getAvailableSlots(
+  therapistId: string,
+  params: { date: string; sessionTypeId: string; timezone: string },
+): Promise<AvailableSlot[]> {
+  const res = await apiClient.get(`/marketplace/therapists/${therapistId}/slots`, { params });
+  return res.data;
+}
+
+export async function getTherapistAvailability(therapistId: string): Promise<{
+  recurring: TherapistAvailability[];
+  exceptions: AvailabilityException[];
+}> {
+  const res = await apiClient.get(`/marketplace/therapists/${therapistId}/availability`);
+  return res.data;
+}
+
+export async function getMyAvailability(): Promise<{
+  recurring: TherapistAvailability[];
+  exceptions: AvailabilityException[];
+}> {
+  const res = await apiClient.get('/marketplace/therapists/me/availability');
+  return res.data;
+}
+
+export async function setRecurringAvailability(data: SetAvailabilityDto): Promise<TherapistAvailability> {
+  const res = await apiClient.post('/marketplace/therapists/me/availability', data);
+  return res.data;
+}
+
+export async function addAvailabilityException(data: AddAvailabilityExceptionDto): Promise<AvailabilityException> {
+  const res = await apiClient.post('/marketplace/therapists/me/availability/exceptions', data);
+  return res.data;
+}
+
+export async function deleteAvailability(availabilityId: string): Promise<void> {
+  await apiClient.delete(`/marketplace/therapists/me/availability/${availabilityId}`);
+}
+
+export async function deleteAvailabilityException(exceptionId: string): Promise<void> {
+  await apiClient.delete(`/marketplace/therapists/me/availability/exceptions/${exceptionId}`);
+}
+
+// Bookings
+export async function createBooking(data: CreateBookingDto): Promise<Booking> {
+  const res = await apiClient.post('/marketplace/bookings', data);
+  return res.data;
+}
+
+export async function getMyBookings(status?: string): Promise<Booking[]> {
+  const params = status ? { status } : {};
+  const res = await apiClient.get('/marketplace/bookings', { params });
+  return res.data;
+}
+
+export async function getBooking(bookingId: string): Promise<Booking> {
+  const res = await apiClient.get(`/marketplace/bookings/${bookingId}`);
+  return res.data;
+}
+
+export async function acceptBooking(bookingId: string): Promise<Booking> {
+  const res = await apiClient.post(`/marketplace/bookings/${bookingId}/accept`);
+  return res.data;
+}
+
+export async function rejectBooking(bookingId: string, data: RejectBookingDto): Promise<Booking> {
+  const res = await apiClient.post(`/marketplace/bookings/${bookingId}/reject`, data);
+  return res.data;
+}
+
+export async function cancelBooking(bookingId: string, data?: CancelBookingDto): Promise<Booking> {
+  const res = await apiClient.post(`/marketplace/bookings/${bookingId}/cancel`, data);
+  return res.data;
+}
+
+export async function confirmSessionCompletion(bookingId: string): Promise<Booking> {
+  const res = await apiClient.post(`/marketplace/bookings/${bookingId}/complete`);
+  return res.data;
+}
+
+export async function rescheduleBooking(bookingId: string, data: RescheduleBookingDto): Promise<Booking> {
+  const res = await apiClient.post(`/marketplace/bookings/${bookingId}/reschedule`, data);
+  return res.data;
+}
+
+// Ratings
+export async function rateSession(bookingId: string, data: RateSessionDto): Promise<SessionRating> {
+  const res = await apiClient.post(`/marketplace/ratings/${bookingId}`, data);
+  return res.data;
+}
+
+export async function getTherapistRatings(
+  therapistId: string,
+  page = 1,
+  limit = 10,
+): Promise<{ ratings: SessionRating[]; pagination: { total: number; page: number; limit: number; totalPages: number } }> {
+  const res = await apiClient.get(`/marketplace/ratings/therapist/${therapistId}`, { params: { page, limit } });
+  return res.data;
+}
+
+export async function getTherapistRatingStats(therapistId: string): Promise<RatingStats> {
+  const res = await apiClient.get(`/marketplace/ratings/therapist/${therapistId}/stats`);
+  return res.data;
+}
+
+// Payments (Stripe Connect)
+export async function getStripeAccountStatus(): Promise<StripeAccountStatus> {
+  try {
+    const res = await apiClient.get('/marketplace/payments/stripe/status');
+    return res.data;
+  } catch {
+    return { hasAccount: false };
+  }
+}
+
+export async function createStripeOnboardingLink(): Promise<{ url: string }> {
+  const res = await apiClient.post('/marketplace/payments/stripe/onboarding');
+  return res.data;
+}
+
+export async function getStripeDashboardLink(): Promise<{ url: string }> {
+  const res = await apiClient.get('/marketplace/payments/stripe/dashboard');
+  return res.data;
+}
+
+// Analytics
+export async function getTherapistAnalytics(): Promise<TherapistAnalytics> {
+  const res = await apiClient.get('/marketplace/therapists/me/analytics');
+  return res.data;
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Skeleton } from '@upllyft/ui';
+import { Skeleton } from '@upllyft/ui';
 import { ChildFormWizard } from '@/components/child-form-wizard';
 
 export default function AddChildPage() {
@@ -19,7 +19,6 @@ export default function AddChildPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AppHeader currentApp="main" />
       <ChildFormWizard mode="add" />
     </div>
   );

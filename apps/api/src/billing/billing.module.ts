@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
-import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 
 @Module({
     controllers: [BillingController],
-    providers: [BillingService, PrismaService, ConfigService],
+    // PrismaService comes from the global PrismaModule (one client, one pool).
+    providers: [BillingService, ConfigService],
     exports: [BillingService],
 })
 export class BillingModule { }

@@ -102,12 +102,14 @@ export class MiraService {
 
     const isProd = this.configService.get('NODE_ENV') === 'production';
     const frontendUrl = this.configService.get('FRONTEND_URL') || (isProd ? 'https://app.safehaven-upllyft.com' : 'http://localhost:3000');
+    // Every product section is a path under the hub (PERFORMANCE_AUDIT.md §7e);
+    // the former per-app origins and APP_*_URL variables are retired.
     this.appUrls = {
       main: frontendUrl,
-      screening: this.configService.get('APP_SCREENING_URL') || (isProd ? 'https://screening.safehaven-upllyft.com' : 'http://localhost:3003'),
-      booking: this.configService.get('APP_BOOKING_URL') || (isProd ? 'https://booking.safehaven-upllyft.com' : 'http://localhost:3004'),
-      community: this.configService.get('APP_COMMUNITY_URL') || (isProd ? 'https://community.safehaven-upllyft.com' : 'http://localhost:3002'),
-      resources: this.configService.get('APP_RESOURCES_URL') || (isProd ? 'https://resources.safehaven-upllyft.com' : 'http://localhost:3005'),
+      screening: `${frontendUrl}/screening`,
+      booking: `${frontendUrl}/booking`,
+      community: `${frontendUrl}/community`,
+      resources: `${frontendUrl}/resources`,
     };
   }
 
@@ -527,6 +529,7 @@ Return ONLY valid JSON with these four keys:
     const conversations = await this.prisma.miraConversation.findMany({
       where: { userId },
       orderBy: { updatedAt: 'desc' },
+      take: 30,
       include: {
         messages: {
           orderBy: { createdAt: 'desc' },

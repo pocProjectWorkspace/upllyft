@@ -1,12 +1,13 @@
 'use client';
 
+import Image from '@/components/app-image';
 import type { User } from '@upllyft/types';
 import { APP_URLS, firstNameOf } from '@upllyft/api-client';
 import { Card, Avatar, Badge, Skeleton, Popover, PopoverTrigger, PopoverContent } from '@upllyft/ui';
 import { useMyProfile, useUpcomingBookings, useRecentFeedPosts, useLastMiraConversation } from '@/hooks/use-dashboard';
 import { calculateAge, type OnboardingData } from '@/lib/api/profiles';
 import { useState, useEffect, useRef } from 'react';
-import { useMira } from '@/components/mira/mira-context';
+import { useMiraOpen } from '@/components/mira/mira-context';
 
 const SELECTED_CHILD_KEY = 'upllyft_selected_child';
 
@@ -21,7 +22,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
   const { data: upcomingSessions, isLoading: sessionsLoading } = useUpcomingBookings();
   const { data: recentPosts, isLoading: feedLoading } = useRecentFeedPosts();
   const { data: lastConversation } = useLastMiraConversation();
-  const mira = useMira();
+  const mira = useMiraOpen();
   const [selectedChildId, setSelectedChildId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(SELECTED_CHILD_KEY);
@@ -213,7 +214,7 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
           {/* Left: Avatar + Greeting */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-4 mb-4">
-              <img src="/Mira.png" alt="Mira" className="w-14 h-14 rounded-full object-cover shadow-lg flex-shrink-0 ring-2 ring-white/30" />
+              <Image src="/Mira.png" alt="Mira" className="w-14 h-14 rounded-full object-cover shadow-lg flex-shrink-0 ring-2 ring-white/30" width={56} height={56} />
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold">
                   Hi {displayName}! I'm Mira.

@@ -1,7 +1,8 @@
 'use client';
 
+import Image from '@/components/app-image';
 import { apiClient, useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Card, Switch, useToast } from '@upllyft/ui';
+import { Card, Switch, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getMyOrganizations, type MyOrgMembership } from '@/lib/api/organizations';
@@ -132,7 +133,6 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <h1 className="text-xl font-bold text-gray-900 mb-6">Settings</h1>
@@ -265,7 +265,7 @@ export default function SettingsPage() {
                       className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-teal-300 hover:bg-teal-50/40 transition-colors"
                     >
                       {org.logo ? (
-                        <img src={org.logo} alt={org.name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                        <Image src={org.logo} alt={org.name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" width={36} height={36} />
                       ) : (
                         <div
                           className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"

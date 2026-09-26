@@ -1,13 +1,32 @@
 const isProd = process.env.NODE_ENV === 'production';
 
+const MAIN_URL = process.env.NEXT_PUBLIC_APP_MAIN_URL || (isProd ? 'https://app.safehaven-upllyft.com' : 'http://localhost:3000');
+
+/**
+ * Every product section is a path under the hub app (PERFORMANCE_AUDIT.md §7e):
+ * community -> /community, screening -> /screening, booking -> /booking,
+ * resources -> /resources, cases -> /cases, clinic admin -> /clinic.
+ * The former standalone apps and their NEXT_PUBLIC_APP_*_URL / MERGED_APPS
+ * switches are retired; old `*.safehaven-upllyft.com` hosts are redirected to
+ * these prefixes by web-main's next.config.
+ */
+export const MERGED_PREFIX = {
+  community: '/community',
+  screening: '/screening',
+  booking: '/booking',
+  resources: '/resources',
+  cases: '/cases',
+  admin: '/clinic',
+} as const;
+
 export const APP_URLS = {
-  main: process.env.NEXT_PUBLIC_APP_MAIN_URL || (isProd ? 'https://app.safehaven-upllyft.com' : 'http://localhost:3000'),
-  community: process.env.NEXT_PUBLIC_APP_COMMUNITY_URL || (isProd ? 'https://community.safehaven-upllyft.com' : 'http://localhost:3002'),
-  screening: process.env.NEXT_PUBLIC_APP_SCREENING_URL || (isProd ? 'https://screening.safehaven-upllyft.com' : 'http://localhost:3003'),
-  booking: process.env.NEXT_PUBLIC_APP_BOOKING_URL || (isProd ? 'https://booking.safehaven-upllyft.com' : 'http://localhost:3004'),
-  resources: process.env.NEXT_PUBLIC_APP_RESOURCES_URL || (isProd ? 'https://resources.safehaven-upllyft.com' : 'http://localhost:3005'),
-  cases: process.env.NEXT_PUBLIC_APP_CASES_URL || (isProd ? 'https://cases.safehaven-upllyft.com' : 'http://localhost:3006'),
-  admin: process.env.NEXT_PUBLIC_APP_ADMIN_URL || (isProd ? 'https://admin.safehaven-upllyft.com' : 'http://localhost:3007'),
+  main: MAIN_URL,
+  community: `${MAIN_URL}${MERGED_PREFIX.community}`,
+  screening: `${MAIN_URL}${MERGED_PREFIX.screening}`,
+  booking: `${MAIN_URL}${MERGED_PREFIX.booking}`,
+  resources: `${MAIN_URL}${MERGED_PREFIX.resources}`,
+  cases: `${MAIN_URL}${MERGED_PREFIX.cases}`,
+  admin: `${MAIN_URL}${MERGED_PREFIX.admin}`,
 } as const;
 
 export type AppName = keyof typeof APP_URLS;

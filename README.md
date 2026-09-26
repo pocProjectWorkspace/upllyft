@@ -5,25 +5,27 @@ A multi-app monorepo for the neurodivergent community — connecting parents, th
 ## Architecture
 
 ```
-                         ┌──────────────────┐
-                         │   upllyft.com    │
-                         │   (web-main)     │
-                         └────────┬─────────┘
-                                  │
-          ┌───────────┬───────────┼───────────┬───────────┐
-          ▼           ▼           ▼           ▼           ▼
-   ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐
-   │ Community  │ │ Screening  │ │  Booking   │ │ Resources  │ │   Cases    │
-   │  :3001     │ │   :3002    │ │   :3003    │ │   :3004    │ │   :3005    │
-   └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘
-          │           │           │           │           │
-          └───────────┴───────────┼───────────┴───────────┘
-                                  ▼
-                         ┌──────────────────┐
-                         │    NestJS API    │
-                         │     :3001        │
-                         └──────────────────┘
+   ┌──────────────────────────────────────────────────────────────────────┐
+   │  app.safehaven-upllyft.com  (apps/web-main, port 3000)               │
+   │  /            dashboard, feed, profile, settings, /admin console     │
+   │  /community   posts, Q&A, events, crisis                             │
+   │  /screening   developmental screenings, reports                      │
+   │  /booking     therapist marketplace, sessions, Stripe                │
+   │  /resources   AI worksheets, assignments, library                    │
+   │  /cases       case management, IEPs, nursery                         │
+   │  /clinic      clinic administration                                  │
+   └───────────────────────────────┬──────────────────────────────────────┘
+                                   │  /api/* proxied
+                                   ▼
+                         ┌──────────────────┐        ┌────────────────┐
+                         │    NestJS API    │◄──────►│  Postgres +    │
+                         │   (apps/api)     │        │  pgvector,     │
+                         │     :3001        │        │  Redis (opt.)  │
+                         └──────────────────┘        └────────────────┘
+   apps/landing (:3008) marketing site · apps/mobile Expo app (own API client)
 ```
+
+The six former standalone web apps (community, screening, booking, resources, cases, clinic admin) were merged into web-main; their old subdomains redirect to the matching hub prefix.
 
 ## Quick Start
 
@@ -44,7 +46,7 @@ pnpm dev
 
 ## Tech Stack
 
-- **Monorepo**: Turborepo + pnpm workspaces is more effective
+- **Monorepo**: Turborepo + pnpm workspaces
 - **Frontend**: Next.js 16, React 19, Tailwind CSS v4
 - **Backend**: NestJS 11, Prisma, PostgreSQL
 - **Mobile**: Expo, React Native

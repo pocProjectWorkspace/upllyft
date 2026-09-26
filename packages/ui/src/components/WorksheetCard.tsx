@@ -1,5 +1,6 @@
 import { Card } from './Card';
 import { Badge } from './Badge';
+import { NavLink } from './NavLink';
 
 export interface WorksheetCardProps {
   title: string;
@@ -107,7 +108,7 @@ export function WorksheetCard({
   if (href) {
     return (
       <Card hover className={`p-4 ${className}`}>
-        <a href={href} className="block">{content}</a>
+        <NavLink href={href} className="block">{content}</NavLink>
       </Card>
     );
   }

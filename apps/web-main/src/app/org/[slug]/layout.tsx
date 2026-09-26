@@ -1,5 +1,6 @@
 'use client';
 
+import Image from '@/components/app-image';
 import { useAuth } from '@upllyft/api-client';
 import { useRouter, usePathname, useParams } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -132,10 +133,12 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
           <div className="p-4 border-b border-gray-100">
             <a href={`/org/${slug}/hub`} className="flex items-center gap-3">
               {org?.logo ? (
-                <img
+                <Image
                   src={org.logo}
                   alt={org.name}
                   className="w-8 h-8 rounded-lg object-cover"
+                  width={32}
+                  height={32}
                 />
               ) : (
                 <div
@@ -199,7 +202,7 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
           <div className="md:hidden flex items-center gap-3 p-4 bg-white border-b border-gray-100">
             <a href={`/org/${slug}/hub`} className="flex items-center gap-2">
               {org?.logo ? (
-                <img src={org.logo} alt={org.name} className="w-6 h-6 rounded object-cover" />
+                <Image src={org.logo} alt={org.name} className="w-6 h-6 rounded object-cover" width={24} height={24} />
               ) : (
                 <div
                   className="w-6 h-6 rounded flex items-center justify-center"

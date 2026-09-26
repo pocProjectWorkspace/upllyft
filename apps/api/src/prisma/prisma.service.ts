@@ -9,12 +9,21 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy {
 
   constructor() {
-    // Disable verbose query logging to reduce log noise
-    const isProduction = process.env.NODE_ENV === 'production';
     super({
-      log: isProduction
-        ? ['warn', 'error']
-        : ['warn', 'error'],
+      // Query logging is intentionally off in every environment to reduce noise.
+      log: ['warn', 'error'],
+      // Never fetch the large `embedding Float[]` columns unless a query opts in
+      // explicitly with `select: { embedding: true }` or `omit: { embedding: false }`.
+      // These vectors are 1.5k floats per row and were being read on every
+      // /auth/me, /posts and /feeds request and then stripped by an interceptor.
+      omit: {
+        user: { embedding: true },
+        post: { embedding: true },
+        question: { embedding: true },
+        // originalContent holds the pre-redaction text; it is written by
+        // AnswersService and never read back, so keep it out of every query.
+        answer: { embedding: true, originalContent: true },
+      },
     });
   }
 

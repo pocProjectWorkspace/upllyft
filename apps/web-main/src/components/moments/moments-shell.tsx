@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth, useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Avatar, Skeleton } from '@upllyft/ui';
+import { Avatar, Skeleton } from '@upllyft/ui';
 import { useMyProfile } from '@/hooks/use-dashboard';
 import { calculateAge, type Child } from '@/lib/api/profiles';
 
@@ -77,7 +77,6 @@ export function MomentsShell({ children }: { children: React.ReactNode }) {
   return (
     <MomentsChildContext.Provider value={{ child, childList, selectChild, loading: isLoading }}>
       <div className="min-h-screen bg-gray-50">
-        <AppHeader currentApp="main" />
 
         {/* ── Child identity hero ─────────────────────────────── */}
         <div className="bg-gradient-to-r from-teal-700 to-teal-600 text-white">

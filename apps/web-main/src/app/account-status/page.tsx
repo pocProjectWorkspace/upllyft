@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Card } from '@upllyft/ui';
+import { Card } from '@upllyft/ui';
 
 export default function AccountStatusPage() {
   const { user, isReady } = useRequireAuth();
@@ -21,7 +21,6 @@ export default function AccountStatusPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <h1 className="text-xl font-bold text-gray-900 mb-6">Account Status</h1>

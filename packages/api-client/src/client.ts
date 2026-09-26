@@ -261,6 +261,8 @@ export function clearStoredTokens() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
+    // Cached user snapshot used for first-paint hydration (see hooks/useAuth.tsx)
+    localStorage.removeItem('upllyft_user');
     deleteCookie(TOKEN_KEY);
     deleteCookie(REFRESH_KEY);
     // Captcha challenge — wipe so a stale captcha can't survive logout

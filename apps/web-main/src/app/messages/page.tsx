@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Avatar, Card } from '@upllyft/ui';
+import { Avatar, Card } from '@upllyft/ui';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   useConversations,
@@ -351,7 +351,6 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         <h1 className="text-xl font-bold text-gray-900 mb-4">Messages</h1>

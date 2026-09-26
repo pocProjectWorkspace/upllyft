@@ -162,7 +162,7 @@ export class AiService {
     const outcomeKeywords = [
       'improved', 'decreased', 'increased', 'reduced', 'outcome', 'result', 'change', 'difference', '%', 'score', 'rate', 'frequency', 'success', 'failure'
     ];
-    const sentences = content.match(/[^.!?]+[.!?]+/g) || [];
+    const sentences: string[] = content.match(/[^.!?]+[.!?]+/g) ?? [];
     const outcomeSentences = sentences.filter(s =>
       outcomeKeywords.some(k => s.toLowerCase().includes(k))
     );

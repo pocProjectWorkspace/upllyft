@@ -4,7 +4,9 @@ export enum UserRole {
   EDUCATOR = 'EDUCATOR',
   ORGANIZATION = 'ORGANIZATION',
   ADMIN = 'ADMIN',
+  SUPERADMIN = 'SUPERADMIN',
   MODERATOR = 'MODERATOR',
+  BILLING = 'BILLING',
 }
 
 export enum VerificationStatus {

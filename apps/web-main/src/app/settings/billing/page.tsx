@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth, apiClient } from '@upllyft/api-client';
-import { AppHeader, Card, Badge, Skeleton } from '@upllyft/ui';
+import { Card, Badge, Skeleton } from '@upllyft/ui';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Suspense } from 'react';
@@ -57,7 +57,6 @@ function BillingContent() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <h1 className="text-xl font-bold text-gray-900 mb-6">Billing & Subscription</h1>

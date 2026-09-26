@@ -1,7 +1,10 @@
 // apps/api/src/feeds/feed-algorithm.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PersonalizationService } from './personalization.service';
+import {
+  PersonalizationService,
+  UserInterestProfile,
+} from './personalization.service';
 
 @Injectable()
 export class FeedAlgorithmService {
@@ -11,36 +14,42 @@ export class FeedAlgorithmService {
   ) {}
 
   async generateForYouFeed(userId: string, page: number, limit: number) {
-    // Get user preferences and interests
-    const interests = await this.personalization.calculateUserInterests(userId);
-    
+    // Read-only interest profile: one statement, no writes on a GET
+    const interests = await this.personalization.computeInterests(userId);
+
     // Build query with personalization
     const candidatePosts = await this.getCandidatePosts(userId, interests, limit * 3);
-    
-    // Score and rank posts
-    const scoredPosts = await Promise.all(
-      candidatePosts.map(async post => ({
-        ...post,
-        score: await this.personalization.getPersonalizedScore(userId, post),
-      }))
+
+    // Score every candidate in one batch (three statements in total)
+    const scoredPosts = await this.personalization.scorePosts(
+      userId,
+      candidatePosts,
+      interests,
     );
-    
-    // Sort by score and apply diversity rules
+
+    // Sort by score, then apply diversity rules
+    scoredPosts.sort((a, b) => b.score - a.score);
     const diversifiedFeed = this.applyDiversityRules(scoredPosts);
-    
+
     // Paginate
     const start = (page - 1) * limit;
     const paginatedFeed = diversifiedFeed.slice(start, start + limit);
-    
+
     return {
       posts: paginatedFeed,
       hasMore: diversifiedFeed.length > start + limit,
       page,
-      totalScore: paginatedFeed.reduce((sum, p) => sum + p.score, 0) / paginatedFeed.length,
+      totalScore: paginatedFeed.length
+        ? paginatedFeed.reduce((sum, p) => sum + p.score, 0) / paginatedFeed.length
+        : 0,
     };
   }
 
-  private async getCandidatePosts(userId: string, interests: any, limit: number) {
+  private async getCandidatePosts(
+    userId: string,
+    interests: UserInterestProfile,
+    limit: number,
+  ) {
     // Multi-stage candidate selection
     const stages = [
       // Stage 1: High-interest categories
@@ -54,7 +63,7 @@ export class FeedAlgorithmService {
         orderBy: { createdAt: 'desc' },
         include: this.getPostIncludes(),
       }),
-      
+
       // Stage 2: Trending in user's interests
       this.prisma.post.findMany({
         where: {
@@ -66,14 +75,14 @@ export class FeedAlgorithmService {
         orderBy: [{ upvotes: 'desc' }, { createdAt: 'desc' }],
         include: this.getPostIncludes(),
       }),
-      
+
       // Stage 3: From followed users
       this.getFollowedUserPosts(userId, Math.floor(limit * 0.2)),
-      
+
       // Stage 4: Discovery (outside interests for diversity)
       this.getDiscoveryPosts(userId, interests, Math.floor(limit * 0.1)),
     ];
-    
+
     const results = await Promise.all(stages);
     return this.deduplicatePosts(results.flat());
   }
@@ -97,10 +106,14 @@ export class FeedAlgorithmService {
     });
   }
 
-  private async getDiscoveryPosts(userId: string, interests: any, limit: number) {
+  private async getDiscoveryPosts(
+    userId: string,
+    interests: UserInterestProfile,
+    limit: number,
+  ) {
     // Get posts outside user's usual interests for discovery
     const knownCategories = Object.keys(interests.categories);
-    
+
     return this.prisma.post.findMany({
       where: {
         isPublished: true,
@@ -115,7 +128,7 @@ export class FeedAlgorithmService {
     });
   }
 
-  private deduplicatePosts(posts: any[]): any[] {
+  private deduplicatePosts<T extends { id: string }>(posts: T[]): T[] {
     const seen = new Set<string>();
     return posts.filter(post => {
       if (seen.has(post.id)) return false;
@@ -124,32 +137,51 @@ export class FeedAlgorithmService {
     });
   }
 
-  private applyDiversityRules(posts: any[]): any[] {
-    const diversified: any[] = [];
-    const categoryCounts = new Map<string, number>();
-    const authorCounts = new Map<string, number>();
-    
-    for (const post of posts) {
-      const categoryCount = categoryCounts.get(post.category) || 0;
-      const authorCount = authorCounts.get(post.authorId) || 0;
-      
-      // Limit same category/author consecutively
-      if (categoryCount < 2 && authorCount < 2) {
-        diversified.push(post);
-        categoryCounts.set(post.category, categoryCount + 1);
-        authorCounts.set(post.authorId, authorCount + 1);
-      } else {
-        // Push to end for later consideration
-        diversified.push(...diversified.splice(diversified.indexOf(post), 1));
+  /**
+   * Walk the ranked list keeping at most two posts per category and per
+   * author in each window of five; posts that would exceed the limit are
+   * deferred to a later window rather than dropped.
+   */
+  private applyDiversityRules<T extends { category: string; authorId: string }>(
+    posts: T[],
+  ): T[] {
+    const diversified: T[] = [];
+    let pending = [...posts];
+    let categoryCounts = new Map<string, number>();
+    let authorCounts = new Map<string, number>();
+
+    while (pending.length > 0) {
+      const deferred: T[] = [];
+      let placedThisPass = 0;
+
+      for (const post of pending) {
+        const categoryCount = categoryCounts.get(post.category) || 0;
+        const authorCount = authorCounts.get(post.authorId) || 0;
+
+        if (categoryCount < 2 && authorCount < 2) {
+          diversified.push(post);
+          placedThisPass++;
+          categoryCounts.set(post.category, categoryCount + 1);
+          authorCounts.set(post.authorId, authorCount + 1);
+
+          // Reset counts every 5 posts
+          if (diversified.length % 5 === 0) {
+            categoryCounts = new Map();
+            authorCounts = new Map();
+          }
+        } else {
+          deferred.push(post);
+        }
       }
-      
-      // Reset counts every 5 posts
-      if (diversified.length % 5 === 0) {
-        categoryCounts.clear();
-        authorCounts.clear();
+
+      if (placedThisPass === 0) {
+        // Window is saturated; open a fresh window so the remainder can land.
+        categoryCounts = new Map();
+        authorCounts = new Map();
       }
+      pending = deferred;
     }
-    
+
     return diversified;
   }
 

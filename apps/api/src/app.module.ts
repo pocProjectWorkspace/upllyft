@@ -1,7 +1,9 @@
 // apps/api/src/app.module.ts
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { resolveRedisUrl } from './common/redis/redis.config';
+import { RedisThrottlerStorage } from './common/redis/redis-throttler.storage';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -9,7 +11,6 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 
 // Services
 import { ClinicalInsightsService } from './agents/clinical-insights.service';
-import { PrismaService } from './prisma/prisma.service';
 import { AppService } from './app.service';
 
 // Controllers
@@ -18,6 +19,7 @@ import { AppController } from './app.controller';
 
 // Core modules
 import { PrismaModule } from './prisma/prisma.module';
+import { StorageModule } from './common/storage/storage.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 
@@ -25,7 +27,6 @@ import { UsersModule } from './users/users.module';
 import { LoggingModule, LoggingInterceptor } from './common/logging';
 
 // Response interceptors
-import { ExcludeFieldsInterceptor } from './common/interceptors';
 
 // Feature modules
 import { PostsModule } from './posts/posts.module';
@@ -133,14 +134,30 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
       envFilePath: ['.env', '../.env'],
     }),
 
-    // Rate limiting
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+    // Rate limiting. Counters live in Redis when it is configured so the limit
+    // is shared across replicas; otherwise in-process (PERFORMANCE_AUDIT.md #30).
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => {
+        const throttlers = [{ ttl: 60000, limit: 100 }];
+        const redisUrl = resolveRedisUrl(config);
+        if (!redisUrl) return { throttlers };
+        const storage = new RedisThrottlerStorage(redisUrl);
+        try {
+          await storage.connect();
+          return { throttlers, storage };
+        } catch (err) {
+          new Logger('ThrottlerModule').warn(
+            `Redis unavailable (${(err as Error).message}); throttler stays in-process`,
+          );
+          return { throttlers };
+        }
+      },
+    }),
 
     // Core modules
     PrismaModule,
+    StorageModule,
     AuthModule,
     UsersModule,
 
@@ -254,7 +271,8 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
     AppService,
     ClinicalInsightsService,
     ConfigService,
-    PrismaService,
+    // PrismaService is provided once by the global PrismaModule; registering it
+    // here again created a second PrismaClient (and connection pool).
     EngagementMetricsTask, // Task needs access to PrismaService and PostsService
     CredentialExpiryTask, // Phase 0 (UAE): daily licence-expiry derivation
     PreAuthExpiryTask, // Phase 2 (UAE): daily pre-authorisation expiry/exhaustion
@@ -267,11 +285,6 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
-    },
-    // Exclude sensitive fields (embedding, etc.) from responses
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: ExcludeFieldsInterceptor,
     },
   ],
 })

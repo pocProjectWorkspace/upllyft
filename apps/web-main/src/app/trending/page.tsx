@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
-import { AppHeader, Avatar, Badge, Card, Skeleton } from '@upllyft/ui';
+import { Avatar, Badge, Card, Skeleton } from '@upllyft/ui';
 import { useQuery } from '@tanstack/react-query';
 import { getTrendingPosts, type Post } from '@/lib/api/posts';
 
@@ -51,7 +51,6 @@ export default function TrendingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-6">

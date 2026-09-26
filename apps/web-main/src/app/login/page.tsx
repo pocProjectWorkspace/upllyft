@@ -1,5 +1,6 @@
 'use client';
 
+import Image from '@/components/app-image';
 import { useAuth } from '@upllyft/api-client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -111,7 +112,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md mx-auto">
           {/* Logo */}
           <div className="flex items-center gap-2.5 mb-10">
-            <img src="/logo.png" alt="Upllyft" className="h-10 w-auto" />
+            <Image src="/logo.png" alt="Upllyft" className="h-10 w-auto" width={73} height={40} priority />
           </div>
 
           {/* Heading */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Card, Avatar, Skeleton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Badge, useToast } from '@upllyft/ui';
+import { Card, Avatar, Skeleton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Badge, useToast } from '@upllyft/ui';
 import { useMyProfile } from '@/hooks/use-dashboard';
 import { updateProfile, updateAvatar, deleteChild, calculateAge } from '@/lib/api/profiles';
 import { useQueryClient } from '@tanstack/react-query';
@@ -150,7 +150,6 @@ export default function EditProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      <AppHeader currentApp="main" />
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-6">

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect, type ReactNode } from 'react';
 import type { MiraMessage, MiraConversationSummary } from '@/lib/api/mira';
 import {
   streamMiraChat,
@@ -39,9 +39,28 @@ interface MiraState {
 
 const MiraContext = createContext<MiraState | null>(null);
 
+/**
+ * Lightweight context carrying only open/close state. Components that merely
+ * need to open Mira (dashboard, FAB, nudges) subscribe to this so they are not
+ * re-rendered on every streamed token that updates `messages`.
+ */
+export interface MiraOpenState {
+  isOpen: boolean;
+  open: MiraState['open'];
+  close: MiraState['close'];
+  toggle: MiraState['toggle'];
+}
+const MiraOpenContext = createContext<MiraOpenState | null>(null);
+
 export function useMira() {
   const ctx = useContext(MiraContext);
   if (!ctx) throw new Error('useMira must be used within MiraProvider');
+  return ctx;
+}
+
+export function useMiraOpen() {
+  const ctx = useContext(MiraOpenContext);
+  if (!ctx) throw new Error('useMiraOpen must be used within MiraProvider');
   return ctx;
 }
 
@@ -278,32 +297,59 @@ export function MiraProvider({ children }: { children: ReactNode }) {
     window.history.replaceState({}, '', url.pathname + url.hash);
   }, []);
 
+  const openValue = useMemo<MiraOpenState>(
+    () => ({ isOpen, open, close, toggle }),
+    [isOpen, open, close, toggle],
+  );
+
+  const value = useMemo<MiraState>(
+    () => ({
+      isOpen,
+      open,
+      close,
+      toggle,
+      messages,
+      conversationId,
+      childId,
+      setChildId,
+      isLoading,
+      sendMessage,
+      startNewConversation,
+      loadConversation,
+      conversations,
+      loadConversations,
+      removeConversation,
+      conversationsLoading,
+      showHistory,
+      setShowHistory,
+      prefilledMessage,
+      clearPrefilledMessage,
+    }),
+    [
+      isOpen,
+      open,
+      close,
+      toggle,
+      messages,
+      conversationId,
+      childId,
+      isLoading,
+      sendMessage,
+      startNewConversation,
+      loadConversation,
+      conversations,
+      loadConversations,
+      removeConversation,
+      conversationsLoading,
+      showHistory,
+      prefilledMessage,
+      clearPrefilledMessage,
+    ],
+  );
+
   return (
-    <MiraContext.Provider
-      value={{
-        isOpen,
-        open,
-        close,
-        toggle,
-        messages,
-        conversationId,
-        childId,
-        setChildId,
-        isLoading,
-        sendMessage,
-        startNewConversation,
-        loadConversation,
-        conversations,
-        loadConversations,
-        removeConversation,
-        conversationsLoading,
-        showHistory,
-        setShowHistory,
-        prefilledMessage,
-        clearPrefilledMessage,
-      }}
-    >
-      {children}
-    </MiraContext.Provider>
+    <MiraOpenContext.Provider value={openValue}>
+      <MiraContext.Provider value={value}>{children}</MiraContext.Provider>
+    </MiraOpenContext.Provider>
   );
 }

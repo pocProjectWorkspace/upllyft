@@ -7,7 +7,10 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import session from 'express-session';
 import passport from 'passport';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import { json, urlencoded } from 'express';
+import { resolveRedisUrl } from './common/redis/redis.config';
+import { RedisIoAdapter } from './common/redis/redis-io.adapter';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -48,31 +51,76 @@ if (!sessionSecret && nodeEnv === 'production') {
     exclude: ['health', ''],
   });
 
-  // Cookie parser
-  app.use(cookieParser(sessionSecret));
+  // Socket.IO across replicas: when Redis is configured, room emits are
+  // fanned out over Redis pub/sub so a notification raised on one API
+  // instance reaches sockets on every instance (PERFORMANCE_AUDIT.md #30).
+  const redisUrl = resolveRedisUrl(configService);
+  if (redisUrl) {
+    const ioAdapter = new RedisIoAdapter(app, redisUrl);
+    try {
+      await ioAdapter.connect();
+      app.useWebSocketAdapter(ioAdapter);
+    } catch (err) {
+      logger.warn(`Redis unavailable (${(err as Error).message}); Socket.IO stays in-process`);
+    }
+  } else {
+    logger.log('REDIS_URL / REDIS_HOST not set; Socket.IO and throttler stay in-process (single replica only)');
+  }
 
-  // Session configuration - Simple and working
+  // Response compression (gzip/deflate) for JSON and text bodies over 1 KB.
+  // SSE streams (text/event-stream) are excluded so tokens are not buffered.
   app.use(
-    session({
-      secret: sessionSecret,
-      name: 'session',
-      resave: false,
-      saveUninitialized: false,
-      cookie: {
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        httpOnly: true,
-        secure: nodeEnv === 'production',
-        sameSite: nodeEnv === 'production' ? 'none' : 'lax',
+    compression({
+      threshold: 1024,
+      filter: (req, res) => {
+        const type = String(res.getHeader('Content-Type') || '');
+        if (type.includes('text/event-stream')) return false;
+        return compression.filter(req, res);
       },
     }),
   );
-  logger.log('✅ Session middleware configured');
 
-  // Initialize Passport
+  // Cookie parser
+  app.use(cookieParser(sessionSecret));
+
+  // Session configuration. The API is JWT-authenticated; server sessions are
+  // only needed by the Google OAuth handshake and the registration captcha,
+  // so the session store and passport.session() are mounted on those route
+  // prefixes only instead of running (and allocating) on every request.
+  const sessionMiddleware = session({
+    secret: sessionSecret,
+    name: 'session',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      httpOnly: true,
+      secure: nodeEnv === 'production',
+      sameSite: nodeEnv === 'production' ? 'none' : 'lax',
+    },
+  });
+  const SESSION_PATHS = ['/api/auth', '/api/captcha'];
+  for (const path of SESSION_PATHS) {
+    app.use(path, sessionMiddleware);
+  }
+  logger.log(`✅ Session middleware configured for ${SESSION_PATHS.join(', ')}`);
+
+  // Initialize Passport (JWT strategy needs initialize on every route; the
+  // session-backed user deserialisation only on the OAuth routes).
   app.use(passport.initialize());
-  app.use(passport.session());
-  app.use(json({ limit: '10mb' }));
-  app.use(urlencoded({ extended: true, limit: '10mb' }));
+  for (const path of SESSION_PATHS) {
+    app.use(path, passport.session());
+  }
+  // Body limits. Files go through multer (multipart), and the web/mobile
+  // clients never send data URLs as JSON, so 1 MB covers every JSON route.
+  // Admin bulk imports keep the old 10 MB ceiling; these must be mounted
+  // before the global parser so they win for their prefix.
+  const LARGE_BODY_PATHS = ['/api/crisis', '/api/admin'];
+  for (const path of LARGE_BODY_PATHS) {
+    app.use(path, json({ limit: '10mb' }));
+  }
+  app.use(json({ limit: '1mb' }));
+  app.use(urlencoded({ extended: true, limit: '1mb' }));
 
   // Passport serialization (required for Google OAuth session flow)
   passport.serializeUser((user: any, done: any) => {
@@ -99,13 +147,8 @@ if (!sessionSecret && nodeEnv === 'production') {
     origin: [
       /\.upllyft\.com$/,
       /\.safehaven-upllyft\.com$/,
-      'http://localhost:3000',
-      'http://localhost:3002',
-      'http://localhost:3003',
-      'http://localhost:3004',
-      'http://localhost:3005',
-      'http://localhost:3006',
-      'http://localhost:3007',
+      'http://localhost:3000', // web-main (the hub; all product sections live under it)
+      'http://localhost:3008', // landing
       ...extraOrigins,
     ],
     credentials: true,

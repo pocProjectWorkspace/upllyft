@@ -17,9 +17,10 @@
  *   node scripts/check-no-child-clinicid.mjs
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SRC = join(ROOT, 'src');
 
 /**
@@ -84,7 +85,7 @@ function* walk(dir) {
 const offenders = [];
 
 for (const file of walk(SRC)) {
-  const rel = relative(SRC, file);
+  const rel = relative(SRC, file).split(sep).join('/');
   if (BASELINE.has(rel)) continue;
 
   const lines = readFileSync(file, 'utf8').split('\n');

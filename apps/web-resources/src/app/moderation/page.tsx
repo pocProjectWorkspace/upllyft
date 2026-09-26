@@ -40,7 +40,7 @@ const RESOLVE_STATUSES: WorksheetFlagStatus[] = ['REVIEWED', 'DISMISSED', 'ACTIO
 
 export default function ModerationPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'MODERATOR';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN' || user?.role === 'MODERATOR';
 
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [reasonFilter, setReasonFilter] = useState<string>('all');

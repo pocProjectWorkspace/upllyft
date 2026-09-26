@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth } from '@upllyft/api-client';
-import { AppHeader, Skeleton } from '@upllyft/ui';
+import { Skeleton } from '@upllyft/ui';
 import { useParams } from 'next/navigation';
 import { useMyProfile } from '@/hooks/use-dashboard';
 import { ChildFormWizard } from '@/components/child-form-wizard';
@@ -27,7 +27,6 @@ export default function EditChildPage() {
   if (!child) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <AppHeader currentApp="main" />
         <div className="max-w-3xl mx-auto px-4 py-20 text-center">
           <p className="text-gray-500">Child not found</p>
           <a href="/profile/edit" className="text-teal-600 hover:text-teal-700 text-sm font-medium mt-2 inline-block">
@@ -40,7 +39,6 @@ export default function EditChildPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AppHeader currentApp="main" />
       <ChildFormWizard mode="edit" childId={childId} child={child} />
     </div>
   );

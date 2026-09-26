@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/components/admin-shell';
 import {
   getClinicOutcomeSummary,
@@ -69,6 +70,7 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default function OutcomesPage() {
+  const router = useRouter();
   const [summary, setSummary] = useState<ClinicOutcomeSummary | null>(null);
   const [goalData, setGoalData] = useState<GoalProgressData | null>(null);
   const [screeningData, setScreeningData] = useState<ScreeningTrendsData | null>(null);
@@ -282,7 +284,7 @@ export default function OutcomesPage() {
                       <tr
                         key={p.id}
                         className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => window.location.href = `/patients/${p.id}`}
+                        onClick={() => router.push(`/patients/${p.id}`)}
                       >
                         <td className="py-3 px-3 font-medium text-gray-900">{p.firstName}</td>
                         <td className="py-3 px-3 text-gray-600">{p.age}</td>

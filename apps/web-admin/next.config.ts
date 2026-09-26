@@ -12,11 +12,22 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@upllyft/ui", "@upllyft/api-client", "@upllyft/types"],
+  experimental: {
+    // Import only the icons/components actually used instead of the whole barrel.
+    optimizePackageImports: ["lucide-react", "@upllyft/ui"],
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
   async redirects() {
+    // Once this section is served from the hub app (web-main under /clinic),
+    // set NEXT_PUBLIC_ADMIN_MOVED_TO=https://app.example.com on this deployment and every old URL redirects there.
+    const movedTo = process.env.NEXT_PUBLIC_ADMIN_MOVED_TO;
+    const moved = movedTo
+      ? [{ source: "/:path*", destination: `${movedTo.replace(/\/$/, "")}/clinic/:path*`, permanent: true }]
+      : [];
     return [
+      ...moved,
       {
         // OAuth must hit the backend directly (not proxied) so session cookies work
         source: "/api/auth/google",

@@ -24,25 +24,27 @@ export class ProfileService {
    */
   async getProfile(userId: string) {
     try {
-      let profile = await this.prisma.userProfile.findUnique({
-        where: { userId },
-        include: {
-          children: {
-            include: {
-              conditions: true,
-            },
-            orderBy: {
-              dateOfBirth: 'asc',
+      // Profile and user lookups are independent; fetch them in parallel.
+      let [profile, user] = await Promise.all([
+        this.prisma.userProfile.findUnique({
+          where: { userId },
+          include: {
+            children: {
+              include: {
+                conditions: true,
+              },
+              orderBy: {
+                dateOfBirth: 'asc',
+              },
             },
           },
-        },
-      });
-
-      // Get user details to seed profile
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { name: true, email: true }
-      });
+        }),
+        // Get user details to seed profile
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { name: true, email: true },
+        }),
+      ]);
 
       // Create profile if doesn't exist
       if (!profile) {

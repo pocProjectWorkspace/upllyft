@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@upllyft/api-client';
 import {
   Badge,
@@ -74,6 +75,7 @@ export default function AssignmentsPage() {
 // ── Therapist View ──
 
 function TherapistSentAssignments() {
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<WorksheetAssignmentStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
   const [selectedAssignment, setSelectedAssignment] = useState<WorksheetAssignment | null>(null);
@@ -246,7 +248,7 @@ function TherapistSentAssignments() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  window.location.href = `/${selectedAssignment!.worksheetId}`;
+                  router.push(`/${selectedAssignment!.worksheetId}`);
                 }}
               >
                 View Worksheet

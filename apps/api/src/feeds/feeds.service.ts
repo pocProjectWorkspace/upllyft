@@ -76,7 +76,7 @@ export class FeedsService {
     }
 
     // Cache the result
-    await this.cacheManager.set(cacheKey, result, 300); // 5 minutes
+    await this.cacheManager.set(cacheKey, result, 300_000); // 5 minutes (ms in cache-manager v5)
     
     return result;
   }
@@ -365,7 +365,7 @@ export class FeedsService {
     // Calculate trending score
     const posts = await this.prisma.$queryRaw`
       SELECT p.*, 
-        (p.upvotes * 2 + p.views * 0.1 + COUNT(c.id) * 3) / 
+        (p.upvotes * 2 + p."viewCount" * 0.1 + COUNT(c.id) * 3) / 
         POWER(EXTRACT(EPOCH FROM (NOW() - p."createdAt")) / 3600 + 2, 1.8) as trending_score
       FROM "Post" p
       LEFT JOIN "Comment" c ON c."postId" = p.id
