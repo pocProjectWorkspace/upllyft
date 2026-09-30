@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@upllyft/api-client';
 import { getMyOrganizations, type MyOrgMembership } from '@/lib/api/organizations';
 import { Loader2, Building2, ArrowRight } from 'lucide-react';
 import { SignOutButton } from '@/components/sign-out-button';
@@ -21,6 +23,7 @@ import { SignOutButton } from '@/components/sign-out-button';
  */
 export default function OrgResolverPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [orgs, setOrgs] = useState<MyOrgMembership[] | null>(null);
   const [error, setError] = useState(false);
 
@@ -40,9 +43,14 @@ export default function OrgResolverPage() {
   if (error) {
     return (
       <Centered>
-        <p className="text-sm text-gray-600">
-          We couldn’t load your organisation. Please try again in a moment.
-        </p>
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
+            We couldn’t load your organisation. Please try again in a moment.
+          </p>
+          <Link href="/" className="mt-4 inline-block text-sm font-medium text-teal-700 hover:text-teal-800">
+            Back to dashboard
+          </Link>
+        </div>
       </Centered>
     );
   }
@@ -57,6 +65,7 @@ export default function OrgResolverPage() {
   }
 
   if (orgs.length === 0) {
+    const isTherapist = user?.role === 'THERAPIST';
     return (
       <Centered>
         <div className="max-w-md text-center">
@@ -66,11 +75,36 @@ export default function OrgResolverPage() {
           <h1 className="text-xl font-semibold text-gray-900 mb-2">
             You’re not part of an organisation yet
           </h1>
-          <p className="text-sm text-gray-600">
-            If your nursery, school or clinic has invited you, accept the invitation from
-            your email and you’ll appear here. Otherwise, ask whoever runs your setting to
-            add you.
-          </p>
+          {isTherapist ? (
+            // A self-registered therapist's way in is their own practice, not an invite.
+            <p className="text-sm text-gray-600">
+              Run your own practice? Set it up and you become its administrator, with a
+              clinic dashboard, team, revenue and settings. If a clinic has invited you
+              instead, accept the invitation from your email.
+            </p>
+          ) : (
+            <p className="text-sm text-gray-600">
+              If your nursery, school or clinic has invited you, accept the invitation from
+              your email and you’ll appear here. Otherwise, ask whoever runs your setting to
+              add you.
+            </p>
+          )}
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+            {isTherapist && (
+              <Link
+                href="/clinic/setup"
+                className="inline-flex items-center px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors"
+              >
+                Set up my practice
+              </Link>
+            )}
+            <Link
+              href="/"
+              className="inline-flex items-center px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:border-teal-300 transition-colors"
+            >
+              Back to dashboard
+            </Link>
+          </div>
         </div>
       </Centered>
     );
