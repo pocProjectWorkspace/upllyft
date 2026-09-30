@@ -141,3 +141,28 @@ export class UpsertSessionPricingDto {
     @IsString()
     currency?: string;
 }
+
+export class SetupPracticeDto {
+    @IsString()
+    name: string;
+
+    @IsOptional()
+    @IsString()
+    phone?: string;
+
+    @IsOptional()
+    @IsString()
+    email?: string;
+
+    @IsOptional()
+    @IsString()
+    address?: string;
+
+    @IsOptional()
+    @IsString()
+    country?: string;
+
+    @IsOptional()
+    @IsString()
+    description?: string;
+}

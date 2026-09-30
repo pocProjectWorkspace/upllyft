@@ -146,6 +146,7 @@ export class MiraService {
           : m.content,
       }));
     } else {
+      await this.assertOwnChild(userId, childId);
       conversation = await this.prisma.miraConversation.create({
         data: {
           userId,
@@ -155,7 +156,8 @@ export class MiraService {
       });
     }
 
-    // 2. Gather context
+    // 2. Gather context — only about a child this parent may see
+    await this.assertOwnChild(userId, childId);
     const context = await this.gatherContext(userId, childId, message);
 
     // 3. Build system message with context
@@ -233,6 +235,7 @@ export class MiraService {
         content: m.content,
       }));
     } else {
+      await this.assertOwnChild(userId, childId);
       conversation = await this.prisma.miraConversation.create({
         data: { userId, childId: childId || null, title: message.substring(0, 100) },
       });
@@ -241,7 +244,8 @@ export class MiraService {
     // Emit conversationId immediately
     yield { type: 'conversation', data: { conversationId: conversation.id } };
 
-    // 2. Gather context
+    // 2. Gather context — only about a child this parent may see
+    await this.assertOwnChild(userId, childId);
     const context = await this.gatherContext(userId, childId, message);
 
     // 3. Build system message for streaming (plain text output)
@@ -579,6 +583,27 @@ Return ONLY valid JSON with these four keys:
   }
 
   // ── Context gathering ───────────────────────────────────────────────────
+
+  /**
+   * Mira reads a child's conditions, diagnoses and screening scores into the prompt,
+   * so the child must be the caller's own: their profile's child, or one they are a
+   * listed guardian of. The id arrives in the request body, and without this check
+   * any signed-in user could get answers built on another family's child.
+   *
+   * One error for 'no such child' and 'not yours', so the endpoint cannot be used
+   * to probe which child ids exist.
+   */
+  async assertOwnChild(userId: string, childId: string | undefined | null): Promise<void> {
+    if (!childId) return;
+    const child = await this.prisma.child.findFirst({
+      where: {
+        id: childId,
+        OR: [{ profile: { userId } }, { guardians: { some: { userId } } }],
+      },
+      select: { id: true },
+    });
+    if (!child) throw new ForbiddenException('You do not have access to this child.');
+  }
 
   private async gatherContext(
     userId: string,

@@ -9,6 +9,18 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InvoiceStatus, Prisma } from '@prisma/client';
 import { ListInvoicesQueryDto } from './dto/invoice.dto';
 
+/** ISO country → billing currency. Mirrors REGION_CONFIGS in packages/types/src/region.ts. */
+function currencyForCountry(country: string | null | undefined): string {
+  switch (country) {
+    case 'AE':
+      return 'AED';
+    case 'SA':
+      return 'SAR';
+    default:
+      return 'INR';
+  }
+}
+
 @Injectable()
 export class InvoiceService {
   private readonly logger = new Logger(InvoiceService.name);
@@ -39,9 +51,10 @@ export class InvoiceService {
           include: {
             child: {
               include: {
-                profile: { select: { userId: true } },
+                profile: { select: { userId: true, user: { select: { country: true } } } },
               },
             },
+            clinic: { select: { country: true } },
           },
         },
         booking: {
@@ -64,7 +77,11 @@ export class InvoiceService {
     }
 
     const amount = session.booking?.subtotal ?? 0;
-    const currency = session.booking?.currency ?? 'AED';
+    // The booking's own currency; without a booking, the clinic's (then the family's)
+    // country decides — this used to assume AED for everyone.
+    const currency =
+      session.booking?.currency ??
+      currencyForCountry(session.case?.clinic?.country ?? session.case?.child?.profile?.user?.country);
 
     const invoice = await this.prisma.invoice.create({
       data: {
@@ -136,7 +153,7 @@ export class InvoiceService {
     const where: Prisma.InvoiceWhereInput = { patientId };
     if (status) where.status = status;
 
-    const [invoices, totalBilled, totalPaid, totalOutstanding] = await Promise.all([
+    const [invoices, totals] = await Promise.all([
       this.prisma.invoice.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -153,19 +170,34 @@ export class InvoiceService {
           therapist: { select: { id: true, name: true, image: true } },
         },
       }),
-      this.prisma.invoice.aggregate({
+      // Totals per currency AND status: a family seen in India and the UAE has rupee
+      // and dirham invoices, which must never be added together.
+      this.prisma.invoice.groupBy({
+        by: ['currency', 'status'],
         where: { patientId },
         _sum: { amount: true },
       }),
-      this.prisma.invoice.aggregate({
-        where: { patientId, status: InvoiceStatus.PAID },
-        _sum: { amount: true },
-      }),
-      this.prisma.invoice.aggregate({
-        where: { patientId, status: { in: [InvoiceStatus.DRAFT, InvoiceStatus.ISSUED] } },
-        _sum: { amount: true },
-      }),
     ]);
+
+    const byCurrency = new Map<string, { currency: string; totalBilled: number; totalPaid: number; totalOutstanding: number }>();
+    for (const row of totals) {
+      const entry = byCurrency.get(row.currency) ?? {
+        currency: row.currency,
+        totalBilled: 0,
+        totalPaid: 0,
+        totalOutstanding: 0,
+      };
+      const amount = Number(row._sum.amount ?? 0);
+      entry.totalBilled += amount;
+      if (row.status === InvoiceStatus.PAID) entry.totalPaid += amount;
+      if (row.status === InvoiceStatus.DRAFT || row.status === InvoiceStatus.ISSUED) {
+        entry.totalOutstanding += amount;
+      }
+      byCurrency.set(row.currency, entry);
+    }
+    const currencies = [...byCurrency.values()].sort((a, b) => b.totalBilled - a.totalBilled);
+    // The flat totals stay for existing clients, in the family's main currency only.
+    const primary = currencies[0];
 
     const hasMore = invoices.length > limit;
     if (hasMore) invoices.pop();
@@ -174,9 +206,11 @@ export class InvoiceService {
       invoices,
       nextCursor: hasMore ? invoices[invoices.length - 1]?.id : null,
       summary: {
-        totalBilled: Number(totalBilled._sum.amount ?? 0),
-        totalPaid: Number(totalPaid._sum.amount ?? 0),
-        totalOutstanding: Number(totalOutstanding._sum.amount ?? 0),
+        currency: primary?.currency ?? null,
+        totalBilled: primary?.totalBilled ?? 0,
+        totalPaid: primary?.totalPaid ?? 0,
+        totalOutstanding: primary?.totalOutstanding ?? 0,
+        byCurrency: currencies,
       },
     };
   }

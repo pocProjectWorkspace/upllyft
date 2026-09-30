@@ -54,6 +54,10 @@ export class MiraController {
       throw new BadRequestException('Message is required');
     }
 
+    // Before the 200 goes out: once the stream is open, a rejection can only surface
+    // as a generic error event, so the caller would never see the real 403.
+    await this.miraService.assertOwnChild(req.user.id, body.childId);
+
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
