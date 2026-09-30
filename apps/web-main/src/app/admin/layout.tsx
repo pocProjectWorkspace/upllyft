@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { SignOutButton } from '@/components/sign-out-button';
+import { useClinicReviewCounts } from '@/hooks/use-admin';
 
 import { DashboardSkeleton } from '@/components/skeletons';
 const sidebarItems = [
@@ -82,6 +83,25 @@ const sidebarItems = [
     ),
   },
   {
+    label: 'Clinic approvals',
+    href: '/admin/clinics/review',
+    badgeKey: 'clinicReview' as const,
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Care waitlist',
+    href: '/admin/care-waitlist',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    ),
+  },
+  {
     label: 'Onboarding',
     href: '/admin/onboarding-settings',
     icon: (
@@ -135,6 +155,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
   }, [isReady, user, router]);
 
+  // One small groupBy; only fetched once the admin check has passed.
+  const { data: reviewCounts } = useClinicReviewCounts(isAdmin);
+  const pendingClinics = reviewCounts?.pending ?? 0;
+
+  const activeHref = sidebarItems
+    .filter((i) => pathname === i.href || (i.href !== '/admin' && pathname.startsWith(i.href + '/')))
+    .reduce<string | null>((best, i) => (!best || i.href.length > best.length ? i.href : best), null);
+
   if (!isReady || !isAdmin) {
     return (
       <DashboardSkeleton />
@@ -153,9 +181,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </div>
         <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
           {sidebarItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== '/admin' && pathname.startsWith(item.href));
+            // Longest matching prefix wins, so /admin/clinics/review highlights
+            // "Clinic approvals" rather than "Clinics" as well.
+            const isActive = item.href === activeHref;
+            const badge = 'badgeKey' in item && item.badgeKey === 'clinicReview' ? pendingClinics : 0;
             return (
               <Link
                 key={item.href}
@@ -167,6 +196,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               >
                 <span className="flex-shrink-0">{item.icon}</span>
                 <span>{item.label}</span>
+                {badge > 0 && (
+                  <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold flex items-center justify-center">
+                    {badge}
+                  </span>
+                )}
               </Link>
             );
           })}

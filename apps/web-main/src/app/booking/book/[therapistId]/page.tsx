@@ -15,6 +15,7 @@ import { formatCurrency, formatDuration } from '@/booking/lib/utils';
 import { useRegion } from '@upllyft/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { getMyChildren } from '@/booking/lib/api/find-care';
+import { getChildAssessments, shareAssessment } from '@/screening/lib/api/assessments';
 import type { SessionType, SessionPricing as SessionPricingType } from '@/booking/lib/api/marketplace';
 import { format } from 'date-fns';
 import {
@@ -177,12 +178,22 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  // Backlog #8: ask, never assume, whether the child's latest screening goes with the booking.
+  const [shareScreening, setShareScreening] = useState(false);
   const { data: myChildren } = useQuery({ queryKey: ['find-care', 'children'], queryFn: getMyChildren });
   const [childId, setChildId] = useState<string | null>(() =>
     typeof window !== 'undefined' ? localStorage.getItem('upllyft_selected_child') : null,
   );
   const selectedChildId =
     childId && myChildren?.some((c) => c.id === childId) ? childId : myChildren?.[0]?.id ?? null;
+  const selectedChild = myChildren?.find((c) => c.id === selectedChildId);
+  const { data: childScreenings } = useQuery({
+    queryKey: ['booking', 'child-screenings', selectedChildId],
+    queryFn: () => getChildAssessments(selectedChildId as string),
+    enabled: !!selectedChildId,
+  });
+  // Newest first from the API; only a finished screening is worth sharing.
+  const latestScreening = childScreenings?.find((a) => !!a.completedAt);
 
   const { data: therapist, isLoading: loadingProfile } = useTherapistProfile(therapistId);
   const { data: sessionTypes, isLoading: loadingTypes } = useTherapistSessionTypes(therapistId);
@@ -260,7 +271,14 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
         childId: selectedChildId || undefined,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          if (shareScreening && latestScreening) {
+            // Scores + summary only; the parent can add their answers from the report.
+            // An already-shared screening (400) is not a booking failure.
+            await shareAssessment(latestScreening.id, { therapistId, accessLevel: 'VIEW' }).catch(
+              () => undefined,
+            );
+          }
           router.push('/booking/bookings');
         },
       },
@@ -546,6 +564,26 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
                       className="rounded-xl"
                     />
                   </div>
+
+                  {latestScreening && (
+                    <label className="flex items-start gap-3 rounded-xl border border-gray-200 p-3 cursor-pointer hover:border-teal-300 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={shareScreening}
+                        onChange={(e) => setShareScreening(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                      />
+                      <span className="text-sm">
+                        <span className="font-medium text-gray-900">
+                          Share {selectedChild?.firstName ? `${selectedChild.firstName}'s` : "your child's"} latest screening with {name}
+                        </span>
+                        <span className="block text-gray-500 mt-0.5">
+                          They will see the scores and summary, not your individual answers. Access ends when their
+                          case with your child closes.
+                        </span>
+                      </span>
+                    </label>
+                  )}
                 </div>
               </Card>
             )}

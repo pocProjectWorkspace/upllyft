@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import { getClinic, updateClinic, type ClinicDetail } from '@/clinic/lib/admin-api';
 import { clinicKeys } from '@/clinic/lib/query-keys';
-import { Building2, Save, Mail, Phone, MapPin, FileText, CheckCircle2, Palette } from 'lucide-react';
+import { Building2, Save, Mail, Phone, MapPin, FileText, CheckCircle2, Clock, Palette } from 'lucide-react';
 
 import { FormSkeleton } from '@/components/skeletons';
 export default function SettingsPage() {
@@ -88,6 +88,20 @@ export default function SettingsPage() {
                     <h1 className="text-2xl font-bold text-gray-900 leading-tight">Clinic Settings</h1>
                     <p className="text-gray-500 mt-1">Manage your clinic profile and organizational details.</p>
                 </div>
+
+                {clinic?.complianceStatus && clinic.complianceStatus !== 'ACTIVE' && (
+                    <div
+                        role="status"
+                        className="mb-6 p-4 bg-amber-50 text-amber-800 text-sm rounded-xl border border-amber-100 flex items-start gap-2"
+                    >
+                        <Clock className="w-5 h-5 shrink-0 mt-px" />
+                        <span>
+                            {clinic.complianceStatus === 'SUSPENDED'
+                                ? 'Your clinic is currently hidden from families. Contact Upllyft support to have it reviewed again.'
+                                : 'Your clinic is awaiting Upllyft review. It will appear to families once approved.'}
+                        </span>
+                    </div>
+                )}
 
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
                     <div className="p-6 border-b border-gray-100">

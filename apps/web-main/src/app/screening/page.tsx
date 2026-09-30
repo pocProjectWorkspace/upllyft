@@ -62,11 +62,13 @@ import {
   formatAgeGroup,
   formatDate,
   calculateZone,
+  parentZoneLabels,
   zoneColors,
 } from '@/screening/lib/utils';
 import type { Assessment, Child, AccessLevel, DomainScore, ScreeningHistoryResponse } from '@/screening/lib/api/assessments';
 
 import { RowsSkeleton } from '@/components/skeletons';
+import { ShareAnswersToggle } from '@/screening/components/share-answers-toggle';
 // ── Status badge config ──
 
 const statusConfig: Record<
@@ -241,9 +243,9 @@ function ProgressRing({
 }) {
   const offset = RING_CIRCUMFERENCE * (1 - percentage / 100);
   const zoneBadge = {
-    green: { label: 'On Track', bg: 'bg-green-100', text: 'text-green-700' },
-    yellow: { label: 'Monitor', bg: 'bg-yellow-100', text: 'text-yellow-700' },
-    red: { label: 'Concern', bg: 'bg-red-100', text: 'text-red-700' },
+    green: { label: parentZoneLabels.green, bg: 'bg-green-100', text: 'text-green-700' },
+    yellow: { label: parentZoneLabels.yellow, bg: 'bg-yellow-100', text: 'text-yellow-700' },
+    red: { label: parentZoneLabels.red, bg: 'bg-red-100', text: 'text-red-700' },
   }[zone];
 
   return (
@@ -272,7 +274,7 @@ function ProgressRing({
         </text>
       </svg>
       <span className="text-sm font-medium text-gray-700">{label}</span>
-      <span className={`text-xs px-2 py-0.5 rounded-full ${zoneBadge.bg} ${zoneBadge.text}`}>
+      <span className={`text-xs text-center px-2 py-0.5 rounded-full ${zoneBadge.bg} ${zoneBadge.text}`}>
         {zoneBadge.label}
       </span>
     </div>
@@ -797,6 +799,7 @@ export default function ScreeningLibraryPage() {
   const [selectedTherapistId, setSelectedTherapistId] = useState('');
   const [accessLevel, setAccessLevel] = useState<AccessLevel>('VIEW');
   const [shareMessage, setShareMessage] = useState('');
+  const [shareAnswers, setShareAnswers] = useState(false);
   const { data: therapists } = useSearchTherapists(therapistSearch || undefined);
   const shareMutation = useShareAssessment();
 
@@ -824,6 +827,7 @@ export default function ScreeningLibraryPage() {
     setSelectedTherapistId('');
     setAccessLevel('VIEW');
     setShareMessage('');
+    setShareAnswers(false);
     setShareOpen(true);
   }
 
@@ -836,6 +840,7 @@ export default function ScreeningLibraryPage() {
           therapistId: selectedTherapistId,
           accessLevel,
           message: shareMessage || undefined,
+          includeResponses: shareAnswers,
         },
       },
       {
@@ -1207,6 +1212,8 @@ export default function ScreeningLibraryPage() {
                 rows={3}
               />
             </div>
+
+            <ShareAnswersToggle checked={shareAnswers} onChange={setShareAnswers} />
           </div>
 
           <DialogFooter>

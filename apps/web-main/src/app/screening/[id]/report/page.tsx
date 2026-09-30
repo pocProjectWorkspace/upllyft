@@ -61,6 +61,9 @@ import {
   formatAgeGroup,
   getAnswerLabel,
   getAnswerColor,
+  parentZoneLabels,
+  clinicalZoneLabels,
+  parentSeverityLabels,
 } from '@/screening/lib/utils';
 import {
   ResponsiveContainer,
@@ -73,6 +76,7 @@ import {
 } from 'recharts';
 import type { DomainScoreResult, AccessLevel } from '@/screening/lib/api/assessments';
 
+import { ShareAnswersToggle } from '@/screening/components/share-answers-toggle';
 // ── Helpers ──
 
 function getStatusBadgeColor(status: string): 'green' | 'blue' | 'yellow' | 'gray' | 'red' {
@@ -130,14 +134,15 @@ function getDomainStatusColor(status: string): string {
   }
 }
 
-function getDomainStatusBadge(status: string) {
+function getDomainStatusBadge(status: string, isParent: boolean) {
+  const labels = isParent ? parentZoneLabels : { green: 'On Track', yellow: 'Monitor', red: 'Concern' };
   switch (normalizeDomainStatus(status)) {
     case 'GREEN':
-      return { bg: 'bg-green-100', text: 'text-green-700', label: 'On Track' };
+      return { bg: 'bg-green-100', text: 'text-green-700', label: labels.green };
     case 'YELLOW':
-      return { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Monitor' };
+      return { bg: 'bg-yellow-100', text: 'text-yellow-700', label: labels.yellow };
     case 'RED':
-      return { bg: 'bg-red-100', text: 'text-red-700', label: 'Concern' };
+      return { bg: 'bg-red-100', text: 'text-red-700', label: labels.red };
     default:
       return { bg: 'bg-gray-100', text: 'text-gray-700', label: status };
   }
@@ -155,6 +160,11 @@ export default function ReportPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { user } = useAuth();
+  // Parents get supportive, non-diagnostic wording (backlog #6); professionals viewing a
+  // shared report keep the precise clinical terms.
+  const isParent = !user || user.role === 'USER';
+  const zoneLabels = isParent ? parentZoneLabels : clinicalZoneLabels;
 
   const [viewMode, setViewMode] = useState<'v1' | 'v2'>('v1');
   const [showResponses, setShowResponses] = useState(false);
@@ -163,6 +173,7 @@ export default function ReportPage() {
   const [shareTherapistId, setShareTherapistId] = useState('');
   const [shareAccessLevel, setShareAccessLevel] = useState<AccessLevel>('VIEW');
   const [shareMessage, setShareMessage] = useState('');
+  const [shareAnswers, setShareAnswers] = useState(false);
   const [therapistSearch, setTherapistSearch] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -213,7 +224,7 @@ export default function ReportPage() {
     );
   }
 
-  const { assessment, child, domainScores, recommendations, responses, developmentalAgeEquivalent, overallInterpretation } = reportData;
+  const { assessment, child, domainScores, recommendations, responses, developmentalAgeEquivalent, overallInterpretation, responsesWithheld } = reportData;
   const flaggedCount = domainScores.filter((d) => d.zone === 'red' || d.zone === 'yellow').length;
 
   // Calculate overall score as mean of domain risk indices, converted to development percentage
@@ -255,6 +266,7 @@ export default function ReportPage() {
           therapistId: shareTherapistId,
           accessLevel: shareAccessLevel,
           message: shareMessage || undefined,
+          includeResponses: shareAnswers,
         },
       },
       {
@@ -263,6 +275,7 @@ export default function ReportPage() {
           setShareTherapistId('');
           setShareAccessLevel('VIEW');
           setShareMessage('');
+          setShareAnswers(false);
         },
       },
     );
@@ -424,12 +437,14 @@ export default function ReportPage() {
                     </svg>
                     {isDownloading ? 'Downloading...' : 'Summary Report (PDF)'}
                   </DropdownMenuItem>
+                  {!responsesWithheld && (
                   <DropdownMenuItem onClick={() => handleDownloadReport('detailed')} disabled={isDownloading} className="cursor-pointer">
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     {isDownloading ? 'Downloading...' : 'Detailed Report (PDF)'}
                   </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -507,7 +522,7 @@ export default function ReportPage() {
                       {/* Risk Index */}
                       <div className="mb-2">
                         <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="text-gray-600">Needs Attention</span>
+                          <span className="text-gray-600">{isParent ? 'Still developing' : 'Needs Attention'}</span>
                           <span className={`font-bold ${colors.text}`}>{percentage}%</span>
                         </div>
                         <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -523,7 +538,7 @@ export default function ReportPage() {
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}
                         >
-                          {zone === 'green' ? 'On Track' : zone === 'yellow' ? 'Monitor' : zone === 'red' ? 'Needs Support' : String(zone).toUpperCase()}
+                          {zoneLabels[zone] ?? String(zone).toUpperCase()}
                         </span>
                         {domain.tier2Required && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
@@ -552,7 +567,7 @@ export default function ReportPage() {
                       <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
                       <YAxis type="category" dataKey="domain" width={110} tick={{ fontSize: 12 }} />
                       <Tooltip
-                        formatter={(value: number) => [`${value}%`, 'Risk Index']}
+                        formatter={(value: number) => [`${value}%`, isParent ? 'Still developing' : 'Risk Index']}
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                       />
                       <Bar dataKey="riskIndex" radius={[0, 6, 6, 0]} barSize={24}>
@@ -564,18 +579,18 @@ export default function ReportPage() {
                   </ResponsiveContainer>
                 </div>
                 {/* Legend */}
-                <div className="flex items-center justify-center gap-6 mt-4 text-sm">
+                <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4 text-sm">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-[#22c55e]" />
-                    <span className="text-gray-600">On Track (0-29%)</span>
+                    <span className="text-gray-600">{zoneLabels.green} (0-29%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-[#eab308]" />
-                    <span className="text-gray-600">Monitor (30-45%)</span>
+                    <span className="text-gray-600">{zoneLabels.yellow} (30-45%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-[#ef4444]" />
-                    <span className="text-gray-600">Needs Support (46%+)</span>
+                    <span className="text-gray-600">{zoneLabels.red} (46%+)</span>
                   </div>
                 </div>
               </Card>
@@ -609,7 +624,7 @@ export default function ReportPage() {
                                     : 'bg-green-100 text-green-700'
                               }`}
                             >
-                              {rec.severity}
+                              {isParent ? (parentSeverityLabels[rec.severity] ?? rec.severity) : rec.severity}
                             </span>
                           </div>
                           <div className="flex-1">
@@ -628,6 +643,12 @@ export default function ReportPage() {
 
             {/* Show All Responses */}
             <section>
+              {responsesWithheld ? (
+                <p className="text-sm text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                  The parent shared the scores and summary only. Ask them to share their answers if
+                  you need the item-by-item responses.
+                </p>
+              ) : (
               <button
                 onClick={() => setShowResponses(!showResponses)}
                 className="flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
@@ -642,8 +663,9 @@ export default function ReportPage() {
                 </svg>
                 {showResponses ? 'Hide All Responses' : 'Show All Responses'}
               </button>
+              )}
 
-              {showResponses && (
+              {showResponses && !responsesWithheld && (
                 <div className="mt-4 space-y-6">
                   {Object.entries(responsesByDomain).map(([domain, domainResponses]) => (
                     <Card key={domain} className="p-5 rounded-xl border-0 shadow-sm">
@@ -882,7 +904,7 @@ export default function ReportPage() {
                     </h2>
                     <div className="space-y-4">
                       {reportV2Data.domainDeepDives.map((domain) => {
-                        const statusBadge = getDomainStatusBadge(domain.status);
+                        const statusBadge = getDomainStatusBadge(domain.status, isParent);
                         const borderColor = getDomainStatusColor(domain.status);
                         const domainKey = resolveDomainKey(domain.domainId, domain.domainName);
                         const scorePercent = domain.scorePercent != null
@@ -1121,6 +1143,8 @@ export default function ReportPage() {
                   className="rounded-xl resize-none"
                 />
               </div>
+
+              <ShareAnswersToggle checked={shareAnswers} onChange={setShareAnswers} />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowShareDialog(false)} className="rounded-xl">

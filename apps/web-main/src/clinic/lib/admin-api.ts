@@ -231,6 +231,9 @@ export interface ClinicDetail {
   licenseNo: string | null;
   phone: string | null;
   email: string | null;
+  isPublic?: boolean;
+  /** Upllyft's review of the clinic; families see it only when ACTIVE. */
+  complianceStatus?: 'DRAFT' | 'IN_REVIEW' | 'ACTIVE' | 'SUSPENDED';
   adminId: string;
   admin: {
     id: string;

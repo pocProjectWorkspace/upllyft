@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import * as adminApi from '@/lib/api/admin';
 
 // ─── Dashboard ───────────────────────────────────────────────────
@@ -189,6 +189,43 @@ export function useCreateClinic() {
       organizationId: string;
     }) => adminApi.createClinic(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'clinics'] }),
+  });
+}
+
+// ─── Clinic approvals ────────────────────────────────────────────
+
+export function useClinicReviewQueue(status?: adminApi.ClinicComplianceStatus) {
+  return useQuery({
+    queryKey: ['admin', 'clinic-review', status ?? 'pending'],
+    queryFn: () => adminApi.getClinicReviewQueue(status),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useClinicReviewCounts(enabled = true) {
+  return useQuery({
+    queryKey: ['admin', 'clinic-review-counts'],
+    queryFn: adminApi.getClinicReviewCounts,
+    enabled,
+  });
+}
+
+export function useSetClinicCompliance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...payload
+    }: {
+      id: string;
+      status: adminApi.ClinicReviewDecision;
+      note?: string;
+    }) => adminApi.setClinicCompliance(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'clinic-review'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'clinic-review-counts'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'clinics'] });
+    },
   });
 }
 

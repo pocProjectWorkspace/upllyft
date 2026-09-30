@@ -54,6 +54,31 @@ export const zoneColors: Record<ZoneType, { bg: string; text: string; border: st
   red: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', progress: 'bg-red-500' },
 };
 
+/**
+ * Parent-facing names for the screening tiers (backlog #6). Supportive, non-diagnostic,
+ * but the red tier still clearly points the parent to a professional. Use these
+ * everywhere a parent sees a result so the same tier always reads the same.
+ */
+export const parentZoneLabels: Record<ZoneType, string> = {
+  green: 'On track',
+  yellow: 'Worth watching',
+  red: 'Worth discussing with a professional',
+};
+
+/** Clinician-facing names, kept precise for therapists/educators viewing shared reports. */
+export const clinicalZoneLabels: Record<ZoneType, string> = {
+  green: 'On Track',
+  yellow: 'Monitor',
+  red: 'Needs Support',
+};
+
+/** Parent-facing names for recommendation severities (API values stay Mild/Moderate/Severe). */
+export const parentSeverityLabels: Record<string, string> = {
+  Mild: 'Helpful idea',
+  Moderate: 'Recommended',
+  Severe: 'Talk to a professional',
+};
+
 export function calculateZone(riskIndex: number): ZoneType {
   if (riskIndex <= 0.29) return 'green';
   if (riskIndex <= 0.45) return 'yellow';

@@ -103,6 +103,8 @@ export interface ReportData {
   ageGroup: string;
   domainScores: DomainScoreResult[];
   recommendations: string[];
+  /** True when the viewer was shared scores + summary only (backlog #8). */
+  responsesWithheld?: boolean;
   responses: Array<{
     id: string;
     tier: number;
@@ -188,6 +190,8 @@ export interface ShareAssessmentDto {
   therapistId: string;
   accessLevel?: AccessLevel;
   message?: string;
+  /** Also share the item-by-item answers (off by default: scores + summary only). */
+  includeResponses?: boolean;
 }
 
 export interface AddAnnotationDto {

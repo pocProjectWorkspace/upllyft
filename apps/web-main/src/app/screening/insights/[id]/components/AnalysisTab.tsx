@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Badge, Button, toast } from '@upllyft/ui';
+import { useAuth } from '@upllyft/api-client';
+import { parentZoneLabels } from '@/screening/lib/utils';
 import { createStructuredPlan } from '@/screening/lib/api/insights';
 import type {
   ClinicalInsight,
@@ -24,10 +26,18 @@ function getDomainBorderColor(status: string) {
   return 'border-l-green-500';
 }
 
-function getDomainStatusBadge(status: string): { color: 'green' | 'yellow' | 'red'; label: string } {
-  if (status === 'concern') return { color: 'red', label: 'Needs Attention' };
-  if (status === 'monitor') return { color: 'yellow', label: 'Monitor' };
-  return { color: 'green', label: 'On Track' };
+function getDomainStatusBadge(status: string, isParent: boolean): { color: 'green' | 'yellow' | 'red'; label: string } {
+  // Parents see supportive, non-diagnostic wording (backlog #6); professionals keep clinical terms.
+  if (status === 'concern') return { color: 'red', label: isParent ? parentZoneLabels.red : 'Needs Attention' };
+  if (status === 'monitor') return { color: 'yellow', label: isParent ? parentZoneLabels.yellow : 'Monitor' };
+  return { color: 'green', label: isParent ? parentZoneLabels.green : 'On Track' };
+}
+
+function getOverallLevelLabel(level: string, isParent: boolean): string {
+  if (!isParent) return level.charAt(0).toUpperCase() + level.slice(1) + ' Risk';
+  if (level === 'high') return parentZoneLabels.red;
+  if (level === 'moderate') return parentZoneLabels.yellow;
+  return parentZoneLabels.green;
 }
 
 function getUrgencyBadge(priority: string): { color: 'red' | 'yellow' | 'green'; label: string } {
@@ -55,6 +65,8 @@ interface AnalysisTabProps {
 }
 
 export function AnalysisTab({ insights }: AnalysisTabProps) {
+  const { user } = useAuth();
+  const isParent = !user || user.role === 'USER';
   const [expandedRecs, setExpandedRecs] = useState<Set<number>>(new Set());
   const [creatingPlanIdx, setCreatingPlanIdx] = useState<number | null>(null);
 
@@ -78,7 +90,7 @@ export function AnalysisTab({ insights }: AnalysisTabProps) {
               const risk = getRiskColor(insights.overallAssessment!.riskLevel);
               return (
                 <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold ${risk.bg} ${risk.text}`}>
-                  {insights.overallAssessment!.riskLevel.charAt(0).toUpperCase() + insights.overallAssessment!.riskLevel.slice(1)} Risk
+                  {getOverallLevelLabel(insights.overallAssessment!.riskLevel, isParent)}
                 </span>
               );
             })()}
@@ -99,7 +111,7 @@ export function AnalysisTab({ insights }: AnalysisTabProps) {
           <h2 className="text-xl font-bold text-gray-900 mb-6">How Each Area Looks</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {insights.domainAnalysis.map((domain: DomainAnalysisItem, idx: number) => {
-              const statusInfo = getDomainStatusBadge(domain.status);
+              const statusInfo = getDomainStatusBadge(domain.status, isParent);
               return (
                 <div
                   key={idx}
