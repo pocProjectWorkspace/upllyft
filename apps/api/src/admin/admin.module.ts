@@ -5,8 +5,9 @@ import { AdminService } from './admin.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { UsersModule } from '../users/users.module';
 
+import { CareWaitlistModule } from '../care-waitlist/care-waitlist.module';
 @Module({
-  imports: [PrismaModule, UsersModule],
+  imports: [PrismaModule, UsersModule, CareWaitlistModule],
   controllers: [AdminController],
   providers: [AdminService],
   exports: [AdminService],

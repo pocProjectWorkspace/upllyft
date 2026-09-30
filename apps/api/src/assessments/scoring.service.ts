@@ -275,7 +275,7 @@ export class ScoringService {
 
         if (redDomains.length > 0) {
             recommendations.push(
-                'Schedule a consultation with a developmental specialist to discuss areas of concern.',
+                'Schedule a consultation with a developmental specialist to talk through the areas worth a closer look.',
             );
             recommendations.push(
                 'Consider early intervention services which can significantly support your child\'s development.',
@@ -284,7 +284,7 @@ export class ScoringService {
 
         if (yellowDomains.length > 0) {
             recommendations.push(
-                'Monitor these areas closely and provide enriched activities to support development.',
+                'Keep an eye on these areas and provide enriched activities to support development.',
             );
             recommendations.push(
                 'Discuss your observations with your pediatrician at the next visit.',

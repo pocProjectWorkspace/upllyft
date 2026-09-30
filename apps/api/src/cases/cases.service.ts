@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { facilityCan, type FacilityType } from '../common/facility-capabilities';
@@ -22,6 +23,8 @@ import {
 
 @Injectable()
 export class CasesService {
+  private readonly logger = new Logger(CasesService.name);
+
   constructor(private prisma: PrismaService) {}
 
   /**
@@ -420,7 +423,54 @@ export class CasesService {
       status: { old: existing.status, new: dto.status },
     });
 
+    if (dto.status === CaseStatus.DISCHARGED || dto.status === CaseStatus.ARCHIVED) {
+      await this.endScreeningSharesForClosedCase(caseId, existing.childId);
+    }
+
     return updated;
+  }
+
+  /**
+   * A parent's screening shares with the case's therapists end when the case
+   * closes (backlog #8). Kept for anyone still on ANOTHER open case for the same
+   * child. Re-opening does not restore them; the parent shares again.
+   */
+  private async endScreeningSharesForClosedCase(caseId: string, childId: string) {
+    const team = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      select: {
+        primaryTherapist: { select: { userId: true } },
+        therapists: { select: { therapist: { select: { userId: true } } } },
+      },
+    });
+    if (!team) return;
+    const userIds = [
+      team.primaryTherapist.userId,
+      ...team.therapists.map((t) => t.therapist.userId),
+    ];
+
+    const stillOnCase = await this.prisma.case.findMany({
+      where: {
+        childId,
+        id: { not: caseId },
+        status: { notIn: [CaseStatus.DISCHARGED, CaseStatus.ARCHIVED] },
+      },
+      select: {
+        primaryTherapist: { select: { userId: true } },
+        therapists: { where: { removedAt: null }, select: { therapist: { select: { userId: true } } } },
+      },
+    });
+    const keep = new Set(
+      stillOnCase.flatMap((c) => [c.primaryTherapist.userId, ...c.therapists.map((t) => t.therapist.userId)]),
+    );
+    const ending = [...new Set(userIds)].filter((id) => !keep.has(id));
+    if (ending.length === 0) return;
+
+    const { count } = await this.prisma.assessmentShare.updateMany({
+      where: { isActive: true, sharedWith: { in: ending }, assessment: { childId } },
+      data: { isActive: false },
+    });
+    if (count > 0) this.logger.log(`Case ${caseId} closed: ended ${count} screening share(s)`);
   }
 
   /**

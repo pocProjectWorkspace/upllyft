@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsBoolean } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum AccessLevel {
@@ -33,4 +33,14 @@ export class ShareAssessmentDto {
     @IsString()
     @IsOptional()
     message?: string;
+
+    @ApiProperty({
+        description:
+            'Also share the item-by-item answers. Off by default: the professional sees scores and the summary.',
+        required: false,
+        default: false,
+    })
+    @IsBoolean()
+    @IsOptional()
+    includeResponses?: boolean;
 }

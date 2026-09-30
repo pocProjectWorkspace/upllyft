@@ -7,9 +7,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { Role, ModerationStatus, Prisma } from '@prisma/client';
+import {
+  Role,
+  ModerationStatus,
+  Prisma,
+  FacilityComplianceStatus,
+} from '@prisma/client';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+import { CareWaitlistService } from '../care-waitlist/care-waitlist.service';
 const ALLOWED_MIMES = [
   'application/pdf',
   'image/jpeg',
@@ -17,6 +23,30 @@ const ALLOWED_MIMES = [
   'image/jpg',
 ];
 const CREDENTIALS_BUCKET = 'credentials';
+
+const ALL_COMPLIANCE: FacilityComplianceStatus[] = [
+  'DRAFT',
+  'IN_REVIEW',
+  'ACTIVE',
+  'SUSPENDED',
+];
+/** Decisions a platform admin can take on a clinic. DRAFT is the owner's state. */
+const REVIEW_DECISIONS: FacilityComplianceStatus[] = ['ACTIVE', 'SUSPENDED', 'IN_REVIEW'];
+
+/** `?status=` filter for the review queue; defaults to the pending states. */
+function parseComplianceFilter(status?: string): FacilityComplianceStatus[] {
+  if (!status) return ['DRAFT', 'IN_REVIEW'];
+  const wanted = status
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter((s): s is FacilityComplianceStatus =>
+      ALL_COMPLIANCE.includes(s as FacilityComplianceStatus),
+    );
+  if (!wanted.length) {
+    throw new BadRequestException(`status must be one of ${ALL_COMPLIANCE.join(', ')}`);
+  }
+  return wanted;
+}
 
 @Injectable()
 export class AdminService {
@@ -26,6 +56,7 @@ export class AdminService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private auditService: AuditService,
+    private careWaitlist: CareWaitlistService,
   ) { }
 
   private get supabase(): SupabaseClient {
@@ -1036,6 +1067,139 @@ export class AdminService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // ── Platform Admin: Clinic approvals (backlog #2) ─────────────
+  //
+  // A clinic is listed to families only once an Upllyft admin has approved it
+  // (complianceStatus ACTIVE). Solo practices owned by a therapist are approved
+  // automatically from the owner's licence verification (see syncPracticeCompliance).
+
+  async getClinicReviewQueue(status?: string) {
+    const statuses = parseComplianceFilter(status);
+    const clinics = await this.prisma.clinic.findMany({
+      where: { complianceStatus: { in: statuses } },
+      select: {
+        id: true,
+        name: true,
+        country: true,
+        licenseNo: true,
+        licenseAuthority: true,
+        emirate: true,
+        isPublic: true,
+        complianceStatus: true,
+        complianceReviewedAt: true,
+        complianceReviewedBy: true,
+        createdAt: true,
+        admin: { select: { id: true, name: true, email: true } },
+        organization: { select: { id: true, name: true } },
+        _count: { select: { therapists: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Facility.id === Clinic.id, so the OWNER membership tells us whether this is
+    // a therapist's solo practice. One query for the whole page.
+    const owners = clinics.length
+      ? await this.prisma.facilityMember.findMany({
+          where: {
+            facilityId: { in: clinics.map((c) => c.id) },
+            role: 'OWNER',
+            status: 'ACTIVE',
+            user: { role: Role.THERAPIST },
+          },
+          select: { facilityId: true },
+        })
+      : [];
+    const solo = new Set(owners.map((o) => o.facilityId));
+
+    return clinics.map(({ _count, ...c }) => ({
+      ...c,
+      therapistCount: _count.therapists,
+      isSoloPractice: solo.has(c.id),
+    }));
+  }
+
+  async getClinicReviewCounts() {
+    const rows = await this.prisma.clinic.groupBy({
+      by: ['complianceStatus'],
+      _count: { _all: true },
+    });
+    const counts: Record<FacilityComplianceStatus, number> = {
+      DRAFT: 0,
+      IN_REVIEW: 0,
+      ACTIVE: 0,
+      SUSPENDED: 0,
+    };
+    for (const r of rows) counts[r.complianceStatus] = r._count._all;
+    return { ...counts, pending: counts.DRAFT + counts.IN_REVIEW };
+  }
+
+  async setClinicCompliance(
+    id: string,
+    status: string,
+    reviewerId: string,
+    note?: string,
+  ) {
+    if (!REVIEW_DECISIONS.includes(status as FacilityComplianceStatus)) {
+      throw new BadRequestException(
+        `status must be one of ${REVIEW_DECISIONS.join(', ')}`,
+      );
+    }
+    const next = status as FacilityComplianceStatus;
+    const existing = await this.prisma.clinic.findUnique({
+      where: { id },
+      select: { id: true, complianceStatus: true, name: true, country: true, isPublic: true },
+    });
+    if (!existing) throw new NotFoundException(`Clinic not found with ID: ${id}`);
+
+    const approved = next === 'ACTIVE';
+    const data = {
+      complianceStatus: next,
+      complianceReviewedAt: approved ? new Date() : null,
+      complianceReviewedBy: approved ? reviewerId : null,
+    };
+
+    // Keep the Clinic row and its Facility twin (same id) in step. Very old clinics
+    // may have no Facility row, hence updateMany. isPublic is left to the owner.
+    const [clinic] = await this.prisma.$transaction([
+      this.prisma.clinic.update({
+        where: { id },
+        data,
+        select: {
+          id: true,
+          name: true,
+          isPublic: true,
+          complianceStatus: true,
+          complianceReviewedAt: true,
+          complianceReviewedBy: true,
+        },
+      }),
+      this.prisma.facility.updateMany({ where: { id }, data }),
+    ]);
+
+    await this.auditService.log({
+      userId: reviewerId,
+      resourceType: 'Clinic',
+      resourceId: id,
+      action: 'COMPLIANCE_' + next,
+      metadata: {
+        from: existing.complianceStatus,
+        to: next,
+        ...(note?.trim() ? { note: note.trim().slice(0, 2000) } : {}),
+      },
+    });
+
+    // Newly visible to families: tell anyone waiting in that country (backlog #1).
+    if (approved && existing.complianceStatus !== 'ACTIVE' && existing.isPublic) {
+      await this.careWaitlist.notifyProviderJoined({
+        country: existing.country,
+        kind: 'clinic',
+        name: existing.name,
+      });
+    }
+
+    return clinic;
   }
 
   async getClinicDetails(clinicId: string) {

@@ -114,9 +114,49 @@ export class AssessmentsService {
     }
 
     /**
-     * Get assessment by ID
+     * Get assessment by ID — the READ path.
+     *
+     * A professional who can see this only because the parent shared it gets the
+     * scores and the summary; the item-by-item answers only when the parent opted in
+     * (`AssessmentShare.includeResponses`, backlog #8). Everyone else with access
+     * (the parent, the respondent, consented facility staff) sees them as before.
      */
     async getAssessment(assessmentId: string, userId: string) {
+        const { assessment, via } = await this.loadWithAccess(assessmentId, userId);
+        if (via.kind === 'share' && !via.includeResponses) {
+            return { ...assessment, responses: [], responsesWithheld: true as const };
+        }
+        return assessment;
+    }
+
+    /**
+     * The WRITE path (questionnaires and submissions): only whoever is administering
+     * the screening. Sharing a screening with a professional grants reading, never
+     * answering — this used to reuse the read check, so a share recipient could
+     * submit answers into someone else's child's screening.
+     */
+    private async getAssessmentForAnswering(assessmentId: string, userId: string) {
+        const { assessment, via } = await this.loadWithAccess(assessmentId, userId);
+        if (via.kind === 'share') {
+            throw new ForbiddenException('Only the person completing this screening can answer it.');
+        }
+        return assessment;
+    }
+
+    /**
+     * The parent's decisions about THEIR child's screening — share, revoke, delete.
+     * These reused the read check, so a professional the screening was shared with
+     * could delete it or re-share it onward.
+     */
+    private async getAssessmentAsOwner(assessmentId: string, userId: string) {
+        const { assessment } = await this.loadWithAccess(assessmentId, userId);
+        if (assessment.child.profile.userId !== userId) {
+            throw new ForbiddenException("Only the child's parent can do this.");
+        }
+        return assessment;
+    }
+
+    private async loadWithAccess(assessmentId: string, userId: string) {
         const assessment = await this.prisma.assessment.findUnique({
             where: { id: assessmentId },
             include: {
@@ -147,16 +187,21 @@ export class AssessmentsService {
 
         // Check access permissions
         const isOwner = assessment.child.profile.userId === userId;
-        const isSharedWith = assessment.shares.some(
-            (share) => share.sharedWith === userId,
-        );
 
         // The person who actually answered it. Without this, an educator could not read
         // back the screening they had just administered — including to finish it.
         const isRespondent = assessment.respondentId === userId;
 
-        if (isOwner || isSharedWith || isRespondent) {
-            return assessment;
+        if (isOwner || isRespondent) {
+            return { assessment, via: { kind: 'direct' as const } };
+        }
+
+        const share = assessment.shares.find((s) => s.sharedWith === userId);
+        if (share) {
+            return {
+                assessment,
+                via: { kind: 'share' as const, includeResponses: share.includeResponses },
+            };
         }
 
         // Staff at the setting where it was administered — a keyworker's colleague, or
@@ -181,7 +226,7 @@ export class AssessmentsService {
                     consentType: 'ASSESSMENT',
                 });
 
-                if (access.allowed) return assessment;
+                if (access.allowed) return { assessment, via: { kind: 'direct' as const } };
                 throw new ForbiddenException(access.reason ?? 'You do not have access to this assessment');
             }
         }
@@ -228,7 +273,7 @@ export class AssessmentsService {
      * Get Tier 1 questionnaire
      */
     async getTier1Questionnaire(assessmentId: string, userId: string) {
-        const assessment = await this.getAssessment(assessmentId, userId);
+        const assessment = await this.getAssessmentForAnswering(assessmentId, userId);
         const questionnaire = this.loadQuestionnaire(assessment.ageGroup);
 
         // Extract only Tier 1 questions, and only the ones THIS informant can answer.
@@ -296,7 +341,7 @@ export class AssessmentsService {
      * Get Tier 2 questionnaire (only for flagged domains)
      */
     async getTier2Questionnaire(assessmentId: string, userId: string) {
-        const assessment = await this.getAssessment(assessmentId, userId);
+        const assessment = await this.getAssessmentForAnswering(assessmentId, userId);
 
         if (!assessment.tier1Completed) {
             throw new BadRequestException('Tier 1 must be completed first');
@@ -335,7 +380,7 @@ export class AssessmentsService {
         dto: SubmitTier1ResponsesDto,
         userId: string,
     ) {
-        const assessment = await this.getAssessment(assessmentId, userId);
+        const assessment = await this.getAssessmentForAnswering(assessmentId, userId);
 
         if (assessment.tier1Completed) {
             throw new BadRequestException('Tier 1 already completed');
@@ -450,7 +495,7 @@ export class AssessmentsService {
         dto: SubmitTier2ResponsesDto,
         userId: string,
     ) {
-        const assessment = await this.getAssessment(assessmentId, userId);
+        const assessment = await this.getAssessmentForAnswering(assessmentId, userId);
 
         if (!assessment.tier1Completed) {
             throw new BadRequestException('Tier 1 must be completed first');
@@ -520,7 +565,7 @@ export class AssessmentsService {
         dto: ShareAssessmentDto,
         userId: string,
     ) {
-        const assessment = await this.getAssessment(assessmentId, userId);
+        const assessment = await this.getAssessmentAsOwner(assessmentId, userId);
 
         // Verify therapist exists and get User ID
         const therapistProfile = await this.prisma.therapistProfile.findUnique({
@@ -545,11 +590,16 @@ export class AssessmentsService {
         });
 
         if (existingShare) {
-            // Reactivate if previously deactivated
+            // Reactivate if previously deactivated. The parent's CURRENT choice about
+            // answers applies — reactivating must not resurrect an old opt-in.
             if (!existingShare.isActive) {
                 return await this.prisma.assessmentShare.update({
                     where: { id: existingShare.id },
-                    data: { isActive: true, sharedAt: new Date() },
+                    data: {
+                        isActive: true,
+                        sharedAt: new Date(),
+                        includeResponses: dto.includeResponses ?? false,
+                    },
                 });
             }
             throw new BadRequestException('Assessment already shared with this therapist');
@@ -562,6 +612,7 @@ export class AssessmentsService {
                 sharedBy: userId,
                 sharedWith: therapistUserId,
                 accessLevel: dto.accessLevel || 'VIEW',
+                includeResponses: dto.includeResponses ?? false,
             },
             include: {
                 therapist: {
@@ -704,7 +755,7 @@ export class AssessmentsService {
      * Delete assessment
      */
     async deleteAssessment(assessmentId: string, userId: string) {
-        const assessment = await this.getAssessment(assessmentId, userId);
+        const assessment = await this.getAssessmentAsOwner(assessmentId, userId);
 
         // Delete all related data (responses, shares, etc.)
         await this.prisma.assessment.delete({
@@ -722,7 +773,7 @@ export class AssessmentsService {
         therapistId: string,
         userId: string,
     ) {
-        const assessment = await this.getAssessment(assessmentId, userId);
+        const assessment = await this.getAssessmentAsOwner(assessmentId, userId);
 
         const share = await this.prisma.assessmentShare.findUnique({
             where: {
@@ -843,6 +894,9 @@ export class AssessmentsService {
             ageGroup: questionnaire.displayName,
             domainScores: domainScoresArray,
             recommendations,
+            // Shared with scores + summary only (backlog #8): tell the viewer why the
+            // answers list is empty rather than letting it look like a blank screening.
+            responsesWithheld: 'responsesWithheld' in assessment,
             responses: assessment.responses.map((r: any) => {
                 // Look up question text from questionnaire
                 for (const domain of questionnaire.domains) {
@@ -866,8 +920,14 @@ export class AssessmentsService {
         reportType: 'SUMMARY' | 'DETAILED',
         userId: string,
     ) {
-        // Verify access
-        await this.getAssessment(assessmentId, userId);
+        // Verify access. The DETAILED PDF prints every question and answer, so a
+        // professional who was shared scores + summary only gets the SUMMARY.
+        const access = await this.getAssessment(assessmentId, userId);
+        if (reportType === 'DETAILED' && 'responsesWithheld' in access) {
+            throw new ForbiddenException(
+                'The parent shared scores and the summary only. Ask them to share their answers for the detailed report.',
+            );
+        }
 
         // Generate PDF using report generator service
         const result = await this.reportGenerator.generateReport(

@@ -103,6 +103,7 @@ import { ChildClaimsModule } from './child-claims/child-claims.module';
 import { ObservationsModule } from './observations/observations.module';
 import { MomentsModule } from './moments/moments.module';
 import { LibraryResourcesModule } from './library-resources/library-resources.module';
+import { CareWaitlistModule } from './care-waitlist/care-waitlist.module';
 import { ConcernsModule } from './concerns/concerns.module';
 import { SupportPlansModule } from './support-plans/support-plans.module';
 import { DevelopmentalReviewsModule } from './developmental-reviews/developmental-reviews.module';
@@ -247,6 +248,7 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
     ObservationsModule,
     MomentsModule,
     LibraryResourcesModule,
+    CareWaitlistModule,
     ConcernsModule,
     SupportPlansModule,
     DevelopmentalReviewsModule,

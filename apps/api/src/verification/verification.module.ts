@@ -7,12 +7,14 @@ import { VerificationController } from './verification.controller';
 import { VerificationService } from './verification.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationModule } from '../notification/notification.module';
+import { CareWaitlistModule } from '../care-waitlist/care-waitlist.module';
 import { multerConfig } from '../config/multer.config';
 
 @Module({
   imports: [
     PrismaModule,
     NotificationModule,
+    CareWaitlistModule,
     MulterModule.registerAsync({
       imports: [ConfigModule],
       useFactory: multerConfig,
