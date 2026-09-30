@@ -14,6 +14,7 @@ import { formatCurrency } from '@/booking/lib/utils';
 import { CONCERN_LABELS, DOMAIN_LABELS } from '@/booking/lib/api/find-care';
 import type { MatchTier, ProviderMatch } from '@/booking/lib/api/marketplace';
 
+import { CareWaitlistCard } from '@/booking/components/care-waitlist-card';
 /**
  * Discovery results — the mockup's combined surface: one list of therapists AND clinics,
  * result tabs (All · Therapists · Clinics), a context bar naming exactly where the
@@ -388,6 +389,15 @@ function DiscoveryContent() {
                 <Skeleton key={i} className="h-64 w-full rounded-2xl" />
               ))}
             </div>
+          ) : rows.length === 0 && !maxPrice && !minRating ? (
+            // Nothing at all for this need (not just filtered out): offer the waitlist.
+            <CareWaitlistCard
+              country={region?.country}
+              countryLabel={region?.label}
+              childId={childId}
+              concern={concern}
+              domains={needs?.flaggedDomains}
+            />
           ) : rows.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
               <p className="text-gray-700 font-medium">Nothing matches these filters</p>

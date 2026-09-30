@@ -4,8 +4,9 @@ import Image from '@/components/app-image';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge, Button, Textarea } from '@upllyft/ui';
+import { useAuth } from '@upllyft/api-client';
 import { toast } from '@upllyft/ui';
-import { formatDate } from '@/screening/lib/utils';
+import { formatDate, parentZoneLabels } from '@/screening/lib/utils';
 import {
   useDeleteInsight,
   useShareInsight,
@@ -24,15 +25,18 @@ interface CaseInfoHeaderProps {
   diagnosis?: string[];
 }
 
-function getRiskBadge(level: string): { color: 'green' | 'yellow' | 'red'; label: string } {
-  if (level === 'high') return { color: 'red', label: 'High Risk' };
-  if (level === 'moderate') return { color: 'yellow', label: 'Moderate Risk' };
-  return { color: 'green', label: 'Low Risk' };
+function getRiskBadge(level: string, isParent: boolean): { color: 'green' | 'yellow' | 'red'; label: string } {
+  // Parents see supportive, non-diagnostic wording (backlog #6); professionals keep clinical terms.
+  if (level === 'high') return { color: 'red', label: isParent ? parentZoneLabels.red : 'High Risk' };
+  if (level === 'moderate') return { color: 'yellow', label: isParent ? parentZoneLabels.yellow : 'Moderate Risk' };
+  return { color: 'green', label: isParent ? parentZoneLabels.green : 'Low Risk' };
 }
 
 export function CaseInfoHeader({ conversationId, child, assessmentDate, createdAt, riskLevel, diagnosis }: CaseInfoHeaderProps) {
   const router = useRouter();
-  const risk = riskLevel ? getRiskBadge(riskLevel) : null;
+  const { user } = useAuth();
+  const isParent = !user || user.role === 'USER';
+  const risk = riskLevel ? getRiskBadge(riskLevel, isParent) : null;
   const displayDate = assessmentDate || createdAt;
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

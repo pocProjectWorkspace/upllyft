@@ -1,18 +1,20 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth, firstNameOf } from '@upllyft/api-client';
 import { useMira } from './mira-context';
 import { MiraAvatar } from './mira-avatar';
 import { MiraMessageBubble, TypingIndicator } from './mira-messages';
 import { useMyProfile } from '@/hooks/use-dashboard';
+import { useChildAssessments } from '@/screening/hooks/use-assessments';
+import type { Child } from '@/lib/api/profiles';
 
 import { RowsSkeleton } from '@/components/skeletons';
 export function MiraPanel() {
   const { isOpen, close, messages, isLoading, sendMessage, childId, setChildId, showHistory, setShowHistory,
     startNewConversation, loadConversation, conversations, loadConversations, removeConversation, conversationsLoading,
-    prefilledMessage, clearPrefilledMessage } = useMira();
+    prefilledMessage, clearPrefilledMessage, conversationId } = useMira();
   const { user, isAuthenticated } = useAuth();
   const { data: profile } = useMyProfile();
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -21,6 +23,18 @@ export function MiraPanel() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const children = profile?.children || [];
+
+  // A parent with exactly one child is almost always talking about that child, so
+  // select them once when the profile loads. Only for a fresh chat with nothing
+  // chosen yet, and only once: picking "General" afterwards must stick.
+  const autoSelectedChild = useRef(false);
+  useEffect(() => {
+    if (autoSelectedChild.current || children.length !== 1) return;
+    autoSelectedChild.current = true;
+    if (childId === null && conversationId === null && messages.length === 0) {
+      setChildId(children[0].id);
+    }
+  }, [children, childId, conversationId, messages.length, setChildId]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -275,25 +289,101 @@ export function MiraPanel() {
 
 // ── Welcome state ────────────────────────────────────────────────────────
 
+const GENERIC_STARTERS = [
+  "My child isn't speaking at the expected age",
+  "I'm worried about my child's behavior",
+  'Help me understand a recent diagnosis',
+  'What developmental milestones should I expect?',
+];
+
+/** One starter per screening domain id (API `formatDomainName` keys plus the older playbook ids). */
+const DOMAIN_STARTERS: Record<string, string> = {
+  speechLanguage: 'How can I help with speech at home?',
+  communication: 'How can I help with speech at home?',
+  grossMotor: 'Which activities build balance and coordination?',
+  fineMotor: 'How can I build hand and finger skills?',
+  socialEmotional: 'How do I help my child connect with others?',
+  personalSocial: 'How do I help my child connect with others?',
+  cognitiveLearning: 'How can I support learning through play?',
+  problemSolving: 'How can I support learning through play?',
+  adaptiveSelfCare: 'How do I build independence with daily routines?',
+  sensoryProcessing: 'What helps with sensory sensitivities?',
+  visionHearing: 'Should I get vision or hearing checked?',
+};
+
+function ageInMonths(dateOfBirth: string): number | null {
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return null;
+  const now = new Date();
+  return (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth()) - (now.getDate() < dob.getDate() ? 1 : 0);
+}
+
+function ageStarters(months: number): string[] {
+  if (months < 12) {
+    return [
+      'What should my baby be doing at this age?',
+      'How can I encourage early babbling and play?',
+      "Is it okay that my baby isn't crawling yet?",
+    ];
+  }
+  const years = Math.floor(months / 12);
+  if (months < 36) {
+    return [
+      `What milestones should my ${years}-year-old reach?`,
+      'How many words should my toddler be saying?',
+      'How do I handle toddler tantrums?',
+    ];
+  }
+  if (months < 72) {
+    return [
+      `What should my ${years}-year-old be able to do?`,
+      'Is my child ready for school?',
+      'How can I help with big feelings and meltdowns?',
+    ];
+  }
+  return [
+    `What's typical for a ${years}-year-old?`,
+    "How do I support my child's learning at school?",
+    'How can I help my child with friendships?',
+  ];
+}
+
+/**
+ * Starters are sent to Mira verbatim, so they never include the child's name
+ * (the API deliberately keeps it away from OpenAI). Flagged domains come from the
+ * latest completed screening, the same one Mira reads into her prompt.
+ */
+function buildStarters(child: Child | undefined, flaggedDomains: string[]): string[] {
+  if (!child) return GENERIC_STARTERS;
+  const months = ageInMonths(child.dateOfBirth);
+  const byAge = months === null ? GENERIC_STARTERS.slice(3) : ageStarters(months);
+  if (flaggedDomains.length === 0) {
+    return [...byAge, 'Should I do a developmental screening?'].slice(0, 4);
+  }
+  const byDomain = [...new Set(flaggedDomains.map((d) => DOMAIN_STARTERS[d]).filter(Boolean))].slice(0, 2);
+  return ["What do my child's screening results mean?", ...byDomain, ...byAge].slice(0, 4);
+}
+
 function WelcomeState({
   userName,
   children: childList,
   childId,
-  setChildId,
   onStarterClick,
 }: {
   userName?: string;
-  children: any[];
+  children: Child[];
   childId: string | null;
   setChildId: (id: string | null) => void;
   onStarterClick: (text: string) => void;
 }) {
-  const starters = [
-    "My child isn't speaking at the expected age",
-    "I'm worried about my child's behavior",
-    "Help me understand a recent diagnosis",
-    "What developmental milestones should I expect?",
-  ];
+  const child = childId ? childList.find((c) => c.id === childId) : undefined;
+  // Shares the screening section's cached query; only runs while a child is selected.
+  const { data: assessments } = useChildAssessments(child?.id ?? '');
+  const flaggedDomains = useMemo(
+    () => assessments?.find((a) => a.status === 'COMPLETED')?.flaggedDomains ?? [],
+    [assessments],
+  );
+  const starters = useMemo(() => buildStarters(child, flaggedDomains), [child, flaggedDomains]);
 
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4">

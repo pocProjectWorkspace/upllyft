@@ -31,11 +31,11 @@ export function generateDomainInterpretation(
     const riskPercent = (riskIndex * 100).toFixed(0);
 
     if (zone === 'green') {
-        return `${domainName} development appears to be progressing well. The child is meeting expected milestones in this area with a low risk index of ${riskPercent}%.`;
+        return `${domainName} is on track. The child is showing most of the skills expected at this age in this area (score ${riskPercent}%).`;
     } else if (zone === 'yellow') {
-        return `${domainName} shows some areas that may benefit from monitoring. The moderate risk index of ${riskPercent}% suggests keeping an eye on development in this domain and considering supportive activities.`;
+        return `${domainName} is worth watching. A few skills in this area are still developing (score ${riskPercent}%), so keep an eye on it and try some supportive activities at home.`;
     } else {
-        return `${domainName} indicates concerns that warrant attention. With a risk index of ${riskPercent}%, it is recommended to consult with a developmental specialist for further evaluation and intervention strategies.`;
+        return `${domainName} is worth discussing with a professional. Several skills in this area are not yet showing (score ${riskPercent}%), so we recommend speaking with a developmental specialist, who can take a closer look and suggest ways to help.`;
     }
 }
 
@@ -212,7 +212,7 @@ export function generateRecommendations(
         return [
             {
                 severity: 'Mild',
-                intervention: `Monitor ${domainName} development closely and provide enrichment activities in this area.`
+                intervention: `Keep an eye on ${domainName} development and provide enrichment activities in this area.`
             }
         ];
     } else {
@@ -266,10 +266,10 @@ export function generateOverallInterpretation(
     if (scorePercentage >= 85 && flaggedDomainsCount === 0) {
         return 'The child demonstrates strong developmental progress across all assessed domains. Continue to provide enriching experiences and monitor development regularly.';
     } else if (scorePercentage >= 70 && flaggedDomainsCount <= 2) {
-        return `The child shows generally positive development with ${flaggedDomainsCount} domain${flaggedDomainsCount !== 1 ? 's' : ''} requiring attention. Targeted support in these areas is recommended while continuing to nurture strengths.`;
+        return `The child shows generally positive development, with ${flaggedDomainsCount} area${flaggedDomainsCount !== 1 ? 's' : ''} worth a closer look. Some targeted support in ${flaggedDomainsCount !== 1 ? 'these areas' : 'this area'} is recommended while continuing to nurture strengths.`;
     } else if (scorePercentage >= 50) {
-        return `The assessment indicates multiple areas (${flaggedDomainsCount} of ${totalDomains} domains) that would benefit from intervention. A comprehensive evaluation by developmental specialists is recommended to create an individualized support plan.`;
+        return `The screening shows several areas (${flaggedDomainsCount} of ${totalDomains}) where the child would benefit from extra support. We recommend talking these through with a developmental specialist, who can do a fuller evaluation and help create an individualized support plan.`;
     } else {
-        return `The results suggest significant developmental concerns across multiple domains. Immediate consultation with a multidisciplinary team of specialists is strongly recommended to ensure the child receives appropriate support and intervention services.`;
+        return `The results show that many skills across several areas are not yet showing. We strongly recommend speaking with developmental specialists soon, so the child can get the right support as early as possible.`;
     }
 }

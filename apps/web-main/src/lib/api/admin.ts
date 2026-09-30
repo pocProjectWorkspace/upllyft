@@ -366,6 +366,52 @@ export async function createClinic(payload: {
   return data;
 }
 
+// ─── Clinic approvals (backlog #2) ───────────────────────────────
+
+export type ClinicComplianceStatus = 'DRAFT' | 'IN_REVIEW' | 'ACTIVE' | 'SUSPENDED';
+export type ClinicReviewDecision = 'ACTIVE' | 'SUSPENDED' | 'IN_REVIEW';
+
+export interface ClinicReviewItem {
+  id: string;
+  name: string;
+  country: string | null;
+  licenseNo: string | null;
+  licenseAuthority: string | null;
+  emirate: string | null;
+  isPublic: boolean;
+  complianceStatus: ClinicComplianceStatus;
+  complianceReviewedAt: string | null;
+  complianceReviewedBy: string | null;
+  createdAt: string;
+  admin: { id: string; name: string | null; email: string } | null;
+  organization: { id: string; name: string } | null;
+  therapistCount: number;
+  isSoloPractice: boolean;
+}
+
+export type ClinicReviewCounts = Record<ClinicComplianceStatus, number> & { pending: number };
+
+/** `status` omitted = the pending queue (DRAFT + IN_REVIEW). */
+export async function getClinicReviewQueue(status?: ClinicComplianceStatus): Promise<ClinicReviewItem[]> {
+  const { data } = await apiClient.get<ClinicReviewItem[]>('/admin/clinics/review', {
+    params: status ? { status } : undefined,
+  });
+  return data;
+}
+
+export async function getClinicReviewCounts(): Promise<ClinicReviewCounts> {
+  const { data } = await apiClient.get<ClinicReviewCounts>('/admin/clinics/review/counts');
+  return data;
+}
+
+export async function setClinicCompliance(
+  id: string,
+  payload: { status: ClinicReviewDecision; note?: string },
+) {
+  const { data } = await apiClient.patch(`/admin/clinics/${id}/compliance`, payload);
+  return data;
+}
+
 // ─── Banner Ads ──────────────────────────────────────────────────
 
 export async function getBannerAds(params?: {

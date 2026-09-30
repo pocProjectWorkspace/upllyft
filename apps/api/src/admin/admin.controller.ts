@@ -214,6 +214,35 @@ export class AdminController {
     return this.adminService.getAllClinics();
   }
 
+  // Clinic approvals (backlog #2). Declared before `clinics/:id` so the literal
+  // path segment wins.
+  @Get('clinics/review')
+  @Roles(Role.ADMIN)
+  async getClinicReviewQueue(@Query('status') status?: string) {
+    return this.adminService.getClinicReviewQueue(status);
+  }
+
+  @Get('clinics/review/counts')
+  @Roles(Role.ADMIN)
+  async getClinicReviewCounts() {
+    return this.adminService.getClinicReviewCounts();
+  }
+
+  @Patch('clinics/:id/compliance')
+  @Roles(Role.ADMIN)
+  async setClinicCompliance(
+    @Param('id') id: string,
+    @Body() body: { status: string; note?: string },
+    @Req() req: any,
+  ) {
+    return this.adminService.setClinicCompliance(
+      id,
+      body?.status,
+      req.user.id,
+      typeof body?.note === 'string' ? body.note : undefined,
+    );
+  }
+
   @Get('clinics/:id')
   @Roles(Role.ADMIN)
   async getClinicDetails(@Param('id') clinicId: string) {

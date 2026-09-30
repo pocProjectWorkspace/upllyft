@@ -2,6 +2,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { syncPracticeCompliance } from '../common/clinic-admin';
+import { CareWaitlistService } from '../care-waitlist/care-waitlist.service';
 import { NotificationService, NotificationType } from '../notification/notification.service';
 import { VerificationStatus, Role } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,6 +20,7 @@ export class VerificationService {
     private prisma: PrismaService,
     private notificationService: NotificationService,
     private storage: StorageService,
+    private careWaitlist: CareWaitlistService,
   ) {}
 
   /**
@@ -221,6 +223,7 @@ export class VerificationService {
 
     // A therapist's own practice is only as compliant as their verified licence.
     await syncPracticeCompliance(this.prisma, document.userId, userStatus);
+    await this.announceIfNewlyVerified(document.user, userStatus);
 
     // Send notification to user
     await this.notificationService.createNotification({
@@ -235,7 +238,29 @@ export class VerificationService {
     return document;
   }
 
+  /**
+   * A therapist who has just become VERIFIED is now visible to families: tell
+   * anyone on the care waitlist in their country (backlog #1). Only on the
+   * transition, so re-saving a verified therapist does not re-announce them.
+   */
+  private async announceIfNewlyVerified(
+    before: { role: string; verificationStatus: VerificationStatus; country: string | null; name: string | null } | null,
+    next: VerificationStatus,
+  ) {
+    if (!before || before.role !== 'THERAPIST') return;
+    if (next !== VerificationStatus.VERIFIED || before.verificationStatus === VerificationStatus.VERIFIED) return;
+    await this.careWaitlist.notifyProviderJoined({
+      country: before.country,
+      kind: 'therapist',
+      name: before.name || 'A new therapist',
+    });
+  }
+
   async verifyUser(userId: string, dto: any, reviewerId: string) {
+    const before = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, verificationStatus: true, country: true, name: true },
+    });
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -245,6 +270,7 @@ export class VerificationService {
     });
 
     await syncPracticeCompliance(this.prisma, userId, dto.status);
+    await this.announceIfNewlyVerified(before, dto.status);
 
     // Update all pending documents
     await this.prisma.verificationDoc.updateMany({

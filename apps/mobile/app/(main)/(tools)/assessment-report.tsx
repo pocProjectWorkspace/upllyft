@@ -17,6 +17,17 @@ const LEVEL_COLORS: Record<string, string> = {
   SIGNIFICANT: '#EF4444',
 };
 
+// Parent-facing names for the result levels (backlog #6): supportive, non-diagnostic,
+// same wording as the web report. The API level values themselves are unchanged.
+const LEVEL_LABELS: Record<string, string> = {
+  LOW: 'On track',
+  TYPICAL: 'On track',
+  MODERATE: 'Worth watching',
+  CONCERN: 'Worth watching',
+  HIGH: 'Worth discussing with a professional',
+  SIGNIFICANT: 'Worth discussing with a professional',
+};
+
 export default function AssessmentReportScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { report, loading, error } = useAssessmentReport(id || '');
@@ -66,7 +77,7 @@ export default function AssessmentReportScreen() {
                 <View style={styles.domainHeader}>
                   <Text style={styles.domainName}>{d.domain}</Text>
                   <View style={[styles.levelBadge, { backgroundColor: (LEVEL_COLORS[d.level] || COLORS.textSecondary) + '18' }]}>
-                    <Text style={[styles.levelText, { color: LEVEL_COLORS[d.level] || COLORS.textSecondary }]}>{d.level}</Text>
+                    <Text style={[styles.levelText, { color: LEVEL_COLORS[d.level] || COLORS.textSecondary }]}>{LEVEL_LABELS[d.level] || d.level}</Text>
                   </View>
                 </View>
                 <View style={styles.scoreBar}>
@@ -80,7 +91,7 @@ export default function AssessmentReportScreen() {
 
         {report.flaggedAreas?.length > 0 && (
           <View style={styles.flaggedCard}>
-            <Text style={styles.sectionTitle}>Flagged Areas</Text>
+            <Text style={styles.sectionTitle}>Areas Worth a Closer Look</Text>
             {report.flaggedAreas.map((area, i) => (
               <View key={i} style={styles.flaggedItem}>
                 <Ionicons name="warning-outline" size={16} color="#F59E0B" />
@@ -117,9 +128,9 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 12 },
   domainCard: { backgroundColor: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
   domainHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  domainName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  levelBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  levelText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+  domainName: { fontSize: 14, fontWeight: '600', color: COLORS.text, flex: 1, marginRight: 8 },
+  levelBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, flexShrink: 1 },
+  levelText: { fontSize: 11, fontWeight: '700' },
   scoreBar: { height: 6, backgroundColor: COLORS.border, borderRadius: 3 },
   scoreFill: { height: 6, borderRadius: 3 },
   domainDesc: { fontSize: 13, color: COLORS.textSecondary, marginTop: 6, lineHeight: 18 },

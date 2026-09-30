@@ -262,7 +262,7 @@ export default function NewInsightPage() {
                       </span>
                       {assessment.flaggedDomains && assessment.flaggedDomains.length > 0 && (
                         <span className="text-amber-600">
-                          {assessment.flaggedDomains.length} domain{assessment.flaggedDomains.length > 1 ? 's' : ''} flagged
+                          {assessment.flaggedDomains.length} area{assessment.flaggedDomains.length > 1 ? 's' : ''} worth a closer look
                         </span>
                       )}
                     </div>

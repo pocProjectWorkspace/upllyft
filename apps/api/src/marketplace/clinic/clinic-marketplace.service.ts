@@ -8,6 +8,16 @@ import {
   type ChildNeeds,
 } from '../matching/matching.util';
 
+/**
+ * What a parent may see: the owner has made the clinic public AND an Upllyft admin
+ * has approved it (backlog #2). Solo practices reach ACTIVE automatically when the
+ * owner's licence is verified.
+ */
+export const PUBLIC_CLINIC_WHERE = {
+  isPublic: true,
+  complianceStatus: 'ACTIVE',
+} as const satisfies Prisma.ClinicWhereInput;
+
 @Injectable()
 export class ClinicMarketplaceService {
   constructor(private readonly prisma: PrismaService) {}
@@ -22,7 +32,7 @@ export class ClinicMarketplaceService {
     },
     needs?: ChildNeeds,
   ) {
-    const where: Prisma.ClinicWhereInput = { isPublic: true };
+    const where: Prisma.ClinicWhereInput = { ...PUBLIC_CLINIC_WHERE };
 
     if (params.country) {
       where.country = params.country;
@@ -84,8 +94,10 @@ export class ClinicMarketplaceService {
   }
 
   async getClinicWithTherapists(clinicId: string) {
-    const clinic = await this.prisma.clinic.findUnique({
-      where: { id: clinicId },
+    // findFirst so the visibility rule applies: an unlisted clinic 404s exactly as
+    // it is absent from search.
+    const clinic = await this.prisma.clinic.findFirst({
+      where: { id: clinicId, ...PUBLIC_CLINIC_WHERE },
       include: {
         therapists: {
           where: { isActive: true, acceptingBookings: true },

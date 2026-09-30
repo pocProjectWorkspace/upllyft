@@ -104,6 +104,7 @@ model User {
   whatsappInvitations     WhatsAppInvitation[]
   sharedAssessments       AssessmentShare[]        @relation("SharedAssessments")
   receivedAssessments     AssessmentShare[]        @relation("ReceivedAssessments")
+  careWaitlistEntries     CareWaitlistEntry[]      @relation("CareWaitlist")
   patientBookings         Booking[]                @relation("PatientBookings")
   packagePurchases        PackagePurchase[]        @relation("PackagePurchases")
   providerViews           ProviderView[]           @relation("UserProviderViews")
@@ -189,8 +190,8 @@ model User {
   externalSharesCreated ExternalShare[] @relation("ExternalShareCreator")
 
   // Org admin (Tranche D): events this user hosts + org resources they uploaded
-  hostedEvents          Event[]         @relation("EventHost")
-  uploadedResources     OrgResource[]   @relation("OrgResourceUploader")
+  hostedEvents      Event[]       @relation("EventHost")
+  uploadedResources OrgResource[] @relation("OrgResourceUploader")
 
   // Verified contributor
   isVerifiedContributor Boolean   @default(false)
@@ -1516,6 +1517,7 @@ model Organization {
   facilities Facility[]
 
   libraryResources LibraryResource[] @relation("OrgLibraryResources")
+
   @@index([slug])
   @@index([kind])
 }
@@ -1676,10 +1678,10 @@ model InsightShare {
 }
 
 model Assessment {
-  id                  String               @id @default(cuid())
-  childId             String
-  ageGroup            String
-  status              AssessmentStatus     @default(IN_PROGRESS)
+  id       String           @id @default(cuid())
+  childId  String
+  ageGroup String
+  status   AssessmentStatus @default(IN_PROGRESS)
 
   // ─── Who is reporting? (F4 — multi-informant) ───────────────────────────────
   //
@@ -1687,14 +1689,14 @@ model Assessment {
   // was guardian-administered: assessments.service threw unless the caller owned the
   // child's profile. The default is a statement of fact about the backfill, not a
   // convenience.
-  informantType   InformantType @default(PARENT)
+  informantType       InformantType        @default(PARENT)
   /// The USER who actually answered the questions. Null only for legacy rows whose
   /// guardian could not be resolved — reported, never guessed.
-  respondentId    String?
-  respondent      User?         @relation("AssessmentRespondent", fields: [respondentId], references: [id], onDelete: SetNull)
+  respondentId        String?
+  respondent          User?                @relation("AssessmentRespondent", fields: [respondentId], references: [id], onDelete: SetNull)
   /// The setting in which it was administered. Null for a parent screening at home.
-  facilityId      String?
-  facility        Facility?     @relation("FacilityAssessments", fields: [facilityId], references: [id], onDelete: SetNull)
+  facilityId          String?
+  facility            Facility?            @relation("FacilityAssessments", fields: [facilityId], references: [id], onDelete: SetNull)
   tier1Completed      Boolean              @default(false)
   tier2Completed      Boolean              @default(false)
   tier1CompletedAt    DateTime?
@@ -1758,20 +1760,23 @@ model AssessmentReport {
 }
 
 model AssessmentShare {
-  id           String      @id @default(cuid())
-  assessmentId String
-  sharedBy     String
-  sharedWith   String
-  shareLink    String?     @unique
-  accessLevel  AccessLevel @default(VIEW)
-  annotations  Json?
-  sharedAt     DateTime    @default(now())
-  viewedAt     DateTime?
-  lastViewedAt DateTime?
-  isActive     Boolean     @default(true)
-  assessment   Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  parent       User        @relation("SharedAssessments", fields: [sharedBy], references: [id])
-  therapist    User        @relation("ReceivedAssessments", fields: [sharedWith], references: [id])
+  id               String      @id @default(cuid())
+  assessmentId     String
+  sharedBy         String
+  sharedWith       String
+  shareLink        String?     @unique
+  accessLevel      AccessLevel @default(VIEW)
+  annotations      Json?
+  sharedAt         DateTime    @default(now())
+  viewedAt         DateTime?
+  lastViewedAt     DateTime?
+  isActive         Boolean     @default(true)
+  /// Item-by-item answers are shared only when the parent opts in; otherwise the
+  /// recipient sees scores and the summary (backlog #8, 2026-09-30).
+  includeResponses Boolean     @default(false)
+  assessment       Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  parent           User        @relation("SharedAssessments", fields: [sharedBy], references: [id])
+  therapist        User        @relation("ReceivedAssessments", fields: [sharedWith], references: [id])
 
   @@unique([assessmentId, sharedWith])
   @@index([sharedBy])
@@ -1846,7 +1851,8 @@ model TherapistProfile {
   primaryCases    Case[]          @relation("PrimaryTherapistCases")
   caseAssignments CaseTherapist[] @relation("CaseTherapistAssignments")
 
-  shortlistedBy            ShortlistEntry[]            @relation("ShortlistedTherapist")
+  shortlistedBy ShortlistEntry[] @relation("ShortlistedTherapist")
+
   @@index([userId])
   @@index([isActive])
   @@index([acceptingBookings])
@@ -4709,7 +4715,8 @@ model Clinic {
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
 
-  shortlistedBy    ShortlistEntry[]   @relation("ShortlistedClinic")
+  shortlistedBy ShortlistEntry[] @relation("ShortlistedClinic")
+
   @@index([adminId])
   @@index([organizationId])
   @@map("clinics")
@@ -4814,18 +4821,18 @@ model Facility {
   /// prove the 1:1 mapping held. Null for facilities created natively (nurseries).
   migratedFromClinicId String? @unique
 
-  members          FacilityMember[]
-  rooms            Room[]
-  affiliations     ChildAffiliation[]
-  consents         ChildConsent[]
-  claims           ChildClaim[]
-  assessments      Assessment[]       @relation("FacilityAssessments")
-  observations     Observation[]      @relation("FacilityObservations")
-  concerns         Concern[]          @relation("FacilityConcerns")
-  supportPlans     SupportPlan[]      @relation("FacilitySupportPlans")
+  members              FacilityMember[]
+  rooms                Room[]
+  affiliations         ChildAffiliation[]
+  consents             ChildConsent[]
+  claims               ChildClaim[]
+  assessments          Assessment[]          @relation("FacilityAssessments")
+  observations         Observation[]         @relation("FacilityObservations")
+  concerns             Concern[]             @relation("FacilityConcerns")
+  supportPlans         SupportPlan[]         @relation("FacilitySupportPlans")
   developmentalReviews DevelopmentalReview[] @relation("FacilityDevReviews")
   handoverRecords      HandoverRecord[]      @relation("FacilityHandovers")
-  consentTemplates ConsentTemplate[]  @relation("FacilityConsentTemplates")
+  consentTemplates     ConsentTemplate[]     @relation("FacilityConsentTemplates")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4964,11 +4971,11 @@ model ChildAffiliation {
   keyworkerId String?
   keyworker   FacilityMember? @relation("AffiliationKeyworker", fields: [keyworkerId], references: [id], onDelete: SetNull)
 
-  consents     ChildConsent[]
-  claims       ChildClaim[]
-  observations Observation[]
-  concerns     Concern[]
-  supportPlans SupportPlan[]
+  consents             ChildConsent[]
+  claims               ChildClaim[]
+  observations         Observation[]
+  concerns             Concern[]
+  supportPlans         SupportPlan[]
   developmentalReviews DevelopmentalReview[]
   handoverRecords      HandoverRecord[]
 
@@ -5271,8 +5278,8 @@ model SupportOutcome {
   planId String
   plan   SupportPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
-  domain      String
-  outcomeText String
+  domain          String
+  outcomeText     String
   /// How we'll know it's working — a short, observable success measure.
   successCriteria String?
 
@@ -5398,10 +5405,10 @@ model DevelopmentalReview {
   createdBy   User?   @relation("CreatedDevReviews", fields: [createdById], references: [id], onDelete: SetNull)
 
   /// The child's age in months at review time (snapshot — the review is dated by this).
-  ageMonths Int
-  status    DevReviewStatus @default(DRAFT)
+  ageMonths      Int
+  status         DevReviewStatus @default(DRAFT)
   /// Domains flagged at review, for quick display (the same 8-domain vocabulary).
-  flaggedDomains String[] @default([])
+  flaggedDomains String[]        @default([])
 
   /// Which screenings informed it (loose ids — the screenings live in the assessments engine).
   educatorAssessmentId String?
@@ -5410,9 +5417,9 @@ model DevelopmentalReview {
   /// A snapshot of what the review rests on — counts + concordance headline, not duplicated PHI.
   evidenceSummary Json?
   /// The plain-language review shared with the parent (editable before sharing).
-  summary        String
+  summary         String
   /// A short next-step suggestion, deliberately non-diagnostic (e.g. "continue to monitor").
-  recommendation String?
+  recommendation  String?
 
   sharedAt       DateTime?
   acknowledgedAt DateTime?
@@ -5560,15 +5567,15 @@ model MiraInsight {
   childId String
   child   Child  @relation("ChildMiraInsights", fields: [childId], references: [id], onDelete: Cascade)
 
-  type       MiraInsightType
-  title      String
-  body       String
-  whatHelped String?
-  whyMatters String?
+  type            MiraInsightType
+  title           String
+  body            String
+  whatHelped      String?
+  whyMatters      String?
   /// Where the pattern showed up (Home, Nursery, Community, …).
-  settings   String[] @default([])
+  settings        String[]        @default([])
   /// The moments the pattern was drawn from.
-  sourceMomentIds String[] @default([])
+  sourceMomentIds String[]        @default([])
 
   status      MiraInsightStatus @default(NEW)
   generatedAt DateTime          @default(now())
@@ -5630,7 +5637,7 @@ model LibraryResource {
 
   scope          LibraryResourceScope
   organizationId String?
-  organization   Organization? @relation("OrgLibraryResources", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization?        @relation("OrgLibraryResources", fields: [organizationId], references: [id], onDelete: Cascade)
 
   uploadedById String?
   uploadedBy   User?   @relation("LibraryResourceUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
@@ -5642,4 +5649,29 @@ model LibraryResource {
   @@index([organizationId])
   @@index([resourceType])
   @@map("library_resources")
+}
+
+// ─── CARE WAITLIST (backlog #1, 2026-09-30) ─────────────────────
+/// A parent who found no provider for their need asks to be told when one joins.
+/// Also the demand signal: where families are waiting and for what.
+model CareWaitlistEntry {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation("CareWaitlist", fields: [userId], references: [id], onDelete: Cascade)
+  childId    String?
+  /// ISO country the parent is looking in (IN / AE / SA); null when unknown.
+  country    String?
+  /// Find Care concern id, when the search came from a self-reported concern.
+  concern    String?
+  /// Screening domains that drove the search, when it came from a screening.
+  domains    String[]  @default([])
+  /// WAITING until a matching provider joins, then NOTIFIED; CANCELLED by the parent.
+  status     String    @default("WAITING")
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([status, country])
+  @@index([userId])
+  @@map("care_waitlist_entries")
 }
