@@ -59,6 +59,7 @@ import {
 import { buildInitialAnswers } from './prefill';
 import type { CatalogEntry } from '@/cases/lib/api/clinical';
 
+import { RowsSkeleton } from '@/components/skeletons';
 interface Props {
   caseId: string;
   /** Optional deep-link pre-selection (e.g. from the MDT / Discharge tabs). */
@@ -127,9 +128,7 @@ export function NewClinicalRecordFlow({ caseId, initialDiscipline, initialActivi
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-gray-400">
-        <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading templates…
-      </div>
+      <RowsSkeleton rows={4} />
     );
   }
 

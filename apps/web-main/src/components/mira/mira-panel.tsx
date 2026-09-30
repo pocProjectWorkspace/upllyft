@@ -8,6 +8,7 @@ import { MiraAvatar } from './mira-avatar';
 import { MiraMessageBubble, TypingIndicator } from './mira-messages';
 import { useMyProfile } from '@/hooks/use-dashboard';
 
+import { RowsSkeleton } from '@/components/skeletons';
 export function MiraPanel() {
   const { isOpen, close, messages, isLoading, sendMessage, childId, setChildId, showHistory, setShowHistory,
     startNewConversation, loadConversation, conversations, loadConversations, removeConversation, conversationsLoading,
@@ -352,9 +353,7 @@ function HistoryView({
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <RowsSkeleton rows={4} />
       ) : conversations.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-sm text-gray-400">No past conversations</p>

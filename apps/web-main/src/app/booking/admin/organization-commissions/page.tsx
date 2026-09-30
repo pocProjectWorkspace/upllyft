@@ -10,6 +10,7 @@ import {
   type OrganizationCommission,
 } from '@/booking/lib/api/marketplace-admin';
 
+import { ListSkeleton } from '@/components/skeletons';
 export default function OrganizationCommissionsPage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
@@ -63,9 +64,7 @@ export default function OrganizationCommissionsPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <ListSkeleton />
     );
   }
 

@@ -1,10 +1,11 @@
 import { ConfigService } from '@nestjs/config';
-import { resolveRedisUrl } from './redis.config';
+import { connectWithTimeout, resolveRedisUrl } from './redis.config';
 import { RedisThrottlerStorage } from './redis-throttler.storage';
 
 const mockClient = {
   on: jest.fn(),
   connect: jest.fn().mockResolvedValue(undefined),
+  disconnect: jest.fn().mockResolvedValue(undefined),
   quit: jest.fn().mockResolvedValue(undefined),
   eval: jest.fn(),
 };
@@ -30,6 +31,30 @@ describe('resolveRedisUrl', () => {
     expect(resolveRedisUrl(config({ REDIS_HOST: 'h', REDIS_PORT: '6380', REDIS_PASSWORD: 'p@ss' }))).toBe(
       'redis://:p%40ss@h:6380',
     );
+  });
+});
+
+describe('connectWithTimeout', () => {
+  it('rejects and disconnects when connect() never settles (unreachable Redis)', async () => {
+    // node-redis retries ECONNREFUSED forever, so connect() just hangs — the
+    // production boot hang behind the failed Railway deploys.
+    const client = {
+      connect: jest.fn(() => new Promise(() => undefined)),
+      disconnect: jest.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(connectWithTimeout(client, 20)).rejects.toThrow('no connection within 20 ms');
+    expect(client.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves and leaves the client connected when Redis answers', async () => {
+    const client = {
+      connect: jest.fn().mockResolvedValue(undefined),
+      disconnect: jest.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(connectWithTimeout(client, 20)).resolves.toBeUndefined();
+    expect(client.disconnect).not.toHaveBeenCalled();
   });
 });
 

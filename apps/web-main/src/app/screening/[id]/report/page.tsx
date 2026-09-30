@@ -1140,7 +1140,7 @@ export default function ReportPage() {
         {/* ── Disclaimer ── */}
         <div className="text-center py-4 border-t border-gray-100 mt-8">
           <p className="text-xs text-gray-400 max-w-2xl mx-auto leading-relaxed">
-            This screening tool is designed to identify potential developmental concerns and is not a diagnostic instrument.
+            These are screening checklists, designed to identify potential developmental concerns. They are not a diagnostic instrument.
             Results should be interpreted by a qualified healthcare professional. If you have concerns about your child&apos;s development,
             please consult with your pediatrician or a developmental specialist.
           </p>

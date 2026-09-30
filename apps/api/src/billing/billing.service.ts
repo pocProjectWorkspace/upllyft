@@ -162,10 +162,32 @@ export class BillingService {
         }
     }
 
-    async getClinicRevenue(period: RevenuePeriod = 'this_month') {
+    /**
+     * Invoices carry no clinic of their own; they belong to a clinic through the
+     * session's case. null = platform-wide (SUPERADMIN only; the controller decides).
+     */
+    private invoiceInClinic(clinic: string | null): Prisma.InvoiceWhereInput {
+        return clinic ? { session: { case: { clinic: { id: clinic } } } } : {};
+    }
+
+    /**
+     * The currency a revenue report is in. A clinic bills in one currency, so this is
+     * normally uniform; if it is not, the report says so rather than silently adding
+     * rupees to dirhams under one label.
+     */
+    private currencyOf(invoices: { currency: string }[]) {
+        const counts = new Map<string, number>();
+        for (const inv of invoices) counts.set(inv.currency, (counts.get(inv.currency) ?? 0) + 1);
+        const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+        return { currency: ranked[0]?.[0] ?? null, mixedCurrencies: ranked.length > 1 };
+    }
+
+    async getClinicRevenue(period: RevenuePeriod = 'this_month', clinic: string | null = null) {
         const { start, end } = this.getPeriodRange(period);
+        const inClinic = this.invoiceInClinic(clinic);
 
         const where: Prisma.InvoiceWhereInput = {
+            ...inClinic,
             createdAt: { gte: start, lte: end },
         };
 
@@ -180,10 +202,11 @@ export class BillingService {
                 where: {
                     noteStatus: 'SIGNED',
                     signedAt: { gte: start, lte: end },
+                    ...(clinic ? { case: { clinic: { id: clinic } } } : {}),
                 },
             }),
             this.prisma.invoice.aggregate({
-                where: { status: { in: [InvoiceStatus.DRAFT, InvoiceStatus.ISSUED] } },
+                where: { ...inClinic, status: { in: [InvoiceStatus.DRAFT, InvoiceStatus.ISSUED] } },
                 _sum: { amount: true },
                 _count: { id: true },
             }),
@@ -233,6 +256,7 @@ export class BillingService {
 
         return {
             period,
+            ...this.currencyOf(invoices),
             totalInvoiced,
             totalSessions,
             avgRevenuePerSession: Math.round(avgRevenuePerSession * 100) / 100,
@@ -245,7 +269,7 @@ export class BillingService {
         };
     }
 
-    async getTherapistRevenue(therapistId: string, period: RevenuePeriod = 'this_month') {
+    async getTherapistRevenue(therapistId: string, period: RevenuePeriod = 'this_month', clinic: string | null = null) {
         const { start, end } = this.getPeriodRange(period);
 
         const therapist = await this.prisma.user.findUnique({
@@ -256,6 +280,7 @@ export class BillingService {
         if (!therapist) throw new NotFoundException('Therapist not found');
 
         const where: Prisma.InvoiceWhereInput = {
+            ...this.invoiceInClinic(clinic),
             therapistId,
             createdAt: { gte: start, lte: end },
         };
@@ -289,6 +314,7 @@ export class BillingService {
                 avatarUrl: therapist.image,
             },
             period,
+            ...this.currencyOf(invoices),
             totalInvoiced: Number(totalAgg._sum.amount ?? 0),
             totalSessions: totalAgg._count.id,
             invoices,

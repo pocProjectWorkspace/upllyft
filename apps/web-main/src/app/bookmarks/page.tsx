@@ -7,6 +7,7 @@ import { getPosts } from '@/lib/api/posts';
 import { PostCard } from '@/components/feed/post-card';
 import { useCallback, useEffect, useRef } from 'react';
 
+import { CardsSkeleton } from '@/components/skeletons';
 export default function BookmarksPage() {
   const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const observerRef = useRef<HTMLDivElement>(null);
@@ -48,9 +49,7 @@ export default function BookmarksPage() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <CardsSkeleton />
     );
   }
 

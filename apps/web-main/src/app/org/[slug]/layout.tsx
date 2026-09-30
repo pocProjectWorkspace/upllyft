@@ -2,11 +2,13 @@
 
 import Image from '@/components/app-image';
 import { useAuth } from '@upllyft/api-client';
-import { useRouter, usePathname, useParams } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
-import { getOrganization, type OrgDetails } from '@/lib/api/organizations';
+import { usePathname, useParams } from 'next/navigation';
+import type { ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getOrganization, orgKeys } from '@/lib/api/organizations';
 import { OrgProtect } from '@/components/org/org-protect';
 import { orgThemeVars } from '@/components/org/org-theme';
+import { SignOutButton } from '@/components/sign-out-button';
 
 const navItems = (slug: string) => [
   {
@@ -108,20 +110,17 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
   const slug = params.slug as string;
   const pathname = usePathname();
   const { user } = useAuth();
-  const [org, setOrg] = useState<OrgDetails | null>(null);
+  // Same cache entry as the dashboard page: the org is fetched once per workspace.
+  const { data: org = null } = useQuery({
+    queryKey: orgKeys.detail(slug),
+    queryFn: () => getOrganization(slug),
+    enabled: !!slug,
+  });
 
   // For an ORGANIZATION account the org workspace *is* the app: "/" bounces them
   // straight back here, so the link was a loop. Platform admins do have a home
   // dashboard to return to, so they keep it.
   const showBackToApp = user?.role !== 'ORGANIZATION';
-
-  useEffect(() => {
-    if (slug) {
-      getOrganization(slug)
-        .then(setOrg)
-        .catch(() => setOrg(null));
-    }
-  }, [slug]);
 
   const items = navItems(slug);
 
@@ -181,8 +180,8 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          {showBackToApp && (
-            <div className="p-3 border-t border-gray-100">
+          <div className="p-3 border-t border-gray-100 space-y-1">
+            {showBackToApp && (
               <a
                 href="/"
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
@@ -192,8 +191,9 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
                 </svg>
                 <span>Back to App</span>
               </a>
-            </div>
-          )}
+            )}
+            <SignOutButton />
+          </div>
         </aside>
 
         {/* Main */}
@@ -215,7 +215,30 @@ export default function OrgLayout({ children }: { children: ReactNode }) {
               )}
               <span className="font-semibold text-gray-900 text-sm truncate">{org?.name || 'Organization'}</span>
             </a>
+            <SignOutButton variant="compact" className="ml-auto" />
           </div>
+          {/* The sidebar is desktop-only; without this a phone has no way to move between sections. */}
+          <nav className="md:hidden flex gap-1 overflow-x-auto bg-white border-b border-gray-100 px-2 py-2">
+            {items.map((item) => {
+              const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium ${
+                    isActive ? '' : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                  style={
+                    isActive
+                      ? { backgroundColor: 'var(--org-primary-soft)', color: 'var(--org-primary)' }
+                      : undefined
+                  }
+                >
+                  {item.label}
+                </a>
+              );
+            })}
+          </nav>
 
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
             {children}

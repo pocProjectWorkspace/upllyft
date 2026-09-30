@@ -18,6 +18,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useCase } from '@/cases/hooks/use-cases';
+import { useRegion } from '@upllyft/api-client';
+import { formatMoney } from '@/lib/money';
 import {
   usePricingDefaults,
   useCreateCarePlan,
@@ -69,7 +71,6 @@ const PAYMENTS: { key: CarePlanPaymentStatus; label: string }[] = [
   { key: 'PREAUTH', label: 'Insurance pre-auth' },
 ];
 
-const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 const fmtDate = (d: Date) =>
   d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
@@ -90,6 +91,12 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dayTimes, setDayTimes] = useState<Record<number, string>>({});
   const [unitPrice, setUnitPrice] = useState(1800);
+  // The price's own currency (from the pricing default); the viewer's region's until
+  // one is chosen. This used to print every care plan in rupees.
+  const { currency: regionCurrency } = useRegion();
+  const [priceCurrency, setPriceCurrency] = useState<string | null>(null);
+  const currency = priceCurrency ?? regionCurrency;
+  const money = (n: number) => formatMoney(n, currency, { decimals: false });
   const [packageName, setPackageName] = useState('');
   const [pay, setPay] = useState<CarePlanPaymentStatus>('PENDING');
   const [reviewInWeeks, setReviewInWeeks] = useState<number | null>(null);
@@ -108,6 +115,7 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
     const def = pricing?.find((p) => p.recommendation === key);
     if (def) {
       setUnitPrice(def.unitPrice);
+      setPriceCurrency(def.currency || null);
       setPackageName(def.label);
       if (def.defaultCount) setCount(def.defaultCount);
       if (def.defaultDays?.length) setDays(def.defaultDays);
@@ -162,6 +170,7 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
       sessionCount: needsBooking ? count : 0,
       packageName: packageName || undefined,
       unitPrice: needsBooking ? unitPrice : 0,
+      currency,
       paymentStatus: pay,
       consultationNotes: notes || undefined,
       reviewInWeeks: rec === 'NONE' && reviewInWeeks ? reviewInWeeks : undefined,
@@ -449,9 +458,9 @@ export function ConsultationTab({ caseId }: { caseId: string }) {
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-gray-500">
-                  {packageName || 'Package'} · {count} × {inr(unitPrice)}
+                  {packageName || 'Package'} · {count} × {money(unitPrice)}
                 </p>
-                <p className="text-lg font-bold text-gray-900">{inr(total)}</p>
+                <p className="text-lg font-bold text-gray-900">{money(total)}</p>
               </div>
               <div className="flex gap-2">
                 {PAYMENTS.map((p) => (

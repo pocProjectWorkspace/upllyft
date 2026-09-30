@@ -12,6 +12,7 @@ import {
   useUpdateSessionPricing,
 } from '@/booking/hooks/use-marketplace';
 import { formatCurrency, formatDuration } from '@/booking/lib/utils';
+import { useRegion } from '@upllyft/api-client';
 import type { SessionType, SessionPricing } from '@/booking/lib/api/marketplace';
 import {
   Button,
@@ -47,6 +48,9 @@ export default function TherapistPricingPage() {
   const updateType = useUpdateSessionType();
   const deleteType = useDeleteSessionType();
   const updatePricing = useUpdateSessionPricing();
+  // New prices are set in the therapist's regional currency (the label said USD
+  // while the server stored INR). Existing prices keep their own currency.
+  const { currency: regionCurrency } = useRegion();
 
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -63,6 +67,10 @@ export default function TherapistPricingPage() {
   const [editDescription, setEditDescription] = useState('');
   const [editDuration, setEditDuration] = useState('');
   const [editPrice, setEditPrice] = useState('');
+  // The price being edited keeps the currency it was set in.
+  const editCurrency =
+    (editTarget && pricing?.find((p: SessionPricing) => p.sessionTypeId === editTarget.id)?.currency) ||
+    regionCurrency;
 
   const isLoading = typesLoading || pricingLoading;
 
@@ -87,10 +95,10 @@ export default function TherapistPricingPage() {
     }
 
     createType.mutate(
-      { name: addName.trim(), description: addDescription.trim() || undefined, duration },
+      { name: addName.trim(), description: addDescription.trim() || undefined, duration, currency: regionCurrency },
       {
         onSuccess: (newType) => {
-          updatePricing.mutate({ sessionTypeId: newType.id, price });
+          updatePricing.mutate({ sessionTypeId: newType.id, price, currency: regionCurrency });
           setAddOpen(false);
           setAddName('');
           setAddDescription('');
@@ -210,7 +218,7 @@ export default function TherapistPricingPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="add-price">Price (USD) *</Label>
+                      <Label htmlFor="add-price">Price ({regionCurrency}) *</Label>
                       <Input
                         id="add-price"
                         type="number"
@@ -398,7 +406,7 @@ export default function TherapistPricingPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-price">Price (USD)</Label>
+                  <Label htmlFor="edit-price">Price ({editCurrency})</Label>
                   <Input
                     id="edit-price"
                     type="number"

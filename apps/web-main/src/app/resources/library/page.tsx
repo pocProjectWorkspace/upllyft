@@ -2,24 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@upllyft/api-client';
 import { Badge, Skeleton, Input } from '@upllyft/ui';
 import { ResourcesShell } from '@/resources/components/resources-shell';
-
-interface LibraryResource {
-  id: string;
-  title: string;
-  description: string | null;
-  resourceType: string;
-  tags: string[];
-  fileUrl: string;
-  fileName: string;
-  mimeType: string;
-  fileSize: number;
-  scope: 'PLATFORM' | 'ORGANIZATION';
-  organization?: { id: string; name: string } | null;
-  createdAt: string;
-}
+import { getLibraryResources } from '@/resources/lib/api/library-resources';
 
 const TYPE_FILTERS = [
   { label: 'All', value: '' },
@@ -55,15 +40,7 @@ export default function ResourceLibraryPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['resource-library', type, search],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/library-resources', {
-        params: {
-          ...(type ? { resourceType: type } : {}),
-          ...(search ? { search } : {}),
-        },
-      });
-      return data.resources as LibraryResource[];
-    },
+    queryFn: () => getLibraryResources({ resourceType: type, search }),
   });
 
   const resources = useMemo(

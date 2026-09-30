@@ -23,6 +23,7 @@ import {
   CalendarDays,
 } from 'lucide-react';
 
+import { Skeleton } from '@upllyft/ui';
 // Therapist color palette for visual distinction
 const THERAPIST_COLORS = [
   { bg: 'bg-teal-50', border: 'border-teal-300', text: 'text-teal-700', dot: 'bg-teal-500' },
@@ -319,9 +320,7 @@ export default function SchedulePage() {
 
         {/* Content */}
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <Skeleton className="h-96 rounded-2xl" />
         ) : viewMode === 'day' ? (
           /* ===== DAY VIEW — Grid: Therapists on X, Time on Y ===== */
           therapists.length === 0 ? (

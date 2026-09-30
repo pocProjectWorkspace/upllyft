@@ -14,6 +14,7 @@ import {
 } from '@/lib/api/organizations';
 import { BulkInviteModal } from '@/components/org/bulk-invite-modal';
 
+import { LinesSkeleton } from '@/components/skeletons';
 type StatusAction = 'suspend' | 'deactivate' | 'reactivate' | null;
 
 export default function OrgMembersPage() {
@@ -200,10 +201,7 @@ export default function OrgMembersPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center">
-                    <div className="flex items-center justify-center gap-2 text-gray-500">
-                      <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                      Loading members...
-                    </div>
+                    <LinesSkeleton rows={4} />
                   </td>
                 </tr>
               ) : members.length === 0 ? (

@@ -9,6 +9,7 @@ import {
   ArrayNotEmpty,
   Min,
   Max,
+  Matches,
 } from 'class-validator';
 import {
   CarePlanRecommendation,
@@ -67,6 +68,11 @@ export class CreateCarePlanDto {
   @IsInt()
   @Min(0)
   unitPrice?: number;
+
+  /** ISO code of unitPrice (the pricing default's). Defaults to INR, as before. */
+  @IsOptional()
+  @Matches(/^[A-Z]{3}$/)
+  currency?: string;
 
   @IsOptional()
   @IsEnum(CarePlanPaymentStatus)

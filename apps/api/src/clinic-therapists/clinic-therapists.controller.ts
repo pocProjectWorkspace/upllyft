@@ -14,6 +14,7 @@ import { Roles } from '../auth/decorators/roles.decorators';
 import { Role } from '@prisma/client';
 import { ClinicTherapistsService } from './clinic-therapists.service';
 import { resolveClinicScope } from '../common/tenant-scope';
+import { ClinicAdminGuard } from '../common/clinic-admin';
 import {
   ListTherapistsQueryDto,
   TherapistScheduleQueryDto,
@@ -66,7 +67,7 @@ export class ClinicTherapistsController {
 
   /** Verifying a licence is how a therapist becomes assignable. Own facility only. */
   @Patch(':id/credentials')
-  @Roles(Role.ADMIN)
+  @UseGuards(ClinicAdminGuard)
   async updateCredentials(
     @Param('id') id: string,
     @Body() dto: UpdateCredentialsDto,
@@ -76,6 +77,7 @@ export class ClinicTherapistsController {
       id,
       dto,
       resolveClinicScope(req.user),
+      req.user,
     );
   }
 }

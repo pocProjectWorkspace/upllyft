@@ -13,6 +13,7 @@ import { TrustScore } from '@/components/profile/trust-score';
 import { BadgeDisplay } from '@/components/profile/badge-display';
 import { ActivityFeed } from '@/components/profile/activity-feed';
 
+import { DetailSkeleton } from '@/components/skeletons';
 export default function UserProfilePage() {
   const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const router = useRouter();
@@ -36,9 +37,7 @@ export default function UserProfilePage() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <DetailSkeleton />
     );
   }
 

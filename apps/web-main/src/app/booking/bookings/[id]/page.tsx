@@ -725,8 +725,11 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               {/* Time slots */}
               {rescheduleDate && (
                 <div>
+                  {/* Only name the day once we know it has a free time (backlog #9). */}
                   <p className="text-sm font-medium text-gray-700 mb-3">
-                    Select a new time &middot; {format(rescheduleDate, 'EEEE, MMMM d')}
+                    Select a new time
+                    {rescheduleSlots?.some((slot) => slot.available) &&
+                      <> &middot; {format(rescheduleDate, 'EEEE, MMMM d')}</>}
                   </p>
                   {loadingRescheduleSlots ? (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -734,7 +737,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                         <Skeleton key={i} className="h-10 rounded-xl" />
                       ))}
                     </div>
-                  ) : rescheduleSlots && rescheduleSlots.length > 0 ? (
+                  ) : rescheduleSlots && rescheduleSlots.some((slot) => slot.available) ? (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                       {rescheduleSlots.map((slot) => {
                         const timeLabel = new Date(slot.startTime).toLocaleTimeString('en-US', {

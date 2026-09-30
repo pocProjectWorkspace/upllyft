@@ -24,6 +24,7 @@ import {
   type FamilyDocument,
 } from '@/lib/api/organizations';
 
+import { LinesSkeleton } from '@/components/skeletons';
 function fmtDate(d?: string | null) {
   return d ? new Date(d).toLocaleDateString() : '—';
 }
@@ -206,10 +207,7 @@ export default function FamiliesPage() {
               {loading ? (
                 <tr>
                   <td colSpan={5} className="px-5 py-8 text-center text-gray-500">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                      Loading families…
-                    </div>
+                    <LinesSkeleton rows={4} />
                   </td>
                 </tr>
               ) : families.length === 0 ? (

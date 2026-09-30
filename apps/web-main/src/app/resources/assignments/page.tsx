@@ -44,6 +44,7 @@ import {
   getDueDateStyle,
 } from '@/resources/lib/utils';
 
+import { RowsSkeleton } from '@/components/skeletons';
 const STATUS_OPTIONS: Array<{ value: WorksheetAssignmentStatus | 'ALL'; label: string }> = [
   { value: 'ALL', label: 'All Statuses' },
   { value: 'ASSIGNED', label: 'Assigned' },
@@ -112,9 +113,7 @@ function TherapistSentAssignments() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <RowsSkeleton rows={4} />
       ) : !data?.data?.length ? (
         <Card className="p-12 text-center">
           <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
@@ -370,9 +369,7 @@ function ParentReceivedAssignments() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <RowsSkeleton rows={4} />
       ) : !data?.data?.length ? (
         <Card className="p-12 text-center">
           <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">

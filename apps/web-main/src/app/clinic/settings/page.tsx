@@ -6,6 +6,7 @@ import { getClinic, updateClinic, type ClinicDetail } from '@/clinic/lib/admin-a
 import { clinicKeys } from '@/clinic/lib/query-keys';
 import { Building2, Save, Mail, Phone, MapPin, FileText, CheckCircle2, Palette } from 'lucide-react';
 
+import { FormSkeleton } from '@/components/skeletons';
 export default function SettingsPage() {
     const queryClient = useQueryClient();
     const clinicQuery = useQuery({ queryKey: clinicKeys.clinic(), queryFn: getClinic });
@@ -75,9 +76,7 @@ export default function SettingsPage() {
     if (loading) {
         return (
             <AdminShell>
-                <div className="flex items-center justify-center py-24">
-                    <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                </div>
+                <FormSkeleton bare />
             </AdminShell>
         );
     }

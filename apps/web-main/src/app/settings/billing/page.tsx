@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Suspense } from 'react';
 
+import { CardsSkeleton } from '@/components/skeletons';
 function BillingContent() {
   const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const searchParams = useSearchParams();
@@ -31,9 +32,7 @@ function BillingContent() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <CardsSkeleton cards={3} />
     );
   }
 
@@ -170,9 +169,7 @@ function BillingContent() {
 export default function BillingPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <CardsSkeleton cards={3} />
     }>
       <BillingContent />
     </Suspense>

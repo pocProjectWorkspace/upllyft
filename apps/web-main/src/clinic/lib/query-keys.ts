@@ -31,4 +31,5 @@ export const clinicKeys = {
   goalProgress: () => [...clinicKeys.all, 'outcomes', 'goals'] as const,
   screeningTrends: () => [...clinicKeys.all, 'outcomes', 'screening'] as const,
   patientOutcomes: (params: unknown) => [...clinicKeys.all, 'outcomes', 'patients', params] as const,
+  practice: () => [...clinicKeys.all, 'practice'] as const,
 };

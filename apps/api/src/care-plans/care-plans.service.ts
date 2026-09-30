@@ -121,6 +121,7 @@ export class CarePlansService {
         sessionCount: dto.sessionCount ?? 0,
         packageName: dto.packageName,
         unitPrice,
+        ...(dto.currency && { currency: dto.currency }),
         totalAmount: total,
         paymentStatus: dto.paymentStatus ?? 'PENDING',
         reviewInWeeks: dto.reviewInWeeks,

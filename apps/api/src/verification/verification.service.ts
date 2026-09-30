@@ -1,6 +1,7 @@
 // apps/api/src/verification/verification.service.ts
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { syncPracticeCompliance } from '../common/clinic-admin';
 import { NotificationService, NotificationType } from '../notification/notification.service';
 import { VerificationStatus, Role } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -218,6 +219,9 @@ export class VerificationService {
       },
     });
 
+    // A therapist's own practice is only as compliant as their verified licence.
+    await syncPracticeCompliance(this.prisma, document.userId, userStatus);
+
     // Send notification to user
     await this.notificationService.createNotification({
       userId: document.userId,
@@ -239,6 +243,8 @@ export class VerificationService {
         verifiedAt: dto.status === VerificationStatus.VERIFIED ? new Date() : null,
       },
     });
+
+    await syncPracticeCompliance(this.prisma, userId, dto.status);
 
     // Update all pending documents
     await this.prisma.verificationDoc.updateMany({

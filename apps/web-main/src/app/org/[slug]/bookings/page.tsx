@@ -13,6 +13,7 @@ import {
   type CalendarEvent,
 } from '@/lib/api/organizations';
 
+import { Skeleton } from '@upllyft/ui';
 type View = 'day' | 'week';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -189,10 +190,7 @@ export default function BookingsCalendarPage() {
 
       {/* Grid */}
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-500 gap-2">
-          <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          Loading calendar…
-        </div>
+        <Skeleton className="h-96 rounded-2xl" />
       ) : (
         <div className={`grid gap-3 ${view === 'week' ? 'grid-cols-1 sm:grid-cols-7' : 'grid-cols-1'}`}>
           {days.map((d) => {

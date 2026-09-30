@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { NurseryProvider, useNursery } from '@/cases/components/nursery/nursery-context';
 import { Baby, Users, Settings, School } from 'lucide-react';
 
+import { DashboardSkeleton } from '@/components/skeletons';
 /**
  * The nursery shell.
  *
@@ -27,9 +28,7 @@ function NurseryChrome({ children }: { children: ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <DashboardSkeleton />
     );
   }
 
@@ -130,9 +129,7 @@ export default function NurseryLayout({ children }: { children: ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <DashboardSkeleton />
     );
   }
 

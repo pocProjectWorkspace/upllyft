@@ -26,6 +26,7 @@ import {
   renderStars,
 } from '@/resources/lib/utils';
 
+import { CardsSkeleton } from '@/components/skeletons';
 const TYPES: WorksheetType[] = ['ACTIVITY', 'VISUAL_SUPPORT', 'STRUCTURED_PLAN'];
 const DIFFICULTIES: WorksheetDifficulty[] = ['FOUNDATIONAL', 'DEVELOPING', 'STRENGTHENING'];
 const DOMAINS = Object.keys(domainLabels);
@@ -161,9 +162,7 @@ export default function CommunityLibraryPage() {
 
         {/* Grid */}
         {isLoading ? (
-          <div className="flex justify-center py-20">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <CardsSkeleton bare />
         ) : worksheets.length === 0 ? (
           <div className="text-center py-20">
             <h3 className="text-lg font-semibold text-gray-900">No community worksheets found</h3>

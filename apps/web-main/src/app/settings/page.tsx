@@ -6,7 +6,9 @@ import { Card, Switch, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getMyOrganizations, type MyOrgMembership } from '@/lib/api/organizations';
+import { SignOutButton } from '@/components/sign-out-button';
 
+import { FormSkeleton } from '@/components/skeletons';
 export default function SettingsPage() {
   const { user, isLoading: authLoading, isAuthenticated, isReady, logout } = useRequireAuth();
   const router = useRouter();
@@ -40,9 +42,7 @@ export default function SettingsPage() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <FormSkeleton />
     );
   }
 
@@ -135,7 +135,10 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-gray-50/50">
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <h1 className="text-xl font-bold text-gray-900 mb-6">Settings</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-bold text-gray-900">Settings</h1>
+          <SignOutButton variant="compact" />
+        </div>
 
         {/* Tab Navigation */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">

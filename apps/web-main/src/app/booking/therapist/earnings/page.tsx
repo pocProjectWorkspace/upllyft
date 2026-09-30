@@ -11,6 +11,7 @@ import {
   useStripeDashboardLink,
 } from '@/booking/hooks/use-marketplace';
 import { formatCurrency, formatDate } from '@/booking/lib/utils';
+import { useRegion } from '@upllyft/api-client';
 import {
   Card,
   Badge,
@@ -108,6 +109,9 @@ export default function TherapistEarningsPage() {
   const { data: analytics, isLoading: analyticsLoading } = useTherapistAnalytics();
   const { data: completedBookings, isLoading: bookingsLoading } = useMyBookings('COMPLETED');
   const stripeDashboard = useStripeDashboardLink();
+  // Aggregates are in the therapist's booking currency (formatCurrency defaulted to USD).
+  const { currency: regionCurrency } = useRegion();
+  const currency = analytics?.currency ?? completedBookings?.[0]?.currency ?? regionCurrency;
 
   useEffect(() => {
     if (!profileLoading && (profileError || !profile)) {
@@ -156,20 +160,20 @@ export default function TherapistEarningsPage() {
   const statCards = [
     {
       label: 'Total Earnings',
-      value: formatCurrency(analytics?.totalRevenue ?? 0),
+      value: formatCurrency(analytics?.totalRevenue ?? 0, currency),
       icon: <CurrencyIcon className="w-6 h-6 text-green-600" />,
       gradient: 'from-green-50 to-green-100',
     },
     {
       label: 'This Month',
-      value: formatCurrency(thisMonthEarnings),
+      value: formatCurrency(thisMonthEarnings, currency),
       subtext: monthOverMonth !== null ? `${Number(monthOverMonth) >= 0 ? '+' : ''}${monthOverMonth}% vs last month` : undefined,
       icon: <TrendUpIcon className="w-6 h-6 text-teal-600" />,
       gradient: 'from-teal-50 to-teal-100',
     },
     {
       label: 'Avg Per Session',
-      value: formatCurrency(avgPerSession),
+      value: formatCurrency(avgPerSession, currency),
       icon: <ChartIcon className="w-6 h-6 text-blue-600" />,
       gradient: 'from-blue-50 to-blue-100',
     },
@@ -249,7 +253,7 @@ export default function TherapistEarningsPage() {
                   return (
                     <div key={m.month} className="flex-1 flex flex-col items-center gap-2">
                       <span className="text-xs font-medium text-gray-700">
-                        {m.earnings > 0 ? formatCurrency(m.earnings) : ''}
+                        {m.earnings > 0 ? formatCurrency(m.earnings, currency) : ''}
                       </span>
                       <div className="w-full relative" style={{ height: '160px' }}>
                         <div

@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 
+import { RowsSkeleton } from '@/components/skeletons';
 const STATUS_OPTIONS = [
   { value: 'INTAKE', label: 'Intake' },
   { value: 'ACTIVE', label: 'Active' },
@@ -271,9 +272,7 @@ export default function PatientsPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <RowsSkeleton rows={6} />
         ) : patients.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
             <div className="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center mx-auto mb-4">

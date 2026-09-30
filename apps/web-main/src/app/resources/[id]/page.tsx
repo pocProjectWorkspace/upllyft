@@ -58,6 +58,7 @@ import {
   renderStars,
 } from '@/resources/lib/utils';
 
+import { DetailSkeleton } from '@/components/skeletons';
 export default function WorksheetDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -100,9 +101,7 @@ export default function WorksheetDetailPage() {
   if (isLoading) {
     return (
       <ResourcesShell>
-        <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <DetailSkeleton bare />
       </ResourcesShell>
     );
   }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { therapistInFacility } from '../common/child-scope';
 import {
@@ -472,15 +472,23 @@ export class ClinicTherapistsService {
     therapistProfileId: string,
     dto: UpdateCredentialsDto,
     facilityId: string | null,
+    actor?: { id: string; role: string },
   ) {
     // Verifying a licence is what makes a therapist assignable to cases — a clinic
     // must only be able to do that for its OWN staff.
     const exists = await this.prisma.therapistProfile.findFirst({
       where: { id: therapistProfileId, ...therapistInFacility(facilityId) },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
     if (!exists) {
       throw new NotFoundException('Therapist not found');
+    }
+
+    // A therapist who owns their practice administers it, but must not sign off
+    // their own licence — that stays with platform admins.
+    const isPlatformAdmin = actor?.role === 'ADMIN' || actor?.role === 'SUPERADMIN';
+    if (actor && !isPlatformAdmin && exists.userId === actor.id) {
+      throw new ForbiddenException('Your own credentials are verified by Upllyft, not by your practice.');
     }
 
     const data: any = {};

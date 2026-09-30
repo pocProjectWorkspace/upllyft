@@ -14,6 +14,8 @@ export function AddTherapistModal({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    // False when an existing therapist account was attached rather than invited.
+    const [invited, setInvited] = useState(true);
 
     const [formData, setFormData] = useState<CreateTherapistInput>({
         name: '',
@@ -33,7 +35,8 @@ export function AddTherapistModal({
         setLoading(true);
 
         try {
-            await createTherapist(formData);
+            const created = await createTherapist(formData);
+            setInvited(created?.invited !== false);
             setSuccess(true);
             setTimeout(() => {
                 setSuccess(false);
@@ -93,7 +96,9 @@ export function AddTherapistModal({
                             </div>
                             <h3 className="text-xl font-bold text-gray-900 mb-2">Therapist Created!</h3>
                             <p className="text-sm text-gray-500 max-w-sm">
-                                The therapist has been added to the directory and an invitation has been sent to their email.
+                                {invited
+                                    ? 'The therapist has been added and emailed a link to set their password.'
+                                    : 'They already had an Upllyft account, so they have been added to your clinic and can sign in as usual.'}
                             </p>
                         </div>
                     ) : (

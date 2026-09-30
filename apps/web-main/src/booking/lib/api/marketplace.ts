@@ -180,6 +180,9 @@ export interface DiscoveryNeeds {
 export interface TherapistAnalytics {
   totalBookings: number;
   totalRevenue: number;
+  /** Currency of totalRevenue (whole units, not cents). */
+  currency?: string | null;
+  mixedCurrencies?: boolean;
   averageRating: number;
   completionRate: number;
   pendingRequests: number;
@@ -283,6 +286,8 @@ export interface CreateSessionTypeDto {
   name: string;
   description?: string;
   duration: number;
+  /** ISO code the session is priced in. */
+  currency?: string;
 }
 
 export interface UpdateSessionTypeDto {

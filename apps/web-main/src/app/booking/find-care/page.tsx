@@ -97,7 +97,7 @@ export default function FindCarePage() {
   const name = child?.firstName;
   const age = child ? Math.max(0, Math.floor((Date.now() - new Date(child.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))) : null;
 
-  const goDiscovery = (params: string) => router.push(`/discovery${params}`);
+  const goDiscovery = (params: string) => router.push(`/booking/discovery${params}`);
 
   return (
     <BookingShell>

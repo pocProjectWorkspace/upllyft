@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useToast } from '@upllyft/ui';
 import { getOrganization, getOrgCommunities, getOrgTherapists, createOrgEvent, type OrgDetails, type OrgCommunity, type OrgTherapistOption } from '@/lib/api/organizations';
 
+import { FormSkeleton } from '@/components/skeletons';
 export default function CreateOrgEventPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -90,9 +91,7 @@ export default function CreateOrgEventPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <FormSkeleton bare />
     );
   }
 

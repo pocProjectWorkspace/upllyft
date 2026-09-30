@@ -5,6 +5,7 @@ import { useAuth, APP_URLS } from '@upllyft/api-client';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 
+import { ListSkeleton } from '@/components/skeletons';
 /**
  * @deprecated Use the (cases)/layout.tsx route group layout instead.
  * This shell is no longer imported but kept for reference.
@@ -15,9 +16,7 @@ export function CasesShell({ children }: { children: ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <ListSkeleton />
     );
   }
 

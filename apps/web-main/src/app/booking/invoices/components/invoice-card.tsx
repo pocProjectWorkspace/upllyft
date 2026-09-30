@@ -4,6 +4,7 @@ import { Card } from '@upllyft/ui';
 import { Download, FileText, Calendar, User, Clock, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { type Invoice, downloadInvoicePdf } from '@upllyft/api-client';
 import { useState } from 'react';
+import { formatMoney } from '@/lib/money';
 
 interface InvoiceCardProps {
     invoice: Invoice;
@@ -76,7 +77,7 @@ export function InvoiceCard({ invoice }: InvoiceCardProps) {
                 <div>
                     <div className="flex items-center gap-3 mb-1">
                         <h3 className="font-semibold text-gray-900">
-                            {invoice.currency} {invoice.amount}
+                            {formatMoney(invoice.amount, invoice.currency)}
                         </h3>
                         <StatusBadge />
                     </div>

@@ -12,6 +12,7 @@ import { BadgeDisplay } from '@/components/profile/badge-display';
 import { ActivityFeed } from '@/components/profile/activity-feed';
 import { FollowersDialog } from '@/components/profile/followers-dialog';
 
+import { DetailSkeleton } from '@/components/skeletons';
 export default function ProfilePage() {
   const { user, isLoading: authLoading, isAuthenticated, isReady } = useRequireAuth();
   const { data: profile, isLoading: profileLoading } = useMyProfile();
@@ -27,9 +28,7 @@ export default function ProfilePage() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <DetailSkeleton />
     );
   }
 

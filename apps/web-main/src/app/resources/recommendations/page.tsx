@@ -7,6 +7,7 @@ import { ResourcesShell } from '@/resources/components/resources-shell';
 import { useRecommendations, useCloneWorksheet } from '@/resources/hooks/use-worksheets';
 import { worksheetTypeLabels, difficultyLabels, difficultyColors } from '@/resources/lib/utils';
 
+import { RowsSkeleton } from '@/components/skeletons';
 export default function RecommendationsPage() {
   const router = useRouter();
   const [childId, setChildId] = useState('');
@@ -60,9 +61,7 @@ export default function RecommendationsPage() {
 
         {/* Loading */}
         {isLoading && (
-          <div className="flex justify-center py-20">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <RowsSkeleton rows={4} />
         )}
 
         {/* Recommendations list */}

@@ -11,6 +11,7 @@ import {
 } from '@/hooks/use-messaging';
 import type { ConversationListItem, Message } from '@/lib/api/messaging';
 
+import { ListSkeleton, RowsSkeleton, ThreadSkeleton } from '@/components/skeletons';
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
@@ -216,9 +217,7 @@ function MessageThread({
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <ThreadSkeleton />
         ) : sortedMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <p className="text-sm text-gray-500">
@@ -339,9 +338,7 @@ export default function MessagesPage() {
   // Auth guard
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <ListSkeleton />
     );
   }
 
@@ -371,9 +368,7 @@ export default function MessagesPage() {
               {/* Conversation Items */}
               <div className="flex-1 overflow-y-auto">
                 {convsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                  </div>
+                  <RowsSkeleton rows={5} className="p-3" />
                 ) : (
                   <ConversationList
                     conversations={conversations ?? []}

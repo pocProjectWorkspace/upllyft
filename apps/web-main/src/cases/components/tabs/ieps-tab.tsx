@@ -57,6 +57,7 @@ import {
   ClipboardList,
 } from 'lucide-react';
 
+import { LinesSkeleton } from '@/components/skeletons';
 const DOMAINS = [
   'COMMUNICATION',
   'MOTOR',
@@ -993,9 +994,7 @@ export function IEPsTab({ caseId }: IEPsTabProps) {
                 </Select>
               </div>
               {loadingGoalBank ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
-                </div>
+                <LinesSkeleton rows={3} />
               ) : goalBank.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                   No goals found in the bank

@@ -16,6 +16,7 @@ import {
   type LeaveRecord,
 } from '@/lib/api/organizations';
 
+import { ListSkeleton } from '@/components/skeletons';
 const inputCls =
   'w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none';
 
@@ -121,10 +122,7 @@ export default function LeaveManagementPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-gray-500 gap-2">
-        <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        Loading leave…
-      </div>
+      <ListSkeleton bare rows={4} />
     );
   }
 

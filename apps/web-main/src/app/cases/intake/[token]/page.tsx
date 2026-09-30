@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 
+import { FormSkeleton } from '@/components/skeletons';
 type Access = { childFirstName: string | null; captcha: { image: string; captchaToken: string } };
 
 const input =
@@ -137,10 +138,7 @@ export default function ParentIntakePage() {
 
   if (!access) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500 gap-2">
-        <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        Loading…
-      </div>
+      <FormSkeleton fields={4} />
     );
   }
 

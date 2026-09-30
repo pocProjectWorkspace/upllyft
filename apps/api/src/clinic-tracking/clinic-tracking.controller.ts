@@ -15,6 +15,7 @@ import { Roles } from '../auth/decorators/roles.decorators';
 import { Role } from '@prisma/client';
 import { ClinicTrackingService } from './clinic-tracking.service';
 import { resolveClinicScope } from '../common/tenant-scope';
+import { ClinicAdminGuard } from '../common/clinic-admin';
 import {
   TrackingQueryDto,
   UpdateTrackingStatusDto,
@@ -33,7 +34,7 @@ export class ClinicTrackingController {
   }
 
   @Post('book')
-  @Roles(Role.ADMIN)
+  @UseGuards(ClinicAdminGuard)
   async createWalkinBooking(@Body() dto: CreateWalkinBookingDto, @Req() req: any) {
     return this.clinicTrackingService.createWalkinBooking(dto, resolveClinicScope(req.user));
   }

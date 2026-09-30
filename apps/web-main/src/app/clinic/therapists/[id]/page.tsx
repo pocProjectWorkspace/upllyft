@@ -49,6 +49,8 @@ import {
   type SessionType,
 } from '@/clinic/lib/admin-api';
 
+import { DetailSkeleton, RowsSkeleton } from '@/components/skeletons';
+import { Skeleton } from '@upllyft/ui';
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SHORT_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -170,9 +172,7 @@ export default function TherapistDetailPage() {
   if (loading) {
     return (
       <AdminShell>
-        <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <DetailSkeleton bare />
       </AdminShell>
     );
   }
@@ -433,9 +433,7 @@ export default function TherapistDetailPage() {
 
             {/* Weekly Calendar */}
             {loadingSchedule ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-              </div>
+              <Skeleton className="h-72 rounded-2xl" />
             ) : (
               <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                 <div className="grid grid-cols-7 border-b border-gray-100">
@@ -512,9 +510,7 @@ export default function TherapistDetailPage() {
             </div>
 
             {loadingSessionTypes ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-              </div>
+              <RowsSkeleton rows={3} />
             ) : sessionTypes.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-3">
@@ -761,9 +757,7 @@ function CredentialDocuments({ therapistId }: { therapistId: string }) {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <RowsSkeleton rows={2} />
       ) : credentials.length === 0 ? (
         <div className="bg-gray-50 rounded-xl p-6 text-center border border-dashed border-gray-200">
           <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />

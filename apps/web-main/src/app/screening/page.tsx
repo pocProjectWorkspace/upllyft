@@ -66,6 +66,7 @@ import {
 } from '@/screening/lib/utils';
 import type { Assessment, Child, AccessLevel, DomainScore, ScreeningHistoryResponse } from '@/screening/lib/api/assessments';
 
+import { RowsSkeleton } from '@/components/skeletons';
 // ── Status badge config ──
 
 const statusConfig: Record<
@@ -587,7 +588,8 @@ const DOMAIN_CHART_COLORS: Record<string, string> = {
 function ProgressHistory({ childId }: { childId: string }) {
   const { data: history, isLoading } = useScreeningHistory(childId);
 
-  if (isLoading || !history) return null;
+  if (isLoading) return <RowsSkeleton rows={2} className="mt-6" />;
+  if (!history) return null;
 
   const { results, childName } = history;
 
@@ -876,7 +878,7 @@ export default function ScreeningLibraryPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Milestone Map</h1>
           </div>
           <p className="text-gray-500 mt-1 ml-[52px]">
-            See how your child is growing with simple, guided screenings.
+            These are checklists: simple, guided milestone checks to see how your child is growing.
           </p>
         </div>
         <Button onClick={handleOpenCreate} className="shrink-0">
@@ -902,8 +904,8 @@ export default function ScreeningLibraryPage() {
           <span className="font-medium">ASHA</span> (speech and language), and the{' '}
           <span className="font-medium">NHS</span>, organised into recognised
           developmental domains and checked against age-anchored expectations.
-          They are designed for early identification and care planning. They are
-          screening checklists — not standardised or normed instruments — and they
+          These are screening checklists, designed for early identification and
+          care planning. They are not standardised or normed instruments, and they
           do not constitute a clinical diagnostic assessment.
         </p>
       </div>
@@ -1093,7 +1095,7 @@ export default function ScreeningLibraryPage() {
                   <div>
                     <p className="font-medium text-yellow-800">Age out of supported range</p>
                     <p className="text-sm text-yellow-700 mt-0.5">
-                      Milestone Map screenings are designed for children between 12 months and 10
+                      Milestone Map checklists are designed for children between 12 months and 10
                       years of age.
                     </p>
                   </div>

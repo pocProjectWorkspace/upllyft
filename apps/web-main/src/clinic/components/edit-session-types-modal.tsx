@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, CheckCircle2, Tag, Plus, Trash2 } from 'lucide-react';
+import { useRegion } from '@upllyft/api-client';
 import {
     getTherapistSessionTypes,
     createSessionType,
@@ -9,6 +10,7 @@ import {
     type SessionType,
 } from '@/clinic/lib/admin-api';
 
+import { LinesSkeleton } from '@/components/skeletons';
 interface Draft {
     id?: string; // existing session type id, undefined for new
     name: string;
@@ -19,14 +21,15 @@ interface Draft {
     currency: string;
 }
 
-function emptyDraft(): Draft {
+/** A new session type starts in the clinic's regional currency (it was always INR). */
+function emptyDraft(currency = 'INR'): Draft {
     return {
         name: '',
         description: '',
         duration: 45,
         defaultPrice: 0,
         overridePrice: '',
-        currency: 'INR',
+        currency,
     };
 }
 
@@ -41,6 +44,7 @@ export function EditSessionTypesModal({
     onClose: () => void;
     onUpdated: () => void;
 }) {
+    const { currency: regionCurrency } = useRegion();
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -56,7 +60,7 @@ export function EditSessionTypesModal({
             getTherapistSessionTypes(therapistId)
                 .then((types) => {
                     if (types.length === 0) {
-                        setDrafts([emptyDraft()]);
+                        setDrafts([emptyDraft(regionCurrency)]);
                         setOriginalIds(new Set());
                     } else {
                         const ids = new Set<string>();
@@ -79,7 +83,7 @@ export function EditSessionTypesModal({
                     }
                 })
                 .catch(() => {
-                    setDrafts([emptyDraft()]);
+                    setDrafts([emptyDraft(regionCurrency)]);
                     setOriginalIds(new Set());
                 })
                 .finally(() => setFetching(false));
@@ -89,7 +93,7 @@ export function EditSessionTypesModal({
     if (!open) return null;
 
     const addDraft = () => {
-        setDrafts([...drafts, emptyDraft()]);
+        setDrafts([...drafts, emptyDraft(regionCurrency)]);
     };
 
     const removeDraft = (index: number) => {
@@ -215,9 +219,7 @@ export function EditSessionTypesModal({
                             </p>
                         </div>
                     ) : fetching ? (
-                        <div className="flex items-center justify-center py-12">
-                            <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                        </div>
+                        <LinesSkeleton rows={3} />
                     ) : (
                         <form id="edit-session-types-form" onSubmit={handleSubmit} className="space-y-4">
                             {error && (

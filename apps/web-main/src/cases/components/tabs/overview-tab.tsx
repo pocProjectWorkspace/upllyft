@@ -54,6 +54,7 @@ import {
   Phone,
 } from 'lucide-react';
 
+import { LinesSkeleton } from '@/components/skeletons';
 interface OverviewTabProps {
   caseId: string;
   caseData: any;
@@ -655,9 +656,7 @@ export function OverviewTab({ caseId, caseData }: OverviewTabProps) {
             <h2 className="text-lg font-semibold">Recent Activity</h2>
           </div>
           {loadingTimeline ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
-            </div>
+            <LinesSkeleton rows={3} />
           ) : timeline.length === 0 ? (
             <p className="text-gray-500 text-sm">No activity recorded yet</p>
           ) : (

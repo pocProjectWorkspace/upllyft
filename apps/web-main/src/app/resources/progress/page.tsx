@@ -10,6 +10,7 @@ import {
 } from '@/resources/hooks/use-worksheets';
 import { domainLabels, formatShortDate } from '@/resources/lib/utils';
 
+import { DashboardSkeleton } from '@/components/skeletons';
 const trendIcons: Record<string, { label: string; color: string; arrow: string }> = {
   improving: { label: 'Improving', color: 'text-green-600', arrow: 'M5 10l7-7m0 0l7 7m-7-7v18' },
   declining: { label: 'Declining', color: 'text-red-600', arrow: 'M19 14l-7 7m0 0l-7-7m7 7V3' },
@@ -68,9 +69,7 @@ export default function ProgressPage() {
         )}
 
         {isLoading && (
-          <div className="flex justify-center py-20">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <DashboardSkeleton bare blocks={1} />
         )}
 
         {hasData && !isLoading && (

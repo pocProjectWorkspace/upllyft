@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Delete, Body, Param, UseGuards, Req, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Param, UseGuards, Req, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -164,6 +164,17 @@ export class TherapistManagementController {
             throw new NotFoundException('Session type not found');
         }
 
+        // The web client sends `price`; older callers sent `basePrice`. Reading only
+        // `basePrice` meant a new price failed to save (price is required) and an edit
+        // silently kept the old price.
+        const price = Number(dto.price ?? dto.basePrice);
+        if (!Number.isFinite(price) || price < 0) {
+            throw new BadRequestException('A valid price is required.');
+        }
+        // Keep the currency the session type was priced in unless one is given —
+        // re-saving a price must not flip it to INR.
+        const currency = dto.currency || sessionType.currency || 'INR';
+
         // Upsert pricing
         return this.prisma.sessionPricing.upsert({
             where: {
@@ -175,13 +186,13 @@ export class TherapistManagementController {
             create: {
                 therapistId: therapistProfile.id,
                 sessionTypeId: dto.sessionTypeId,
-                price: dto.basePrice,
-                currency: dto.currency || 'INR',
+                price,
+                currency,
                 isActive: true,
             },
             update: {
-                price: dto.basePrice,
-                currency: dto.currency || 'INR',
+                price,
+                currency,
             },
         });
     }
@@ -240,6 +251,13 @@ export class TherapistManagementController {
             (sum, b) => sum + b.therapistAmount,
             0
         );
+        // Amounts are whole currency units in the booking's currency. Report which one,
+        // so the dashboard stops printing every therapist's earnings as dollars.
+        const counts = new Map<string, number>();
+        for (const b of completedBookings.length ? completedBookings : bookings) {
+            counts.set(b.currency, (counts.get(b.currency) ?? 0) + 1);
+        }
+        const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
 
         const upcomingSessions = await this.prisma.booking.count({
             where: {
@@ -261,6 +279,8 @@ export class TherapistManagementController {
         return {
             totalBookings: bookings.length,
             totalRevenue,
+            currency: ranked[0]?.[0] ?? null,
+            mixedCurrencies: ranked.length > 1,
             averageRating: therapistProfile.overallRating,
             completionRate:
                 bookings.length > 0

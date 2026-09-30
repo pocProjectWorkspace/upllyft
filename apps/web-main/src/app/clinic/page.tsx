@@ -1,7 +1,6 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@upllyft/api-client';
 import { AdminShell } from '@/clinic/components/admin-shell';
 import {
   CalendarDays,
@@ -15,6 +14,8 @@ import {
 import { Skeleton } from '@upllyft/ui';
 import { getDashboardSummary, getTodaySessions } from '@/clinic/lib/admin-api';
 import { clinicKeys } from '@/clinic/lib/query-keys';
+import { useClinicAccess } from '@/clinic/lib/use-clinic-access';
+import { PracticeSetupPrompt } from '@/clinic/components/practice-setup-prompt';
 
 const quickLinks = [
   {
@@ -51,16 +52,19 @@ function formatTime(iso: string): string {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+  const { canManageClinic: isAdmin, needsPractice, isLoading: accessLoading } = useClinicAccess();
+  // A therapist with no clinic has no clinic data to load (every call would 403).
+  const hasClinic = !accessLoading && !needsPractice;
 
   const summaryQuery = useQuery({
     queryKey: clinicKeys.dashboardSummary(),
     queryFn: getDashboardSummary,
+    enabled: hasClinic,
   });
   const sessionsQuery = useQuery({
     queryKey: clinicKeys.todaySessions(),
     queryFn: getTodaySessions,
+    enabled: hasClinic,
   });
   const summary = summaryQuery.data ?? null;
   const sessions = sessionsQuery.data ?? [];
@@ -96,6 +100,14 @@ export default function DashboardPage() {
       href: '/clinic/patients',
     },
   ];
+
+  if (needsPractice) {
+    return (
+      <AdminShell>
+        <PracticeSetupPrompt />
+      </AdminShell>
+    );
+  }
 
   return (
     <AdminShell>
