@@ -132,6 +132,35 @@ export async function getMyOrganizations(): Promise<MyOrgMembership[]> {
   return data;
 }
 
+/**
+ * Shared TanStack Query key for `getMyOrganizations`. The "/" redirect for org
+ * accounts and `OrgProtect` read the same cache entry, so landing in the org
+ * workspace after login costs one `/organizations/my` call instead of two.
+ */
+export const myOrganizationsKey = (userId: string | undefined) =>
+  ['organizations', 'my', userId] as const;
+
+/**
+ * Query keys for one org's workspace. The layout (sidebar/theme) and the dashboard
+ * read the same `detail` entry, so the org is fetched once, not once per component.
+ */
+export const orgKeys = {
+  all: (slug: string) => ['org', slug] as const,
+  detail: (slug: string) => ['org', slug, 'detail'] as const,
+  stats: (slug: string) => ['org', slug, 'stats'] as const,
+  communities: (slug: string) => ['org', slug, 'communities'] as const,
+  events: (slug: string) => ['org', slug, 'events'] as const,
+  activity: (slug: string) => ['org', slug, 'activity'] as const,
+  /** Not per-org: GET /facilities returns every site the caller staffs. */
+  myFacilities: () => ['facilities', 'mine'] as const,
+};
+
+/** The org an ORGANIZATION account lands in: the one they administer, else the first active one. */
+export function primaryOrganization(orgs: MyOrgMembership[] | undefined) {
+  const active = orgs?.filter((m) => m.status === 'ACTIVE') ?? [];
+  return active.find((m) => m.role === 'ADMIN') ?? active[0];
+}
+
 export async function getOrgEvents(slug: string): Promise<OrgEvent[]> {
   const { data } = await apiClient.get<OrgEvent[]>(`/organizations/${slug}/events`);
   return data;

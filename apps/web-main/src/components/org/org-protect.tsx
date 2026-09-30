@@ -1,58 +1,45 @@
 'use client';
 
 import { useRequireAuth } from '@upllyft/api-client';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
-import { getMyOrganizations } from '@/lib/api/organizations';
+import { useEffect, type ReactNode } from 'react';
+import { getMyOrganizations, myOrganizationsKey } from '@/lib/api/organizations';
 
+import { DashboardSkeleton } from '@/components/skeletons';
 interface OrgProtectProps {
   slug: string;
   children: ReactNode;
 }
 
-type Membership = 'checking' | 'member' | 'denied';
-
 /**
  * Gates the /org/[slug] workspace. Being authenticated is not enough — the user
  * must hold an ACTIVE membership of *this* org. The API enforces the same rule;
  * this only avoids rendering a shell the user has no data for.
+ *
+ * Shares its query with the "/" redirect for org accounts, so arriving from
+ * login reuses the membership list that was just fetched.
  */
 export function OrgProtect({ slug, children }: OrgProtectProps) {
   const { user, isReady } = useRequireAuth();
   const router = useRouter();
-  const [membership, setMembership] = useState<Membership>('checking');
+
+  const { data: orgs, isError } = useQuery({
+    queryKey: myOrganizationsKey(user?.id),
+    queryFn: getMyOrganizations,
+    enabled: isReady && !!user,
+  });
+
+  const isMember = orgs?.some((m) => m.organization.slug === slug && m.status === 'ACTIVE');
+  const denied = isError || (orgs !== undefined && !isMember);
 
   useEffect(() => {
-    if (!isReady || !user) return;
+    if (denied) router.replace('/');
+  }, [denied, router]);
 
-    let cancelled = false;
-
-    getMyOrganizations()
-      .then((orgs) => {
-        if (cancelled) return;
-        const isMember = orgs.some(
-          (m) => m.organization.slug === slug && m.status === 'ACTIVE',
-        );
-        setMembership(isMember ? 'member' : 'denied');
-      })
-      .catch(() => {
-        if (!cancelled) setMembership('denied');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isReady, user, slug]);
-
-  useEffect(() => {
-    if (membership === 'denied') router.replace('/');
-  }, [membership, router]);
-
-  if (!isReady || membership !== 'member') {
+  if (!isReady || !isMember) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <DashboardSkeleton />
     );
   }
 

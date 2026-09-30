@@ -31,11 +31,11 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Avatar } from '@upllyft/ui';
+import { useRegion } from '@upllyft/api-client';
+import { formatMoney } from '@/lib/money';
 
-function formatAED(amount: number): string {
-  return `AED ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
+import { DashboardSkeleton, RowsSkeleton } from '@/components/skeletons';
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short',
@@ -66,6 +66,10 @@ export default function ReportsPage() {
     placeholderData: keepPreviousData,
   });
   const revenue: ClinicRevenueResponse | null = revenueQuery.data ?? null;
+  const { currency: regionCurrency } = useRegion();
+  // The report's own currency; the viewer's region only when there are no invoices.
+  const currency = revenue?.currency ?? regionCurrency;
+  const fmt = (amount: number) => formatMoney(amount, currency);
   const loading = revenueQuery.isPending;
 
   const therapistRevenueQuery = useQuery({
@@ -95,9 +99,7 @@ export default function ReportsPage() {
   if (loading) {
     return (
       <AdminShell>
-        <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <DashboardSkeleton bare />
       </AdminShell>
     );
   }
@@ -124,12 +126,19 @@ export default function ReportsPage() {
           </select>
         </div>
 
+        {revenue?.mixedCurrencies && (
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+            This period has invoices in more than one currency. Totals are shown in {currency}; open a
+            therapist to see each invoice in its own currency.
+          </p>
+        )}
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard
             icon={DollarSign}
             label="Total Invoiced"
-            value={formatAED(revenue?.totalInvoiced ?? 0)}
+            value={fmt(revenue?.totalInvoiced ?? 0)}
           />
           <SummaryCard
             icon={Calendar}
@@ -139,12 +148,12 @@ export default function ReportsPage() {
           <SummaryCard
             icon={TrendingUp}
             label="Avg per Session"
-            value={formatAED(revenue?.avgRevenuePerSession ?? 0)}
+            value={fmt(revenue?.avgRevenuePerSession ?? 0)}
           />
           <SummaryCard
             icon={AlertCircle}
             label="Outstanding"
-            value={formatAED(revenue?.outstanding?.amount ?? 0)}
+            value={fmt(revenue?.outstanding?.amount ?? 0)}
             subtitle={`${revenue?.outstanding?.count ?? 0} unpaid invoice${(revenue?.outstanding?.count ?? 0) !== 1 ? 's' : ''}`}
           />
         </div>
@@ -214,10 +223,10 @@ export default function ReportsPage() {
                           </td>
                           <td className="py-3 px-3 text-gray-600">{row.sessions}</td>
                           <td className="py-3 px-3 font-medium text-teal-600">
-                            {formatAED(row.invoiced)}
+                            {fmt(row.invoiced)}
                           </td>
                           <td className="py-3 px-3 text-gray-600">
-                            {formatAED(Math.round(avg * 100) / 100)}
+                            {fmt(Math.round(avg * 100) / 100)}
                           </td>
                         </tr>
                       );
@@ -250,7 +259,7 @@ export default function ReportsPage() {
                       border: '1px solid #e5e7eb',
                       fontSize: 13,
                     }}
-                    formatter={(value: number) => formatAED(value)}
+                    formatter={(value: number) => fmt(value)}
                   />
                   <Bar
                     dataKey="amount"
@@ -327,6 +336,8 @@ function TherapistSlideOver({
   loading: boolean;
   onClose: () => void;
 }) {
+  const { currency: regionCurrency } = useRegion();
+  const fmt = (amount: number) => formatMoney(amount, data?.currency ?? regionCurrency);
   return (
     <>
       {/* Backdrop */}
@@ -353,9 +364,7 @@ function TherapistSlideOver({
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <RowsSkeleton rows={4} />
           ) : data ? (
             <div className="space-y-6">
               {/* Therapist info */}
@@ -378,7 +387,7 @@ function TherapistSlideOver({
                 <div className="bg-teal-50 rounded-xl p-4">
                   <p className="text-xs text-teal-600 font-medium uppercase">Invoiced</p>
                   <p className="text-xl font-bold text-teal-700 mt-1">
-                    {formatAED(data.totalInvoiced)}
+                    {fmt(data.totalInvoiced)}
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4">
@@ -415,7 +424,7 @@ function TherapistSlideOver({
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-semibold text-teal-600">
-                            {formatAED(Number(inv.amount))}
+                            {formatMoney(inv.amount, inv.currency)}
                           </p>
                           <p className="text-xs text-gray-400">{inv.status}</p>
                         </div>

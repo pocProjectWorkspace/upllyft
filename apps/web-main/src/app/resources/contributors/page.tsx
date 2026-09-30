@@ -11,6 +11,7 @@ import {
 } from '@/resources/hooks/use-worksheets';
 import { renderStars } from '@/resources/lib/utils';
 
+import { RowsSkeleton } from '@/components/skeletons';
 export default function ContributorsPage() {
   const { user } = useAuth();
   const { data, isLoading } = useTopContributors();
@@ -44,9 +45,7 @@ export default function ContributorsPage() {
 
         {/* Loading */}
         {isLoading ? (
-          <div className="flex justify-center py-20">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <RowsSkeleton rows={5} />
         ) : contributors.length === 0 ? (
           <div className="text-center py-20">
             <h3 className="text-lg font-semibold text-gray-900">No contributors yet</h3>

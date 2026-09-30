@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/money';
 export const caseStatusColors: Record<string, string> = {
   INTAKE: 'bg-blue-100 text-blue-800',
   ACTIVE: 'bg-green-100 text-green-800',
@@ -100,11 +101,12 @@ export function formatDateTime(date: string | Date | null | undefined): string {
   });
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
+/**
+ * Case billing lines carry no currency of their own, so callers pass the viewer's
+ * regional one (useRegion().currency). This used to hard-code USD.
+ */
+export function formatCurrency(amount: number, currency: string): string {
+  return formatMoney(amount, currency);
 }
 
 export const sessionNoteStatusColors: Record<string, string> = {

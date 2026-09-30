@@ -41,6 +41,7 @@ import {
   Cell,
 } from 'recharts';
 
+import { DashboardSkeleton } from '@/components/skeletons';
 const DOMAIN_LABELS: Record<string, string> = {
   motor: 'Motor',
   language: 'Language',
@@ -121,9 +122,7 @@ export default function OutcomesPage() {
   if (loading) {
     return (
       <AdminShell>
-        <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <DashboardSkeleton bare />
       </AdminShell>
     );
   }

@@ -8,6 +8,7 @@ import {
   useUpdateBilling,
 } from '@/cases/hooks/use-cases';
 import { billingStatusColors, formatDate, formatCurrency } from '@/cases/lib/utils';
+import { useRegion } from '@upllyft/api-client';
 import {
   Button,
   Card,
@@ -27,7 +28,7 @@ import {
   SelectValue,
   useToast,
 } from '@upllyft/ui';
-import { Plus, Loader2, DollarSign, Pencil } from 'lucide-react';
+import { Plus, Loader2, Receipt, Pencil } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'Pending',
@@ -52,6 +53,8 @@ interface BillingTabProps {
 
 export function BillingTab({ caseId }: BillingTabProps) {
   const { toast } = useToast();
+  // Case billing lines have no currency of their own: show the viewer's region's.
+  const { currency } = useRegion();
   const { data: billingData, isLoading } = useBilling(caseId);
   const { data: summaryData } = useBillingSummary(caseId);
   const createBilling = useCreateBilling();
@@ -193,7 +196,7 @@ export function BillingTab({ caseId }: BillingTabProps) {
               <Card key={key} className="p-4 border border-gray-100 text-center">
                 <p className="text-sm text-gray-500">{label}</p>
                 <p className={`text-2xl font-bold ${textClass}`}>
-                  {formatCurrency(value)}
+                  {formatCurrency(value, currency)}
                 </p>
               </Card>
             );
@@ -241,7 +244,7 @@ export function BillingTab({ caseId }: BillingTabProps) {
                 />
               </div>
               <div>
-                <Label>Amount ($)</Label>
+                <Label>Amount ({currency})</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -318,7 +321,7 @@ export function BillingTab({ caseId }: BillingTabProps) {
                 />
               </div>
               <div>
-                <Label>Amount ($)</Label>
+                <Label>Amount ({currency})</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -370,7 +373,7 @@ export function BillingTab({ caseId }: BillingTabProps) {
       {/* Billing Entries List */}
       {entries.length === 0 ? (
         <div className="text-center py-16">
-          <DollarSign className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+          <Receipt className="h-10 w-10 text-gray-300 mx-auto mb-3" />
           <h3 className="text-base font-medium text-gray-900 mb-1">
             No billing entries yet
           </h3>
@@ -419,7 +422,7 @@ export function BillingTab({ caseId }: BillingTabProps) {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-lg font-semibold text-gray-900">
-                    {formatCurrency(amount)}
+                    {formatCurrency(amount, currency)}
                   </span>
                   <Button
                     variant="ghost"

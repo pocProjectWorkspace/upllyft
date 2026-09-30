@@ -1,8 +1,9 @@
 'use client';
 
 import Image from '@/components/app-image';
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { Badge, Skeleton } from '@upllyft/ui';
 import { APP_URLS } from '@upllyft/api-client';
 import {
@@ -12,6 +13,7 @@ import {
   getOrgCommunities,
   getOrgEvents,
   getOrgActivity,
+  orgKeys,
   type OrgDetails,
   type OrgFacility,
   type OrgCommunity,
@@ -27,72 +29,42 @@ interface DashboardStats {
   pendingFamilies: number;
 }
 
+const EMPTY_STATS: DashboardStats = {
+  memberCount: 0,
+  communityCount: 0,
+  upcomingEventCount: 0,
+  pendingApprovals: 0,
+  pendingFamilies: 0,
+};
+
 export default function OrgDashboard() {
   const params = useParams();
   const slug = params.slug as string;
-  const [org, setOrg] = useState<OrgDetails | null>(null);
-  const [facilities, setFacilities] = useState<OrgFacility[]>([]);
-  const [communities, setCommunities] = useState<OrgCommunity[]>([]);
-  const [events, setEvents] = useState<OrgEvent[]>([]);
-  const [activity, setActivity] = useState<OrgActivityItem[]>([]);
-  const [stats, setStats] = useState<DashboardStats>({
-    memberCount: 0,
-    communityCount: 0,
-    upcomingEventCount: 0,
-    pendingApprovals: 0,
-    pendingFamilies: 0,
-  });
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const orgData = await getOrganization(slug);
-        setOrg(orgData);
+  // All six requests start together. This used to await them one after another
+  // (org → facilities → stats → lists) behind a full-page skeleton, so the page took
+  // the SUM of every round trip — over a minute against a remote database.
+  // The org header gates the page; everything else is supplementary and fills in
+  // (or quietly stays empty) on its own, as before.
+  const orgQuery = useQuery({ queryKey: orgKeys.detail(slug), queryFn: () => getOrganization(slug) });
+  const facilitiesQuery = useQuery({ queryKey: orgKeys.myFacilities(), queryFn: getMyFacilities });
+  const statsQuery = useQuery({ queryKey: orgKeys.stats(slug), queryFn: () => getOrganizationStats(slug) });
+  const communitiesQuery = useQuery({ queryKey: orgKeys.communities(slug), queryFn: () => getOrgCommunities(slug) });
+  const eventsQuery = useQuery({ queryKey: orgKeys.events(slug), queryFn: () => getOrgEvents(slug) });
+  const activityQuery = useQuery({ queryKey: orgKeys.activity(slug), queryFn: () => getOrgActivity(slug) });
 
-        // The org's sites (nurseries / clinics). Supplementary — a failure here must not
-        // blank the page. Filtered to THIS org so a multi-org staff member sees the right
-        // ones.
-        try {
-          const all = await getMyFacilities();
-          setFacilities(all.filter((f) => f.organizationId === orgData.id));
-        } catch {
-          /* leave empty */
-        }
+  const org: OrgDetails | null = orgQuery.data ?? null;
+  // The org's sites, filtered to THIS org so a multi-org staff member sees the right ones.
+  const facilities: OrgFacility[] = useMemo(
+    () => (org ? (facilitiesQuery.data ?? []).filter((f) => f.organizationId === org.id) : []),
+    [facilitiesQuery.data, org],
+  );
+  const stats: DashboardStats = { ...EMPTY_STATS, ...(statsQuery.data ?? {}) };
+  const communities: OrgCommunity[] = communitiesQuery.data ?? [];
+  const events: OrgEvent[] = eventsQuery.data ?? [];
+  const activity: OrgActivityItem[] = activityQuery.data ?? [];
 
-        // Stats are supplementary — a failure here shouldn't blank the whole page.
-        try {
-          const data = await getOrganizationStats(slug);
-          setStats({
-            memberCount: data.memberCount ?? 0,
-            communityCount: data.communityCount ?? 0,
-            upcomingEventCount: data.upcomingEventCount ?? 0,
-            pendingApprovals: data.pendingApprovals ?? 0,
-            pendingFamilies: data.pendingFamilies ?? 0,
-          });
-        } catch {
-          /* keep zeroed defaults */
-        }
-
-        // Supplementary lists for the dashboard panels.
-        try {
-          const [comms, evs, act] = await Promise.all([getOrgCommunities(slug), getOrgEvents(slug), getOrgActivity(slug)]);
-          setCommunities(comms);
-          setEvents(evs);
-          setActivity(act);
-        } catch {
-          /* leave empty */
-        }
-      } catch {
-        setOrg(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [slug]);
-
-  if (loading) {
+  if (orgQuery.isPending) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-48 rounded-2xl" />
@@ -187,13 +159,14 @@ export default function OrgDashboard() {
       </div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Members" value={stats.memberCount} subtitle="Active members" />
-        <StatCard title="Communities" value={stats.communityCount} subtitle="Active spaces" />
+        <StatCard title="Total Members" value={stats.memberCount} subtitle="Active members" loading={statsQuery.isPending} />
+        <StatCard title="Communities" value={stats.communityCount} subtitle="Active spaces" loading={statsQuery.isPending} />
         <StatCard title="Engagement Rate" value="-" subtitle="Coming soon" />
         <StatCard
           title="Upcoming Events"
           value={stats.upcomingEventCount}
           subtitle={stats.upcomingEventCount === 0 ? 'No events scheduled' : 'Scheduled ahead'}
+          loading={statsQuery.isPending}
         />
       </div>
 
@@ -360,11 +333,25 @@ export default function OrgDashboard() {
   );
 }
 
-function StatCard({ title, value, subtitle }: { title: string; value: number | string; subtitle: string }) {
+function StatCard({
+  title,
+  value,
+  subtitle,
+  loading = false,
+}: {
+  title: string;
+  value: number | string;
+  subtitle: string;
+  loading?: boolean;
+}) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4">
       <p className="text-sm font-medium text-gray-500">{title}</p>
-      <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+      {loading ? (
+        <Skeleton className="h-8 w-12 mt-1 rounded-lg" />
+      ) : (
+        <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+      )}
       <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
     </div>
   );

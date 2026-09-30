@@ -6,6 +6,7 @@ import * as api from '@/lib/api/permissions';
 import type { FacilityPermission } from '@/lib/api/permissions';
 import { Loader2, Lock, ShieldCheck, School, Stethoscope, Eye, ClipboardList, Sparkles, Flag, Trophy, StickyNote, MessageCircle, Target, Home, CalendarCheck, FileOutput } from 'lucide-react';
 
+import { ListSkeleton, LinesSkeleton } from '@/components/skeletons';
 /**
  * The guardian's control panel: who has asked for access to my child, and what have I
  * actually agreed to?
@@ -59,9 +60,7 @@ export default function PermissionsPage({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
-      </div>
+      <ListSkeleton rows={4} />
     );
   }
 
@@ -214,7 +213,8 @@ function ObservationFeed({ childId }: { childId: string }) {
     queryFn: () => api.getChildObservations(childId),
   });
 
-  if (isLoading || !observations || observations.length === 0) return null;
+  if (isLoading) return <LinesSkeleton rows={2} className="mt-6" />;
+  if (!observations || observations.length === 0) return null;
 
   const icon = (t: string) =>
     t === 'CONCERN' ? Flag : t === 'MOMENT' ? Sparkles : t === 'MILESTONE' ? Trophy : StickyNote;

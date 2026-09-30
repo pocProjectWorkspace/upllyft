@@ -3,6 +3,7 @@
 import Image from '@/components/app-image';
 import { useRequireAuth, APP_URLS } from '@upllyft/api-client';
 import { useToast } from '@upllyft/ui';
+import { SignOutButton } from '@/components/sign-out-button';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -14,6 +15,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { FormSkeleton } from '@/components/skeletons';
 // ── Constants ──────────────────────────────────────────────────────
 
 const TOTAL_STEPS = 6;
@@ -456,9 +458,7 @@ export default function OnboardingPage() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <FormSkeleton fields={3} />
     );
   }
 
@@ -510,6 +510,11 @@ export default function OnboardingPage() {
             </motion.button>
           )}
         </AnimatePresence>
+
+        {/* Onboarding hides the shared header; wrong account or not ready → sign out here. */}
+        <div className="absolute right-6 top-8">
+          <SignOutButton variant="link" />
+        </div>
       </div>
 
       {/* Main content */}

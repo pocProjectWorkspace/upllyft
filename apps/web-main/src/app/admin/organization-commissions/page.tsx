@@ -8,6 +8,7 @@ import {
   type OrgCommission,
 } from '@/lib/api/organizations';
 
+import { ListSkeleton } from '@/components/skeletons';
 export default function OrganizationCommissionsPage() {
   const { toast } = useToast();
   const [organizations, setOrganizations] = useState<OrgCommission[]>([]);
@@ -73,9 +74,7 @@ export default function OrganizationCommissionsPage() {
 
   if (loading && organizations.length === 0) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <ListSkeleton bare />
     );
   }
 

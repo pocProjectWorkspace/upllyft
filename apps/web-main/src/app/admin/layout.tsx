@@ -5,7 +5,9 @@ import { useRequireAuth } from '@upllyft/api-client';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
+import { SignOutButton } from '@/components/sign-out-button';
 
+import { DashboardSkeleton } from '@/components/skeletons';
 const sidebarItems = [
   {
     label: 'Dashboard',
@@ -135,9 +137,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (!isReady || !isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <DashboardSkeleton />
     );
   }
 
@@ -171,7 +171,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-3 border-t border-gray-100">
+        <div className="p-3 border-t border-gray-100 space-y-1">
           <a
             href="/"
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
@@ -181,6 +181,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </svg>
             <span>Back to App</span>
           </a>
+          <SignOutButton />
         </div>
       </aside>
 

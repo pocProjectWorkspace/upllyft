@@ -29,6 +29,7 @@ import {
   ClipboardList,
 } from 'lucide-react';
 
+import { RowsSkeleton } from '@/components/skeletons';
 // --- Constants ---
 
 const COLUMNS: { key: TrackingStatusType; label: string; color: string; bgColor: string; borderColor: string }[] = [
@@ -712,9 +713,7 @@ export default function TrackingPage() {
 
         {/* Board Content */}
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <RowsSkeleton rows={5} />
         ) : error ? (
           <div className="bg-white rounded-2xl border border-red-100 p-12 text-center">
             <p className="text-sm text-red-600 mb-3">{error}</p>

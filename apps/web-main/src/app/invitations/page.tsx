@@ -11,6 +11,7 @@ import {
   type OrgInvitation,
 } from '@/lib/api/organizations';
 
+import { ListSkeleton } from '@/components/skeletons';
 export default function InvitationsPage() {
   const { isAuthenticated, isReady } = useRequireAuth();
   const router = useRouter();
@@ -89,9 +90,7 @@ export default function InvitationsPage() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <ListSkeleton rows={4} />
     );
   }
 

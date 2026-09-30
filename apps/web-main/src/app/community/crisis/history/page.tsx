@@ -5,6 +5,7 @@ import { CommunityShell } from '@/community/components/community-shell';
 import { Badge } from '@upllyft/ui';
 import { useMyCrisisIncidents } from '@/community/hooks/use-crisis';
 
+import { RowsSkeleton } from '@/components/skeletons';
 function formatTimeAgo(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -91,9 +92,7 @@ export default function CrisisHistoryPage() {
 
         {/* Loading */}
         {isLoading && (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <RowsSkeleton rows={4} />
         )}
 
         {/* Empty state */}

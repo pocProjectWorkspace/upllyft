@@ -4,11 +4,13 @@ import { Suspense, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { BookingShell } from '@/booking/components/booking-shell';
 import { Card } from '@upllyft/ui';
-import { getPatientInvoices } from '@upllyft/api-client';
+import { getPatientInvoices, useRegion } from '@upllyft/api-client';
+import { formatMoney } from '@/lib/money';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Receipt, Search, FileText } from 'lucide-react';
 import { InvoiceCard } from './components/invoice-card';
 
+import { RowsSkeleton } from '@/components/skeletons';
 function ErrorFallback({ error, resetErrorBoundary }: any) {
   return (
     <div className="p-6 bg-red-50 text-red-700 rounded-xl border border-red-100 text-center">
@@ -25,6 +27,7 @@ function ErrorFallback({ error, resetErrorBoundary }: any) {
 }
 
 function InvoicesList() {
+  const { currency: regionCurrency } = useRegion();
   const { data, isLoading, error } = useQuery({
     queryKey: ['patient-invoices', { limit: 50 }],
     queryFn: () => getPatientInvoices({ limit: 50 }),
@@ -32,10 +35,7 @@ function InvoicesList() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-        <Loader2 className="h-8 w-8 text-teal-600 animate-spin mb-4" />
-        <p className="text-gray-500 font-medium">Loading your billing history...</p>
-      </div>
+      <RowsSkeleton rows={4} />
     );
   }
 
@@ -44,6 +44,18 @@ function InvoicesList() {
   }
 
   const invoices = data?.invoices || [];
+  const summary = data?.summary;
+  const totalsByCurrency = summary?.byCurrency?.length
+    ? summary.byCurrency
+    : [
+        {
+          // Older API without per-currency totals: label with the invoices' own currency.
+          currency: summary?.currency ?? invoices[0]?.currency ?? regionCurrency,
+          totalBilled: summary?.totalBilled ?? 0,
+          totalPaid: summary?.totalPaid ?? 0,
+          totalOutstanding: summary?.totalOutstanding ?? 0,
+        },
+      ];
 
   if (invoices.length === 0) {
     return (
@@ -61,26 +73,29 @@ function InvoicesList() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Card className="p-5 border-teal-100 bg-teal-50/30">
-          <div className="text-sm font-medium text-teal-800 mb-1">Total Billed</div>
-          <div className="text-2xl font-bold text-teal-900">
-            AED {data?.summary?.totalBilled?.toLocaleString() || '0'}
-          </div>
-        </Card>
-        <Card className="p-5">
-          <div className="text-sm font-medium text-gray-500 mb-1">Paid</div>
-          <div className="text-2xl font-bold text-gray-900">
-            AED {data?.summary?.totalPaid?.toLocaleString() || '0'}
-          </div>
-        </Card>
-        <Card className="p-5">
-          <div className="text-sm font-medium text-gray-500 mb-1">Outstanding</div>
-          <div className="text-2xl font-bold text-gray-900">
-            AED {data?.summary?.totalOutstanding?.toLocaleString() || '0'}
-          </div>
-        </Card>
-      </div>
+      {/* One row of totals per currency: rupee and dirham invoices are never added up. */}
+      {totalsByCurrency.map((t) => (
+        <div key={t.currency} className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <Card className="p-5 border-teal-100 bg-teal-50/30">
+            <div className="text-sm font-medium text-teal-800 mb-1">Total Billed</div>
+            <div className="text-2xl font-bold text-teal-900">
+              {formatMoney(t.totalBilled, t.currency)}
+            </div>
+          </Card>
+          <Card className="p-5">
+            <div className="text-sm font-medium text-gray-500 mb-1">Paid</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {formatMoney(t.totalPaid, t.currency)}
+            </div>
+          </Card>
+          <Card className="p-5">
+            <div className="text-sm font-medium text-gray-500 mb-1">Outstanding</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {formatMoney(t.totalOutstanding, t.currency)}
+            </div>
+          </Card>
+        </div>
+      ))}
 
       <div className="space-y-4">
         {invoices.map((inv) => (
@@ -103,7 +118,7 @@ export default function InvoicesPage() {
         </div>
 
         <ErrorBoundary FallbackComponent={ErrorFallback}>
-          <Suspense fallback={<div className="h-64 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-teal-600" /></div>}>
+          <Suspense fallback={<RowsSkeleton rows={4} />}>
             <InvoicesList />
           </Suspense>
         </ErrorBoundary>

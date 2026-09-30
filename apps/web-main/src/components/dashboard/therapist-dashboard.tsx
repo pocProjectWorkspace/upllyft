@@ -1,10 +1,13 @@
 'use client';
 
 import type { User } from '@upllyft/types';
-import { APP_URLS, firstNameOf } from '@upllyft/api-client';
+import { APP_URLS, firstNameOf, useRegion } from '@upllyft/api-client';
 import { Card, Avatar, Badge, Skeleton } from '@upllyft/ui';
 import { useTherapistAnalytics, useMyBookings } from '@/hooks/use-dashboard';
 import { useMemo } from 'react';
+import Link from 'next/link';
+import { useClinicAccess } from '@/clinic/lib/use-clinic-access';
+import { formatMoney } from '@/lib/money';
 
 const quickActions = [
   {
@@ -100,6 +103,8 @@ interface TherapistDashboardProps {
 export function TherapistDashboard({ user }: TherapistDashboardProps) {
   const { data: analytics, isLoading: analyticsLoading } = useTherapistAnalytics();
   const { data: allBookings, isLoading: bookingsLoading } = useMyBookings();
+  const { needsPractice } = useClinicAccess();
+  const { currency: regionCurrency } = useRegion();
 
   const displayName = firstNameOf(user.name, user.email, 'Therapist');
 
@@ -151,6 +156,24 @@ export function TherapistDashboard({ user }: TherapistDashboardProps) {
         </div>
       </div>
 
+      {/* Self-onboarded therapists have no clinic: offer the clinic-admin tools for their own practice. */}
+      {needsPractice && (
+        <div className="bg-white rounded-2xl border border-teal-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex-1">
+            <p className="font-semibold text-gray-900">Run your own practice on Upllyft</p>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Set it up to get the clinic dashboard, patient directory, team, revenue and settings.
+            </p>
+          </div>
+          <Link
+            href="/clinic/setup"
+            className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors"
+          >
+            Set up my practice
+          </Link>
+        </div>
+      )}
+
       {/* Analytics Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {analyticsLoading ? (
@@ -181,7 +204,7 @@ export function TherapistDashboard({ user }: TherapistDashboardProps) {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">
-                    {analytics?.totalRevenue ? `$${(analytics.totalRevenue / 100).toFixed(0)}` : '$0'}
+                    {formatMoney(analytics?.totalRevenue ?? 0, analytics?.currency ?? regionCurrency, { decimals: false })}
                   </p>
                   <p className="text-xs text-gray-500">Total Revenue</p>
                 </div>

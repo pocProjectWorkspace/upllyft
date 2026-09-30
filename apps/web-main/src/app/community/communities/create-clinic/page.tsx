@@ -16,6 +16,7 @@ import {
   type OrgRosterTherapist,
 } from '@/community/lib/api/org-community';
 
+import { FormSkeleton } from '@/components/skeletons';
 const STEPS = ['Basics', 'Privacy & eligibility', 'Members & moderators', 'Guidelines', 'Review'] as const;
 const DIGEST_OPTIONS = ['Off', 'Daily', 'Weekly'] as const;
 
@@ -139,10 +140,7 @@ export default function CreateClinicCommunityWizard() {
 
   if (!orgSlug) {
     return (
-      <div className="flex items-center justify-center py-20 text-gray-500 gap-2">
-        <div className="w-4 h-4 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" />
-        Loading…
-      </div>
+      <FormSkeleton fields={4} />
     );
   }
 

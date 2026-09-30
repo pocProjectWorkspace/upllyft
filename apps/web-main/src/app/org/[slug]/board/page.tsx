@@ -9,6 +9,7 @@ import { useParams } from 'next/navigation';
 import { Badge, useToast } from '@upllyft/ui';
 import { getOrgBookingsCalendar, type CalendarEvent } from '@/lib/api/organizations';
 
+import { RowsSkeleton } from '@/components/skeletons';
 function timeOf(s: string) {
   const d = new Date(s);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -68,10 +69,7 @@ export default function TodaysBoardPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-500 gap-2">
-          <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          Loading…
-        </div>
+        <RowsSkeleton rows={4} />
       ) : byTherapist.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center text-sm text-gray-400">
           Nothing scheduled today.

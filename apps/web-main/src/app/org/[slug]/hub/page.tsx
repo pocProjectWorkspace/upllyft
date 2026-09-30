@@ -5,11 +5,11 @@
 // "Clinic Management" checklist, and Explore quick-links. All data comes from
 // getOrganization + getOrganizationStats (no dedicated endpoint).
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { Skeleton } from '@upllyft/ui';
 import { APP_URLS } from '@upllyft/api-client';
-import { getOrganization, getOrganizationStats, type OrgDetails } from '@/lib/api/organizations';
+import { getOrganization, getOrganizationStats, orgKeys, type OrgDetails } from '@/lib/api/organizations';
 
 interface HubStats {
   memberCount: number;
@@ -21,40 +21,20 @@ interface HubStats {
 
 export default function OrgHubPage() {
   const { slug } = useParams() as { slug: string };
-  const [org, setOrg] = useState<OrgDetails | null>(null);
-  const [stats, setStats] = useState<HubStats>({
+  // Both requests in parallel, shared with the org dashboard's cache (they used to run
+  // one after the other, fetched again on every visit).
+  const orgQuery = useQuery({ queryKey: orgKeys.detail(slug), queryFn: () => getOrganization(slug) });
+  const statsQuery = useQuery({ queryKey: orgKeys.stats(slug), queryFn: () => getOrganizationStats(slug) });
+  const org: OrgDetails | null = orgQuery.data ?? null;
+  const stats: HubStats = {
     memberCount: 0,
     communityCount: 0,
     upcomingEventCount: 0,
     pendingApprovals: 0,
     pendingFamilies: 0,
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const o = await getOrganization(slug);
-        setOrg(o);
-        try {
-          const s = await getOrganizationStats(slug);
-          setStats({
-            memberCount: s.memberCount ?? 0,
-            communityCount: s.communityCount ?? 0,
-            upcomingEventCount: s.upcomingEventCount ?? 0,
-            pendingApprovals: s.pendingApprovals ?? 0,
-            pendingFamilies: s.pendingFamilies ?? 0,
-          });
-        } catch {
-          /* stats supplementary */
-        }
-      } catch {
-        setOrg(null);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [slug]);
+    ...(statsQuery.data ?? {}),
+  };
+  const loading = orgQuery.isPending;
 
   if (loading) {
     return (

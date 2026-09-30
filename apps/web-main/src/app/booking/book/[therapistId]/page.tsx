@@ -12,6 +12,7 @@ import {
   useCreateBooking,
 } from '@/booking/hooks/use-marketplace';
 import { formatCurrency, formatDuration } from '@/booking/lib/utils';
+import { useRegion } from '@upllyft/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { getMyChildren } from '@/booking/lib/api/find-care';
 import type { SessionType, SessionPricing as SessionPricingType } from '@/booking/lib/api/marketplace';
@@ -188,6 +189,7 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
   const { data: pricing } = useSessionPricing(therapistId);
 
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { currency: regionCurrency } = useRegion();
   const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
 
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
@@ -217,14 +219,20 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
   const sessionPrice = selectedPricing?.price ?? 0;
   const platformFee = Math.round(sessionPrice * PLATFORM_FEE_RATE * 100) / 100;
   const totalPrice = sessionPrice + platformFee;
-  const currency = selectedPricing?.currency ?? 'USD';
+  const currency = selectedPricing?.currency ?? regionCurrency;
 
   // Format selected time
   const formattedTime = selectedSlot
     ? new Date(selectedSlot).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     : '';
 
-  const formattedDate = selectedDate
+  // A day whose slots have all come back unavailable is not a real choice: don't
+  // show it as the selected date anywhere (backlog #9, 'date should not show if
+  // time is not available').
+  const dayHasOpenings = !!slots?.some((slot) => slot.available);
+  const dayIsFull = !!selectedDate && !loadingSlots && slots !== undefined && !dayHasOpenings;
+
+  const formattedDate = selectedDate && !dayIsFull
     ? format(selectedDate, 'EEEE, MMMM d, yyyy')
     : '';
 
@@ -262,7 +270,7 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
   const canProceed = () => {
     switch (step) {
       case 1: return !!selectedSessionType;
-      case 2: return !!selectedDate;
+      case 2: return !!selectedDate && !dayIsFull;
       case 3: return !!selectedSlot;
       case 4: return true;
       default: return false;
@@ -377,9 +385,14 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
                       onSelectDate={handleDateSelect}
                     />
                   </div>
-                  {selectedDate && (
+                  {formattedDate && (
                     <p className="text-center text-sm text-teal-600 font-medium mt-4">
                       Selected: {formattedDate}
+                    </p>
+                  )}
+                  {dayIsFull && (
+                    <p className="text-center text-sm text-gray-500 mt-4">
+                      No openings on that day. Please pick another date.
                     </p>
                   )}
                 </div>
@@ -394,9 +407,11 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
                     <ClockIcon className="w-5 h-5 text-teal-500" />
                     Select Time
                   </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {formattedDate} &middot; {timezone}
-                  </p>
+                  {formattedDate && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      {formattedDate} &middot; {timezone}
+                    </p>
+                  )}
                 </div>
                 <div className="p-6">
                   {loadingSlots ? (
@@ -405,7 +420,7 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
                         <Skeleton key={i} className="h-12 rounded-xl" />
                       ))}
                     </div>
-                  ) : slots && slots.length > 0 ? (
+                  ) : slots && dayHasOpenings ? (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                       {slots.map((slot) => {
                         const timeLabel = new Date(slot.startTime).toLocaleTimeString('en-US', {
@@ -436,6 +451,16 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
                       <CalendarIcon className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                       <p className="text-gray-500">No openings on this day.</p>
                       <p className="text-sm text-gray-400 mt-1">Try picking a different date &mdash; more times might be available.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedDate(null);
+                          setStep(2);
+                        }}
+                        className="mt-4 text-sm font-medium text-teal-600 hover:text-teal-700"
+                      >
+                        Pick another date
+                      </button>
                     </div>
                   )}
                 </div>
@@ -588,7 +613,7 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
                     <div className="flex justify-between">
                       <span className="text-gray-500">Date</span>
                       <span className="font-medium text-gray-900">
-                        {selectedDate ? format(selectedDate, 'MMM d, yyyy') : '--'}
+                        {selectedDate && !dayIsFull ? format(selectedDate, 'MMM d, yyyy') : '--'}
                       </span>
                     </div>
                     <div className="flex justify-between">

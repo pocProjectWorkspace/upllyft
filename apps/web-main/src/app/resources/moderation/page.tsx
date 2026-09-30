@@ -34,6 +34,8 @@ import {
   formatRelativeDate,
 } from '@/resources/lib/utils';
 
+import { RowsSkeleton } from '@/components/skeletons';
+import { Skeleton } from '@upllyft/ui';
 const FLAG_REASONS: WorksheetFlagReason[] = ['INAPPROPRIATE', 'INACCURATE', 'HARMFUL', 'SPAM', 'OTHER'];
 const FLAG_STATUSES: WorksheetFlagStatus[] = ['PENDING', 'REVIEWED', 'DISMISSED', 'ACTIONED'];
 const RESOLVE_STATUSES: WorksheetFlagStatus[] = ['REVIEWED', 'DISMISSED', 'ACTIONED'];
@@ -103,9 +105,7 @@ export default function ModerationPage() {
 
         {/* Stats */}
         {statsLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <Skeleton className="h-24 rounded-2xl" />
         ) : stats && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Card className="p-4 text-center">
@@ -160,9 +160,7 @@ export default function ModerationPage() {
 
         {/* Queue */}
         {queueLoading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <RowsSkeleton rows={4} />
         ) : flags.length === 0 ? (
           <div className="text-center py-16">
             <h3 className="text-lg font-semibold text-gray-900">No flags found</h3>

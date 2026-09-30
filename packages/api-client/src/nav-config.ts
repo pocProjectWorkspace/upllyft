@@ -116,8 +116,9 @@ export function getNavItems(
 
   const bookingChildren: GlobalNavChild[] = isParent
     ? [
+        // One entry, not two: Find Care is the guided front door and hands off to the
+        // discovery results itself; a separate "Browse" item duplicated it (backlog #3).
         { label: 'Find Care', href: `${B}/find-care` },
-        { label: 'Browse', href: `${B}/discovery` },
         { label: 'Saved', href: `${B}/saved` },
         { label: 'My Bookings', href: `${B}/bookings` },
         { label: 'Invoices', href: `${B}/invoices` },

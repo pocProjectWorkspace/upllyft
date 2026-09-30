@@ -5,6 +5,7 @@ import { X, Search, UserCheck } from 'lucide-react';
 import { getTherapists, assignTherapist, type TherapistOption } from '@/clinic/lib/admin-api';
 import { Avatar } from '@upllyft/ui';
 
+import { LinesSkeleton } from '@/components/skeletons';
 interface AssignTherapistModalProps {
   childId: string;
   childName: string;
@@ -92,9 +93,7 @@ export function AssignTherapistModal({
         {/* Therapist List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <LinesSkeleton rows={4} />
           ) : filtered.length === 0 ? (
             <div className="text-center py-8 text-sm text-gray-500">
               {search ? 'No therapists match your search' : 'No therapists available'}

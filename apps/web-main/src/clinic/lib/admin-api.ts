@@ -637,6 +637,10 @@ export interface RevenueWeekBucket {
 
 export interface ClinicRevenueResponse {
   period: string;
+  /** Currency of the invoices in this report (null when there are none). */
+  currency?: string | null;
+  /** True when invoices in more than one currency fell in the period. */
+  mixedCurrencies?: boolean;
   totalInvoiced: number;
   totalSessions: number;
   avgRevenuePerSession: number;
@@ -663,6 +667,8 @@ export interface TherapistRevenueInvoice {
 export interface TherapistRevenueResponse {
   therapist: { id: string; name: string | null; avatarUrl: string | null };
   period: string;
+  currency?: string | null;
+  mixedCurrencies?: boolean;
   totalInvoiced: number;
   totalSessions: number;
   invoices: TherapistRevenueInvoice[];
@@ -880,5 +886,38 @@ export async function upsertSessionPricing(
   input: UpsertSessionPricingInput,
 ): Promise<SessionPricing> {
   const { data } = await apiClient.post(`/admin/clinic/therapists/${therapistId}/pricing`, input);
+  return data;
+}
+
+// --- Practice (a therapist's own clinic) ---
+
+export type PracticeStatus =
+  | {
+      status: 'OWNER';
+      canManageClinic: boolean;
+      practice: { id: string; name: string; complianceStatus: string; organizationSlug: string };
+    }
+  | { status: 'STAFF'; canManageClinic: boolean; facilityName: string }
+  | { status: 'NONE'; canManageClinic: boolean };
+
+export interface SetupPracticeInput {
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  country?: string;
+  description?: string;
+}
+
+/** Whether the caller runs a practice, staffs a clinic, or neither — and may administer one. */
+export async function getPracticeStatus(): Promise<PracticeStatus> {
+  const { data } = await apiClient.get('/clinic/practice');
+  return data;
+}
+
+export async function setupPractice(
+  input: SetupPracticeInput,
+): Promise<{ clinicId: string; organizationSlug: string; complianceStatus: string }> {
+  const { data } = await apiClient.post('/clinic/practice', input);
   return data;
 }

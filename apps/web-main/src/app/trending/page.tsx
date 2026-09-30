@@ -5,6 +5,7 @@ import { Avatar, Badge, Card, Skeleton } from '@upllyft/ui';
 import { useQuery } from '@tanstack/react-query';
 import { getTrendingPosts, type Post } from '@/lib/api/posts';
 
+import { ListSkeleton } from '@/components/skeletons';
 function timeAgo(date: string) {
   const now = new Date();
   const d = new Date(date);
@@ -43,9 +44,7 @@ export default function TrendingPage() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <ListSkeleton />
     );
   }
 

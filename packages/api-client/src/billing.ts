@@ -33,10 +33,21 @@ export interface ListInvoicesResponse {
     invoices: Invoice[];
     nextCursor: string | null;
     summary: {
+        /** Currency of the flat totals below (the family's main one); null with no invoices. */
+        currency?: string | null;
         totalBilled: number;
         totalPaid: number;
         totalOutstanding: number;
+        /** One entry per currency — amounts in different currencies are never summed. */
+        byCurrency?: InvoiceCurrencyTotals[];
     };
+}
+
+export interface InvoiceCurrencyTotals {
+    currency: string;
+    totalBilled: number;
+    totalPaid: number;
+    totalOutstanding: number;
 }
 
 export async function getPatientInvoices(params?: {

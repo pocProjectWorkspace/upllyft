@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { searchPosts, getTrendingSearches, type SearchResult, type SearchFilters } from '@/lib/api/search';
 
+import { ListSkeleton } from '@/components/skeletons';
 const CATEGORIES = [
   'All', 'Autism Spectrum', 'ADHD', 'Speech & Language',
   'Occupational Therapy', 'Sensory Processing', 'Behavioral',
@@ -124,9 +125,7 @@ function SearchContent() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <ListSkeleton />
     );
   }
 
@@ -380,9 +379,7 @@ export default function SearchPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <ListSkeleton />
       }
     >
       <SearchContent />

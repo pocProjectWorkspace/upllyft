@@ -12,6 +12,7 @@ import {
 import { UploadCredentialModal } from './upload-credential-modal';
 import { Loader2, Plus, FileText, Download, Trash2, ShieldAlert, ShieldCheck, FileKey, ExternalLink } from 'lucide-react';
 
+import { RowsSkeleton } from '@/components/skeletons';
 interface CredentialsTabProps {
     therapistId: string;
 }
@@ -71,9 +72,7 @@ export function CredentialsTab({ therapistId }: CredentialsTabProps) {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-48">
-                <Loader2 className="h-8 w-8 text-teal-600 animate-spin" />
-            </div>
+            <RowsSkeleton rows={3} />
         );
     }
 

@@ -8,6 +8,7 @@ import {
   type OnboardingSettings,
 } from '@/lib/api/organizations';
 
+import { FormSkeleton } from '@/components/skeletons';
 export default function OnboardingSettingsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -49,9 +50,7 @@ export default function OnboardingSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <FormSkeleton bare />
     );
   }
 

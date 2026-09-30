@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMyOrganizations, type MyOrgMembership } from '@/lib/api/organizations';
 import { Loader2, Building2, ArrowRight } from 'lucide-react';
+import { SignOutButton } from '@/components/sign-out-button';
 
 /**
  * The "My Organisation" resolver.
@@ -79,7 +80,10 @@ export default function OrgResolverPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-lg mx-auto">
-        <h1 className="text-2xl font-semibold text-gray-900">Your organisations</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-gray-900">Your organisations</h1>
+          <SignOutButton variant="compact" />
+        </div>
         <p className="text-sm text-gray-600 mt-1.5 mb-6">Choose one to open its workspace.</p>
         <div className="space-y-2">
           {orgs.map((m) => (
@@ -111,6 +115,12 @@ export default function OrgResolverPage() {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">{children}</div>
+    <div className="relative min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      {/* /org hides the shared header, so this is the only way out of the error/empty states. */}
+      <div className="absolute top-4 right-4">
+        <SignOutButton variant="compact" />
+      </div>
+      {children}
+    </div>
   );
 }

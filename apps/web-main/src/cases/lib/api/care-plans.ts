@@ -78,6 +78,8 @@ export interface CreateCarePlanInput {
   sessionCount: number;
   packageName?: string;
   unitPrice?: number;
+  /** ISO code of unitPrice. */
+  currency?: string;
   paymentStatus?: CarePlanPaymentStatus;
   reviewInWeeks?: number;
   externalReferralTarget?: string;

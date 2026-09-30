@@ -1,6 +1,5 @@
 'use client';
 
-import { useAuth } from '@upllyft/api-client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -13,6 +12,7 @@ import {
   CreditCard,
   Settings,
 } from 'lucide-react';
+import { useClinicAccess } from '@/clinic/lib/use-clinic-access';
 
 interface NavItem {
   label: string;
@@ -70,9 +70,9 @@ const allNavItems: NavItem[] = [
 ];
 
 export function AdminSidebar() {
-  const { user } = useAuth();
   const pathname = usePathname();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+  // Platform admins, and therapists who own their practice.
+  const { canManageClinic: isAdmin } = useClinicAccess();
 
   const visibleItems = allNavItems.filter(
     (item) => !item.adminOnly || isAdmin,

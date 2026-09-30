@@ -41,6 +41,7 @@ import {
   Legend,
 } from 'recharts';
 
+import { DetailSkeleton, RowsSkeleton } from '@/components/skeletons';
 function calculateAge(dob: string): string {
   const birth = new Date(dob);
   const now = new Date();
@@ -150,9 +151,7 @@ export default function PatientDetailPage() {
   if (loading) {
     return (
       <AdminShell>
-        <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <DetailSkeleton bare />
       </AdminShell>
     );
   }
@@ -327,9 +326,7 @@ export default function PatientDetailPage() {
 function OutcomesTab({ data }: { data: PatientOutcomeDetail | null }) {
   if (!data) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <RowsSkeleton rows={3} />
     );
   }
 

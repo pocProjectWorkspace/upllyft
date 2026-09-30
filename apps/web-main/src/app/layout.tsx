@@ -40,9 +40,13 @@ export default async function RootLayout({
   const token = (await cookies()).get("upllyft_access_token")?.value ?? null;
   const serverUser = token ? fetchServerUser(token) : null;
 
+  // suppressHydrationWarning on <html>/<body> only (not their children): browser
+  // extensions such as QuillBot or Grammarly stamp attributes like data-qb-installed
+  // onto these two tags before React loads, which otherwise raises a hydration
+  // mismatch in dev. Real mismatches deeper in the tree are still reported.
   return (
-    <html lang="en">
-      <body className="antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <body className="antialiased" suppressHydrationWarning>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

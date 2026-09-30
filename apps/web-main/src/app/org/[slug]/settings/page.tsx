@@ -6,6 +6,7 @@ import { useToast } from '@upllyft/ui';
 import { getOrganization, updateOrgSettings, uploadOrgAsset } from '@/lib/api/organizations';
 import { ORG_COLOR_DEFAULTS, contrastOn } from '@/components/org/org-theme';
 
+import { FormSkeleton } from '@/components/skeletons';
 export default function OrgSettingsPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -104,9 +105,7 @@ export default function OrgSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <FormSkeleton bare />
     );
   }
 

@@ -8,7 +8,11 @@ import { useEffect } from 'react';
 import { ParentDashboard } from '@/components/dashboard/parent-dashboard';
 import { TherapistDashboard } from '@/components/dashboard/therapist-dashboard';
 import { getOnboardingStatus } from '@/lib/api/profiles';
-import { getMyOrganizations } from '@/lib/api/organizations';
+import {
+  getMyOrganizations,
+  myOrganizationsKey,
+  primaryOrganization,
+} from '@/lib/api/organizations';
 
 export default function DashboardPage() {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -56,20 +60,23 @@ export default function DashboardPage() {
   }, [isLoading, isAuthenticated, user, onboardingChecked]);
 
   // Org admins (role ORGANIZATION) land on their org Hub, not the parent dashboard.
-  useEffect(() => {
-    if (!isLoading && isAuthenticated && user && user.role === 'ORGANIZATION') {
-      getMyOrganizations()
-        .then((orgs) => {
-          const primary = orgs.find((o) => o.role === 'ADMIN') ?? orgs[0];
-          if (primary) router.replace(`/org/${primary.organization.slug}/hub`);
-        })
-        .catch(() => {
-          /* no org membership resolved — fall through to the default dashboard */
-        });
-    }
-  }, [isLoading, isAuthenticated, user, router]);
+  // Same cache key as OrgProtect, so the workspace opens without a second lookup.
+  const isOrgAccount = user?.role === 'ORGANIZATION';
+  const { data: myOrgs, isPending: orgsPending } = useQuery({
+    queryKey: myOrganizationsKey(user?.id),
+    queryFn: getMyOrganizations,
+    enabled: !isLoading && isAuthenticated && isOrgAccount,
+  });
+  const orgHome = primaryOrganization(myOrgs);
 
-  if (isLoading || !user) {
+  useEffect(() => {
+    if (orgHome) router.replace(`/org/${orgHome.organization.slug}/hub`);
+  }, [orgHome, router]);
+
+  // Keep the skeleton up while an org account is being routed, instead of painting
+  // the parent dashboard for two round trips and then jumping away from it. If the
+  // lookup fails or they have no org, fall through to the default dashboard.
+  if (isLoading || !user || (isOrgAccount && (orgsPending || orgHome))) {
     return <PageSkeleton />;
   }
 

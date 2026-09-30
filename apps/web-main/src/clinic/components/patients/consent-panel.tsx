@@ -9,6 +9,7 @@ import {
 } from '@/clinic/lib/api/consent';
 import { FileText, Send, X, AlertCircle } from 'lucide-react';
 
+import { LinesSkeleton } from '@/components/skeletons';
 interface ConsentPanelProps {
   patientId: string; // parent's User.id
   childName: string;
@@ -118,9 +119,7 @@ export function ConsentPanel({
             Consent Form
           </h3>
         </div>
-        <div className="flex items-center justify-center py-6">
-          <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <LinesSkeleton rows={2} />
       </div>
     );
   }

@@ -26,6 +26,7 @@ import {
   CalendarDays,
 } from 'lucide-react';
 
+import { RowsSkeleton } from '@/components/skeletons';
 const CREDENTIAL_OPTIONS: { value: CredentialStatus; label: string }[] = [
   { value: 'VERIFIED', label: 'Verified' },
   { value: 'PENDING', label: 'Pending' },
@@ -274,9 +275,7 @@ export default function TherapistsPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <RowsSkeleton rows={6} />
         ) : therapists.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
             <div className="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
