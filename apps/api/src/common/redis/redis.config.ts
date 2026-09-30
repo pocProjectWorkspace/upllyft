@@ -26,3 +26,42 @@ export function resolveRedisUrl(config: ConfigService): string | null {
   const auth = password ? `:${encodeURIComponent(password)}@` : '';
   return `redis://${auth}${host}:${port}`;
 }
+
+/** How long boot waits for Redis before falling back to in-process mode. */
+export const REDIS_CONNECT_TIMEOUT_MS = 5_000;
+
+interface ConnectableClient {
+  connect(): Promise<unknown>;
+  disconnect(): Promise<unknown>;
+}
+
+/**
+ * `client.connect()` with a deadline. node-redis retries a refused connection
+ * forever, so a plain `await connect()` never rejects when Redis is down — and
+ * both callers await it during boot. That hung the API before it listened:
+ * production had REDIS_HOST=localhost with no Redis in the container, the
+ * health check timed out, and every Railway deploy after 26 Sept rolled back.
+ *
+ * On timeout (or error) the client is disconnected, which also stops its retry
+ * loop, and the error is rethrown so the caller's in-process fallback runs.
+ */
+export async function connectWithTimeout(
+  client: ConnectableClient,
+  timeoutMs = REDIS_CONNECT_TIMEOUT_MS,
+): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`no connection within ${timeoutMs} ms`)),
+      timeoutMs,
+    );
+  });
+  try {
+    await Promise.race([client.connect(), deadline]);
+  } catch (err) {
+    await client.disconnect().catch(() => undefined);
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}

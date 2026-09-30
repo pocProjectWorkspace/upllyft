@@ -3,6 +3,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import type { ServerOptions } from 'socket.io';
+import { connectWithTimeout } from './redis.config';
 
 /**
  * Socket.IO adapter backed by Redis pub/sub (PERFORMANCE_AUDIT.md #30).
@@ -31,7 +32,16 @@ export class RedisIoAdapter extends IoAdapter {
     pubClient.on('error', (err) => this.logger.error(`Redis pub client: ${err.message}`));
     subClient.on('error', (err) => this.logger.error(`Redis sub client: ${err.message}`));
 
-    await Promise.all([pubClient.connect(), subClient.connect()]);
+    try {
+      await Promise.all([connectWithTimeout(pubClient), connectWithTimeout(subClient)]);
+    } catch (err) {
+      // One may have connected before the other failed: release both.
+      await Promise.all([
+        pubClient.disconnect().catch(() => undefined),
+        subClient.disconnect().catch(() => undefined),
+      ]);
+      throw err;
+    }
     this.adapterConstructor = createAdapter(pubClient, subClient);
     this.logger.log('Socket.IO Redis adapter connected');
   }

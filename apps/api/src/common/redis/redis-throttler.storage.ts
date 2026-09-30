@@ -2,6 +2,7 @@ import { Logger, OnApplicationShutdown } from '@nestjs/common';
 import { ThrottlerStorage } from '@nestjs/throttler';
 import { ThrottlerStorageRecord } from '@nestjs/throttler/dist/throttler-storage-record.interface';
 import { createClient, RedisClientType } from 'redis';
+import { connectWithTimeout } from './redis.config';
 
 /**
  * Redis-backed storage for @nestjs/throttler so rate limits are shared across
@@ -37,7 +38,7 @@ export class RedisThrottlerStorage implements ThrottlerStorage, OnApplicationShu
   }
 
   async connect(): Promise<void> {
-    await this.client.connect();
+    await connectWithTimeout(this.client);
     this.ready = true;
     this.logger.log('Throttler storage connected to Redis');
   }
