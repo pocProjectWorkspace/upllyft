@@ -61,6 +61,16 @@ const PLATFORM_AUDIENCES: { value: Audience; label: string; hint: string }[] = [
   { value: 'ORGS', label: 'Selected organisations', hint: 'Only the organisations you pick' },
 ];
 
+function orgShareAudiences(orgName?: string): { value: AudienceChoice; label: string; hint: string }[] {
+  const name = orgName ?? 'this organisation';
+  return [
+    { value: 'OWN', label: `Only ${name}`, hint: 'Its members and the families linked to it' },
+    { value: 'ORGS', label: `${name} and selected organisations`, hint: 'Pick the organisations to share it with' },
+    { value: 'ALL_ORGS', label: 'All organisations', hint: 'Anyone in an organisation, incl. its clinic and nursery families' },
+    { value: 'EVERYONE', label: 'Everyone on Upllyft', hint: 'Every signed-in user' },
+  ];
+}
+
 function segmentOptions(everyoneLabel: string): { value: AudienceSegment; label: string }[] {
   return [
     { value: 'ALL', label: everyoneLabel },
@@ -74,18 +84,27 @@ function formatSize(bytes: number) {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
+/** An org resource still aimed at its own organisation only (not shared wider by Upllyft). */
+function isOwnOrgOnly(r: LibraryResource) {
+  return r.scope === 'ORGANIZATION' && r.audience === 'ORGS' && (r.audienceOrgs?.length ?? 0) <= 1;
+}
+
 /** "Everyone · families", "Sunrise, Little Steps +2 · staff" … */
 function audienceSummary(r: LibraryResource) {
+  if (isOwnOrgOnly(r)) {
+    if (r.audienceSegment === 'FAMILIES') return 'Families only';
+    if (r.audienceSegment === 'STAFF') return 'Staff only';
+    return 'Everyone in the organisation';
+  }
   let who: string;
   if (r.audience === 'EVERYONE') who = 'Everyone';
   else if (r.audience === 'ALL_ORGS') who = 'All organisations';
-  else if (r.scope === 'ORGANIZATION') who = 'Everyone in the organisation';
   else {
     const names = (r.audienceOrgs ?? []).map((o) => o.name);
     who = names.length > 2 ? `${names.slice(0, 2).join(', ')} +${names.length - 2}` : names.join(', ');
   }
-  if (r.audienceSegment === 'FAMILIES') return r.scope === 'ORGANIZATION' ? 'Families only' : `${who} · families`;
-  if (r.audienceSegment === 'STAFF') return r.scope === 'ORGANIZATION' ? 'Staff only' : `${who} · staff`;
+  if (r.audienceSegment === 'FAMILIES') return `${who} · families`;
+  if (r.audienceSegment === 'STAFF') return `${who} · staff`;
   return who;
 }
 
@@ -106,6 +125,8 @@ interface ResourceManagerProps {
    * platform admins and the org's own admins, so plain members get a read-only list.
    */
   canUpload?: boolean;
+  /** Platform admins may share an org resource beyond its organisation. */
+  canShareWidely?: boolean;
 }
 
 /**
@@ -121,6 +142,7 @@ export function ResourceManager({
   organizationName,
   audienceNote,
   canUpload = true,
+  canShareWidely = false,
 }: ResourceManagerProps) {
   const queryClient = useQueryClient();
   // null = closed, 'new' = upload form, a resource = editing it.
@@ -161,6 +183,7 @@ export function ResourceManager({
           organizationId={organizationId}
           organizationName={organizationName}
           editing={form === 'new' ? null : form}
+          canShareWidely={canShareWidely}
           onDone={() => setForm(null)}
         />
       )}
@@ -191,10 +214,22 @@ interface ResourceFormProps {
   organizationId?: string;
   organizationName?: string;
   editing: LibraryResource | null;
+  /** Org resources only: show the platform-admin sharing options. */
+  canShareWidely?: boolean;
   onDone: () => void;
 }
 
-function ResourceForm({ scope, organizationId, organizationName, editing, onDone }: ResourceFormProps) {
+/** 'OWN' = an org resource kept to its own organisation (sent as ORGS + no extra orgs). */
+type AudienceChoice = Audience | 'OWN';
+
+function ResourceForm({
+  scope,
+  organizationId,
+  organizationName,
+  editing,
+  canShareWidely = false,
+  onDone,
+}: ResourceFormProps) {
   const queryClient = useQueryClient();
 
   const [title, setTitle] = useState(editing?.title ?? '');
@@ -202,12 +237,17 @@ function ResourceForm({ scope, organizationId, organizationName, editing, onDone
   const [resourceType, setResourceType] = useState(editing?.resourceType ?? 'GUIDE');
   const [tags, setTags] = useState(editing?.tags.join(', ') ?? '');
   const [file, setFile] = useState<File | null>(null);
-  const [audience, setAudience] = useState<Audience>(
-    editing?.audience ?? (scope === 'ORGANIZATION' ? 'ORGS' : 'EVERYONE'),
-  );
+  // The owning organisation of an org resource is always in its audience, so the
+  // picker only holds the organisations it is shared with in addition.
+  const owningOrgId = scope === 'ORGANIZATION' ? (editing?.organization?.id ?? organizationId) : undefined;
   const [targetOrgIds, setTargetOrgIds] = useState<string[]>(
-    editing && scope === 'PLATFORM' ? (editing.audienceOrgs ?? []).map((o) => o.id) : [],
+    (editing?.audienceOrgs ?? []).map((o) => o.id).filter((id) => id !== owningOrgId),
   );
+  const [audience, setAudience] = useState<AudienceChoice>(() => {
+    if (scope === 'PLATFORM') return editing?.audience ?? 'EVERYONE';
+    if (!editing || isOwnOrgOnly(editing)) return 'OWN';
+    return editing.audience;
+  });
   const [segment, setSegment] = useState<AudienceSegment>(editing?.audienceSegment ?? 'ALL');
   const [downloadable, setDownloadable] = useState(editing?.downloadable ?? true);
   const [error, setError] = useState<string | null>(null);
@@ -219,11 +259,19 @@ function ResourceForm({ scope, organizationId, organizationName, editing, onDone
 
   const save = useMutation({
     mutationFn: async () => {
+      const sharing =
+        scope === 'PLATFORM' || canShareWidely
+          ? {
+              audience: audience === 'OWN' ? 'ORGS' : audience,
+              ...(audience === 'ORGS' || audience === 'OWN'
+                ? { organizationIds: audience === 'ORGS' ? targetOrgIds : [] }
+                : {}),
+            }
+          : {}; // org admins never send an audience — the API keeps the current one
       const audienceFields = {
         audienceSegment: segment,
-        ...(scope === 'PLATFORM'
-          ? { audience, ...(audience === 'ORGS' ? { organizationIds: targetOrgIds } : {}) }
-          : { downloadable: effectiveDownloadable }),
+        ...sharing,
+        ...(scope === 'ORGANIZATION' ? { downloadable: effectiveDownloadable } : {}),
       };
 
       if (editing) {
@@ -263,7 +311,7 @@ function ResourceForm({ scope, organizationId, organizationName, editing, onDone
   const canSubmit =
     (editing || !!file) &&
     !!title.trim() &&
-    !(scope === 'PLATFORM' && audience === 'ORGS' && targetOrgIds.length === 0) &&
+    !(audience === 'ORGS' && targetOrgIds.length === 0) &&
     !save.isPending;
 
   const inputClass =
@@ -337,15 +385,49 @@ function ResourceForm({ scope, organizationId, organizationName, editing, onDone
             {audience === 'ORGS' && <OrganizationPicker value={targetOrgIds} onChange={setTargetOrgIds} />}
           </div>
         )}
+        {scope === 'ORGANIZATION' && canShareWidely && (
+          <div className="space-y-2">
+            {orgShareAudiences(organizationName).map((a) => (
+              <label key={a.value} className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="audience"
+                  checked={audience === a.value}
+                  onChange={() => setAudience(a.value)}
+                  className="mt-0.5 accent-teal-600"
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-gray-800">{a.label}</span>
+                  <span className="block text-xs text-gray-500">{a.hint}</span>
+                </span>
+              </label>
+            ))}
+            {audience === 'ORGS' && (
+              <OrganizationPicker
+                value={targetOrgIds}
+                onChange={setTargetOrgIds}
+                excludeIds={owningOrgId ? [owningOrgId] : []}
+              />
+            )}
+          </div>
+        )}
+        {scope === 'ORGANIZATION' && !canShareWidely && editing && !isOwnOrgOnly(editing) && (
+          <p className="text-xs text-teal-800 bg-teal-50 rounded-lg px-3 py-2">
+            Upllyft has shared this beyond your organisation ({audienceSummary(editing)}). Only Upllyft
+            admins can change who it&apos;s shared with.
+          </p>
+        )}
         <div>
           <p className="text-xs font-medium text-gray-600 mb-1.5">
-            {scope === 'PLATFORM' ? 'Narrow to' : 'Show to'}
+            {scope === 'PLATFORM' || audience !== 'OWN' ? 'Narrow to' : 'Show to'}
           </p>
           <ChipGroup
             value={segment}
             onChange={(v) => setSegment(v as AudienceSegment)}
             options={segmentOptions(
-              scope === 'PLATFORM' ? 'Everyone' : `Everyone in ${organizationName ?? 'the organisation'}`,
+              scope === 'PLATFORM' || audience !== 'OWN'
+                ? 'Everyone'
+                : `Everyone in ${organizationName ?? 'the organisation'}`,
             )}
           />
         </div>
@@ -427,16 +509,26 @@ function ChipGroup({
 }
 
 /** Searchable multi-select of every organisation, for platform admins. */
-function OrganizationPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
+function OrganizationPicker({
+  value,
+  onChange,
+  excludeIds = [],
+}: {
+  value: string[];
+  onChange: (ids: string[]) => void;
+  /** e.g. the owning organisation, which is always included anyway. */
+  excludeIds?: string[];
+}) {
   const [search, setSearch] = useState('');
   const { data, isLoading } = useQuery({ queryKey: ['admin', 'organizations'], queryFn: getOrganizations });
 
   const shown = useMemo(
     () =>
       (data ?? [])
+        .filter((o) => !excludeIds.includes(o.id))
         .filter((o) => !search || o.name.toLowerCase().includes(search.toLowerCase()))
         .sort((a, b) => a.name.localeCompare(b.name)),
-    [data, search],
+    [data, search, excludeIds],
   );
   const toggle = (id: string) => onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
 
@@ -502,6 +594,7 @@ interface ResourceListProps {
   onRetry?: () => void;
   emptyText: string;
   onEdit?: (r: LibraryResource) => void;
+  editLabel?: string;
   /** Omit for a read-only list. */
   onDelete?: (id: string) => void;
   /** Org resources only: flip between downloadable and view-only. */
@@ -518,6 +611,7 @@ function ResourceList({
   onRetry,
   emptyText,
   onEdit,
+  editLabel = 'Edit',
   onDelete,
   onToggleDownload,
   showOrganization,
@@ -603,7 +697,7 @@ function ResourceList({
                 onClick={() => onEdit(r)}
                 className="text-sm font-medium text-gray-500 hover:text-gray-800 whitespace-nowrap"
               >
-                Edit
+                {editLabel}
               </button>
             )}
             {onDelete && (
@@ -671,11 +765,12 @@ export function LoadError({ isRetrying, onRetry }: { isRetrying?: boolean; onRet
 /**
  * Platform-admin oversight of every organisation's shelf. Admins rarely hold a
  * membership of the orgs they look after, so the org workspace would bounce them;
- * this lists org resources from the admin console and lets them switch view-only on
- * or off, or remove them.
+ * this lists org resources from the admin console and lets them share one beyond its
+ * organisation, switch view-only on or off, or remove it.
  */
 export function OrganizationResourcesOverview() {
   const [organizationId, setOrganizationId] = useState('');
+  const [editing, setEditing] = useState<LibraryResource | null>(null);
   const remove = useRemoveResource();
   const toggleDownload = useToggleDownload();
 
@@ -695,8 +790,9 @@ export function OrganizationResourcesOverview() {
     return [...byId].sort((a, b) => a[1].localeCompare(b[1]));
   }, [data]);
 
+  // Stays undefined while there is no data, so a failed load shows Retry, not "no resources".
   const resources = useMemo(
-    () => (data ?? []).filter((r) => !organizationId || r.organization?.id === organizationId),
+    () => data?.filter((r) => !organizationId || r.organization?.id === organizationId),
     [data, organizationId],
   );
 
@@ -704,7 +800,8 @@ export function OrganizationResourcesOverview() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-sm text-gray-500">
-          Uploaded by organisation admins. Each is visible only within its organisation.
+          Uploaded by organisation admins and visible within their organisation, unless you share one more
+          widely with Edit &amp; share.
         </p>
         {organizations.length > 1 && (
           <select
@@ -721,6 +818,17 @@ export function OrganizationResourcesOverview() {
           </select>
         )}
       </div>
+      {editing && (
+        <ResourceForm
+          key={editing.id}
+          scope="ORGANIZATION"
+          organizationId={editing.organization?.id}
+          organizationName={editing.organization?.name}
+          editing={editing}
+          canShareWidely
+          onDone={() => setEditing(null)}
+        />
+      )}
       <ResourceList
         resources={resources}
         isLoading={isLoading}
@@ -728,6 +836,8 @@ export function OrganizationResourcesOverview() {
         isRetrying={isFetching}
         onRetry={() => refetch()}
         emptyText="No organisation has uploaded resources yet."
+        onEdit={(r) => setEditing(r)}
+        editLabel="Edit & share"
         onDelete={(id) => remove.mutate(id)}
         onToggleDownload={(r) => toggleDownload.mutate({ id: r.id, downloadable: !r.downloadable })}
         showOrganization

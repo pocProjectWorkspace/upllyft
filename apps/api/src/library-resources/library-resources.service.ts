@@ -76,7 +76,8 @@ interface AudienceInput {
  * organization), or ORGS (the targeted organizations), optionally narrowed to FAMILIES or
  * STAFF. A user is ATTACHED to an organization by an ACTIVE membership, or — for
  * families — by a child with an ACTIVE affiliation to one of its facilities. Org admins
- * can only ever target their own organization.
+ * publish to their own organization; only platform admins can share an org resource
+ * more widely (the owning organization always keeps access).
  *
  * FILES are served by short-lived signed URLs, never the bucket's public URL, so being
  * out of the audience means not being able to open the file either (once the bucket is
@@ -187,6 +188,7 @@ export class LibraryResourcesService {
 
     // Validate the audience BEFORE the upload, so a bad request never leaves an orphan file.
     const audience = await this.resolveAudience(
+      actor,
       { scope, organizationId, mimeType: file.mimetype },
       body,
     );
@@ -276,13 +278,18 @@ export class LibraryResourcesService {
       body.downloadable !== undefined;
 
     if (touchesAudience) {
+      const currentOrgIds = existing.audienceOrgs.map((o) => o.organizationId);
       // Unspecified fields keep their current value.
-      const audience = await this.resolveAudience(existing, {
-        audience: body.audience ?? existing.audience,
-        organizationIds: body.organizationIds ?? existing.audienceOrgs.map((o) => o.organizationId),
-        audienceSegment: body.audienceSegment ?? existing.audienceSegment,
-        downloadable: body.downloadable ?? existing.downloadable,
-      });
+      const audience = await this.resolveAudience(
+        actor,
+        { ...existing, current: { audience: existing.audience as Audience, organizationIds: currentOrgIds } },
+        {
+          audience: body.audience ?? existing.audience,
+          organizationIds: body.organizationIds ?? currentOrgIds,
+          audienceSegment: body.audienceSegment ?? existing.audienceSegment,
+          downloadable: body.downloadable ?? existing.downloadable,
+        },
+      );
       data.audience = audience.audience;
       data.audienceSegment = audience.audienceSegment;
       data.downloadable = audience.downloadable;
@@ -382,11 +389,22 @@ export class LibraryResourcesService {
 
   /**
    * Validates an audience for a resource owned by `owner` and normalises it.
-   * Org-owned: always its own organization; only the segment and download flag are
-   * choosable. Platform-owned: any audience; always downloadable.
+   *
+   * Platform-owned: any audience; always downloadable.
+   * Org-owned: the org's admins choose only the segment and the download flag — the
+   * audience stays what it is (its own organization when new), so an org admin's edit
+   * never undoes a wider share. Platform admins may widen it to ALL_ORGS, EVERYONE or
+   * selected organizations; the owning organization is always kept in an ORGS list.
    */
   private async resolveAudience(
-    owner: { scope: LibraryResourceScope; organizationId: string | null; mimeType: string },
+    actor: Actor,
+    owner: {
+      scope: LibraryResourceScope;
+      organizationId: string | null;
+      mimeType: string;
+      /** Set when editing; absent on create. */
+      current?: { audience: Audience; organizationIds: string[] };
+    },
     input: AudienceInput,
   ): Promise<{
     audience: Audience;
@@ -406,22 +424,45 @@ export class LibraryResourcesService {
           'Only PDF, image and video files can be view-only. Convert the file to PDF first.',
         );
       }
+      if (!this.isPlatformAdmin(actor)) {
+        return {
+          ...(owner.current ?? { audience: 'ORGS' as const, organizationIds: [owner.organizationId!] }),
+          audienceSegment,
+          downloadable,
+        };
+      }
       return {
-        audience: 'ORGS',
+        ...(await this.parseAudience(input, owner.organizationId!)),
         audienceSegment,
-        organizationIds: [owner.organizationId!],
         downloadable,
       };
     }
 
-    const audience = (input.audience ?? 'EVERYONE').toUpperCase() as Audience;
+    return {
+      ...(await this.parseAudience(input, null)),
+      audienceSegment,
+      downloadable: true,
+    };
+  }
+
+  /**
+   * A platform admin's audience choice. `owningOrgId` (org-owned resources) defaults the
+   * audience to that org and is always kept in an ORGS list.
+   */
+  private async parseAudience(
+    input: AudienceInput,
+    owningOrgId: string | null,
+  ): Promise<{ audience: Audience; organizationIds: string[] }> {
+    const audience = (input.audience ?? (owningOrgId ? 'ORGS' : 'EVERYONE')).toUpperCase() as Audience;
     if (!AUDIENCES.includes(audience)) {
       throw new BadRequestException(`audience must be one of ${AUDIENCES.join(', ')}.`);
     }
 
     let organizationIds: string[] = [];
     if (audience === 'ORGS') {
-      organizationIds = [...new Set(this.parseList(input.organizationIds))];
+      organizationIds = [
+        ...new Set([...(owningOrgId ? [owningOrgId] : []), ...this.parseList(input.organizationIds)]),
+      ];
       if (!organizationIds.length) {
         throw new BadRequestException('Choose at least one organization.');
       }
@@ -434,7 +475,7 @@ export class LibraryResourcesService {
       }
     }
 
-    return { audience, audienceSegment, organizationIds, downloadable: true };
+    return { audience, organizationIds };
   }
 
   // ─── response shaping ───────────────────────────────────────────────────────
