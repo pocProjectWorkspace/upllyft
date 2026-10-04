@@ -80,7 +80,7 @@ export class AdminService {
   }
 
   async getDashboardStats() {
-    // All eight counts are independent; run them in one round-trip tier.
+    // All counts are independent; run them in one round-trip tier.
     const [
       totalUsers,
       totalPosts,
@@ -90,6 +90,8 @@ export class AdminService {
       activeUsers,
       pendingVerifications,
       flaggedContent,
+      facilitiesByType,
+      totalLibraryResources,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.post.count(),
@@ -113,11 +115,17 @@ export class AdminService {
       this.prisma.post.count({
         where: { moderationStatus: ModerationStatus.FLAGGED },
       }),
+      // Facility (not the legacy Clinic table) is the canonical list of clinics,
+      // nurseries and schools.
+      this.prisma.facility.groupBy({ by: ['type'], _count: { _all: true } }),
+      this.prisma.libraryResource.count(),
     ]);
+
+    const facilities = { CLINIC: 0, NURSERY: 0, SCHOOL: 0 };
+    for (const row of facilitiesByType) facilities[row.type] = row._count._all;
 
     // AI usage - count from AI-related tables if they exist
     const aiUsage = Math.floor(Math.random() * 1000); // Mock for now
-    const storageUsed = 45; // Mock percentage
 
     return {
       totalUsers,
@@ -129,7 +137,9 @@ export class AdminService {
       pendingVerifications,
       flaggedContent,
       aiUsage,
-      storageUsed,
+      facilities,
+      totalFacilities: facilities.CLINIC + facilities.NURSERY + facilities.SCHOOL,
+      totalLibraryResources,
     };
   }
 

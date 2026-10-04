@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { createClient } from '@supabase/supabase-js';
 import { LibraryResourceScope, Prisma } from '@prisma/client';
@@ -24,6 +25,14 @@ export const RESOURCE_TYPES = [
   'OTHER',
 ] as const;
 
+/** Who sees a resource. ORGS = the organizations in `audienceOrgs`. */
+export const AUDIENCES = ['EVERYONE', 'ALL_ORGS', 'ORGS'] as const;
+/** Narrows the audience by account type. FAMILIES = role USER, STAFF = any other role. */
+export const AUDIENCE_SEGMENTS = ['ALL', 'FAMILIES', 'STAFF'] as const;
+
+type Audience = (typeof AUDIENCES)[number];
+type AudienceSegment = (typeof AUDIENCE_SEGMENTS)[number];
+
 const ALLOWED_MIME = [
   'application/pdf',
   'image/jpeg',
@@ -34,17 +43,45 @@ const ALLOWED_MIME = [
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'video/mp4',
 ];
+/** Types the browser can show inline — the only ones that can be view-only. */
+const VIEWABLE_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'video/mp4'];
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const MAX_TARGET_ORGS = 100;
 const BUCKET = 'library-resources';
+/** Signed links outlive the client's 30-minute query cache. */
+const SIGNED_URL_TTL_SECONDS = 60 * 60;
+
+const RESOURCE_INCLUDE = {
+  organization: { select: { id: true, name: true } },
+  uploadedBy: { select: { id: true, name: true } },
+  audienceOrgs: { select: { organization: { select: { id: true, name: true } } } },
+} satisfies Prisma.LibraryResourceInclude;
+
+type ResourceRow = Prisma.LibraryResourceGetPayload<{ include: typeof RESOURCE_INCLUDE }>;
+
+interface AudienceInput {
+  audience?: string;
+  organizationIds?: string | string[];
+  audienceSegment?: string;
+  downloadable?: string | boolean;
+}
 
 /**
  * Admin/org-uploaded library resources.
  *
- * VISIBILITY: PLATFORM resources are for everyone; ORGANIZATION resources only for that
- * org's members (any ACTIVE membership — the whole point is that org families see their
- * org's material). WRITE: platform scope needs ADMIN/SUPERADMIN; org scope needs an
- * ACTIVE org-ADMIN membership of that org. The bucket is public — these are published
- * materials by definition, never PHI.
+ * OWNERSHIP (`scope`): PLATFORM resources are managed by platform admins; ORGANIZATION
+ * resources by that org's admins (and platform admins).
+ *
+ * VISIBILITY (`audience` × `audienceSegment`): EVERYONE, ALL_ORGS (anyone attached to an
+ * organization), or ORGS (the targeted organizations), optionally narrowed to FAMILIES or
+ * STAFF. A user is ATTACHED to an organization by an ACTIVE membership, or — for
+ * families — by a child with an ACTIVE affiliation to one of its facilities. Org admins
+ * can only ever target their own organization.
+ *
+ * FILES are served by short-lived signed URLs, never the bucket's public URL, so being
+ * out of the audience means not being able to open the file either (once the bucket is
+ * private — see scripts/make-library-bucket-private.mjs). `downloadable: false` (org
+ * resources only) withholds the download link; it is a deterrent, not DRM.
  */
 @Injectable()
 export class LibraryResourcesService {
@@ -54,27 +91,39 @@ export class LibraryResourcesService {
 
   async list(
     actor: Actor,
-    query: { resourceType?: string; tag?: string; search?: string; organizationId?: string },
+    query: {
+      resourceType?: string;
+      tag?: string;
+      search?: string;
+      organizationId?: string;
+      scope?: string;
+    },
   ) {
-    const memberships = await this.prisma.organizationMember.findMany({
-      where: { userId: actor.id, status: 'ACTIVE' },
-      select: { organizationId: true },
-    });
-    const orgIds = memberships.map((m) => m.organizationId);
+    const scope =
+      query.scope === 'PLATFORM' || query.scope === 'ORGANIZATION'
+        ? (query.scope as LibraryResourceScope)
+        : undefined;
+    const platformAdmin = this.isPlatformAdmin(actor);
+
+    // Management views list a shelf whole, regardless of audience; everyone else gets
+    // only what is aimed at them.
+    let base: Prisma.LibraryResourceWhereInput;
+    let manage = false;
+    if (query.organizationId) {
+      manage = platformAdmin || (await this.isOrgAdmin(actor, query.organizationId));
+      base = manage
+        ? { organizationId: query.organizationId }
+        : { AND: [{ organizationId: query.organizationId }, await this.visibleTo(actor)] };
+    } else if (scope && platformAdmin) {
+      manage = true;
+      base = { scope };
+    } else {
+      base = { AND: [await this.visibleTo(actor), ...(scope ? [{ scope }] : [])] };
+    }
 
     const where: Prisma.LibraryResourceWhereInput = {
       AND: [
-        query.organizationId
-          ? // A single org's shelf (used by the org manage page) — must be a member.
-            orgIds.includes(query.organizationId) || this.isPlatformAdmin(actor)
-            ? { organizationId: query.organizationId }
-            : { id: '__none__' }
-          : {
-              OR: [
-                { scope: 'PLATFORM' },
-                ...(orgIds.length ? [{ organizationId: { in: orgIds } }] : []),
-              ],
-            },
+        base,
         ...(query.resourceType ? [{ resourceType: query.resourceType }] : []),
         ...(query.tag ? [{ tags: { has: query.tag } }] : []),
         ...(query.search
@@ -90,16 +139,13 @@ export class LibraryResourcesService {
       ],
     };
 
-    const resources = await this.prisma.libraryResource.findMany({
+    const rows = await this.prisma.libraryResource.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: {
-        organization: { select: { id: true, name: true } },
-        uploadedBy: { select: { id: true, name: true } },
-      },
+      include: RESOURCE_INCLUDE,
     });
 
-    return { resources };
+    return { resources: await this.present(rows, manage) };
   }
 
   async create(
@@ -112,7 +158,7 @@ export class LibraryResourcesService {
       tags?: string;
       scope?: string;
       organizationId?: string;
-    },
+    } & AudienceInput,
   ) {
     if (!file) throw new BadRequestException('A file is required.');
     if (!ALLOWED_MIME.includes(file.mimetype)) {
@@ -124,13 +170,9 @@ export class LibraryResourcesService {
 
     const title = body.title?.trim();
     if (!title) throw new BadRequestException('A title is required.');
+    const resourceType = this.parseResourceType(body.resourceType);
 
-    const resourceType = body.resourceType?.toUpperCase();
-    if (!resourceType || !(RESOURCE_TYPES as readonly string[]).includes(resourceType)) {
-      throw new BadRequestException(`resourceType must be one of ${RESOURCE_TYPES.join(', ')}.`);
-    }
-
-    const scope = body.scope === 'ORGANIZATION' ? 'ORGANIZATION' : 'PLATFORM';
+    const scope: LibraryResourceScope = body.scope === 'ORGANIZATION' ? 'ORGANIZATION' : 'PLATFORM';
     let organizationId: string | null = null;
 
     if (scope === 'PLATFORM') {
@@ -143,11 +185,11 @@ export class LibraryResourcesService {
       organizationId = body.organizationId;
     }
 
-    const tags = (body.tags ?? '')
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .slice(0, 10);
+    // Validate the audience BEFORE the upload, so a bad request never leaves an orphan file.
+    const audience = await this.resolveAudience(
+      { scope, organizationId, mimeType: file.mimetype },
+      body,
+    );
 
     const supabase = this.supabase();
     const safeName = file.originalname.replace(/[^\w.\-]+/g, '_');
@@ -157,14 +199,16 @@ export class LibraryResourcesService {
       .upload(path, file.buffer, { contentType: file.mimetype, upsert: false });
     if (error && /bucket not found/i.test(error.message)) {
       // First upload in a fresh environment — the bucket is created lazily so dev and
-      // prod don't need a manual Supabase step. Public: these are published materials.
-      await supabase.storage.createBucket(BUCKET, { public: true });
+      // prod don't need a manual Supabase step. Private: files go out as signed URLs.
+      await supabase.storage.createBucket(BUCKET, { public: false });
       ({ error } = await supabase.storage
         .from(BUCKET)
         .upload(path, file.buffer, { contentType: file.mimetype, upsert: false }));
     }
     if (error) throw new BadRequestException(`Upload failed: ${error.message}`);
 
+    // Kept for older clients and for parity with legacy rows; never returned while
+    // `storagePath` is set.
     const fileUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 
     const resource = await this.prisma.libraryResource.create({
@@ -172,41 +216,278 @@ export class LibraryResourcesService {
         title,
         description: body.description?.trim() || null,
         resourceType,
-        tags,
+        tags: this.parseTags(body.tags),
         fileUrl,
+        storagePath: path,
         fileName: file.originalname,
         mimeType: file.mimetype,
         fileSize: file.size,
-        scope: scope as LibraryResourceScope,
+        scope,
         organizationId,
         uploadedById: actor.id,
+        audience: audience.audience,
+        audienceSegment: audience.audienceSegment,
+        downloadable: audience.downloadable,
+        audienceOrgs: {
+          create: audience.organizationIds.map((id) => ({ organizationId: id })),
+        },
       },
+      include: RESOURCE_INCLUDE,
     });
 
-    this.logger.log(`Library resource ${resource.id} uploaded (${scope}) by ${actor.id}`);
-    return resource;
+    this.logger.log(
+      `Library resource ${resource.id} uploaded (${scope}, ${audience.audience}/${audience.audienceSegment}) by ${actor.id}`,
+    );
+    return (await this.present([resource], true))[0];
+  }
+
+  /** Edit details and audience in place — no re-upload. Same permission as delete. */
+  async update(
+    actor: Actor,
+    id: string,
+    body: {
+      title?: string;
+      description?: string | null;
+      resourceType?: string;
+      tags?: string | string[];
+    } & AudienceInput,
+  ) {
+    const existing = await this.prisma.libraryResource.findUnique({
+      where: { id },
+      include: { audienceOrgs: { select: { organizationId: true } } },
+    });
+    if (!existing) throw new NotFoundException('Resource not found.');
+    await this.assertMayManage(actor, existing);
+
+    const data: Prisma.LibraryResourceUpdateInput = {};
+    if (body.title !== undefined) {
+      const title = body.title.trim();
+      if (!title) throw new BadRequestException('A title is required.');
+      data.title = title;
+    }
+    if (body.description !== undefined) data.description = body.description?.trim() || null;
+    if (body.resourceType !== undefined) data.resourceType = this.parseResourceType(body.resourceType);
+    if (body.tags !== undefined) data.tags = this.parseTags(body.tags);
+
+    const touchesAudience =
+      body.audience !== undefined ||
+      body.organizationIds !== undefined ||
+      body.audienceSegment !== undefined ||
+      body.downloadable !== undefined;
+
+    if (touchesAudience) {
+      // Unspecified fields keep their current value.
+      const audience = await this.resolveAudience(existing, {
+        audience: body.audience ?? existing.audience,
+        organizationIds: body.organizationIds ?? existing.audienceOrgs.map((o) => o.organizationId),
+        audienceSegment: body.audienceSegment ?? existing.audienceSegment,
+        downloadable: body.downloadable ?? existing.downloadable,
+      });
+      data.audience = audience.audience;
+      data.audienceSegment = audience.audienceSegment;
+      data.downloadable = audience.downloadable;
+      data.audienceOrgs = {
+        deleteMany: {},
+        create: audience.organizationIds.map((orgId) => ({ organizationId: orgId })),
+      };
+    }
+
+    const resource = await this.prisma.libraryResource.update({
+      where: { id },
+      data,
+      include: RESOURCE_INCLUDE,
+    });
+    return (await this.present([resource], true))[0];
   }
 
   async remove(actor: Actor, id: string) {
     const resource = await this.prisma.libraryResource.findUnique({
       where: { id },
-      select: { id: true, scope: true, organizationId: true, uploadedById: true },
+      select: { id: true, scope: true, organizationId: true, uploadedById: true, storagePath: true },
     });
     if (!resource) throw new NotFoundException('Resource not found.');
-
-    const mayDelete =
-      resource.uploadedById === actor.id ||
-      this.isPlatformAdmin(actor) ||
-      (resource.organizationId
-        ? await this.isOrgAdmin(actor, resource.organizationId)
-        : false);
-    if (!mayDelete) throw new ForbiddenException('You cannot remove this resource.');
+    await this.assertMayManage(actor, resource);
 
     await this.prisma.libraryResource.delete({ where: { id } });
+
+    // Best effort: the row is the source of truth, so a storage hiccup must not resurrect it.
+    if (resource.storagePath) {
+      try {
+        const { error } = await this.supabase().storage.from(BUCKET).remove([resource.storagePath]);
+        if (error) throw error;
+      } catch (e: any) {
+        this.logger.warn(`Library resource ${id}: file ${resource.storagePath} not removed — ${e?.message ?? e}`);
+      }
+    }
     return { deleted: true };
   }
 
-  // ─── internals ──────────────────────────────────────────────────────────────
+  // ─── visibility ─────────────────────────────────────────────────────────────
+
+  /** The resources aimed at this user: audience match AND segment match. */
+  private async visibleTo(actor: Actor): Promise<Prisma.LibraryResourceWhereInput> {
+    const orgIds = await this.attachedOrganizationIds(actor);
+    const segment: AudienceSegment = actor.role === 'USER' ? 'FAMILIES' : 'STAFF';
+
+    return {
+      AND: [
+        {
+          OR: [
+            { audience: 'EVERYONE' },
+            ...(orgIds.length
+              ? [
+                  { audience: 'ALL_ORGS' },
+                  { audience: 'ORGS', audienceOrgs: { some: { organizationId: { in: orgIds } } } },
+                ]
+              : []),
+          ],
+        },
+        { audienceSegment: { in: ['ALL', segment] } },
+      ],
+    };
+  }
+
+  /**
+   * Organizations this user belongs to: ACTIVE memberships, plus — for families who
+   * never become org members — orgs whose facility has an ACTIVE affiliation with one of
+   * their children. Reads affiliation status only, never child data.
+   */
+  private async attachedOrganizationIds(actor: Actor): Promise<string[]> {
+    const [memberships, facilities] = await Promise.all([
+      this.prisma.organizationMember.findMany({
+        where: { userId: actor.id, status: 'ACTIVE' },
+        select: { organizationId: true },
+      }),
+      this.prisma.facility.findMany({
+        where: {
+          affiliations: {
+            some: {
+              status: 'ACTIVE',
+              child: {
+                OR: [{ profile: { userId: actor.id } }, { guardians: { some: { userId: actor.id } } }],
+              },
+            },
+          },
+        },
+        select: { organizationId: true },
+      }),
+    ]);
+    return [
+      ...new Set([
+        ...memberships.map((m) => m.organizationId),
+        ...facilities.map((f) => f.organizationId),
+      ]),
+    ];
+  }
+
+  /**
+   * Validates an audience for a resource owned by `owner` and normalises it.
+   * Org-owned: always its own organization; only the segment and download flag are
+   * choosable. Platform-owned: any audience; always downloadable.
+   */
+  private async resolveAudience(
+    owner: { scope: LibraryResourceScope; organizationId: string | null; mimeType: string },
+    input: AudienceInput,
+  ): Promise<{
+    audience: Audience;
+    audienceSegment: AudienceSegment;
+    organizationIds: string[];
+    downloadable: boolean;
+  }> {
+    const audienceSegment = (input.audienceSegment ?? 'ALL').toUpperCase() as AudienceSegment;
+    if (!AUDIENCE_SEGMENTS.includes(audienceSegment)) {
+      throw new BadRequestException(`audienceSegment must be one of ${AUDIENCE_SEGMENTS.join(', ')}.`);
+    }
+
+    if (owner.scope === 'ORGANIZATION') {
+      const downloadable = this.parseBool(input.downloadable, true);
+      if (!downloadable && !VIEWABLE_MIME.includes(owner.mimeType)) {
+        throw new BadRequestException(
+          'Only PDF, image and video files can be view-only. Convert the file to PDF first.',
+        );
+      }
+      return {
+        audience: 'ORGS',
+        audienceSegment,
+        organizationIds: [owner.organizationId!],
+        downloadable,
+      };
+    }
+
+    const audience = (input.audience ?? 'EVERYONE').toUpperCase() as Audience;
+    if (!AUDIENCES.includes(audience)) {
+      throw new BadRequestException(`audience must be one of ${AUDIENCES.join(', ')}.`);
+    }
+
+    let organizationIds: string[] = [];
+    if (audience === 'ORGS') {
+      organizationIds = [...new Set(this.parseList(input.organizationIds))];
+      if (!organizationIds.length) {
+        throw new BadRequestException('Choose at least one organization.');
+      }
+      if (organizationIds.length > MAX_TARGET_ORGS) {
+        throw new BadRequestException(`At most ${MAX_TARGET_ORGS} organizations.`);
+      }
+      const found = await this.prisma.organization.count({ where: { id: { in: organizationIds } } });
+      if (found !== organizationIds.length) {
+        throw new BadRequestException('One or more organizations do not exist.');
+      }
+    }
+
+    return { audience, audienceSegment, organizationIds, downloadable: true };
+  }
+
+  // ─── response shaping ───────────────────────────────────────────────────────
+
+  /**
+   * Swaps the stored public URL for signed ones. `fileUrl` opens the file inline;
+   * `downloadUrl` (null when view-only) saves it. The targeted-organization list is a
+   * management detail and is only returned to those who manage the shelf.
+   */
+  private async present(rows: ResourceRow[], manage: boolean) {
+    const signedPaths = rows.map((r) => r.storagePath).filter((p): p is string => !!p);
+    const downloadPaths = rows
+      .filter((r) => r.storagePath && r.downloadable)
+      .map((r) => r.storagePath!);
+
+    let view = new Map<string, string>();
+    let download = new Map<string, string>();
+    if (signedPaths.length) {
+      const storage = this.supabase().storage.from(BUCKET);
+      const [viewRes, downloadRes] = await Promise.all([
+        storage.createSignedUrls(signedPaths, SIGNED_URL_TTL_SECONDS),
+        downloadPaths.length
+          ? storage.createSignedUrls(downloadPaths, SIGNED_URL_TTL_SECONDS, { download: true })
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      if (viewRes.error || downloadRes.error) {
+        this.logger.error(
+          `Signing library files failed: ${(viewRes.error ?? downloadRes.error)?.message}`,
+        );
+        throw new ServiceUnavailableException('Could not prepare the files — please try again.');
+      }
+      view = this.signedMap(viewRes.data);
+      download = this.signedMap(downloadRes.data);
+    }
+
+    return rows.map(({ audienceOrgs, storagePath, fileUrl, ...r }) => {
+      const url = storagePath ? (view.get(storagePath) ?? null) : fileUrl;
+      return {
+        ...r,
+        fileUrl: url,
+        downloadUrl: r.downloadable ? (storagePath ? (download.get(storagePath) ?? null) : fileUrl) : null,
+        ...(manage ? { audienceOrgs: audienceOrgs.map((o) => o.organization) } : {}),
+      };
+    });
+  }
+
+  private signedMap(data: { path: string | null; signedUrl: string; error: string | null }[] | null) {
+    const map = new Map<string, string>();
+    for (const d of data ?? []) if (d.path && d.signedUrl && !d.error) map.set(d.path, d.signedUrl);
+    return map;
+  }
+
+  // ─── permissions ────────────────────────────────────────────────────────────
 
   private isPlatformAdmin(actor: Actor) {
     return actor.role === 'ADMIN' || actor.role === 'SUPERADMIN';
@@ -225,6 +506,43 @@ export class LibraryResourcesService {
     if (!(await this.isOrgAdmin(actor, organizationId))) {
       throw new ForbiddenException('Only this organization’s admins can publish its resources.');
     }
+  }
+
+  /** Uploader, platform admin, or an admin of the owning organization. */
+  private async assertMayManage(
+    actor: Actor,
+    resource: { organizationId: string | null; uploadedById: string | null },
+  ) {
+    const may =
+      resource.uploadedById === actor.id ||
+      this.isPlatformAdmin(actor) ||
+      (resource.organizationId ? await this.isOrgAdmin(actor, resource.organizationId) : false);
+    if (!may) throw new ForbiddenException('You cannot change this resource.');
+  }
+
+  // ─── parsing ────────────────────────────────────────────────────────────────
+
+  private parseResourceType(value: string | undefined) {
+    const resourceType = value?.toUpperCase();
+    if (!resourceType || !(RESOURCE_TYPES as readonly string[]).includes(resourceType)) {
+      throw new BadRequestException(`resourceType must be one of ${RESOURCE_TYPES.join(', ')}.`);
+    }
+    return resourceType;
+  }
+
+  private parseTags(value: string | string[] | undefined) {
+    return this.parseList(value).slice(0, 10);
+  }
+
+  /** Multipart sends lists as comma-separated strings; JSON as arrays. */
+  private parseList(value: string | string[] | undefined): string[] {
+    const items = Array.isArray(value) ? value : (value ?? '').split(',');
+    return items.map((t) => String(t).trim()).filter(Boolean);
+  }
+
+  private parseBool(value: string | boolean | undefined, fallback: boolean) {
+    if (value === undefined || value === '') return fallback;
+    return value === true || value === 'true';
   }
 
   private supabase() {

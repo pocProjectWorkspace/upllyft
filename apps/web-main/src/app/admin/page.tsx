@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Card, StatCard, Badge, Skeleton } from '@upllyft/ui';
 import {
   useAdminStats,
@@ -9,12 +10,14 @@ import {
   useRecentActivity,
 } from '@/hooks/use-admin';
 
-function StatsIcon({ type }: { type: 'users' | 'communities' | 'active' | 'orgs' }) {
+function StatsIcon({ type }: { type: 'users' | 'communities' | 'active' | 'orgs' | 'facilities' | 'resources' }) {
   const paths: Record<string, string> = {
     users: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
     communities: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
     active: 'M13 10V3L4 14h7v7l9-11h-7z',
     orgs: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+    facilities: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+    resources: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
   };
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,9 +41,9 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Key metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {statsLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
+          Array.from({ length: 5 }).map((_, i) => (
             <Card key={i} className="p-5">
               <Skeleton className="h-10 w-10 rounded-xl" />
               <Skeleton className="h-7 w-20 mt-3" />
@@ -49,26 +52,44 @@ export default function AdminDashboardPage() {
           ))
         ) : (
           <>
-            <StatCard
-              icon={<StatsIcon type="users" />}
-              value={stats?.totalUsers?.toLocaleString() ?? '—'}
-              label="Total Users"
-            />
+            <Link href="/admin/users" className="block rounded-2xl hover:shadow-md transition-shadow">
+              <StatCard
+                icon={<StatsIcon type="users" />}
+                value={stats?.totalUsers?.toLocaleString() ?? '—'}
+                label="Total Users"
+              />
+            </Link>
             <StatCard
               icon={<StatsIcon type="active" />}
               value={engagement?.dau?.toLocaleString() ?? '—'}
               label="Daily Active Users"
             />
-            <StatCard
-              icon={<StatsIcon type="orgs" />}
-              value={stats?.totalOrganizations?.toLocaleString() ?? '—'}
-              label="Organizations"
-            />
-            <StatCard
-              icon={<StatsIcon type="communities" />}
-              value={`${stats?.storageUsed ?? 0}%`}
-              label="Storage Used"
-            />
+            <Link href="/admin/organizations" className="block rounded-2xl hover:shadow-md transition-shadow">
+              <StatCard
+                icon={<StatsIcon type="orgs" />}
+                value={stats?.totalOrganizations?.toLocaleString() ?? '—'}
+                label="Organizations"
+              />
+            </Link>
+            <Link href="/admin/clinics" className="block rounded-2xl hover:shadow-md transition-shadow">
+              <StatCard
+                icon={<StatsIcon type="facilities" />}
+                value={stats?.totalFacilities?.toLocaleString() ?? '—'}
+                label={
+                  stats
+                    ? `${stats.facilities.CLINIC} clinics · ${stats.facilities.NURSERY} nurseries` +
+                      (stats.facilities.SCHOOL ? ` · ${stats.facilities.SCHOOL} schools` : '')
+                    : 'Clinics & Nurseries'
+                }
+              />
+            </Link>
+            <Link href="/admin/resources" className="block rounded-2xl hover:shadow-md transition-shadow">
+              <StatCard
+                icon={<StatsIcon type="resources" />}
+                value={stats?.totalLibraryResources?.toLocaleString() ?? '—'}
+                label="Library Resources"
+              />
+            </Link>
           </>
         )}
       </div>

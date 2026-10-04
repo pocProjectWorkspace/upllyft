@@ -3,7 +3,8 @@
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@upllyft/ui';
-import { getOrganization } from '@/lib/api/organizations';
+import { useAuth } from '@upllyft/api-client';
+import { getMyOrganizations, getOrganization, myOrganizationsKey } from '@/lib/api/organizations';
 import { ResourceManager } from '@/components/library-resources/resource-manager';
 
 export default function OrgResourcesPage() {
@@ -14,6 +15,21 @@ export default function OrgResourcesPage() {
     queryKey: ['org', slug],
     queryFn: () => getOrganization(slug),
   });
+  // Same cache entry OrgProtect already filled, so this costs no extra request.
+  const { user } = useAuth();
+  const { data: memberships } = useQuery({
+    queryKey: myOrganizationsKey(user?.id),
+    queryFn: getMyOrganizations,
+    enabled: !!user,
+  });
+
+  // Mirrors the API: org admins and platform admins may publish; members only read.
+  const canUpload =
+    user?.role === 'ADMIN' ||
+    user?.role === 'SUPERADMIN' ||
+    !!memberships?.some(
+      (m) => m.organization.slug === slug && m.status === 'ACTIVE' && m.role === 'ADMIN',
+    );
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   if (!org) return null;
@@ -27,7 +43,9 @@ export default function OrgResourcesPage() {
       <ResourceManager
         scope="ORGANIZATION"
         organizationId={org.id}
+        organizationName={org.name}
         audienceNote={`Visible to every member of ${org.name} in the Resources app.`}
+        canUpload={canUpload}
       />
     </div>
   );
