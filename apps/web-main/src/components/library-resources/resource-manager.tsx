@@ -3,7 +3,19 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@upllyft/api-client';
-import { Badge, Button, Skeleton } from '@upllyft/ui';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Badge,
+  Button,
+  Skeleton,
+} from '@upllyft/ui';
 import { getOrganizations } from '@/lib/api/admin';
 import { isViewable } from '@/resources/lib/api/library-resources';
 
@@ -510,6 +522,9 @@ function ResourceList({
   onToggleDownload,
   showOrganization,
 }: ResourceListProps) {
+  // Delete removes the stored file too, so it is confirmed first.
+  const [deleteTarget, setDeleteTarget] = useState<LibraryResource | null>(null);
+
   if (isLoading) return <Skeleton className="h-40 w-full" />;
 
   if (isError && !resources) {
@@ -593,7 +608,7 @@ function ResourceList({
             )}
             {onDelete && (
               <button
-                onClick={() => onDelete(r.id)}
+                onClick={() => setDeleteTarget(r)}
                 aria-label="Delete resource"
                 className="text-gray-300 hover:text-red-400 transition-colors p-1"
               >
@@ -609,6 +624,30 @@ function ResourceList({
           </div>
         );
       })}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete resource?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{deleteTarget?.title}&rdquo; will be removed from the library and its file deleted.
+              Anyone it&apos;s shared with will no longer be able to open it. This can&apos;t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) onDelete?.(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
