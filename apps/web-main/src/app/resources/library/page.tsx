@@ -4,7 +4,13 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Skeleton, Input } from '@upllyft/ui';
 import { ResourcesShell } from '@/resources/components/resources-shell';
-import { getLibraryResources } from '@/resources/lib/api/library-resources';
+import { ResourceViewer } from '@/resources/components/resource-viewer';
+import { LoadError } from '@/components/library-resources/resource-manager';
+import {
+  getLibraryResources,
+  isViewable,
+  type LibraryResource,
+} from '@/resources/lib/api/library-resources';
 
 const TYPE_FILTERS = [
   { label: 'All', value: '' },
@@ -37,9 +43,10 @@ export default function ResourceLibraryPage() {
   const [type, setType] = useState('');
   const [search, setSearch] = useState('');
   const [activeTag, setActiveTag] = useState('');
+  const [viewing, setViewing] = useState<LibraryResource | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['resource-library', type, search],
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ['library-resources', 'library', type, search],
     queryFn: () => getLibraryResources({ resourceType: type, search }),
   });
 
@@ -111,6 +118,8 @@ export default function ResourceLibraryPage() {
               <Skeleton key={i} className="h-40 w-full rounded-2xl" />
             ))}
           </div>
+        ) : isError && !data ? (
+          <LoadError isRetrying={isFetching} onRetry={() => refetch()} />
         ) : resources.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
             <p className="text-gray-700 font-medium">Nothing here yet</p>
@@ -123,13 +132,7 @@ export default function ResourceLibraryPage() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {resources.map((r) => (
-              <a
-                key={r.id}
-                href={r.fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="block bg-white rounded-2xl border border-gray-200 p-5 hover:border-teal-300 hover:shadow-sm transition-all"
-              >
+              <LibraryCard key={r.id} resource={r} onView={setViewing}>
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <Badge color={(TYPE_COLORS[r.resourceType] as any) ?? 'gray'}>
                     {typeLabel(r.resourceType)}
@@ -150,13 +153,44 @@ export default function ResourceLibraryPage() {
                   </p>
                 )}
                 <p className="text-xs text-teal-700 font-medium mt-3">
-                  {r.mimeType === 'video/mp4' ? 'Watch' : 'Open'} →
+                  {!isViewable(r.mimeType) ? 'Download' : r.mimeType === 'video/mp4' ? 'Watch' : 'Open'} →
+                  {!r.downloadable && <span className="ml-2 text-gray-400 font-normal">View only</span>}
                 </p>
-              </a>
+              </LibraryCard>
             ))}
           </div>
         )}
       </div>
+      <ResourceViewer resource={viewing} onClose={() => setViewing(null)} />
     </ResourcesShell>
+  );
+}
+
+/**
+ * Viewable files (PDF, image, video) open in the in-app viewer, which is what keeps
+ * view-only resources in the app. Word and PowerPoint, always downloadable, are saved.
+ */
+function LibraryCard({
+  resource: r,
+  onView,
+  children,
+}: {
+  resource: LibraryResource;
+  onView: (r: LibraryResource) => void;
+  children: React.ReactNode;
+}) {
+  const className =
+    'block w-full text-left bg-white rounded-2xl border border-gray-200 p-5 hover:border-teal-300 hover:shadow-sm transition-all';
+  if (isViewable(r.mimeType)) {
+    return (
+      <button type="button" onClick={() => onView(r)} className={className}>
+        {children}
+      </button>
+    );
+  }
+  return (
+    <a href={r.downloadUrl ?? r.fileUrl ?? undefined} className={className}>
+      {children}
+    </a>
   );
 }

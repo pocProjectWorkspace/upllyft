@@ -8,7 +8,12 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Card, Badge, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, MiraNudge, Skeleton } from '@upllyft/ui';
 import { ResourcesShell } from '@/resources/components/resources-shell';
-import { getLibraryResources } from '@/resources/lib/api/library-resources';
+import { ResourceViewer } from '@/resources/components/resource-viewer';
+import {
+  getLibraryResources,
+  isViewable,
+  type LibraryResource,
+} from '@/resources/lib/api/library-resources';
 import { useMyLibrary } from '@/resources/hooks/use-worksheets';
 import type { WorksheetType, WorksheetStatus, WorksheetDifficulty, WorksheetFilters } from '@/resources/lib/api/worksheets';
 import {
@@ -44,10 +49,11 @@ function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId
 
 function LibraryHighlights() {
   const { data, isLoading } = useQuery({
-    queryKey: ['resource-library', '', ''],
+    queryKey: ['library-resources', 'library', '', ''],
     queryFn: () => getLibraryResources(),
   });
   const latest = (data ?? []).slice(0, 3);
+  const [viewing, setViewing] = useState<LibraryResource | null>(null);
 
   if (!isLoading && latest.length === 0) return null;
 
@@ -67,28 +73,37 @@ function LibraryHighlights() {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {latest.map((r) => (
-            <a
-              key={r.id}
-              href={r.fileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="block bg-white rounded-2xl border border-gray-200 p-4 hover:border-teal-300 hover:shadow-sm transition-all"
-            >
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <Badge color="green">{r.resourceType.charAt(0) + r.resourceType.slice(1).toLowerCase()}</Badge>
-                {r.scope === 'ORGANIZATION' && r.organization && (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-medium">
-                    {r.organization.name}
-                  </span>
-                )}
-              </div>
-              <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{r.title}</h3>
-              {r.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{r.description}</p>}
-            </a>
-          ))}
+          {latest.map((r) => {
+            const className =
+              'block w-full text-left bg-white rounded-2xl border border-gray-200 p-4 hover:border-teal-300 hover:shadow-sm transition-all';
+            const body = (
+              <>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <Badge color="green">{r.resourceType.charAt(0) + r.resourceType.slice(1).toLowerCase()}</Badge>
+                  {r.scope === 'ORGANIZATION' && r.organization && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-medium">
+                      {r.organization.name}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{r.title}</h3>
+                {r.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{r.description}</p>}
+              </>
+            );
+            // Same rule as the library page: viewable files stay in the in-app viewer.
+            return isViewable(r.mimeType) ? (
+              <button key={r.id} type="button" onClick={() => setViewing(r)} className={className}>
+                {body}
+              </button>
+            ) : (
+              <a key={r.id} href={r.downloadUrl ?? r.fileUrl ?? undefined} className={className}>
+                {body}
+              </a>
+            );
+          })}
         </div>
       )}
+      <ResourceViewer resource={viewing} onClose={() => setViewing(null)} />
     </section>
   );
 }

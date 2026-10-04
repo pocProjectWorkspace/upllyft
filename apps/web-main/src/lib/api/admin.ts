@@ -6,7 +6,9 @@ export interface PlatformStats {
   totalUsers: number;
   totalOrganizations: number;
   aiUsage: number;
-  storageUsed: number;
+  facilities: { CLINIC: number; NURSERY: number; SCHOOL: number };
+  totalFacilities: number;
+  totalLibraryResources: number;
 }
 
 export interface CommunityStats {

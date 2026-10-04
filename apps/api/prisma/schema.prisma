@@ -1516,7 +1516,8 @@ model Organization {
   kind       OrgKind    @default(CLINIC_GROUP)
   facilities Facility[]
 
-  libraryResources LibraryResource[] @relation("OrgLibraryResources")
+  libraryResources         LibraryResource[]             @relation("OrgLibraryResources")
+  targetedLibraryResources LibraryResourceOrganization[] @relation("OrgTargetedLibraryResources")
 
   @@index([slug])
   @@index([kind])
@@ -5611,9 +5612,10 @@ model ShortlistEntry {
 
 // ─── Library resources — admin/org-uploaded files for the Resources app ──────
 
+/// Who OWNS (manages) a resource. Who SEES it is `audience` + `audienceSegment`.
 enum LibraryResourceScope {
-  PLATFORM /// visible to every user on the platform
-  ORGANIZATION /// visible to members of the owning organization only
+  PLATFORM /// published by the Upllyft team (platform admins)
+  ORGANIZATION /// published by one organization's admins, for that organization
 }
 
 /// A file a platform admin or an org admin uploads for families to use — guides,
@@ -5630,10 +5632,23 @@ model LibraryResource {
   resourceType String
   tags         String[] @default([])
 
-  fileUrl  String
-  fileName String
-  mimeType String
-  fileSize Int
+  /// Legacy public URL. Files are served by short-lived signed URLs built from
+  /// `storagePath`; this is only returned for rows whose path could not be derived.
+  fileUrl     String
+  storagePath String?
+  fileName    String
+  mimeType    String
+  fileSize    Int
+
+  /// Who sees it: EVERYONE, ALL_ORGS (anyone attached to an organization), or ORGS
+  /// (the organizations in `audienceOrgs`). Org-owned resources are always ORGS with
+  /// their own organization. Validated app-side.
+  audience        String                        @default("EVERYONE")
+  /// Narrows the audience by account type: ALL, FAMILIES (role USER) or STAFF.
+  audienceSegment String                        @default("ALL")
+  audienceOrgs    LibraryResourceOrganization[]
+  /// Org-owned resources only: false = viewable in the app with no download link.
+  downloadable    Boolean                       @default(true)
 
   scope          LibraryResourceScope
   organizationId String?
@@ -5649,6 +5664,18 @@ model LibraryResource {
   @@index([organizationId])
   @@index([resourceType])
   @@map("library_resources")
+}
+
+/// An organization a library resource is shown to (audience ORGS).
+model LibraryResourceOrganization {
+  resourceId     String
+  resource       LibraryResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization    @relation("OrgTargetedLibraryResources", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([resourceId, organizationId])
+  @@index([organizationId])
+  @@map("library_resource_organizations")
 }
 
 // ─── CARE WAITLIST (backlog #1, 2026-09-30) ─────────────────────

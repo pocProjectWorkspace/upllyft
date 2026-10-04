@@ -1,9 +1,14 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@upllyft/api-client';
 import { Badge, Button, Skeleton } from '@upllyft/ui';
+import { getOrganizations } from '@/lib/api/admin';
+import { isViewable } from '@/resources/lib/api/library-resources';
+
+type Audience = 'EVERYONE' | 'ALL_ORGS' | 'ORGS';
+type AudienceSegment = 'ALL' | 'FAMILIES' | 'STAFF';
 
 export interface LibraryResource {
   id: string;
@@ -11,11 +16,17 @@ export interface LibraryResource {
   description: string | null;
   resourceType: string;
   tags: string[];
-  fileUrl: string;
+  fileUrl: string | null;
+  downloadUrl: string | null;
+  downloadable: boolean;
   fileName: string;
   mimeType: string;
   fileSize: number;
   scope: 'PLATFORM' | 'ORGANIZATION';
+  audience: Audience;
+  audienceSegment: AudienceSegment;
+  /** Returned on management views only. */
+  audienceOrgs?: { id: string; name: string }[];
   organization?: { id: string; name: string } | null;
   uploadedBy?: { id: string; name: string } | null;
   createdAt: string;
@@ -32,52 +43,188 @@ const TYPE_COLORS: Record<string, string> = {
   OTHER: 'gray',
 };
 
+const PLATFORM_AUDIENCES: { value: Audience; label: string; hint: string }[] = [
+  { value: 'EVERYONE', label: 'Everyone on Upllyft', hint: 'Every signed-in user' },
+  { value: 'ALL_ORGS', label: 'All organisations', hint: 'Anyone in an organisation, incl. its clinic and nursery families' },
+  { value: 'ORGS', label: 'Selected organisations', hint: 'Only the organisations you pick' },
+];
+
+function segmentOptions(everyoneLabel: string): { value: AudienceSegment; label: string }[] {
+  return [
+    { value: 'ALL', label: everyoneLabel },
+    { value: 'FAMILIES', label: 'Families only' },
+    { value: 'STAFF', label: 'Staff only' },
+  ];
+}
+
 function formatSize(bytes: number) {
   if (bytes > 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
+/** "Everyone · families", "Sunrise, Little Steps +2 · staff" … */
+function audienceSummary(r: LibraryResource) {
+  let who: string;
+  if (r.audience === 'EVERYONE') who = 'Everyone';
+  else if (r.audience === 'ALL_ORGS') who = 'All organisations';
+  else if (r.scope === 'ORGANIZATION') who = 'Everyone in the organisation';
+  else {
+    const names = (r.audienceOrgs ?? []).map((o) => o.name);
+    who = names.length > 2 ? `${names.slice(0, 2).join(', ')} +${names.length - 2}` : names.join(', ');
+  }
+  if (r.audienceSegment === 'FAMILIES') return r.scope === 'ORGANIZATION' ? 'Families only' : `${who} · families`;
+  if (r.audienceSegment === 'STAFF') return r.scope === 'ORGANIZATION' ? 'Staff only' : `${who} · staff`;
+  return who;
+}
+
+function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['library-resources'] });
+  queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] });
+}
+
 interface ResourceManagerProps {
   scope: 'PLATFORM' | 'ORGANIZATION';
   organizationId?: string;
+  /** Used in the audience labels, e.g. "Everyone in Sunrise Nursery". */
+  organizationName?: string;
   /** Shown above the list, e.g. "visible to everyone on Upllyft". */
   audienceNote: string;
+  /**
+   * Whether this viewer may upload, edit and delete. The API only accepts those from
+   * platform admins and the org's own admins, so plain members get a read-only list.
+   */
+  canUpload?: boolean;
 }
 
 /**
  * Upload + manage library resources — shared by the platform admin panel
- * (scope PLATFORM) and the org workspace (scope ORGANIZATION). Tagging happens at
- * upload time: a resource type (required) plus free-form comma tags.
+ * (scope PLATFORM) and the org workspace (scope ORGANIZATION). Each upload picks its
+ * audience: platform admins choose everyone / all organisations / selected
+ * organisations; org admins publish to their own organisation. Both can narrow to
+ * families or staff. Org resources can also be made view-only.
  */
-export function ResourceManager({ scope, organizationId, audienceNote }: ResourceManagerProps) {
+export function ResourceManager({
+  scope,
+  organizationId,
+  organizationName,
+  audienceNote,
+  canUpload = true,
+}: ResourceManagerProps) {
   const queryClient = useQueryClient();
-  const fileRef = useRef<HTMLInputElement>(null);
+  // null = closed, 'new' = upload form, a resource = editing it.
+  const [form, setForm] = useState<'new' | LibraryResource | null>(null);
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [resourceType, setResourceType] = useState('GUIDE');
-  const [tags, setTags] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const listKey = ['library-resources', scope, organizationId];
-  const { data, isLoading } = useQuery({
-    queryKey: listKey,
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ['library-resources', scope, organizationId],
     queryFn: async () => {
       const { data } = await apiClient.get('/library-resources', {
-        params: scope === 'ORGANIZATION' ? { organizationId } : {},
+        params: scope === 'ORGANIZATION' ? { organizationId } : { scope: 'PLATFORM' },
       });
-      // The platform manage view shows platform-scoped rows only.
-      return (data.resources as LibraryResource[]).filter((r) =>
-        scope === 'PLATFORM' ? r.scope === 'PLATFORM' : true,
-      );
+      return data.resources as LibraryResource[];
     },
     enabled: scope === 'PLATFORM' || !!organizationId,
   });
 
-  const upload = useMutation({
+  const remove = useRemoveResource();
+  const toggleDownload = useToggleDownload();
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-gray-500">{audienceNote}</p>
+        {canUpload ? (
+          <Button variant="primary" onClick={() => setForm((f) => (f ? null : 'new'))}>
+            {form ? 'Close' : '+ Upload resource'}
+          </Button>
+        ) : (
+          <p className="text-xs text-gray-400">Only organisation admins can upload resources.</p>
+        )}
+      </div>
+
+      {canUpload && form && (
+        <ResourceForm
+          // Remount per target so the fields start from that resource's values.
+          key={form === 'new' ? 'new' : form.id}
+          scope={scope}
+          organizationId={organizationId}
+          organizationName={organizationName}
+          editing={form === 'new' ? null : form}
+          onDone={() => setForm(null)}
+        />
+      )}
+
+      <ResourceList
+        resources={data}
+        isLoading={isLoading}
+        isError={isError}
+        isRetrying={isFetching}
+        onRetry={() => refetch()}
+        emptyText={canUpload ? 'No resources yet — upload the first one.' : 'No resources yet.'}
+        onEdit={canUpload ? (r) => setForm(r) : undefined}
+        onDelete={canUpload ? (id) => remove.mutate(id) : undefined}
+        onToggleDownload={
+          canUpload && scope === 'ORGANIZATION'
+            ? (r) => toggleDownload.mutate({ id: r.id, downloadable: !r.downloadable })
+            : undefined
+        }
+      />
+    </div>
+  );
+}
+
+// ─── Upload / edit form ─────────────────────────────────────────────────────
+
+interface ResourceFormProps {
+  scope: 'PLATFORM' | 'ORGANIZATION';
+  organizationId?: string;
+  organizationName?: string;
+  editing: LibraryResource | null;
+  onDone: () => void;
+}
+
+function ResourceForm({ scope, organizationId, organizationName, editing, onDone }: ResourceFormProps) {
+  const queryClient = useQueryClient();
+
+  const [title, setTitle] = useState(editing?.title ?? '');
+  const [description, setDescription] = useState(editing?.description ?? '');
+  const [resourceType, setResourceType] = useState(editing?.resourceType ?? 'GUIDE');
+  const [tags, setTags] = useState(editing?.tags.join(', ') ?? '');
+  const [file, setFile] = useState<File | null>(null);
+  const [audience, setAudience] = useState<Audience>(
+    editing?.audience ?? (scope === 'ORGANIZATION' ? 'ORGS' : 'EVERYONE'),
+  );
+  const [targetOrgIds, setTargetOrgIds] = useState<string[]>(
+    editing && scope === 'PLATFORM' ? (editing.audienceOrgs ?? []).map((o) => o.id) : [],
+  );
+  const [segment, setSegment] = useState<AudienceSegment>(editing?.audienceSegment ?? 'ALL');
+  const [downloadable, setDownloadable] = useState(editing?.downloadable ?? true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Only PDF, images and video can be shown in the app, so only those can be view-only.
+  const mimeType = editing?.mimeType ?? file?.type ?? '';
+  const canBeViewOnly = !mimeType || isViewable(mimeType);
+  const effectiveDownloadable = scope === 'PLATFORM' || !canBeViewOnly ? true : downloadable;
+
+  const save = useMutation({
     mutationFn: async () => {
+      const audienceFields = {
+        audienceSegment: segment,
+        ...(scope === 'PLATFORM'
+          ? { audience, ...(audience === 'ORGS' ? { organizationIds: targetOrgIds } : {}) }
+          : { downloadable: effectiveDownloadable }),
+      };
+
+      if (editing) {
+        await apiClient.patch(`/library-resources/${editing.id}`, {
+          title: title.trim(),
+          description: description.trim() || null,
+          resourceType,
+          tags,
+          ...audienceFields,
+        });
+        return;
+      }
+
       const fd = new FormData();
       fd.append('file', file!);
       fd.append('title', title.trim());
@@ -86,170 +233,466 @@ export function ResourceManager({ scope, organizationId, audienceNote }: Resourc
       fd.append('tags', tags);
       fd.append('scope', scope);
       if (organizationId) fd.append('organizationId', organizationId);
+      for (const [k, v] of Object.entries(audienceFields)) {
+        fd.append(k, Array.isArray(v) ? v.join(',') : String(v));
+      }
       await apiClient.post('/library-resources', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['library-resources'] });
-      setFormOpen(false);
-      setTitle('');
-      setDescription('');
-      setTags('');
-      setFile(null);
-      setError(null);
+      invalidateLibrary(queryClient);
+      onDone();
     },
-    onError: (e: any) => setError(e?.response?.data?.message ?? 'Upload failed — please try again.'),
+    onError: (e: any) =>
+      setError(e?.response?.data?.message ?? (editing ? 'Saving failed' : 'Upload failed') + ' — please try again.'),
   });
 
-  const remove = useMutation({
-    mutationFn: async (id: string) => apiClient.delete(`/library-resources/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['library-resources'] }),
-  });
+  const canSubmit =
+    (editing || !!file) &&
+    !!title.trim() &&
+    !(scope === 'PLATFORM' && audience === 'ORGS' && targetOrgIds.length === 0) &&
+    !save.isPending;
 
-  const canSubmit = !!file && !!title.trim() && !upload.isPending;
+  const inputClass =
+    'w-full rounded-xl border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500';
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-sm text-gray-500">{audienceNote}</p>
-        <Button variant="primary" onClick={() => setFormOpen((v) => !v)}>
-          {formOpen ? 'Close' : '+ Upload resource'}
-        </Button>
+    <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+      {editing && (
+        <p className="text-sm font-semibold text-gray-900">
+          Editing “{editing.title}” <span className="font-normal text-gray-400">· {editing.fileName}</span>
+        </p>
+      )}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Title</label>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. Getting ready for a sensory-friendly haircut"
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Description (optional)</label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          className={`${inputClass} resize-none`}
+        />
+      </div>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Resource type</label>
+          <ChipGroup
+            value={resourceType}
+            onChange={setResourceType}
+            options={RESOURCE_TYPES.map((t) => ({ value: t, label: t.charAt(0) + t.slice(1).toLowerCase() }))}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Tags (comma-separated)</label>
+          <input
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            placeholder="sensory, routines, school"
+            className={inputClass}
+          />
+        </div>
       </div>
 
-      {/* ── Upload form ─────────────────────────────────────── */}
-      {formOpen && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Title</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Getting ready for a sensory-friendly haircut"
-              className="w-full rounded-xl border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Description (optional)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full rounded-xl border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
-            />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Resource type</label>
-              <div className="flex flex-wrap gap-1.5">
-                {RESOURCE_TYPES.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setResourceType(t)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                      resourceType === t
-                        ? 'bg-teal-600 border-teal-600 text-white'
-                        : 'bg-white border-gray-200 text-gray-600 hover:border-teal-300'
-                    }`}
-                  >
-                    {t.charAt(0) + t.slice(1).toLowerCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Tags (comma-separated)
+      {/* ── Audience ─────────────────────────────────────── */}
+      <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 space-y-4">
+        <p className="text-sm font-semibold text-gray-800">Who can see this</p>
+        {scope === 'PLATFORM' && (
+          <div className="space-y-2">
+            {PLATFORM_AUDIENCES.map((a) => (
+              <label key={a.value} className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="audience"
+                  checked={audience === a.value}
+                  onChange={() => setAudience(a.value)}
+                  className="mt-0.5 accent-teal-600"
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-gray-800">{a.label}</span>
+                  <span className="block text-xs text-gray-500">{a.hint}</span>
+                </span>
               </label>
-              <input
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="sensory, routines, school"
-                className="w-full rounded-xl border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
-            </div>
+            ))}
+            {audience === 'ORGS' && <OrganizationPicker value={targetOrgIds} onChange={setTargetOrgIds} />}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">File</label>
+        )}
+        <div>
+          <p className="text-xs font-medium text-gray-600 mb-1.5">
+            {scope === 'PLATFORM' ? 'Narrow to' : 'Show to'}
+          </p>
+          <ChipGroup
+            value={segment}
+            onChange={(v) => setSegment(v as AudienceSegment)}
+            options={segmentOptions(
+              scope === 'PLATFORM' ? 'Everyone' : `Everyone in ${organizationName ?? 'the organisation'}`,
+            )}
+          />
+        </div>
+        {scope === 'ORGANIZATION' && (
+          <label className={`flex items-start gap-2.5 ${canBeViewOnly ? 'cursor-pointer' : 'opacity-60'}`}>
             <input
-              ref={fileRef}
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.pptx,.mp4"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-gray-600 file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-teal-50 file:text-teal-700 file:font-semibold file:text-sm hover:file:bg-teal-100"
+              type="checkbox"
+              checked={effectiveDownloadable}
+              disabled={!canBeViewOnly}
+              onChange={(e) => setDownloadable(e.target.checked)}
+              className="mt-0.5 accent-teal-600"
             />
-            <p className="text-xs text-gray-400 mt-1">PDF, images, Word, PowerPoint or MP4 — up to 50 MB.</p>
-          </div>
-          {error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
-          )}
-          <Button variant="primary" disabled={!canSubmit} onClick={() => upload.mutate()}>
-            {upload.isPending ? 'Uploading…' : 'Publish resource'}
-          </Button>
+            <span className="text-sm">
+              <span className="font-medium text-gray-800">Allow download</span>
+              <span className="block text-xs text-gray-500">
+                {canBeViewOnly
+                  ? 'Untick to make it view-only: it opens inside Upllyft with no download button.'
+                  : 'Word and PowerPoint files are always downloadable — convert to PDF to make it view-only.'}
+              </span>
+            </span>
+          </label>
+        )}
+      </div>
+
+      {!editing && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">File</label>
+          <input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.pptx,.mp4"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="block w-full text-sm text-gray-600 file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-teal-50 file:text-teal-700 file:font-semibold file:text-sm hover:file:bg-teal-100"
+          />
+          <p className="text-xs text-gray-400 mt-1">PDF, images, Word, PowerPoint or MP4 — up to 50 MB.</p>
         </div>
       )}
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+      )}
+      <div className="flex gap-2">
+        <Button variant="primary" disabled={!canSubmit} onClick={() => save.mutate()}>
+          {save.isPending ? (editing ? 'Saving…' : 'Uploading…') : editing ? 'Save changes' : 'Publish resource'}
+        </Button>
+        <Button variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
 
-      {/* ── List ────────────────────────────────────────────── */}
-      {isLoading ? (
-        <Skeleton className="h-40 w-full" />
-      ) : (data?.length ?? 0) === 0 ? (
-        <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
-          <p className="text-sm text-gray-500">No resources yet — upload the first one.</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-          {data!.map((r) => (
-            <div key={r.id} className="flex items-center gap-4 px-5 py-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <a
-                    href={r.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm font-semibold text-gray-900 hover:text-teal-700 truncate"
-                  >
-                    {r.title}
-                  </a>
-                  <Badge color={(TYPE_COLORS[r.resourceType] as any) ?? 'gray'}>
-                    {r.resourceType.charAt(0) + r.resourceType.slice(1).toLowerCase()}
-                  </Badge>
-                  {r.tags.map((t) => (
-                    <span key={t} className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  {r.fileName} · {formatSize(r.fileSize)}
-                  {r.uploadedBy?.name ? ` · by ${r.uploadedBy.name}` : ''} ·{' '}
-                  {new Date(r.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                </p>
+function ChipGroup({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+            value === o.value
+              ? 'bg-teal-600 border-teal-600 text-white'
+              : 'bg-white border-gray-200 text-gray-600 hover:border-teal-300'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Searchable multi-select of every organisation, for platform admins. */
+function OrganizationPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
+  const [search, setSearch] = useState('');
+  const { data, isLoading } = useQuery({ queryKey: ['admin', 'organizations'], queryFn: getOrganizations });
+
+  const shown = useMemo(
+    () =>
+      (data ?? [])
+        .filter((o) => !search || o.name.toLowerCase().includes(search.toLowerCase()))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [data, search],
+  );
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
+
+  return (
+    <div className="ml-6 space-y-2">
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search organisations…"
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+      />
+      <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white divide-y divide-gray-50">
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : shown.length === 0 ? (
+          <p className="p-3 text-xs text-gray-500">No organisations match.</p>
+        ) : (
+          shown.map((o) => (
+            <label key={o.id} className="flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50">
+              <input
+                type="checkbox"
+                checked={value.includes(o.id)}
+                onChange={() => toggle(o.id)}
+                className="accent-teal-600"
+              />
+              <span className="text-gray-800">{o.name}</span>
+            </label>
+          ))
+        )}
+      </div>
+      <p className="text-xs text-gray-500">
+        {value.length === 0 ? 'Pick at least one organisation.' : `${value.length} selected`}
+      </p>
+    </div>
+  );
+}
+
+// ─── List ───────────────────────────────────────────────────────────────────
+
+function useRemoveResource() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => apiClient.delete(`/library-resources/${id}`),
+    onSuccess: () => invalidateLibrary(queryClient),
+  });
+}
+
+function useToggleDownload() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, downloadable }: { id: string; downloadable: boolean }) =>
+      apiClient.patch(`/library-resources/${id}`, { downloadable }),
+    onSuccess: () => invalidateLibrary(queryClient),
+  });
+}
+
+interface ResourceListProps {
+  resources: LibraryResource[] | undefined;
+  isLoading: boolean;
+  /** A failed load must not look like an empty shelf — admins would think uploads vanished. */
+  isError?: boolean;
+  isRetrying?: boolean;
+  onRetry?: () => void;
+  emptyText: string;
+  onEdit?: (r: LibraryResource) => void;
+  /** Omit for a read-only list. */
+  onDelete?: (id: string) => void;
+  /** Org resources only: flip between downloadable and view-only. */
+  onToggleDownload?: (r: LibraryResource) => void;
+  /** Show which organisation each row belongs to (admin oversight view). */
+  showOrganization?: boolean;
+}
+
+function ResourceList({
+  resources,
+  isLoading,
+  isError,
+  isRetrying,
+  onRetry,
+  emptyText,
+  onEdit,
+  onDelete,
+  onToggleDownload,
+  showOrganization,
+}: ResourceListProps) {
+  if (isLoading) return <Skeleton className="h-40 w-full" />;
+
+  if (isError && !resources) {
+    return <LoadError isRetrying={isRetrying} onRetry={onRetry} />;
+  }
+
+  if ((resources?.length ?? 0) === 0) {
+    return (
+      <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
+        <p className="text-sm text-gray-500">{emptyText}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+      {resources!.map((r) => {
+        const openHref = r.fileUrl ?? undefined;
+        return (
+          <div key={r.id} className="flex items-center gap-4 px-5 py-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <a
+                  href={openHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-gray-900 hover:text-teal-700 truncate"
+                >
+                  {r.title}
+                </a>
+                <Badge color={(TYPE_COLORS[r.resourceType] as any) ?? 'gray'}>
+                  {r.resourceType.charAt(0) + r.resourceType.slice(1).toLowerCase()}
+                </Badge>
+                {showOrganization && r.organization && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-medium">
+                    {r.organization.name}
+                  </span>
+                )}
+                {!r.downloadable && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium">
+                    View only
+                  </span>
+                )}
+                {r.tags.map((t) => (
+                  <span key={t} className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                    {t}
+                  </span>
+                ))}
               </div>
-              <a
-                href={r.fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm font-medium text-teal-700 hover:text-teal-800 whitespace-nowrap"
-              >
-                Open
-              </a>
+              <p className="text-xs text-gray-400 mt-1">
+                <span className="text-teal-700 font-medium">{audienceSummary(r)}</span> · {r.fileName} ·{' '}
+                {formatSize(r.fileSize)}
+                {r.uploadedBy?.name ? ` · by ${r.uploadedBy.name}` : ''} ·{' '}
+                {new Date(r.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              </p>
+            </div>
+            {onToggleDownload && r.scope === 'ORGANIZATION' && isViewable(r.mimeType) && (
               <button
-                onClick={() => remove.mutate(r.id)}
+                onClick={() => onToggleDownload(r)}
+                className="text-xs font-medium text-gray-500 hover:text-teal-700 whitespace-nowrap"
+                title={r.downloadable ? 'Make view-only' : 'Allow download'}
+              >
+                {r.downloadable ? 'Make view-only' : 'Allow download'}
+              </button>
+            )}
+            <a
+              href={openHref}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-medium text-teal-700 hover:text-teal-800 whitespace-nowrap"
+            >
+              Open
+            </a>
+            {onEdit && (
+              <button
+                onClick={() => onEdit(r)}
+                className="text-sm font-medium text-gray-500 hover:text-gray-800 whitespace-nowrap"
+              >
+                Edit
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(r.id)}
                 aria-label="Delete resource"
                 className="text-gray-300 hover:text-red-400 transition-colors p-1"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
                 </svg>
               </button>
-            </div>
-          ))}
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function LoadError({ isRetrying, onRetry }: { isRetrying?: boolean; onRetry?: () => void }) {
+  return (
+    <div role="alert" className="text-center py-12 bg-white rounded-2xl border border-red-100">
+      <p className="text-sm font-medium text-gray-800">Couldn&apos;t load resources</p>
+      <p className="text-xs text-gray-500 mt-1">This is usually a brief connection problem.</p>
+      {onRetry && (
+        <div className="mt-4">
+          <Button variant="outline" onClick={onRetry} disabled={isRetrying}>
+            {isRetrying ? 'Retrying…' : 'Retry'}
+          </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Platform-admin oversight of every organisation's shelf. Admins rarely hold a
+ * membership of the orgs they look after, so the org workspace would bounce them;
+ * this lists org resources from the admin console and lets them switch view-only on
+ * or off, or remove them.
+ */
+export function OrganizationResourcesOverview() {
+  const [organizationId, setOrganizationId] = useState('');
+  const remove = useRemoveResource();
+  const toggleDownload = useToggleDownload();
+
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ['library-resources', 'ORGANIZATION', 'all'],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/library-resources', {
+        params: { scope: 'ORGANIZATION' },
+      });
+      return data.resources as LibraryResource[];
+    },
+  });
+
+  const organizations = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const r of data ?? []) if (r.organization) byId.set(r.organization.id, r.organization.name);
+    return [...byId].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [data]);
+
+  const resources = useMemo(
+    () => (data ?? []).filter((r) => !organizationId || r.organization?.id === organizationId),
+    [data, organizationId],
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-gray-500">
+          Uploaded by organisation admins. Each is visible only within its organisation.
+        </p>
+        {organizations.length > 1 && (
+          <select
+            value={organizationId}
+            onChange={(e) => setOrganizationId(e.target.value)}
+            className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+          >
+            <option value="">All organisations ({data?.length ?? 0})</option>
+            {organizations.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      <ResourceList
+        resources={resources}
+        isLoading={isLoading}
+        isError={isError}
+        isRetrying={isFetching}
+        onRetry={() => refetch()}
+        emptyText="No organisation has uploaded resources yet."
+        onDelete={(id) => remove.mutate(id)}
+        onToggleDownload={(r) => toggleDownload.mutate({ id: r.id, downloadable: !r.downloadable })}
+        showOrganization
+      />
     </div>
   );
 }
