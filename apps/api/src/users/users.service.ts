@@ -342,10 +342,19 @@ export class UsersService {
 
   // ===== METHODS REQUIRED BY AUTH SERVICE =====
 
+  /**
+   * Registration stores emails lower-cased, but people type them however their keyboard
+   * does — phones capitalise the first letter. Exact match first (the unique index),
+   * then a case-insensitive fallback so "Parent.Pooja@gmail.com " still finds the account.
+   */
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
-    });
+    const normalized = email.trim();
+    return (
+      (await this.prisma.user.findUnique({ where: { email: normalized } })) ??
+      (await this.prisma.user.findFirst({
+        where: { email: { equals: normalized, mode: 'insensitive' } },
+      }))
+    );
   }
 
   async findById(id: string) {
