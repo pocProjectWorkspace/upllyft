@@ -24,9 +24,10 @@ export default function OrgResourcesPage() {
   });
 
   // Mirrors the API: org admins and platform admins may publish; members only read.
+  // Only platform admins may share a resource beyond this organisation.
+  const isPlatformAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
   const canUpload =
-    user?.role === 'ADMIN' ||
-    user?.role === 'SUPERADMIN' ||
+    isPlatformAdmin ||
     !!memberships?.some(
       (m) => m.organization.slug === slug && m.status === 'ACTIVE' && m.role === 'ADMIN',
     );
@@ -46,6 +47,7 @@ export default function OrgResourcesPage() {
         organizationName={org.name}
         audienceNote={`Visible to every member of ${org.name} in the Resources app.`}
         canUpload={canUpload}
+        canShareWidely={isPlatformAdmin}
       />
     </div>
   );

@@ -271,6 +271,28 @@ describe('Library resources: audiences, view-only, edit', () => {
       expect(await seen(actor.parentAffA)).toContain('orgsB');
     });
 
+    it('a super admin shares an org resource with everyone; the owner stays in charge of view-only', async () => {
+      await service.update(actor.superadmin, res.familiesA, { audience: 'EVERYONE' });
+      expect(await seen(actor.loner)).toContain('familiesA');
+
+      // The org admin's later edit must not quietly narrow it back to their org.
+      const updated = await service.update(actor.adminA, res.familiesA, { downloadable: false });
+      expect(updated.audience).toBe('EVERYONE');
+      expect(updated.downloadable).toBe(false);
+      expect(await seen(actor.loner)).toContain('familiesA');
+    });
+
+    it('a super admin sharing with selected organisations keeps the owning org', async () => {
+      const updated = await service.update(actor.superadmin, res.familiesA, {
+        audience: 'ORGS',
+        organizationIds: [orgB.id],
+      });
+      expect(updated.audienceOrgs!.map((o) => o.id).sort()).toEqual([orgA.id, orgB.id].sort());
+      expect(await seen(actor.memberB)).toContain('familiesA');
+      expect(await seen(actor.therapistA)).toContain('familiesA');
+      expect(await seen(actor.loner)).not.toContain('familiesA');
+    });
+
     it('someone from another org cannot edit', async () => {
       await expect(
         service.update(actor.memberB, res.familiesA, { title: 'hijack' }),
