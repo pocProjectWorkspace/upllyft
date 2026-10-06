@@ -560,22 +560,29 @@ export class ResourceJourneyService {
   }
 
   async assignedTo(actor: Actor, childId: string) {
-    // No client check: the query below only ever returns this therapist's own
-    // assignments, so a therapist whose work with the family ended can still see
-    // (and withdraw) what they assigned, and nothing more.
+    // Still working with the family: the tries logged since each assignment, notes
+    // included. Once the booking / case ends, only the assignments themselves (so they
+    // can be withdrawn) — no tries, status or notes.
+    const current = await this.access
+      .assertTherapistOfChild(actor.id, childId)
+      .then(() => true)
+      .catch((e) => {
+        if (e instanceof ForbiddenException) return false;
+        throw e;
+      });
     const rows = await this.prisma.childResource.findMany({
       where: { childId, assignedById: actor.id },
       include: ITEM_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
+    if (!current && rows.length === 0) throw new ForbiddenException('You do not work with this child.');
     const cards = await this.library.cardsFor(actor.id, rows.map((r) => this.refOf(r)));
-    // The therapist sees only tries logged since they assigned it (notes included —
-    // they are about their own assignment). Anything the parent logged before, on a
-    // resource they had saved themselves, stays private unless the parent shares it.
     return {
-      items: rows.map((r) =>
-        this.presentItem(sinceAssigned(r), cards.get(`${r.kind}:${this.refOf(r).id}`), { notes: true }),
-      ),
+      current,
+      items: rows.map((r) => {
+        const item = this.presentItem(sinceAssigned(r), cards.get(`${r.kind}:${this.refOf(r).id}`), { notes: current });
+        return current ? item : { ...item, status: 'To try' as ItemStatus, logs: [], lastLog: null, masteredOverride: null };
+      }),
     };
   }
 

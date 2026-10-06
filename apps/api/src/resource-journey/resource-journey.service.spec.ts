@@ -259,6 +259,23 @@ describe('therapist assignment', () => {
     expect(res.items[0]).toMatchObject({ savedItemId: null, status: null, matchesScreening: false });
   });
 
+  it('a former therapist sees their assignments but none of the family’s tries', async () => {
+    const { service, prisma } = setup();
+    prisma.child.findFirst.mockResolvedValue(null); // no longer a client
+    prisma.childResource.findMany.mockResolvedValue([
+      { id: 'i', childId: 'child-1', kind: 'LIBRARY', worksheetId: null, libraryResourceId: 'l1', source: 'ASSIGNED',
+        assignedBy: null, assignedArea: null, assignedAt: new Date('2026-01-01'), masteredOverride: null, unassignedAt: null,
+        goal: 'g', targetDate: null, createdAt: new Date(),
+        logs: [{ id: 'x', date: new Date(), help: 2, engagement: 2, note: 'private', createdAt: new Date() }] },
+    ]);
+    const res = await service.assignedTo(therapist, 'child-1');
+    expect(res.current).toBe(false);
+    expect(res.items[0]).toMatchObject({ goal: 'g', logs: [], lastLog: null, status: 'To try' });
+
+    prisma.childResource.findMany.mockResolvedValue([]);
+    await expect(service.assignedTo(therapist, 'child-1')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('rejects an unknown area', async () => {
     const { service } = setup();
     await expect(service.assign(therapist, 'child-1', { kind: 'LIBRARY', resourceId: 'l1', assignedArea: 'vision' })).rejects.toBeInstanceOf(BadRequestException);
