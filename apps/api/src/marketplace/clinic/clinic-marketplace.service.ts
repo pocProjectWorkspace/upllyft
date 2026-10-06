@@ -37,8 +37,11 @@ export class ClinicMarketplaceService {
     const where: Prisma.ClinicWhereInput = { ...PUBLIC_CLINIC_WHERE };
 
     const country = normalizeCountry(params.country);
+    // A clinic that has not recorded its country yet stays listed rather than vanishing.
     if (country) {
-      where.country = { in: countryAliases(country), mode: 'insensitive' };
+      where.AND = [
+        { OR: [{ country: { in: countryAliases(country), mode: 'insensitive' } }, { country: null }, { country: '' }] },
+      ];
     }
 
     if (params.city?.trim()) {
