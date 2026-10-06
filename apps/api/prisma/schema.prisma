@@ -167,6 +167,11 @@ model User {
   momentsAuthored      Moment[]                  @relation("MomentAuthor")
   shortlistEntries     ShortlistEntry[]          @relation("UserShortlist")
   libraryResources     LibraryResource[]         @relation("LibraryResourceUploader")
+  savedJourneyResources    ChildResource[]   @relation("ChildResourceSavedBy")
+  assignedJourneyResources ChildResource[]   @relation("ChildResourceAssignedBy")
+  activityLogs             ActivityLog[]     @relation("ActivityLogAuthor")
+  progressSharesGiven      ProgressShare[]   @relation("ProgressShareParent")
+  progressSharesReceived   ProgressShare[]   @relation("ProgressShareTherapist")
   concernsRaised       Concern[]                 @relation("ConcernRaiser")
   createdSupportPlans  SupportPlan[]             @relation("CreatedSupportPlans")
   supportReviews       SupportReview[]           @relation("SupportPlanReviewer")
@@ -1409,6 +1414,9 @@ model Child {
   worksheets                            Worksheet[]               @relation("ChildWorksheets")
   worksheetAssignments                  WorksheetAssignment[]     @relation("ChildWorksheetAssignments")
   worksheetCompletions                  WorksheetCompletion[]
+  journeyResources                      ChildResource[]
+  activityLogs                          ActivityLog[]
+  progressShares                        ProgressShare[]
   worksheetEffectiveness                WorksheetEffectiveness[]
   // --- UAE Phase 1: identity (emiratesId/passportNumber stored ENCRYPTED at app layer) ---
   emiratesId                            String?
@@ -2264,6 +2272,10 @@ model Worksheet {
   ageRangeMin   Int?
   ageRangeMax   Int?
   conditionTags String[]
+  // Resources journey: what a family sees on the card.
+  durationMinutes Int?
+  practises       String?
+  forText         String?
 
   // Data source tracking
   dataSource        WorksheetDataSource @default(MANUAL)
@@ -2305,6 +2317,7 @@ model Worksheet {
   flags         WorksheetFlag[]
   completions   WorksheetCompletion[]
   effectiveness WorksheetEffectiveness[]
+  childResources ChildResource[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5636,6 +5649,15 @@ model LibraryResource {
   resourceType String
   tags         String[] @default([])
 
+  /// Resources journey tags. `domains` are the 8 journey area keys (resource-journey/domains.ts).
+  domains         String[] @default([])
+  ageMin          Int?
+  ageMax          Int?
+  durationMinutes Int?
+  practises       String?
+  forText         String?
+  childResources  ChildResource[]
+
   /// Legacy public URL. Files are served by short-lived signed URLs built from
   /// `storagePath`; this is only returned for rows whose path could not be derived.
   fileUrl     String
@@ -5705,4 +5727,87 @@ model CareWaitlistEntry {
   @@index([status, country])
   @@index([userId])
   @@map("care_waitlist_entries")
+}
+
+// ─── Resources journey ─────────────────────────────────────────────────────────
+// A child's own library (saved by a parent or assigned by a therapist), each try a
+// parent logs, and the live progress shares a parent grants a therapist.
+// See docs/superpowers/specs/2026-10-07-resources-journey-design.md.
+
+/// One resource in a child's library. Exactly one of worksheetId / libraryResourceId is set.
+model ChildResource {
+  id                String           @id @default(cuid())
+  childId           String
+  child             Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  /// WORKSHEET | LIBRARY — validated app-side.
+  kind              String
+  worksheetId       String?
+  worksheet         Worksheet?       @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  libraryResourceId String?
+  libraryResource   LibraryResource? @relation(fields: [libraryResourceId], references: [id], onDelete: Cascade)
+  /// SAVED (by a parent) | ASSIGNED (by a therapist).
+  source            String           @default("SAVED")
+  savedById         String
+  savedBy           User             @relation("ChildResourceSavedBy", fields: [savedById], references: [id], onDelete: Cascade)
+  assignedById      String?
+  assignedBy        User?            @relation("ChildResourceAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  goal              String?
+  targetDate        DateTime?
+  assignedArea      String?
+  /// When it became ASSIGNED. The assigning therapist sees only logs made after this —
+  /// a parent's earlier tries on a resource they saved themselves stay private.
+  assignedAt        DateTime?
+  masteredOverride  Boolean?
+  /// Set when the assigning therapist withdraws it; the parent's logs are kept.
+  unassignedAt      DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  logs              ActivityLog[]
+
+  @@unique([childId, worksheetId])
+  @@unique([childId, libraryResourceId])
+  @@index([childId, createdAt])
+  @@index([assignedById])
+  @@map("child_resources")
+}
+
+/// One "I tried this". help: 0 full help · 1 some help · 2 did it alone.
+/// engagement: 0 resisted · 1 okay · 2 enjoyed it.
+model ActivityLog {
+  id              String        @id @default(cuid())
+  childResourceId String
+  childResource   ChildResource @relation(fields: [childResourceId], references: [id], onDelete: Cascade)
+  childId         String
+  child           Child         @relation(fields: [childId], references: [id], onDelete: Cascade)
+  loggedById      String
+  loggedBy        User          @relation("ActivityLogAuthor", fields: [loggedById], references: [id], onDelete: Cascade)
+  date            DateTime
+  help            Int
+  engagement      Int
+  note            String?
+  createdAt       DateTime      @default(now())
+
+  @@index([childId, date])
+  @@index([childResourceId, date])
+  @@map("activity_logs")
+}
+
+/// A live, revocable read-only view of a child's progress for one therapist.
+model ProgressShare {
+  id              String    @id @default(cuid())
+  childId         String
+  child           Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  parentId        String
+  parent          User      @relation("ProgressShareParent", fields: [parentId], references: [id], onDelete: Cascade)
+  therapistUserId String
+  therapist       User      @relation("ProgressShareTherapist", fields: [therapistUserId], references: [id], onDelete: Cascade)
+  /// null = everything logged.
+  periodDays      Int?
+  includeNotes    Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  revokedAt       DateTime?
+
+  @@index([childId, revokedAt])
+  @@index([therapistUserId, revokedAt])
+  @@map("progress_shares")
 }

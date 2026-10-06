@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@upllyft/api-client';
 import {
@@ -25,6 +26,7 @@ import {
   toast,
 } from '@upllyft/ui';
 import { ResourcesShell } from '@/resources/components/resources-shell';
+import { TherapistClients } from '@/resources/journey/therapist-clients';
 import {
   useSentAssignments,
   useReceivedAssignments,
@@ -61,7 +63,7 @@ export default function AssignmentsPage() {
   if (isTherapist) {
     return (
       <ResourcesShell>
-        <TherapistSentAssignments />
+        <TherapistAssignmentsTabs />
       </ResourcesShell>
     );
   }
@@ -74,6 +76,39 @@ export default function AssignmentsPage() {
 }
 
 // ── Therapist View ──
+
+/** Clients first (Resources journey); the original sent-worksheets list stays one tab away. */
+function TherapistAssignmentsTabs() {
+  const [view, setView] = useState<'clients' | 'sent'>('clients');
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Assignments</h1>
+          <p className="mt-1 text-sm text-gray-500">Assign guides, worksheets and printables to the children you work with, and follow how they go at home.</p>
+        </div>
+        <Link href="/resources/shared" className="text-sm font-semibold text-teal-700 hover:underline">
+          Shared with me →
+        </Link>
+      </div>
+      <div className="flex gap-1 border-b border-gray-200">
+        {(['clients', 'sent'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-semibold ${
+              view === v ? 'border-teal-600 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            {v === 'clients' ? 'By child' : 'All sent worksheets'}
+          </button>
+        ))}
+      </div>
+      {view === 'clients' ? <TherapistClients /> : <TherapistSentAssignments />}
+    </div>
+  );
+}
 
 function TherapistSentAssignments() {
   const router = useRouter();

@@ -18,6 +18,7 @@ import {
 } from '@upllyft/ui';
 import { getOrganizations } from '@/lib/api/admin';
 import { isViewable } from '@/resources/lib/api/library-resources';
+import { JOURNEY_DOMAINS } from '@upllyft/types';
 
 type Audience = 'EVERYONE' | 'ALL_ORGS' | 'ORGS';
 type AudienceSegment = 'ALL' | 'FAMILIES' | 'STAFF';
@@ -28,6 +29,13 @@ export interface LibraryResource {
   description: string | null;
   resourceType: string;
   tags: string[];
+  /** Resources-journey tags shown on family cards. */
+  domains?: string[];
+  ageMin?: number | null;
+  ageMax?: number | null;
+  durationMinutes?: number | null;
+  practises?: string | null;
+  forText?: string | null;
   fileUrl: string | null;
   downloadUrl: string | null;
   downloadable: boolean;
@@ -236,6 +244,12 @@ function ResourceForm({
   const [description, setDescription] = useState(editing?.description ?? '');
   const [resourceType, setResourceType] = useState(editing?.resourceType ?? 'GUIDE');
   const [tags, setTags] = useState(editing?.tags.join(', ') ?? '');
+  const [domains, setDomains] = useState<string[]>(editing?.domains ?? []);
+  const [ageMin, setAgeMin] = useState(editing?.ageMin != null ? String(editing.ageMin) : '');
+  const [ageMax, setAgeMax] = useState(editing?.ageMax != null ? String(editing.ageMax) : '');
+  const [durationMinutes, setDurationMinutes] = useState(editing?.durationMinutes != null ? String(editing.durationMinutes) : '');
+  const [practises, setPractises] = useState(editing?.practises ?? '');
+  const [forText, setForText] = useState(editing?.forText ?? '');
   const [file, setFile] = useState<File | null>(null);
   // The owning organisation of an org resource is always in its audience, so the
   // picker only holds the organisations it is shared with in addition.
@@ -274,12 +288,23 @@ function ResourceForm({
         ...(scope === 'ORGANIZATION' ? { downloadable: effectiveDownloadable } : {}),
       };
 
+      // Blank numbers clear the field; the API validates ranges.
+      const journeyTags = {
+        domains: domains.join(','),
+        ageMin: ageMin.trim() === '' ? null : Number(ageMin),
+        ageMax: ageMax.trim() === '' ? null : Number(ageMax),
+        durationMinutes: durationMinutes.trim() === '' ? null : Number(durationMinutes),
+        practises: practises.trim() || null,
+        forText: forText.trim() || null,
+      };
+
       if (editing) {
         await apiClient.patch(`/library-resources/${editing.id}`, {
           title: title.trim(),
           description: description.trim() || null,
           resourceType,
           tags,
+          ...journeyTags,
           ...audienceFields,
         });
         return;
@@ -291,6 +316,9 @@ function ResourceForm({
       if (description.trim()) fd.append('description', description.trim());
       fd.append('resourceType', resourceType);
       fd.append('tags', tags);
+      for (const [k, v] of Object.entries(journeyTags)) {
+        if (v !== null && v !== '') fd.append(k, String(v));
+      }
       fd.append('scope', scope);
       if (organizationId) fd.append('organizationId', organizationId);
       for (const [k, v] of Object.entries(audienceFields)) {
@@ -359,6 +387,55 @@ function ResourceForm({
             placeholder="sensory, routines, school"
             className={inputClass}
           />
+        </div>
+      </div>
+
+      {/* ── For families (Resources journey) ─────────────── */}
+      <div className="rounded-xl bg-teal-50/40 border border-teal-100 p-4 space-y-4">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">For families</p>
+          <p className="text-xs text-gray-500">How it appears on parents&apos; Resources cards and which screening areas it matches.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {JOURNEY_DOMAINS.map((d) => {
+            const on = domains.includes(d.key);
+            return (
+              <button
+                key={d.key}
+                type="button"
+                onClick={() => setDomains((cur) => (on ? cur.filter((x) => x !== d.key) : [...cur, d.key]))}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  on ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-700 border-gray-200 hover:border-teal-300'
+                }`}
+              >
+                {d.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Youngest age</label>
+            <input type="number" min={0} max={18} value={ageMin} onChange={(e) => setAgeMin(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Oldest age</label>
+            <input type="number" min={0} max={18} value={ageMax} onChange={(e) => setAgeMax(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Minutes</label>
+            <input type="number" min={1} max={600} value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} className={inputClass} />
+          </div>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Practises</label>
+            <input value={practises} onChange={(e) => setPractises(e.target.value)} maxLength={200} placeholder="e.g. Coping with loud places" className={inputClass} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">For</label>
+            <input value={forText} onChange={(e) => setForText(e.target.value)} maxLength={200} placeholder="e.g. Children who cover their ears in busy places" className={inputClass} />
+          </div>
         </div>
       </div>
 

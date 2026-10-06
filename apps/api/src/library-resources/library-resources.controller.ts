@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { JourneyTagsInput } from './library-resources.service';
 import {
   AUDIENCES,
   AUDIENCE_SEGMENTS,
@@ -69,7 +70,7 @@ export class LibraryResourcesController {
       audienceSegment?: string;
       /** Org resources only: 'false' makes the file view-only. */
       downloadable?: string;
-    },
+    } & JourneyTagsInput,
   ) {
     return this.libraryResources.create(req.user, file, body);
   }
@@ -89,7 +90,7 @@ export class LibraryResourcesController {
       organizationIds?: string | string[];
       audienceSegment?: string;
       downloadable?: boolean;
-    },
+    } & JourneyTagsInput,
   ) {
     return this.libraryResources.update(req.user, id, body);
   }

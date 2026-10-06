@@ -1,7 +1,7 @@
 import { apiClient } from '@upllyft/api-client';
 
 export interface MiraCard {
-  type: 'therapist' | 'community' | 'organisation' | 'evidence' | 'conversation' | 'screening_prompt';
+  type: 'therapist' | 'community' | 'organisation' | 'evidence' | 'conversation' | 'screening_prompt' | 'resource' | 'log_prompt';
   data: any;
 }
 

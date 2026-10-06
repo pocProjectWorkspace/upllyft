@@ -6,10 +6,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-import { COLORS } from '../../../lib/constants';
-import { getResources, getResourceCategories, Resource } from '../../../lib/api/resources';
+import { COLORS } from '../../lib/constants';
+import { getResources, getResourceCategories, Resource } from '../../lib/api/resources';
 
-export default function ResourcesScreen() {
+export function LegacyResourcesList() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | undefined>();

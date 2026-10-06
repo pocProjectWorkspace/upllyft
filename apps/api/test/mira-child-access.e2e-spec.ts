@@ -11,7 +11,7 @@ import { prisma, scope, mkUser, mkParentWithChild, cleanup, type Scope } from '.
 describe('Mira — child access', () => {
   const s: Scope = scope('t-mira');
   // No OpenAI call is reached on any path tested here.
-  const mira = new MiraService(prisma as any, { get: () => 'test' } as any, {} as any);
+  const mira = new MiraService(prisma as any, { get: () => 'test' } as any, {} as any, {} as any);
 
   afterAll(async () => {
     await prisma.miraConversation.deleteMany({ where: { user: { email: { contains: s.tag } } } });

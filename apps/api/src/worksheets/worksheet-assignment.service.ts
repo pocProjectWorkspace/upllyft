@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AssignWorksheetDto } from './dto/assign-worksheet.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ListAssignmentsDto } from './dto/list-assignments.dto';
+import { upsertAssignedItem } from '../resource-journey/assigned-item';
 import {
   WorksheetAssignmentStatus,
   Prisma,
@@ -49,23 +50,36 @@ export class WorksheetAssignmentService {
     });
     if (!child) throw new NotFoundException('Child not found');
 
-    const assignment = await this.prisma.worksheetAssignment.create({
-      data: {
-        worksheetId,
-        assignedById,
-        assignedToId: dto.assignedToId,
+    // The assignment and the child's library item land together (Resources journey).
+    // Batched transaction: no interactive timeout on a slow database link.
+    const [assignment] = await this.prisma.$transaction([
+      this.prisma.worksheetAssignment.create({
+        data: {
+          worksheetId,
+          assignedById,
+          assignedToId: dto.assignedToId,
+          childId: dto.childId,
+          caseId: dto.caseId ?? null,
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          notes: dto.notes ?? null,
+        },
+        include: {
+          worksheet: { select: { id: true, title: true } },
+          assignedBy: { select: { id: true, name: true } },
+          assignedTo: { select: { id: true, name: true } },
+          child: { select: { id: true, firstName: true } },
+        },
+      }),
+      upsertAssignedItem(this.prisma, {
         childId: dto.childId,
-        caseId: dto.caseId ?? null,
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-        notes: dto.notes ?? null,
-      },
-      include: {
-        worksheet: { select: { id: true, title: true } },
-        assignedBy: { select: { id: true, name: true } },
-        assignedTo: { select: { id: true, name: true } },
-        child: { select: { id: true, firstName: true } },
-      },
-    });
+        kind: 'WORKSHEET',
+        resourceId: worksheetId,
+        parentId: dto.assignedToId,
+        assignedById,
+        goal: dto.notes ?? null,
+        targetDate: dto.dueDate ? new Date(dto.dueDate) : null,
+      }),
+    ]);
 
     // Emit event for notifications
     this.eventEmitter.emit('worksheet.assigned', {

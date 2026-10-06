@@ -521,6 +521,55 @@ export class NotificationListeners {
     }
   }
 
+  @OnEvent('resource.assigned')
+  async handleResourceAssigned(payload: {
+    itemId: string;
+    parentId: string;
+    therapistUserId: string;
+    childName: string;
+    title: string;
+  }) {
+    try {
+      const therapist = await this.prisma.user.findUnique({
+        where: { id: payload.therapistUserId },
+        select: { name: true },
+      });
+      await this.notificationService.createNotification({
+        userId: payload.parentId,
+        type: NotificationType.RESOURCE_ASSIGNED,
+        title: 'New activity to try',
+        message: `${therapist?.name || 'Your therapist'} assigned "${payload.title}" for ${payload.childName}`,
+        actionUrl: '/resources?tab=mine',
+        relatedEntityId: payload.itemId,
+        relatedEntityType: 'child',
+        priority: 'high',
+        metadata: { therapistUserId: payload.therapistUserId, childName: payload.childName },
+      });
+    } catch (error) {
+      this.logger.error('Failed to process resource assignment notification', error);
+    }
+  }
+
+  @OnEvent('progress.shared')
+  async handleProgressShared(payload: { shareId: string; therapistUserId: string; parentId: string; childName: string }) {
+    try {
+      const parent = await this.prisma.user.findUnique({ where: { id: payload.parentId }, select: { name: true } });
+      await this.notificationService.createNotification({
+        userId: payload.therapistUserId,
+        type: NotificationType.PROGRESS_SHARED,
+        title: 'Progress shared with you',
+        message: `${parent?.name || 'A parent'} shared ${payload.childName}’s home progress with you`,
+        actionUrl: `/resources/shared?share=${payload.shareId}`,
+        relatedEntityId: payload.shareId,
+        relatedEntityType: 'child',
+        priority: 'medium',
+        metadata: { childName: payload.childName },
+      });
+    } catch (error) {
+      this.logger.error('Failed to process progress share notification', error);
+    }
+  }
+
   @OnEvent('worksheet.assigned')
   async handleWorksheetAssigned(payload: {
     assignmentId: string;

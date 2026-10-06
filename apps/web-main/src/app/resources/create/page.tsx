@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Card, Badge, Input, Label, Textarea, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@upllyft/ui';
 import { ResourcesShell } from '@/resources/components/resources-shell';
+import { ForFamiliesStep } from '@/resources/journey/for-families-step';
 import {
   useGenerateWorksheet,
   useWorksheetStatus,
@@ -23,7 +24,7 @@ import {
   colorModeLabels,
 } from '@/resources/lib/utils';
 
-const STEPS = ['Data Source', 'Type', 'Customize', 'Generate', 'Download'];
+const STEPS = ['Data Source', 'Type', 'Customize', 'Generate', 'For families', 'Download'];
 
 const DATA_SOURCES: { value: WorksheetDataSource; desc: string }[] = [
   { value: 'MANUAL', desc: 'Enter child details and preferences manually' },
@@ -730,7 +731,18 @@ export default function CreateWorksheetPage() {
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
-        {step === 4 && renderStep4()}
+        {step === 4 && (
+          <ForFamiliesStep
+            worksheetId={generatedId}
+            defaults={{
+              domains: selectedDomains,
+              age: childAge ? Number(childAge) : null,
+              durationMinutes: duration === '20plus' ? 20 : parseInt(duration, 10) || null,
+            }}
+            onDone={() => setStep(5)}
+          />
+        )}
+        {step === 5 && renderStep4()}
 
         {/* Navigation buttons */}
         {step < 4 && (

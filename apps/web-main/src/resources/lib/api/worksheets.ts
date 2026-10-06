@@ -349,7 +349,21 @@ export async function getWorksheetStatus(id: string): Promise<{ id: string; stat
   return res.data;
 }
 
-export async function updateWorksheet(id: string, data: { title?: string; content?: Record<string, unknown>; conditionTags?: string[] }): Promise<Worksheet> {
+export async function updateWorksheet(
+  id: string,
+  data: {
+    title?: string;
+    content?: Record<string, unknown>;
+    conditionTags?: string[];
+    /** Resources journey: how families find it. */
+    journeyDomains?: string[];
+    ageRangeMin?: number;
+    ageRangeMax?: number;
+    durationMinutes?: number;
+    practises?: string;
+    forText?: string;
+  },
+): Promise<Worksheet> {
   const res = await apiClient.put(`/worksheets/${id}`, data);
   return res.data;
 }

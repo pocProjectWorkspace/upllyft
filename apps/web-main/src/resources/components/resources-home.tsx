@@ -1,0 +1,344 @@
+'use client';
+
+import Image from '@/components/app-image';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth, APP_URLS } from '@upllyft/api-client';
+import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { Button, Card, Badge, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, MiraNudge, Skeleton } from '@upllyft/ui';
+import { ResourcesShell } from '@/resources/components/resources-shell';
+import { ResourceViewer } from '@/resources/components/resource-viewer';
+import {
+  getLibraryResources,
+  isViewable,
+  type LibraryResource,
+} from '@/resources/lib/api/library-resources';
+import { useMyLibrary } from '@/resources/hooks/use-worksheets';
+import type { WorksheetType, WorksheetStatus, WorksheetDifficulty, WorksheetFilters } from '@/resources/lib/api/worksheets';
+import {
+  worksheetTypeLabels,
+  worksheetStatusLabels,
+  worksheetStatusColors,
+  difficultyLabels,
+  difficultyColors,
+  domainLabels,
+  subTypeLabels,
+  formatRelativeDate,
+  renderStars,
+} from '@/resources/lib/utils';
+
+import { CardsSkeleton } from '@/components/skeletons';
+const TYPES: WorksheetType[] = ['ACTIVITY', 'VISUAL_SUPPORT', 'STRUCTURED_PLAN'];
+const DIFFICULTIES: WorksheetDifficulty[] = ['FOUNDATIONAL', 'DEVELOPING', 'STRENGTHENING'];
+const STATUSES: WorksheetStatus[] = ['DRAFT', 'GENERATING', 'PUBLISHED', 'ARCHIVED'];
+const DOMAINS = Object.keys(domainLabels);
+
+const typeIcons: Record<WorksheetType, string> = {
+  ACTIVITY: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+  VISUAL_SUPPORT: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z',
+  STRUCTURED_PLAN: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+  PROGRESS_TRACKER: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+};
+
+function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId: string; message: string; chipText: string; childName?: string }) {
+  const { user } = useAuth();
+  if (user?.role !== 'USER') return null;
+  return <MiraNudge nudgeId={nudgeId} message={message} chipText={chipText} childName={childName} mainAppUrl={APP_URLS.main} />;
+}
+
+function LibraryHighlights() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['library-resources', 'library', '', ''],
+    queryFn: () => getLibraryResources(),
+  });
+  const latest = (data ?? []).slice(0, 3);
+  const [viewing, setViewing] = useState<LibraryResource | null>(null);
+
+  if (!isLoading && latest.length === 0) return null;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900">From the Resource Library</h2>
+        <Link href="/resources/library" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+          View all{data && data.length > 3 ? ` (${data.length})` : ''} →
+        </Link>
+      </div>
+      {isLoading ? (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {latest.map((r) => {
+            const className =
+              'block w-full text-left bg-white rounded-2xl border border-gray-200 p-4 hover:border-teal-300 hover:shadow-sm transition-all';
+            const body = (
+              <>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <Badge color="green">{r.resourceType.charAt(0) + r.resourceType.slice(1).toLowerCase()}</Badge>
+                  {r.scope === 'ORGANIZATION' && r.organization && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-medium">
+                      {r.organization.name}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{r.title}</h3>
+                {r.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{r.description}</p>}
+              </>
+            );
+            // Same rule as the library page: viewable files stay in the in-app viewer.
+            return isViewable(r.mimeType) ? (
+              <button key={r.id} type="button" onClick={() => setViewing(r)} className={className}>
+                {body}
+              </button>
+            ) : (
+              <a key={r.id} href={r.downloadUrl ?? r.fileUrl ?? undefined} className={className}>
+                {body}
+              </a>
+            );
+          })}
+        </div>
+      )}
+      <ResourceViewer resource={viewing} onClose={() => setViewing(null)} />
+    </section>
+  );
+}
+
+export function ResourcesHome() {
+  const router = useRouter();
+  const [search, setSearch] = useState('');
+  const [type, setType] = useState<string>('all');
+  const [difficulty, setDifficulty] = useState<string>('all');
+  const [status, setStatus] = useState<string>('all');
+  const [domain, setDomain] = useState<string>('all');
+  const [page, setPage] = useState(1);
+
+  const filters: WorksheetFilters = {
+    page,
+    limit: 12,
+    ...(search && { search }),
+    ...(type !== 'all' && { type: type as WorksheetType }),
+    ...(difficulty !== 'all' && { difficulty: difficulty as WorksheetDifficulty }),
+    ...(status !== 'all' && { status: status as WorksheetStatus }),
+    ...(domain !== 'all' && { domain }),
+  };
+
+  const { data, isLoading } = useMyLibrary(filters);
+
+  const worksheets = data?.data ?? [];
+  const totalPages = data?.totalPages ?? 1;
+  const total = data?.total ?? 0;
+
+  return (
+    <ResourcesShell>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Your Resources</h1>
+            <p className="text-gray-500 mt-1">
+              {total} worksheet{total !== 1 ? 's' : ''} in your collection
+            </p>
+          </div>
+          <Button onClick={() => router.push('/resources/create')}>Create Something New</Button>
+        </div>
+
+        {/* Mira Nudge */}
+        <MiraNudgeForParent
+          nudgeId="resources-home"
+          message="I can suggest activities and worksheets based on your child's developmental needs."
+          chipText="Suggest activities for my child"
+        />
+
+        {/* Published by the Upllyft team / the family's organisation. Lives in a different
+            table from the worksheets below, so it needs its own section or families never see it. */}
+        <LibraryHighlights />
+
+        {/* Search */}
+        <Input
+          placeholder="Search worksheets by title or keyword..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          className="max-w-lg"
+        />
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3">
+          <Select value={type} onValueChange={(v) => { setType(v); setPage(1); }}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {TYPES.map((t) => (
+                <SelectItem key={t} value={t}>{worksheetTypeLabels[t]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={difficulty} onValueChange={(v) => { setDifficulty(v); setPage(1); }}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="All Difficulties" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Difficulties</SelectItem>
+              {DIFFICULTIES.map((d) => (
+                <SelectItem key={d} value={d}>{difficultyLabels[d]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>{worksheetStatusLabels[s]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={domain} onValueChange={(v) => { setDomain(v); setPage(1); }}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="All Domains" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Domains</SelectItem>
+              {DOMAINS.map((d) => (
+                <SelectItem key={d} value={d}>{domainLabels[d]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Grid */}
+        {isLoading ? (
+          <CardsSkeleton bare />
+        ) : worksheets.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Your library is empty</h3>
+            <p className="text-gray-500 mt-1 mb-4">Browse community resources or create your own to get started.</p>
+            <Button onClick={() => router.push('/resources/create')}>Create Something New</Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {worksheets.map((ws) => (
+              <Card
+                key={ws.id}
+                className="overflow-hidden cursor-pointer card-hover group"
+                onClick={() => router.push(`/resources/${ws.id}`)}
+              >
+                {/* Preview image or fallback */}
+                <div className="aspect-[4/3] bg-gradient-to-br from-teal-50 to-teal-100 flex items-center justify-center relative">
+                  {ws.previewUrl ? (
+                    <Image src={ws.previewUrl} alt={ws.title} className="w-full h-full object-cover" width={1200} height={800} sizes="(max-width: 768px) 100vw, 640px" />
+                  ) : (
+                    <div className="w-16 h-16 bg-white rounded-2xl shadow flex items-center justify-center">
+                      <svg className="w-8 h-8 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={typeIcons[ws.type] || typeIcons.ACTIVITY} />
+                      </svg>
+                    </div>
+                  )}
+                  {ws.status === 'GENERATING' && (
+                    <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                      <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                  {/* AI Recommended badge */}
+                  {ws.dataSource === 'SCREENING' && (
+                    <span className="absolute top-4 right-4 px-2 py-1 bg-purple-500 text-white text-xs font-medium rounded-full">
+                      AI Recommended
+                    </span>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="p-4 space-y-3">
+                  <h3 className="font-semibold text-gray-900 line-clamp-1 group-hover:text-teal-700">{ws.title}</h3>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge color={(worksheetStatusColors[ws.status] ?? 'gray') as 'green' | 'blue' | 'yellow' | 'red' | 'gray' | 'purple'}>
+                      {worksheetStatusLabels[ws.status]}
+                    </Badge>
+                    <Badge color="blue">{worksheetTypeLabels[ws.type]}</Badge>
+                    <Badge color={(difficultyColors[ws.difficulty] ?? 'gray') as 'green' | 'blue' | 'yellow' | 'red' | 'gray' | 'purple'}>
+                      {difficultyLabels[ws.difficulty]}
+                    </Badge>
+                  </div>
+
+                  {ws.subType && (
+                    <p className="text-xs text-gray-500">{subTypeLabels[ws.subType] ?? ws.subType}</p>
+                  )}
+
+                  {/* Separator */}
+                  <div className="border-t border-gray-100" />
+
+                  {/* Footer with star rating */}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-yellow-400 flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      <span className="text-gray-600">{ws.averageRating > 0 ? ws.averageRating.toFixed(1) : '—'}</span>
+                    </span>
+                    <span className="text-gray-400">{formatRelativeDate(ws.createdAt)}</span>
+                  </div>
+                </div>
+              </Card>
+            ))}
+
+            {/* Create Custom Worksheet card */}
+            <div
+              className="border-2 border-dashed border-gray-300 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center min-h-[320px] cursor-pointer group hover:border-purple-300 hover:from-purple-50/50 hover:to-purple-100/30 transition-all"
+              onClick={() => router.push('/resources/create')}
+            >
+              <div className="w-14 h-14 rounded-2xl bg-gray-200 group-hover:bg-purple-100 flex items-center justify-center mb-3 transition-colors">
+                <svg className="w-7 h-7 text-gray-400 group-hover:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-gray-700 group-hover:text-purple-700 transition-colors">Create Something New</h3>
+              <p className="text-sm text-gray-400 mt-1">Tailored activities for your child</p>
+            </div>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-gray-600">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        )}
+      </div>
+    </ResourcesShell>
+  );
+}

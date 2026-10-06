@@ -4,6 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { AiService } from '../ai/ai.service';
 import OpenAI from 'openai';
 import type { MiraResponse, MiraCard, MiraAction, ConversationSummary, ScribeResponse } from './mira.types';
+import { JourneyLibraryService } from '../resource-journey/journey-library.service';
+import { DOMAIN_KEYS, domainLabel } from '../resource-journey/domains';
+import { itemStatus, screeningLevels, concernAreas, daysAgo } from '../resource-journey/journey.logic';
+import { matchSavedItem, parseLogRequest, parseResourceRequest, rankForRequest, resolveLogDate } from './mira-journey';
 
 /**
  * The one line of each prompt that is about the family's culture. It is picked by
@@ -93,13 +97,17 @@ const MIRA_STRUCTURED_EXTRACT_PROMPT = `Given Mira's response text and the avail
   "cards": [{"type": "therapist|community|organisation|evidence|conversation|screening_prompt", "data": {"name": "..."}}],
   "choices": ["suggested follow-up question 1", "suggested follow-up question 2", "suggested follow-up question 3"],
   "actions": [{"label": "action text", "url": "", "type": "booking|community|screening|resource|insight"}],
-  "sentiment": "supportive|informational|encouraging|concerned"
+  "sentiment": "supportive|informational|encouraging|concerned",
+  "resource_request": {"areas": ["comm|social|daily|fine|gross|learn|sensory|behav"], "query": "short keywords"} or null,
+  "log_request": {"resourceHint": "the activity the parent did", "help": 0|1|2|null, "engagement": 0|1|2|null, "date": "today|yesterday|YYYY-MM-DD|null"} or null
 }
 Rules:
 - cards: only include if Mira mentioned a specific therapist, community, organization, post, or screening in her response. Use the type field to indicate what kind of card. Don't force cards.
 - choices: 2-4 warm, natural follow-up questions the parent might want to ask next. Write them in first person as if the parent is speaking, like "How can I help at home?", "What does that mean for my child?", "Can you tell me more about that?". They should feel human and caring, not clinical.
 - actions: only if Mira suggested a specific action (booking, screening, visiting community, etc.). Use warm labels like "Find the right therapist" not "Book therapist"
-- sentiment: classify the overall emotional tone of Mira's response`;
+- sentiment: classify the overall emotional tone of Mira's response
+- resource_request: only when Mira suggested home activities, games, routines or printables. "areas" uses ONLY these keys: comm (talking, understanding), social (feelings, play, sharing), daily (routines, eating, dressing, toileting), fine (hands, pencil, scissors), gross (balance, running, jumping), learn (counting, matching, problem-solving), sensory (noise, textures, calming), behav (meltdowns, transitions, routines changing). Never put resource names here — the app finds real ones.
+- log_request: only when the PARENT'S message says they already did a specific activity with their child (e.g. "we did the calm corner today and he managed alone"). help: 0 = needed full help, 1 = some help, 2 = did it alone; engagement: 0 = resisted, 1 = okay, 2 = enjoyed it. Use null for anything the parent did not say. Otherwise null.`;
 
 @Injectable()
 export class MiraService {
@@ -118,6 +126,7 @@ export class MiraService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private aiService: AiService,
+    private journeyLibrary: JourneyLibraryService,
   ) {
     this.openai = new OpenAI({
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
@@ -309,7 +318,7 @@ export class MiraService {
     }
 
     // 5. Extract structured data (cards, choices, actions) via fast model
-    const structured = await this.extractStructuredData(fullText, context);
+    const structured = await this.extractStructuredData(fullText, context, message);
     yield { type: 'structured', data: structured };
 
     // 6. Save messages to DB
@@ -505,6 +514,7 @@ Return ONLY valid JSON with these four keys:
   private async extractStructuredData(
     miraText: string,
     ctx: MiraContext,
+    parentMessage = '',
   ): Promise<{ cards?: MiraCard[]; choices?: string[]; actions?: MiraAction[]; sentiment?: string }> {
     try {
       const contextSummary: string[] = [];
@@ -521,7 +531,7 @@ Return ONLY valid JSON with these four keys:
           { role: 'system', content: MIRA_STRUCTURED_EXTRACT_PROMPT },
           {
             role: 'user',
-            content: `Mira's response:\n"${miraText}"\n\nPlatform context:\n${contextSummary.join('\n') || 'No specific platform data available'}`,
+            content: `Parent's message:\n"${parentMessage}"\n\nMira's response:\n"${miraText}"\n\nPlatform context:\n${contextSummary.join('\n') || 'No specific platform data available'}`,
           },
         ],
         temperature: 0.2,
@@ -532,7 +542,7 @@ Return ONLY valid JSON with these four keys:
       const content = response.choices[0]?.message?.content || '{}';
       const parsed = JSON.parse(content);
 
-      const cards = this.buildCards(parsed.cards, ctx);
+      const cards = [...this.buildCards(parsed.cards, ctx), ...(await this.journeyCards(parsed, ctx))];
       const actions = this.buildActions(parsed.actions, ctx);
 
       return {
@@ -639,7 +649,7 @@ Return ONLY valid JSON with these four keys:
     // keeps therapist suggestions in-country. Fetched once, in parallel with the rest.
     const parentPromise = this.prisma.user.findUnique({
       where: { id: userId },
-      select: { country: true },
+      select: { country: true, role: true },
     }).catch(() => null); // unknown country: neutral prompt, unfiltered therapists
 
     // Load child profile + screenings if childId provided
@@ -663,6 +673,7 @@ Return ONLY valid JSON with these four keys:
         let ageMonths = now.getMonth() - dob.getMonth();
         if (ageMonths < 0) { ageYears--; ageMonths += 12; }
 
+        ctx.childDob = child.dateOfBirth;
         ctx.child = {
           id: child.id,
           name: 'the child', // PDPL: anonymize child name before sending to OpenAI
@@ -698,6 +709,13 @@ Return ONLY valid JSON with these four keys:
 
     const parent = await parentPromise;
     ctx.parentCountry = parent?.country?.toUpperCase() || null;
+    ctx.viewer = { id: userId, role: parent?.role ?? 'USER' };
+    if (childId && ctx.child) {
+      ctx.journey = await this.journeySummary(userId, childId).catch((e) => {
+        this.logger.warn(`Journey context unavailable: ${e?.message ?? e}`);
+        return undefined;
+      });
+    }
 
     // Extract keywords from message for platform data matching
     const keywords = await this.extractKeywords(message);
@@ -931,6 +949,16 @@ ${ctx.screening.domainScores.map((d) => `- ${d.domain}: ${d.score}% (${d.status}
       parts.push(`\n\nNote: This child has NOT completed a developmental screening yet. Consider suggesting the Upllyft Developmental Screening.`);
     }
 
+    if (ctx.journey) {
+      const j = ctx.journey;
+      parts.push(`\n\n--- HOME ACTIVITIES (Resources journey) ---
+Screening focus areas: ${j.focusAreas.map(domainLabel).join(', ') || 'none'}
+Tries logged in the last 30 days: ${j.logged30}
+Saved activities:
+${j.saved.length ? j.saved.slice(0, 12).map((it) => `- ${it.title} (${it.domain ? domainLabel(it.domain) : 'no area'}): ${it.status}`).join('\n') : '- none yet'}
+When suggesting things to try at home, describe the kind of activity; the app attaches real resources from the library. Never invent resource titles. If the parent says they did one of the saved activities, you can warmly acknowledge it — the app will offer to log it for them.`);
+    }
+
     if (ctx.therapists && ctx.therapists.length > 0) {
       parts.push(`\n\n--- AVAILABLE THERAPISTS (suggest only if relevant) ---
 ${ctx.therapists.map((t) => `- ${t.name} (${t.role}): specializes in ${t.specialization?.join(', ')}${t.yearsOfExperience ? `, ${t.yearsOfExperience} years experience` : ''}${t.location ? `, ${t.location}` : ''}`).join('\n')}
@@ -992,7 +1020,7 @@ Insights: ${this.appUrls.screening}/insights`);
       const parsed = JSON.parse(content);
 
       // Build proper cards from context data
-      const cards = this.buildCards(parsed.cards, ctx);
+      const cards = [...this.buildCards(parsed.cards, ctx), ...(await this.journeyCards(parsed, ctx))];
       // Build proper actions with real URLs
       const actions = this.buildActions(parsed.actions, ctx);
 
@@ -1011,6 +1039,94 @@ Insights: ${this.appUrls.screening}/insights`);
         sentiment: 'supportive',
       };
     }
+  }
+
+  /** The child's journey in brief, for the prompt and for matching log requests. */
+  private async journeySummary(viewerId: string, childId: string): Promise<NonNullable<MiraContext['journey']>> {
+    const [rows, screening] = await Promise.all([
+      this.prisma.childResource.findMany({
+        where: { childId },
+        select: {
+          id: true,
+          kind: true,
+          worksheetId: true,
+          libraryResourceId: true,
+          assignedArea: true,
+          masteredOverride: true,
+          logs: { select: { date: true, help: true, engagement: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 50,
+      }),
+      this.journeyLibrary.latestScreening(childId),
+    ]);
+    const refs = rows.map((r) =>
+      r.kind === 'WORKSHEET' ? { kind: 'WORKSHEET' as const, id: r.worksheetId! } : { kind: 'LIBRARY' as const, id: r.libraryResourceId! },
+    );
+    const cards = await this.journeyLibrary.cardsFor(viewerId, refs);
+    const since = daysAgo(30);
+    return {
+      focusAreas: screening ? concernAreas(screeningLevels(screening.domainScores, screening.flaggedDomains)) : [],
+      logged30: rows.reduce((n, r) => n + r.logs.filter((l) => l.date >= since).length, 0),
+      saved: rows.map((r, i) => {
+        const card = cards.get(`${refs[i].kind}:${refs[i].id}`);
+        const area = r.assignedArea && (DOMAIN_KEYS as readonly string[]).includes(r.assignedArea) ? r.assignedArea : card?.domains[0] ?? null;
+        return { itemId: r.id, kind: refs[i].kind, resourceId: refs[i].id, title: card?.title ?? 'Activity', domain: area, status: itemStatus(r.logs, r.masteredOverride) };
+      }),
+    };
+  }
+
+  /**
+   * resource_request → up to 3 REAL library cards for this child; log_request → a
+   * confirm card matched to a saved activity (or a pick-list). Never writes anything.
+   */
+  private async journeyCards(parsed: any, ctx: MiraContext): Promise<MiraCard[]> {
+    const out: MiraCard[] = [];
+    if (!ctx.child?.id || !ctx.viewer) return out;
+    const child = { id: ctx.child.id, firstName: '', dateOfBirth: ctx.childDob ?? null, ownerId: ctx.viewer.id };
+
+    const resourceReq = parseResourceRequest(parsed?.resource_request);
+    if (resourceReq) {
+      try {
+        const { items } = await this.journeyLibrary.list(ctx.viewer, child, { ageFit: true, limit: 60 });
+        for (const c of rankForRequest(resourceReq, items)) {
+          out.push({
+            type: 'resource',
+            data: {
+              childId: child.id,
+              kind: c.kind,
+              id: c.id,
+              title: c.title,
+              type: c.type,
+              domains: c.domains,
+              durationMinutes: c.durationMinutes,
+              practises: c.practises,
+              matchesScreening: c.matchesScreening,
+              savedItemId: c.savedItemId,
+            },
+          });
+        }
+      } catch (e: any) {
+        this.logger.warn(`Resource cards skipped: ${e?.message ?? e}`);
+      }
+    }
+
+    const logReq = parseLogRequest(parsed?.log_request);
+    if (logReq && ctx.journey?.saved.length) {
+      const match = matchSavedItem(logReq.resourceHint, ctx.journey.saved);
+      out.push({
+        type: 'log_prompt',
+        data: {
+          childId: child.id,
+          match: match ? { kind: match.kind, resourceId: match.resourceId, title: match.title } : null,
+          options: match ? [] : ctx.journey.saved.slice(0, 6).map((it) => ({ kind: it.kind, resourceId: it.resourceId, title: it.title })),
+          help: logReq.help,
+          engagement: logReq.engagement,
+          date: resolveLogDate(logReq.date),
+        },
+      });
+    }
+    return out;
   }
 
   private buildCards(aiCards: any[] | undefined, ctx: MiraContext): MiraCard[] {
@@ -1120,8 +1236,11 @@ Insights: ${this.appUrls.screening}/insights`);
         return this.appUrls.screening;
       case 'insight':
         return `${this.appUrls.screening}/insights`;
-      case 'resource':
-        return this.appUrls.resources;
+      case 'resource': {
+        if (!ctx.child?.id) return this.appUrls.resources;
+        const area = ctx.journey?.focusAreas[0];
+        return `${this.appUrls.resources}?child=${ctx.child.id}&tab=library${area ? `&area=${area}` : ''}`;
+      }
       default:
         return '';
     }
@@ -1151,6 +1270,15 @@ Message: "${message.substring(0, 200)}"`,
 interface MiraContext {
   /** Parent's User.country, upper-cased ISO code ('AE', 'IN', 'SA'), or null. */
   parentCountry?: string | null;
+  /** Who is chatting — library visibility for resource cards follows them. */
+  viewer?: { id: string; role: string };
+  childDob?: Date | null;
+  /** The child's Resources journey in brief (no child name — PDPL). */
+  journey?: {
+    focusAreas: string[];
+    logged30: number;
+    saved: Array<{ itemId: string; kind: 'WORKSHEET' | 'LIBRARY'; resourceId: string; title: string; domain: string | null; status: string }>;
+  };
   child?: {
     id: string;
     name: string;

@@ -1,4 +1,6 @@
 export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
+/** The web app — some screens (worksheets, sharing) open there. */
+export const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://app.safehaven-upllyft.com';
 
 export const COLORS = {
   mint: '#3ECFB4',
