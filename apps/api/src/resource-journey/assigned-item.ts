@@ -3,8 +3,10 @@ import { Prisma } from '@prisma/client';
 /**
  * The child-library row for an assignment — created, or a parent-saved row promoted to
  * ASSIGNED. Shared with the existing worksheet-assignment flow so both paths agree.
+ * Returns the un-awaited query so callers can put it in a batched `$transaction([...])`
+ * (no interactive-transaction timeout to trip over on a slow database link).
  */
-export async function upsertAssignedItem(
+export function upsertAssignedItem(
   tx: Prisma.TransactionClient,
   a: {
     childId: string;
@@ -24,6 +26,8 @@ export async function upsertAssignedItem(
   const assignment = {
     source: 'ASSIGNED',
     assignedById: a.assignedById,
+    // Re-assigning restarts the window: the therapist sees tries from now on.
+    assignedAt: new Date(),
     goal: a.goal ?? null,
     targetDate: a.targetDate ?? null,
     assignedArea: a.assignedArea ?? null,

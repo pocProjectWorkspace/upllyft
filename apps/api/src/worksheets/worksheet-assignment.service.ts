@@ -51,25 +51,26 @@ export class WorksheetAssignmentService {
     if (!child) throw new NotFoundException('Child not found');
 
     // The assignment and the child's library item land together (Resources journey).
-    const assignment = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.worksheetAssignment.create({
-      data: {
-        worksheetId,
-        assignedById,
-        assignedToId: dto.assignedToId,
-        childId: dto.childId,
-        caseId: dto.caseId ?? null,
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-        notes: dto.notes ?? null,
-      },
-      include: {
-        worksheet: { select: { id: true, title: true } },
-        assignedBy: { select: { id: true, name: true } },
-        assignedTo: { select: { id: true, name: true } },
-        child: { select: { id: true, firstName: true } },
-      },
-      });
-      await upsertAssignedItem(tx, {
+    // Batched transaction: no interactive timeout on a slow database link.
+    const [assignment] = await this.prisma.$transaction([
+      this.prisma.worksheetAssignment.create({
+        data: {
+          worksheetId,
+          assignedById,
+          assignedToId: dto.assignedToId,
+          childId: dto.childId,
+          caseId: dto.caseId ?? null,
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          notes: dto.notes ?? null,
+        },
+        include: {
+          worksheet: { select: { id: true, title: true } },
+          assignedBy: { select: { id: true, name: true } },
+          assignedTo: { select: { id: true, name: true } },
+          child: { select: { id: true, firstName: true } },
+        },
+      }),
+      upsertAssignedItem(this.prisma, {
         childId: dto.childId,
         kind: 'WORKSHEET',
         resourceId: worksheetId,
@@ -77,9 +78,8 @@ export class WorksheetAssignmentService {
         assignedById,
         goal: dto.notes ?? null,
         targetDate: dto.dueDate ? new Date(dto.dueDate) : null,
-      });
-      return created;
-    });
+      }),
+    ]);
 
     // Emit event for notifications
     this.eventEmitter.emit('worksheet.assigned', {

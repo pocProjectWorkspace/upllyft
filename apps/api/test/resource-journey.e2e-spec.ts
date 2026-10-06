@@ -164,10 +164,19 @@ describe('Resources journey', () => {
     const wa = await prisma.worksheetAssignment.findFirst({ where: { worksheetId, childId: child.id } });
     expect(wa).toMatchObject({ assignedById: therapistUser.id, assignedToId: parent.id });
 
-    const { items } = await journey.assignedTo(asTherapist(), child.id);
-    expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ source: 'ASSIGNED', goal: 'Name a feeling at bedtime', status: 'Mastered' });
-    // The parent's earlier saved row was promoted, not duplicated.
+    // The parent's earlier saved row was promoted, not duplicated…
     expect((await journey.listItems(asParent(), child.id)).items).toHaveLength(1);
+
+    // …but the three tries (and their note) logged BEFORE the assignment stay private.
+    let { items } = await journey.assignedTo(asTherapist(), child.id);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ source: 'ASSIGNED', goal: 'Name a feeling at bedtime', status: 'To try' });
+    expect(items[0].logs).toHaveLength(0);
+
+    // A try logged after the assignment is the therapist's to see, note included.
+    await journey.log(asParent(), child.id, { kind: 'WORKSHEET', resourceId: worksheetId, help: 1, engagement: 2, note: 'At bedtime' });
+    ({ items } = await journey.assignedTo(asTherapist(), child.id));
+    expect(items[0].logs).toHaveLength(1);
+    expect(items[0].logs[0]).toMatchObject({ help: 1, note: 'At bedtime' });
   });
 });

@@ -188,7 +188,9 @@ export class ResourceJourneyService {
     const item = await this.ensureItem(actor, child, kind, resourceId);
     const before = itemStatus(item.logs, item.masteredOverride);
     const log = await this.prisma.activityLog.create({
-      data: { childResourceId: item.id, childId: child.id, loggedById: actor.id, date, help, engagement, note },
+      // createdAt from the same (app) clock as ChildResource.assignedAt, so the
+      // "logged since assigned" comparison is not skewed by the database clock.
+      data: { childResourceId: item.id, childId: child.id, loggedById: actor.id, date, help, engagement, note, createdAt: new Date() },
     });
     const after = itemStatus([...item.logs, log], item.masteredOverride);
     return { log, itemId: item.id, status: after, becameMastered: before !== 'Mastered' && after === 'Mastered' };
@@ -379,15 +381,15 @@ export class ResourceJourneyService {
     }
 
     // One live share per therapist per child: a new one replaces the old.
-    const share = await this.prisma.$transaction(async (tx) => {
-      await tx.progressShare.updateMany({
+    const [, share] = await this.prisma.$transaction([
+      this.prisma.progressShare.updateMany({
         where: { childId, therapistUserId, revokedAt: null },
         data: { revokedAt: new Date() },
-      });
-      return tx.progressShare.create({
+      }),
+      this.prisma.progressShare.create({
         data: { childId, parentId: actor.id, therapistUserId, periodDays, includeNotes: body.includeNotes === true },
-      });
-    });
+      }),
+    ]);
 
     this.events.emit('progress.shared', {
       shareId: share.id,
@@ -469,7 +471,7 @@ export class ResourceJourneyService {
         profile: { select: { user: { select: { id: true, name: true } } } },
         journeyResources: {
           where: { assignedById: actor.id },
-          select: { id: true, logs: { select: { date: true }, orderBy: { date: 'desc' }, take: 1 } },
+          select: { id: true, assignedAt: true, logs: { select: { date: true, createdAt: true }, orderBy: { date: 'desc' } } },
         },
       },
       orderBy: { firstName: 'asc' },
@@ -477,7 +479,9 @@ export class ResourceJourneyService {
     });
     return {
       clients: children.map((c) => {
-        const lastDates = c.journeyResources.map((r) => r.logs[0]?.date).filter((d): d is Date => !!d);
+        const lastDates = c.journeyResources
+          .map((r) => sinceAssigned(r).logs[0]?.date)
+          .filter((d): d is Date => !!d);
         return {
           id: c.id,
           firstName: c.firstName,
@@ -520,25 +524,29 @@ export class ResourceJourneyService {
     }
     const parentId = c.profile.userId;
 
-    const item = await this.prisma.$transaction(async (tx) => {
-      if (kind === 'WORKSHEET') {
-        await tx.worksheetAssignment.upsert({
-          where: { worksheetId_assignedToId_childId: { worksheetId: resourceId, assignedToId: parentId, childId } },
-          create: { worksheetId: resourceId, assignedById: actor.id, assignedToId: parentId, childId, dueDate: targetDate, notes: goal },
-          update: {},
-        });
-      }
-      return upsertAssignedItem(tx, {
-        childId,
-        kind,
-        resourceId,
-        parentId,
-        assignedById: actor.id,
-        goal,
-        targetDate,
-        assignedArea,
-      });
+    const itemWrite = upsertAssignedItem(this.prisma, {
+      childId,
+      kind,
+      resourceId,
+      parentId,
+      assignedById: actor.id,
+      goal,
+      targetDate,
+      assignedArea,
     });
+    // Batched: both writes commit together, with no interactive-transaction timeout.
+    const results =
+      kind === 'WORKSHEET'
+        ? await this.prisma.$transaction([
+            this.prisma.worksheetAssignment.upsert({
+              where: { worksheetId_assignedToId_childId: { worksheetId: resourceId, assignedToId: parentId, childId } },
+              create: { worksheetId: resourceId, assignedById: actor.id, assignedToId: parentId, childId, dueDate: targetDate, notes: goal },
+              update: {},
+            }),
+            itemWrite,
+          ])
+        : await this.prisma.$transaction([itemWrite]);
+    const item = results[results.length - 1] as Awaited<typeof itemWrite>;
 
     const card = (await this.library.cardsFor(actor.id, [{ kind, id: resourceId }])).get(`${kind}:${resourceId}`);
     this.events.emit('resource.assigned', {
@@ -559,8 +567,14 @@ export class ResourceJourneyService {
       orderBy: { createdAt: 'desc' },
     });
     const cards = await this.library.cardsFor(actor.id, rows.map((r) => this.refOf(r)));
-    // Notes on their own assignments are the therapist's to read.
-    return { items: rows.map((r) => this.presentItem(r, cards.get(`${r.kind}:${this.refOf(r).id}`), { notes: true })) };
+    // The therapist sees only tries logged since they assigned it (notes included —
+    // they are about their own assignment). Anything the parent logged before, on a
+    // resource they had saved themselves, stays private unless the parent shares it.
+    return {
+      items: rows.map((r) =>
+        this.presentItem(sinceAssigned(r), cards.get(`${r.kind}:${this.refOf(r).id}`), { notes: true }),
+      ),
+    };
   }
 
   async unassign(actor: Actor, itemId: string) {
@@ -578,4 +592,13 @@ export class ResourceJourneyService {
     await this.prisma.childResource.delete({ where: { id: itemId } });
     return { removed: true, unassigned: true };
   }
+}
+
+/**
+ * The item as its assigning therapist may see it: only logs created at or after the
+ * assignment. Rows without `assignedAt` (never assigned) show no logs.
+ */
+function sinceAssigned<T extends { assignedAt: Date | null; logs: Array<{ createdAt: Date }> }>(item: T): T {
+  const from = item.assignedAt;
+  return { ...item, logs: from ? item.logs.filter((l) => l.createdAt >= from) : [] };
 }

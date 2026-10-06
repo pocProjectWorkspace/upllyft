@@ -5754,6 +5754,9 @@ model ChildResource {
   goal              String?
   targetDate        DateTime?
   assignedArea      String?
+  /// When it became ASSIGNED. The assigning therapist sees only logs made after this —
+  /// a parent's earlier tries on a resource they saved themselves stay private.
+  assignedAt        DateTime?
   masteredOverride  Boolean?
   /// Set when the assigning therapist withdraws it; the parent's logs are kept.
   unassignedAt      DateTime?

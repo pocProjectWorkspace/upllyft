@@ -56,7 +56,7 @@ function makePrisma(over: Record<string, any> = {}) {
     worksheetAssignment: { upsert: jest.fn().mockResolvedValue({}) },
     ...over,
   };
-  prisma.$transaction = jest.fn().mockImplementation((fn: any) => fn(prisma));
+  prisma.$transaction = jest.fn().mockImplementation((arg: any) => (Array.isArray(arg) ? Promise.all(arg) : arg(prisma)));
   return prisma;
 }
 

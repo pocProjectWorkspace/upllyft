@@ -59,6 +59,10 @@ CREATE TABLE IF NOT EXISTS "progress_shares" (
     CONSTRAINT "progress_shares_pkey" PRIMARY KEY ("id")
 );
 
+-- When an item became ASSIGNED (added after the table; kept separate so re-runs on a
+-- database that already has the table still add it).
+ALTER TABLE "child_resources" ADD COLUMN IF NOT EXISTS "assignedAt" TIMESTAMP(3);
+
 CREATE INDEX IF NOT EXISTS "child_resources_childId_createdAt_idx" ON "child_resources"("childId", "createdAt");
 CREATE INDEX IF NOT EXISTS "child_resources_assignedById_idx" ON "child_resources"("assignedById");
 CREATE UNIQUE INDEX IF NOT EXISTS "child_resources_childId_worksheetId_key" ON "child_resources"("childId", "worksheetId");
@@ -106,9 +110,9 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- 1. Every worksheet assignment becomes an ASSIGNED item in the child's library.
 INSERT INTO "child_resources"
-  ("id", "childId", "kind", "worksheetId", "source", "savedById", "assignedById", "goal", "targetDate", "createdAt", "updatedAt")
+  ("id", "childId", "kind", "worksheetId", "source", "savedById", "assignedById", "goal", "targetDate", "assignedAt", "createdAt", "updatedAt")
 SELECT 'wa_' || wa."id", wa."childId", 'WORKSHEET', wa."worksheetId", 'ASSIGNED', wa."assignedToId",
-       wa."assignedById", wa."notes", wa."dueDate", wa."createdAt", wa."updatedAt"
+       wa."assignedById", wa."notes", wa."dueDate", wa."createdAt", wa."createdAt", wa."updatedAt"
   FROM "worksheet_assignments" wa
 ON CONFLICT DO NOTHING;
 
@@ -144,3 +148,6 @@ SELECT 'wc_' || wc."id", cr."id", wc."childId",
   LEFT JOIN "worksheet_assignments" wa ON wa."id" = wc."assignmentId"
  WHERE wc."completedAt" IS NOT NULL
 ON CONFLICT DO NOTHING;
+
+-- 4. Rows created before assignedAt existed: assigned since they were created.
+UPDATE "child_resources" SET "assignedAt" = "createdAt" WHERE "source" = 'ASSIGNED' AND "assignedAt" IS NULL;
