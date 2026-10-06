@@ -10,3 +10,4 @@ export * from './region';
 export * from './clinical-template';
 export * from './facility';
 export * from './therapist-taxonomy';
+export * from './resource-journey';

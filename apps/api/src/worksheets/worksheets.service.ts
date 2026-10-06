@@ -11,6 +11,7 @@ import { UpdateWorksheetDto } from './dto/update-worksheet.dto';
 import { RegenerateSectionDto } from './dto/regenerate-section.dto';
 import { RegenerateImageDto } from './dto/regenerate-image.dto';
 import { LinkCaseDto } from './dto/link-case.dto';
+import { parseDomains, worksheetDomainFor } from '../resource-journey/domains';
 import {
   Worksheet,
   WorksheetStatus,
@@ -437,6 +438,15 @@ export class WorksheetsService {
     if (dto.title) updateData.title = dto.title;
     if (dto.content) updateData.content = dto.content as unknown as Prisma.JsonObject;
     if (dto.conditionTags) updateData.conditionTags = dto.conditionTags;
+    if (dto.journeyDomains) {
+      // Stored in the worksheet vocabulary where one exists; sensory / behaviour have none.
+      updateData.targetDomains = parseDomains(dto.journeyDomains).map((k) => worksheetDomainFor(k) ?? k);
+    }
+    if (dto.ageRangeMin !== undefined) updateData.ageRangeMin = dto.ageRangeMin;
+    if (dto.ageRangeMax !== undefined) updateData.ageRangeMax = dto.ageRangeMax;
+    if (dto.durationMinutes !== undefined) updateData.durationMinutes = dto.durationMinutes;
+    if (dto.practises !== undefined) updateData.practises = dto.practises.trim() || null;
+    if (dto.forText !== undefined) updateData.forText = dto.forText.trim() || null;
 
     return this.prisma.worksheet.update({
       where: { id },

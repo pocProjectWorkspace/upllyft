@@ -9,6 +9,7 @@ import {
 import { createClient } from '@supabase/supabase-js';
 import { LibraryResourceScope, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { parseDomains } from '../resource-journey/domains';
 
 interface Actor {
   id: string;
@@ -58,6 +59,17 @@ const RESOURCE_INCLUDE = {
 } satisfies Prisma.LibraryResourceInclude;
 
 type ResourceRow = Prisma.LibraryResourceGetPayload<{ include: typeof RESOURCE_INCLUDE }>;
+
+/** Family-facing tags shown on Resources-journey cards. Multipart sends strings. */
+export interface JourneyTagsInput {
+  /** Area keys, comma-separated or an array. */
+  domains?: string | string[];
+  ageMin?: string | number | null;
+  ageMax?: string | number | null;
+  durationMinutes?: string | number | null;
+  practises?: string | null;
+  forText?: string | null;
+}
 
 interface AudienceInput {
   audience?: string;
@@ -159,7 +171,8 @@ export class LibraryResourcesService {
       tags?: string;
       scope?: string;
       organizationId?: string;
-    } & AudienceInput,
+    } & AudienceInput &
+      JourneyTagsInput,
   ) {
     if (!file) throw new BadRequestException('A file is required.');
     if (!ALLOWED_MIME.includes(file.mimetype)) {
@@ -230,6 +243,7 @@ export class LibraryResourcesService {
         audience: audience.audience,
         audienceSegment: audience.audienceSegment,
         downloadable: audience.downloadable,
+        ...this.parseJourneyTags(body),
         audienceOrgs: {
           create: audience.organizationIds.map((id) => ({ organizationId: id })),
         },
@@ -252,7 +266,8 @@ export class LibraryResourcesService {
       description?: string | null;
       resourceType?: string;
       tags?: string | string[];
-    } & AudienceInput,
+    } & AudienceInput &
+      JourneyTagsInput,
   ) {
     const existing = await this.prisma.libraryResource.findUnique({
       where: { id },
@@ -270,6 +285,7 @@ export class LibraryResourcesService {
     if (body.description !== undefined) data.description = body.description?.trim() || null;
     if (body.resourceType !== undefined) data.resourceType = this.parseResourceType(body.resourceType);
     if (body.tags !== undefined) data.tags = this.parseTags(body.tags);
+    Object.assign(data, this.parseJourneyTags(body));
 
     const touchesAudience =
       body.audience !== undefined ||
@@ -331,8 +347,45 @@ export class LibraryResourcesService {
 
   // ─── visibility ─────────────────────────────────────────────────────────────
 
+  /**
+   * Signed view/download links for a batch of rows, keyed by id — for callers outside
+   * this service (the Resources journey) that list rows themselves. Same rules as list().
+   */
+  async signedLinks(
+    rows: Array<{ id: string; storagePath: string | null; fileUrl: string; downloadable: boolean }>,
+  ): Promise<Map<string, { fileUrl: string | null; downloadUrl: string | null }>> {
+    const out = new Map<string, { fileUrl: string | null; downloadUrl: string | null }>();
+    const signed = rows.filter((r) => r.storagePath);
+    if (signed.length) {
+      const storage = this.supabase().storage.from(BUCKET);
+      const downloadable = signed.filter((r) => r.downloadable);
+      const [viewRes, downloadRes] = await Promise.all([
+        storage.createSignedUrls(signed.map((r) => r.storagePath!), SIGNED_URL_TTL_SECONDS),
+        downloadable.length
+          ? storage.createSignedUrls(downloadable.map((r) => r.storagePath!), SIGNED_URL_TTL_SECONDS, { download: true })
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      if (viewRes.error || downloadRes.error) {
+        this.logger.error(`Signing library files failed: ${(viewRes.error ?? downloadRes.error)?.message}`);
+        throw new ServiceUnavailableException('Could not prepare the files — please try again.');
+      }
+      const view = this.signedMap(viewRes.data);
+      const download = this.signedMap(downloadRes.data);
+      for (const r of signed) {
+        out.set(r.id, {
+          fileUrl: view.get(r.storagePath!) ?? null,
+          downloadUrl: r.downloadable ? (download.get(r.storagePath!) ?? null) : null,
+        });
+      }
+    }
+    for (const r of rows) {
+      if (!r.storagePath) out.set(r.id, { fileUrl: r.fileUrl, downloadUrl: r.downloadable ? r.fileUrl : null });
+    }
+    return out;
+  }
+
   /** The resources aimed at this user: audience match AND segment match. */
-  private async visibleTo(actor: Actor): Promise<Prisma.LibraryResourceWhereInput> {
+  async visibleTo(actor: Actor): Promise<Prisma.LibraryResourceWhereInput> {
     const orgIds = await this.attachedOrganizationIds(actor);
     const segment: AudienceSegment = actor.role === 'USER' ? 'FAMILIES' : 'STAFF';
 
@@ -562,6 +615,35 @@ export class LibraryResourcesService {
   }
 
   // ─── parsing ────────────────────────────────────────────────────────────────
+
+  /** Only the fields present in `body` are returned, so an edit leaves the rest alone. */
+  private parseJourneyTags(body: JourneyTagsInput) {
+    const out: {
+      domains?: string[];
+      ageMin?: number | null;
+      ageMax?: number | null;
+      durationMinutes?: number | null;
+      practises?: string | null;
+      forText?: string | null;
+    } = {};
+    const int = (v: string | number | null | undefined, name: string, max: number) => {
+      if (v === null || v === '') return null;
+      const n = Number(v);
+      if (!Number.isInteger(n) || n < 0 || n > max) throw new BadRequestException(`${name} must be a whole number from 0 to ${max}.`);
+      return n;
+    };
+    const text = (v: string | null | undefined) => (v == null ? null : v.trim().slice(0, 200) || null);
+    if (body.domains !== undefined) out.domains = parseDomains(body.domains);
+    if (body.ageMin !== undefined) out.ageMin = int(body.ageMin, 'ageMin', 18);
+    if (body.ageMax !== undefined) out.ageMax = int(body.ageMax, 'ageMax', 18);
+    if (body.durationMinutes !== undefined) out.durationMinutes = int(body.durationMinutes, 'durationMinutes', 600);
+    if (body.practises !== undefined) out.practises = text(body.practises);
+    if (body.forText !== undefined) out.forText = text(body.forText);
+    if (out.ageMin != null && out.ageMax != null && out.ageMin > out.ageMax) {
+      throw new BadRequestException('ageMin cannot be greater than ageMax.');
+    }
+    return out;
+  }
 
   private parseResourceType(value: string | undefined) {
     const resourceType = value?.toUpperCase();

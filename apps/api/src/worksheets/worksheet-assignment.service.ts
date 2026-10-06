@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AssignWorksheetDto } from './dto/assign-worksheet.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ListAssignmentsDto } from './dto/list-assignments.dto';
+import { upsertAssignedItem } from '../resource-journey/assigned-item';
 import {
   WorksheetAssignmentStatus,
   Prisma,
@@ -49,7 +50,9 @@ export class WorksheetAssignmentService {
     });
     if (!child) throw new NotFoundException('Child not found');
 
-    const assignment = await this.prisma.worksheetAssignment.create({
+    // The assignment and the child's library item land together (Resources journey).
+    const assignment = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.worksheetAssignment.create({
       data: {
         worksheetId,
         assignedById,
@@ -65,6 +68,17 @@ export class WorksheetAssignmentService {
         assignedTo: { select: { id: true, name: true } },
         child: { select: { id: true, firstName: true } },
       },
+      });
+      await upsertAssignedItem(tx, {
+        childId: dto.childId,
+        kind: 'WORKSHEET',
+        resourceId: worksheetId,
+        parentId: dto.assignedToId,
+        assignedById,
+        goal: dto.notes ?? null,
+        targetDate: dto.dueDate ? new Date(dto.dueDate) : null,
+      });
+      return created;
     });
 
     // Emit event for notifications
