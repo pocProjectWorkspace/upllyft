@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { APP_URLS } from '@upllyft/api-client';
 import type { MiraCard, MiraAction } from '@/lib/api/mira';
+import { MiraLogPromptCard, MiraResourceCard } from './mira-journey-cards';
 
 function ExternalIcon() {
   return (
@@ -26,6 +27,10 @@ export function MiraCardRenderer({ card }: { card: MiraCard }) {
       return <ConversationCard data={card.data} />;
     case 'screening_prompt':
       return <ScreeningPromptCard data={card.data} />;
+    case 'resource':
+      return <MiraResourceCard data={card.data} />;
+    case 'log_prompt':
+      return <MiraLogPromptCard data={card.data} />;
     default:
       return null;
   }
