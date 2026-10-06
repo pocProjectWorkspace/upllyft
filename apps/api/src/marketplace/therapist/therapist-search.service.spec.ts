@@ -50,15 +50,18 @@ describe('TherapistSearchService', () => {
     const { prisma, service } = setup({ country: null, preferredRegion: 'IN' });
     const res = await service.search({ id: 'p' }, {});
     expect(res.location).toEqual({ country: 'IN', city: null });
+    const inIN = { in: ['IN', 'India'], mode: 'insensitive' };
     const geo = andOf(prisma)[1];
-    expect(geo.OR[0]).toEqual({ clinic: { is: null }, country: { in: ['IN', 'India'], mode: 'insensitive' } });
-    expect(geo.OR[1]).toEqual({ clinic: { country: { in: ['IN', 'India'], mode: 'insensitive' } } });
+    expect(geo.OR[0]).toEqual({ clinic: { is: null }, OR: [{ country: inIN }, { country: null }, { country: '' }] });
+    expect(geo.OR[1]).toEqual({ clinic: { OR: [{ country: inIN }, { country: null }, { country: '' }] } });
   });
 
   it('lists only clinic therapists in clinic-directory markets', async () => {
     const { prisma, service } = setup({ country: 'AE' });
     await service.search({ id: 'p' }, {});
-    expect(andOf(prisma)[1]).toEqual({ clinic: { country: { in: ['AE', 'UAE', 'United Arab Emirates'], mode: 'insensitive' } } });
+    const inAE = { in: ['AE', 'UAE', 'United Arab Emirates'], mode: 'insensitive' };
+    // Clinic therapists only; a clinic with no country recorded yet still counts.
+    expect(andOf(prisma)[1]).toEqual({ clinic: { OR: [{ country: inAE }, { country: null }, { country: '' }] } });
   });
 
   it('a city filter still includes online and not-yet-located therapists', async () => {

@@ -56,11 +56,19 @@ export class TherapistSearchService {
     const and: Prisma.TherapistProfileWhereInput[] = [BOOKABLE_THERAPIST_WHERE];
 
     if (country) {
+      // As with city, an unrecorded country is not a different country: a clinic or
+      // therapist that has not filled it in yet stays visible instead of vanishing.
       const inCountry = { in: countryAliases(country), mode: 'insensitive' as const };
+      const clinicInCountry = { clinic: { OR: [{ country: inCountry }, { country: null }, { country: '' }] } };
       and.push(
         CLINIC_DIRECTORY_COUNTRIES.has(country)
-          ? { clinic: { country: inCountry } }
-          : { OR: [{ clinic: { is: null }, country: inCountry }, { clinic: { country: inCountry } }] },
+          ? clinicInCountry
+          : {
+              OR: [
+                { clinic: { is: null }, OR: [{ country: inCountry }, { country: null }, { country: '' }] },
+                clinicInCountry,
+              ],
+            },
       );
     }
 
