@@ -1,5 +1,7 @@
 'use client';
 
+import { useParentJourneyRedirect } from '@/resources/journey/parent-redirect';
+import { useAuth } from '@upllyft/api-client';
 import { useState } from 'react';
 import { Button, Card, Badge, Input } from '@upllyft/ui';
 import { ResourcesShell } from '@/resources/components/resources-shell';
@@ -17,7 +19,7 @@ const trendIcons: Record<string, { label: string; color: string; arrow: string }
   stable: { label: 'Stable', color: 'text-blue-600', arrow: 'M5 12h14' },
 };
 
-export default function ProgressPage() {
+function ProgressPageInner() {
   const [childId, setChildId] = useState('');
   const [activeChildId, setActiveChildId] = useState('');
 
@@ -203,4 +205,12 @@ export default function ProgressPage() {
       </div>
     </ResourcesShell>
   );
+}
+
+/** Parents are sent to the Resources journey; other roles keep this page. */
+export default function ProgressPage() {
+  const { user } = useAuth();
+  const toJourney = useParentJourneyRedirect('progress');
+  if (!user || toJourney) return null;
+  return <ProgressPageInner />;
 }

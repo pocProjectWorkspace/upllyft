@@ -1,5 +1,7 @@
 'use client';
 
+import { useParentJourneyRedirect } from '@/resources/journey/parent-redirect';
+import { useAuth } from '@upllyft/api-client';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Skeleton, Input } from '@upllyft/ui';
@@ -39,7 +41,7 @@ function typeLabel(t: string) {
  * by your organisation (visible to its members). Read-only for families; uploading
  * happens in the admin/org workspaces.
  */
-export default function ResourceLibraryPage() {
+function ResourceLibraryPageInner() {
   const [type, setType] = useState('');
   const [search, setSearch] = useState('');
   const [activeTag, setActiveTag] = useState('');
@@ -193,4 +195,12 @@ function LibraryCard({
       {children}
     </a>
   );
+}
+
+/** Parents are sent to the Resources journey; other roles keep this page. */
+export default function ResourceLibraryPage() {
+  const { user } = useAuth();
+  const toJourney = useParentJourneyRedirect();
+  if (!user || toJourney) return null;
+  return <ResourceLibraryPageInner />;
 }

@@ -138,28 +138,33 @@ export function getNavItems(
           ]
         : [];
 
-  const resourcesChildren: GlobalNavChild[] = [
-    { label: 'My Library', href: R },
-    { label: 'Resource Library', href: `${R}/library` },
-    { label: 'Create', href: `${R}/create` },
-    { label: 'Community', href: `${R}/community` },
-    ...(isParent
-      ? [
-          { label: 'My Homework', href: `${R}/assignments` },
-          { label: 'Progress', href: `${R}/progress` },
-        ]
-      : isProfessional
-        ? [
-            { label: 'Sent Assignments', href: `${R}/assignments` },
-            { label: 'Recommendations', href: `${R}/recommendations` },
-          ]
-        : isAdmin || isSuperAdmin
+  // Parents get the Resources journey (one child at a time: library · their library ·
+  // progress), all on /resources. Everyone else keeps the worksheet tools.
+  const resourcesChildren: GlobalNavChild[] = isParent
+    ? [
+        { label: 'Resource Library', href: R },
+        { label: 'My Child’s Library', href: `${R}?tab=mine` },
+        { label: 'Progress', href: `${R}?tab=progress` },
+        { label: 'Community', href: `${R}/community` },
+      ]
+    : [
+        { label: 'My Library', href: R },
+        { label: 'Resource Library', href: `${R}/library` },
+        { label: 'Create', href: `${R}/create` },
+        { label: 'Community', href: `${R}/community` },
+        ...(isProfessional
           ? [
-              { label: 'Moderation', href: `${R}/moderation` },
-              { label: 'Contributors', href: `${R}/contributors` },
+              { label: 'Assignments', href: `${R}/assignments` },
+              { label: 'Shared with me', href: `${R}/shared` },
+              { label: 'Recommendations', href: `${R}/recommendations` },
             ]
-          : []),
-  ];
+          : isAdmin || isSuperAdmin
+            ? [
+                { label: 'Moderation', href: `${R}/moderation` },
+                { label: 'Contributors', href: `${R}/contributors` },
+              ]
+            : []),
+      ];
 
   items.push(
     { label: 'Feed', app: 'community', href: APP_URLS.community },
