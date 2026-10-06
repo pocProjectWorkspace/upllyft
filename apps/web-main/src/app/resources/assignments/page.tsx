@@ -1,5 +1,6 @@
 'use client';
 
+import { useParentJourneyRedirect } from '@/resources/journey/parent-redirect';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -56,7 +57,7 @@ const STATUS_OPTIONS: Array<{ value: WorksheetAssignmentStatus | 'ALL'; label: s
   { value: 'OVERDUE', label: 'Overdue' },
 ];
 
-export default function AssignmentsPage() {
+function AssignmentsPageInner() {
   const { user } = useAuth();
   const isTherapist = user?.role === 'THERAPIST';
 
@@ -602,4 +603,12 @@ function ParentReceivedAssignments() {
       </Dialog>
     </div>
   );
+}
+
+/** Parents are sent to the Resources journey; other roles keep this page. */
+export default function AssignmentsPage() {
+  const { user } = useAuth();
+  const toJourney = useParentJourneyRedirect('mine');
+  if (!user || toJourney) return null;
+  return <AssignmentsPageInner />;
 }
