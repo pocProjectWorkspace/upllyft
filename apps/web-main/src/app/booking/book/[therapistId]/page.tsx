@@ -303,6 +303,26 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
     );
   }
 
+  // Not listed (or no longer taking bookings): say so up front instead of failing at payment.
+  if (!therapist || therapist.bookable === false) {
+    return (
+      <BookingShell>
+        <div className="max-w-md mx-auto text-center py-16">
+          <h2 className="text-xl font-semibold text-gray-900">This therapist isn&rsquo;t taking bookings</h2>
+          <p className="text-gray-500 mt-2">
+            They may have paused new bookings, or their profile is still being verified.
+          </p>
+          <button
+            onClick={() => router.push('/booking')}
+            className="mt-6 text-sm font-semibold text-teal-700 hover:underline"
+          >
+            Find another therapist →
+          </button>
+        </div>
+      </BookingShell>
+    );
+  }
+
   return (
     <BookingShell>
       <div className="space-y-6">

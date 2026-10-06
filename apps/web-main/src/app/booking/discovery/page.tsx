@@ -83,7 +83,7 @@ function DiscoveryContent() {
   const [compareSel, setCompareSel] = useState<string[]>([]);
   const [locOpen, setLocOpen] = useState(false);
 
-  const { data: tData, isLoading: tLoading } = useSearchTherapists({ ...fitParams, limit: 50 });
+  const { data: tData, isLoading: tLoading } = useSearchTherapists({ ...fitParams, country: region?.country, limit: 50 });
   const { data: cData, isLoading: cLoading } = useSearchClinics({ ...fitParams, country: region?.country, limit: 50 });
   const isLoading = tLoading || cLoading;
 
@@ -107,12 +107,16 @@ function DiscoveryContent() {
       kind: 'THERAPIST',
       id: t.id,
       name: t.user?.name ?? 'Therapist',
-      role: t.title || 'Therapist',
+      role: `${t.title || 'Therapist'} · ${t.source === 'CLINIC' && t.clinic ? `at ${t.clinic.name}` : 'Independent'}`,
       rating: t.overallRating ?? 0,
       reviews: t.totalRatings ?? 0,
       tags: t.specializations.slice(0, 3),
       price: t.startingPrice && t.startingPrice > 0 ? t.startingPrice : null,
-      metaBits: t.languages.length ? [t.languages.slice(0, 2).join(', ')] : [],
+      metaBits: [
+        ...(t.location?.city ? [t.location.city] : []),
+        ...(t.offersOnline ? ['Online'] : []),
+        ...(t.languages.length ? [t.languages.slice(0, 2).join(', ')] : []),
+      ],
       match: t.match,
       image: t.profileImage || t.user?.image,
     }));

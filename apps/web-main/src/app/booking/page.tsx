@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
 import { BookingShell } from '@/booking/components/booking-shell';
 import { RegionGate } from '@/booking/components/region-gate';
+import { NearbyDirectory } from '@/booking/components/nearby-directory';
 import { useSearchTherapists } from '@/booking/hooks/use-marketplace';
 import { useShortlistIds, useToggleShortlist } from '@/booking/hooks/use-shortlist';
 import { formatCurrency } from '@/booking/lib/utils';
@@ -20,6 +21,15 @@ import {
 } from '@upllyft/ui';
 
 // ── Inline SVG Icons ──
+
+function PinIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
 
 function SearchIcon({ className }: { className?: string }) {
   return (
@@ -104,14 +114,28 @@ function ChevronRightIcon({ className }: { className?: string }) {
 
 // ── Category filter options ──
 
+// Values are DepartmentKeys (packages/types therapist-taxonomy). The API still accepts
+// the old free-text labels, which Mira deep-links send.
 const CATEGORIES = [
   { label: 'All Therapists', value: '' },
-  { label: 'Speech Therapy', value: 'Speech Therapy' },
-  { label: 'Occupational Therapy', value: 'Occupational Therapy' },
-  { label: 'Behavioral Therapy', value: 'Behavioral Therapy' },
-  { label: 'Child Psychology', value: 'Child Psychology' },
-  { label: 'Special Education', value: 'Special Education' },
+  { label: 'Speech Therapy', value: 'speech' },
+  { label: 'Occupational Therapy', value: 'ot' },
+  { label: 'Behavioral Therapy (ABA)', value: 'aba' },
+  { label: 'Child Psychology', value: 'psychology' },
+  { label: 'Physiotherapy', value: 'physio' },
+  { label: 'Special Education', value: 'specialed' },
 ];
+
+function categoryLabel(value: string) {
+  return CATEGORIES.find((c) => c.value === value)?.label ?? value;
+}
+
+const SOURCES = [
+  { label: 'All', value: '' },
+  { label: 'Independent', value: 'independent' },
+  { label: 'At a clinic', value: 'clinic' },
+] as const;
+type SourceFilter = (typeof SOURCES)[number]['value'];
 
 const ITEMS_PER_PAGE = 9;
 
@@ -184,6 +208,10 @@ function MarketplacePageContent() {
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [specialization, setSpecialization] = useState('');
+  // Starts at the parent's own city; online therapists in the country always show.
+  const [cityInput, setCityInput] = useState('');
+  const [city, setCity] = useState('');
+  const [source, setSource] = useState<SourceFilter>('');
   const [minRating, setMinRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [page, setPage] = useState(1);
@@ -255,6 +283,21 @@ function MarketplacePageContent() {
     }
   }, [serviceModel, router, urlHasIncomingFilter]);
 
+  useEffect(() => {
+    if (user?.city) {
+      setCityInput(user.city);
+      setCity(user.city);
+    }
+  }, [user?.city]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCity(cityInput.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [cityInput]);
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -267,6 +310,8 @@ function MarketplacePageContent() {
   const filters: TherapistSearchFilters = {
     search: debouncedSearch || undefined,
     specialization: specialization || undefined,
+    city: city || undefined,
+    source: source || undefined,
     minRating: minRating > 0 ? minRating : undefined,
     childId: fitChildId || undefined,
     concern: fitConcern || undefined,
@@ -296,10 +341,11 @@ function MarketplacePageContent() {
   }, [rawTherapists, sortBy]);
 
   const hasActiveFilters =
-    !!specialization || !!debouncedSearch || minRating > 0 || sortBy !== 'relevance';
+    !!specialization || !!debouncedSearch || !!source || minRating > 0 || sortBy !== 'relevance';
 
   const clearFilters = () => {
     setSpecialization('');
+    setSource('');
     setSearchInput('');
     setDebouncedSearch('');
     setMinRating(0);
@@ -330,18 +376,33 @@ function MarketplacePageContent() {
           </p>
         </div>
 
-        {/* Search */}
-        <div className="max-w-2xl mx-auto">
-          <div className="relative">
+        {/* Search + city */}
+        <div className="max-w-2xl mx-auto flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
-              placeholder="Search by name, specialization..."
+              placeholder="Search by name, specialization, clinic..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="pl-10 rounded-xl h-11"
             />
           </div>
+          <div className="relative sm:w-48">
+            <PinIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              placeholder="City"
+              aria-label="City"
+              value={cityInput}
+              onChange={(e) => setCityInput(e.target.value)}
+              className="pl-10 rounded-xl h-11"
+            />
+          </div>
         </div>
+        {city && (
+          <p className="-mt-5 text-center text-xs text-gray-500">
+            Showing therapists in {city}, plus those who offer online sessions.
+          </p>
+        )}
 
         {/* Category Pills */}
         <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
@@ -386,6 +447,23 @@ function MarketplacePageContent() {
             ))}
           </div>
 
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-1">Listed</span>
+            {SOURCES.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => { setSource(opt.value); setPage(1); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  source === opt.value
+                    ? 'bg-teal-600 text-white'
+                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-teal-50 hover:border-teal-300'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sort by</span>
             <select
@@ -404,7 +482,8 @@ function MarketplacePageContent() {
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span>
               Showing {therapists.length} {therapists.length === 1 ? 'therapist' : 'therapists'}
-              {specialization && <> in <span className="font-medium">{specialization}</span></>}
+              {specialization && <> in <span className="font-medium">{categoryLabel(specialization)}</span></>}
+              {source && <> listed <span className="font-medium">{source === 'clinic' ? 'at a clinic' : 'independently'}</span></>}
               {minRating > 0 && <> rated <span className="font-medium">{minRating}+</span></>}
               {debouncedSearch && <> matching &ldquo;<span className="font-medium">{debouncedSearch}</span>&rdquo;</>}
             </span>
@@ -485,11 +564,13 @@ function MarketplacePageContent() {
             <p className="text-gray-600 mt-2 leading-relaxed">
               {hasActiveFilters
                 ? (<>We couldn&rsquo;t find any therapists matching
-                    {specialization && <> the specialization <span className="font-medium">{specialization}</span></>}
+                    {specialization && <> the specialization <span className="font-medium">{categoryLabel(specialization)}</span></>}
                     {debouncedSearch && <> the search &ldquo;<span className="font-medium">{debouncedSearch}</span>&rdquo;</>}
                     {minRating > 0 && <> with rating {minRating}+</>}
                     . Try adjusting the filters, or browse all therapists below.</>)
-                : 'No therapists are available right now. Please check back soon.'}
+                : city
+                  ? `No therapists are taking bookings in ${city} right now. Try another city, or clear it to see online therapists across your country.`
+                  : 'No therapists are available right now. Please check back soon.'}
             </p>
             {hasActiveFilters && (
               <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -502,6 +583,9 @@ function MarketplacePageContent() {
                   </Button>
                 )}
               </div>
+            )}
+            {data?.location?.country === 'IN' && (
+              <NearbyDirectory city={city || user?.city} state={user?.state} />
             )}
           </div>
         ) : (
@@ -582,6 +666,26 @@ function MarketplacePageContent() {
                         </div>
                       </div>
 
+                      {/* Where + who lists them */}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 text-xs text-gray-600">
+                        {therapist.location?.city && (
+                          <span className="flex items-center gap-1">
+                            <PinIcon className="w-3.5 h-3.5" />
+                            {therapist.location.city}
+                          </span>
+                        )}
+                        <span className="font-medium text-teal-700">
+                          {therapist.source === 'CLINIC' && therapist.clinic
+                            ? `At ${therapist.clinic.name}`
+                            : 'Independent · Upllyft-verified'}
+                        </span>
+                        {therapist.offersOnline && (
+                          <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100">
+                            Online sessions
+                          </span>
+                        )}
+                      </div>
+
                       {/* Specializations */}
                       <div className="flex flex-wrap gap-1.5 mb-3">
                         {therapist.specializations.slice(0, 3).map((spec) => (
@@ -615,8 +719,9 @@ function MarketplacePageContent() {
                       {/* Price */}
                       {therapist.startingPrice != null && therapist.startingPrice > 0 && (
                         <div className="mb-4">
-                          <span className="text-lg font-bold text-gray-900">{formatCurrency(therapist.startingPrice)}</span>
-                          <span className="text-xs text-gray-500 ml-1">per session (60 min)</span>
+                          <span className="text-xs text-gray-500 mr-1">From</span>
+                          <span className="text-lg font-bold text-gray-900">{formatCurrency(therapist.startingPrice, therapist.currency || undefined)}</span>
+                          <span className="text-xs text-gray-500 ml-1">per session</span>
                         </div>
                       )}
 

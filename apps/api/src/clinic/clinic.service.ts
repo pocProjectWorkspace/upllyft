@@ -19,6 +19,7 @@ import {
     UpsertSessionPricingDto,
     SetupPracticeDto,
 } from './dto/clinic.dto';
+import { inferDepartment } from '../marketplace/matching/matching.util';
 
 /** How long an "Add therapist" invite link (a password-set token) stays valid. */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -350,7 +351,7 @@ export class ClinicService {
             select: {
                 id: true,
                 role: true,
-                therapistProfile: { select: { id: true, clinicId: true } },
+                therapistProfile: { select: { id: true, clinicId: true, department: true } },
             },
         });
         if (existing) {
@@ -389,6 +390,9 @@ export class ClinicService {
                         clinicId: clinic.id,
                         ...(dto.title ? { title: dto.title } : {}),
                         ...(dto.specializations?.length ? { specializations: dto.specializations } : {}),
+                        ...(!existing.therapistProfile.department && (dto.title || dto.specializations?.length)
+                            ? { department: inferDepartment(dto.title, dto.specializations) }
+                            : {}),
                     },
                 })
                 : await tx.therapistProfile.create({
@@ -396,6 +400,7 @@ export class ClinicService {
                         userId: user.id,
                         title: dto.title,
                         specializations: dto.specializations,
+                        department: inferDepartment(dto.title, dto.specializations),
                         clinicId: clinic.id,
                         isActive: true,
                         acceptingBookings: true,

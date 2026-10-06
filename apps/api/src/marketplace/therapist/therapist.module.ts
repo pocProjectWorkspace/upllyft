@@ -4,6 +4,7 @@ import { TherapistManagementController } from './therapist-management.controller
 import { PrismaModule } from '../../prisma/prisma.module';
 import { BookingModule } from '../booking/booking.module';
 import { MatchingService } from '../matching/matching.service';
+import { TherapistSearchService } from './therapist-search.service';
 
 @Module({
     imports: [
@@ -11,6 +12,6 @@ import { MatchingService } from '../matching/matching.service';
         forwardRef(() => BookingModule),
     ],
     controllers: [TherapistManagementController, TherapistProfileController],
-    providers: [MatchingService],
+    providers: [MatchingService, TherapistSearchService],
 })
 export class TherapistModule { }
