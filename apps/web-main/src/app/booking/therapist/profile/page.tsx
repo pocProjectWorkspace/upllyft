@@ -83,6 +83,8 @@ export default function TherapistProfilePage() {
   const [languageInput, setLanguageInput] = useState('');
   const [defaultTimezone, setDefaultTimezone] = useState('');
   const [acceptingBookings, setAcceptingBookings] = useState(true);
+  const [country, setCountry] = useState('');
+  const [city, setCity] = useState('');
 
   useEffect(() => {
     if (profile) {
@@ -94,6 +96,8 @@ export default function TherapistProfilePage() {
       setLanguages(profile.languages || []);
       setDefaultTimezone(profile.defaultTimezone || '');
       setAcceptingBookings(profile.acceptingBookings ?? true);
+      setCountry(profile.country || '');
+      setCity(profile.city || '');
     }
   }, [profile]);
 
@@ -154,6 +158,8 @@ export default function TherapistProfilePage() {
       languages,
       defaultTimezone: defaultTimezone || undefined,
       acceptingBookings,
+      // A clinic therapist's location is the clinic's; only independents set their own.
+      ...(profile?.clinicId ? {} : { country: country || undefined, city: city.trim() }),
     };
 
     updateProfile.mutate(data);
@@ -268,6 +274,40 @@ export default function TherapistProfilePage() {
                 onChange={(e) => setYearsExperience(e.target.value)}
               />
             </div>
+            {profile.clinicId ? (
+              <p className="text-xs text-gray-500">
+                Families find you by your clinic&rsquo;s location.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="country">Country you practise in</Label>
+                  <select
+                    id="country"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="">Select country</option>
+                    <option value="IN">India</option>
+                    <option value="AE">United Arab Emirates</option>
+                    <option value="SA">Saudi Arabia</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    placeholder="e.g. Bengaluru"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                  />
+                </div>
+                <p className="sm:col-span-2 text-xs text-gray-500">
+                  Families search by city. Offer an online session type to be found across your whole country.
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 

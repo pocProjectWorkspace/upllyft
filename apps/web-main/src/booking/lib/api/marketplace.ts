@@ -34,8 +34,22 @@ export interface TherapistProfile {
   stripeAccountId?: string;
   isActive: boolean;
   acceptingBookings: boolean;
-  startingPrice?: number;
-  user?: { id: string; name: string; email: string; image?: string };
+  startingPrice?: number | null;
+  /** Currency of startingPrice. */
+  currency?: string | null;
+  department?: string | null;
+  country?: string | null;
+  city?: string | null;
+  clinicId?: string | null;
+  /** Where they practise: their clinic's location, or their own when independent. */
+  location?: { country: string | null; city: string | null };
+  /** Listed by Upllyft on their own, or through a clinic. */
+  source?: 'INDEPENDENT' | 'CLINIC';
+  clinic?: { id: string; name: string; logoUrl?: string | null; country?: string | null; city?: string | null } | null;
+  offersOnline?: boolean;
+  /** Profile route only: false when a past booking lets you view a therapist who no longer takes bookings. */
+  bookable?: boolean;
+  user?: { id: string; name: string; email?: string; image?: string };
   match?: ProviderMatch;
 }
 
@@ -146,6 +160,8 @@ export interface TherapistSearchResult {
   page: number;
   limit: number;
   totalPages: number;
+  /** The country (and city) the results were filtered to. */
+  location?: { country: string | null; city: string | null };
   needs?: DiscoveryNeeds;
 }
 
@@ -155,6 +171,10 @@ export interface TherapistSearchFilters {
   language?: string;
   minRating?: number;
   maxPrice?: number;
+  /** ISO country code; the API defaults to the parent's own region. */
+  country?: string;
+  city?: string;
+  source?: 'independent' | 'clinic';
   /** Guardian-only: tier-match results against this child's screening flags */
   childId?: string;
   /** Parent-picked concern id (talking/sounds/feelings/moving/notsure) → soft matches */
@@ -268,6 +288,8 @@ export interface CreateTherapistProfileDto {
   yearsExperience: number;
   languages: string[];
   defaultTimezone: string;
+  country?: string;
+  city?: string;
 }
 
 export interface UpdateTherapistProfileDto {
@@ -280,6 +302,9 @@ export interface UpdateTherapistProfileDto {
   defaultTimezone?: string;
   profileImage?: string;
   acceptingBookings?: boolean;
+  /** ISO code (IN / AE / SA); independent therapists only. */
+  country?: string;
+  city?: string;
 }
 
 export interface CreateSessionTypeDto {
@@ -313,6 +338,9 @@ export async function searchTherapists(filters?: TherapistSearchFilters): Promis
   if (filters?.language) params.language = filters.language;
   if (filters?.minRating) params.minRating = String(filters.minRating);
   if (filters?.maxPrice) params.maxPrice = String(filters.maxPrice);
+  if (filters?.country) params.country = filters.country;
+  if (filters?.city) params.city = filters.city;
+  if (filters?.source) params.source = filters.source;
   if (filters?.childId) params.childId = filters.childId;
   if (filters?.concern) params.concern = filters.concern;
   if (filters?.page) params.page = String(filters.page);

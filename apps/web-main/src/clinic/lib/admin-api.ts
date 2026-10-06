@@ -228,6 +228,8 @@ export interface ClinicDetail {
   secondaryColor: string | null;
   accentColor: string | null;
   address: string | null;
+  city?: string | null;
+  country?: string | null;
   licenseNo: string | null;
   phone: string | null;
   email: string | null;
@@ -247,6 +249,8 @@ export interface ClinicDetail {
 export interface UpdateClinicInput {
   name?: string;
   address?: string;
+  city?: string;
+  country?: string;
   licenseNo?: string;
   phone?: string;
   email?: string;

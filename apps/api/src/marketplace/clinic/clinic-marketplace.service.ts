@@ -7,16 +7,17 @@ import {
   tierRank,
   type ChildNeeds,
 } from '../matching/matching.util';
+import {
+  BOOKABLE_THERAPIST_WHERE,
+  PUBLIC_CLINIC_WHERE,
+  countryAliases,
+  normalizeCountry,
+  PUBLIC_THERAPIST_SELECT,
+  toPublicTherapist,
+} from '../common/therapist-discovery';
 
-/**
- * What a parent may see: the owner has made the clinic public AND an Upllyft admin
- * has approved it (backlog #2). Solo practices reach ACTIVE automatically when the
- * owner's licence is verified.
- */
-export const PUBLIC_CLINIC_WHERE = {
-  isPublic: true,
-  complianceStatus: 'ACTIVE',
-} as const satisfies Prisma.ClinicWhereInput;
+export { PUBLIC_CLINIC_WHERE };
+
 
 @Injectable()
 export class ClinicMarketplaceService {
@@ -27,6 +28,7 @@ export class ClinicMarketplaceService {
       search?: string;
       specialization?: string;
       country?: string;
+      city?: string;
       page: number;
       limit: number;
     },
@@ -34,8 +36,13 @@ export class ClinicMarketplaceService {
   ) {
     const where: Prisma.ClinicWhereInput = { ...PUBLIC_CLINIC_WHERE };
 
-    if (params.country) {
-      where.country = params.country;
+    const country = normalizeCountry(params.country);
+    if (country) {
+      where.country = { in: countryAliases(country), mode: 'insensitive' };
+    }
+
+    if (params.city?.trim()) {
+      where.city = { equals: params.city.trim(), mode: 'insensitive' };
     }
 
     if (params.search) {
@@ -56,7 +63,7 @@ export class ClinicMarketplaceService {
       this.prisma.clinic.findMany({
         where,
         include: {
-          _count: { select: { therapists: true } },
+          _count: { select: { therapists: { where: BOOKABLE_THERAPIST_WHERE } } },
         },
         // In fit mode tier-first ranking spans the whole result set, so the page window
         // is applied after the in-memory sort (clinic counts are small).
@@ -100,19 +107,8 @@ export class ClinicMarketplaceService {
       where: { id: clinicId, ...PUBLIC_CLINIC_WHERE },
       include: {
         therapists: {
-          where: { isActive: true, acceptingBookings: true },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
-              },
-            },
-            sessionTypes: { where: { isActive: true } },
-            sessionPricing: true,
-          },
+          where: BOOKABLE_THERAPIST_WHERE,
+          select: PUBLIC_THERAPIST_SELECT,
         },
       },
     });
@@ -121,6 +117,6 @@ export class ClinicMarketplaceService {
       throw new NotFoundException('Clinic not found');
     }
 
-    return clinic;
+    return { ...clinic, therapists: clinic.therapists.map(toPublicTherapist) };
   }
 }

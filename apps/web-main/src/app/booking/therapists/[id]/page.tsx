@@ -443,12 +443,12 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                       <Button
                         className="w-full rounded-xl h-12 text-base bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white"
                         onClick={() => router.push(`/booking/book/${therapist.id}`)}
-                        disabled={!therapist.acceptingBookings}
+                        disabled={!therapist.acceptingBookings || therapist.bookable === false}
                       >
-                        {therapist.acceptingBookings ? 'Book Session' : 'Not Accepting Bookings'}
+                        {therapist.acceptingBookings && therapist.bookable !== false ? 'Book Session' : 'Not Accepting Bookings'}
                       </Button>
 
-                      {!therapist.acceptingBookings && (
+                      {(!therapist.acceptingBookings || therapist.bookable === false) && (
                         <p className="text-xs text-center text-gray-500">
                           This therapist is not currently accepting new bookings.
                         </p>

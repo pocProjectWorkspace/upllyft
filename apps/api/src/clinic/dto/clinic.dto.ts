@@ -51,6 +51,15 @@ export class UpdateClinicDto {
     @IsString()
     address?: string;
 
+    /** City parents search by; the clinic's therapists inherit it. */
+    @IsOptional()
+    @IsString()
+    city?: string;
+
+    @IsOptional()
+    @IsString()
+    country?: string;
+
     @IsOptional()
     @IsString()
     licenseNo?: string;

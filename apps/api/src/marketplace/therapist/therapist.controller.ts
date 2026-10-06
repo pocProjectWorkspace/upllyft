@@ -7,8 +7,14 @@ import {
     AddAvailabilityExceptionDto,
     GetAvailableSlotsDto
 } from '../booking/dto/booking.dto';
-import { MatchingService } from '../matching/matching.service';
-import { classifyDiscipline, matchTherapist, tierRank } from '../matching/matching.util';
+import { inferDepartment } from '../matching/matching.util';
+import { TherapistSearchService, type TherapistSearchQuery } from './therapist-search.service';
+import {
+    BOOKABLE_THERAPIST_WHERE,
+    PUBLIC_THERAPIST_SELECT,
+    normalizeCountry,
+    toPublicTherapist,
+} from '../common/therapist-discovery';
 
 @Controller('marketplace/therapists')
 @UseGuards(JwtAuthGuard)
@@ -16,105 +22,16 @@ export class TherapistProfileController {
     constructor(
         private prisma: PrismaService,
         private availabilityService: AvailabilityService,
-        private matchingService: MatchingService,
+        private therapistSearch: TherapistSearchService,
     ) { }
 
     /**
-     * Search/List all therapists.
-     *
-     * With `childId` (guardian-only) or `concern`, each result carries a
-     * `match: { tier, reason }` — screening-backed 'strong', self-reported 'likely',
-     * neutral 'also'/'none' — and fit-sorting puts strong fits first. Without them
-     * this is the same rating-sorted browse it always was.
+     * Parent-facing search: bookable therapists only, in the parent's country, with
+     * optional city / discipline / source / price filters. See TherapistSearchService.
      */
     @Get()
-    async searchTherapists(
-        @Req() req: any,
-        @Query('specialization') specialization?: string,
-        @Query('language') language?: string,
-        @Query('minRating') minRating?: string,
-        @Query('childId') childId?: string,
-        @Query('concern') concern?: string,
-        @Query('page') page = '1',
-        @Query('limit') limit = '20',
-    ) {
-        const pageNum = parseInt(page);
-        const limitNum = parseInt(limit);
-        const skip = (pageNum - 1) * limitNum;
-
-        const where: any = {
-            isActive: true,
-            acceptingBookings: true,
-        };
-
-        if (specialization) {
-            where.specializations = {
-                has: specialization,
-            };
-        }
-
-        if (language) {
-            where.languages = {
-                has: language,
-            };
-        }
-
-        if (minRating) {
-            where.overallRating = {
-                gte: parseFloat(minRating),
-            };
-        }
-
-        const needs = await this.matchingService.resolveNeeds(req.user, childId, concern);
-        const fitMode = needs.source !== 'none';
-
-        const [therapists, total] = await Promise.all([
-            this.prisma.therapistProfile.findMany({
-                where,
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            name: true,
-                            email: true,
-                            image: true,
-                        },
-                    },
-                    sessionTypes: {
-                        where: { isActive: true },
-                    },
-                },
-                // Fit mode ranks tier-first across the whole result set, so tier must be
-                // computed before pagination. Result counts are small enough (tens, not
-                // thousands) that fetching the page window after an in-memory sort is fine.
-                // Fit mode sorts in memory, so cap the candidate set instead of fetching every profile.
-                ...(fitMode ? { skip: 0, take: 200 as number } : { skip, take: limitNum }),
-                orderBy: {
-                    overallRating: 'desc',
-                },
-            }),
-            this.prisma.therapistProfile.count({ where }),
-        ]);
-
-        const withMatch = therapists.map((t) => ({
-            ...t,
-            match: matchTherapist(classifyDiscipline(t.title, t.specializations), needs),
-        }));
-
-        const results = fitMode
-            ? withMatch
-                .sort((a, b) => tierRank(a.match.tier) - tierRank(b.match.tier) || (b.overallRating ?? 0) - (a.overallRating ?? 0))
-                .slice(skip, skip + limitNum)
-            : withMatch;
-
-        return {
-            therapists: results,
-            total,
-            page: pageNum,
-            limit: limitNum,
-            totalPages: Math.ceil(total / limitNum),
-            needs: { source: needs.source, flaggedDomains: needs.flaggedDomains, concern: needs.concern },
-        };
+    async searchTherapists(@Req() req: any, @Query() query: TherapistSearchQuery) {
+        return this.therapistSearch.search(req.user, query);
     }
 
     /**
@@ -192,6 +109,12 @@ export class TherapistProfileController {
             throw new Error('Therapist profile already exists');
         }
 
+        // Location defaults to the account's own; the profile page lets them change it.
+        const account = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { country: true, preferredRegion: true, city: true },
+        });
+
         return this.prisma.therapistProfile.create({
             data: {
                 userId,
@@ -203,6 +126,11 @@ export class TherapistProfileController {
                 profileImage: dto.profileImage,
                 languages: dto.languages || [],
                 defaultTimezone: dto.defaultTimezone || 'Asia/Kolkata',
+                department: dto.department || inferDepartment(dto.title, dto.specializations),
+                country: normalizeCountry(dto.country)
+                    ?? normalizeCountry(account?.country)
+                    ?? normalizeCountry(account?.preferredRegion),
+                city: dto.city?.trim() || account?.city?.trim() || null,
             },
             include: {
                 user: {
@@ -243,6 +171,16 @@ export class TherapistProfileController {
                 profileImage: dto.profileImage,
                 languages: dto.languages,
                 defaultTimezone: dto.defaultTimezone,
+                // A therapist without a department gets one from what they just saved,
+                // so discipline search finds them.
+                ...(dto.department
+                    ? { department: dto.department }
+                    : !profile.department && (dto.title || dto.specializations)
+                        ? { department: inferDepartment(dto.title ?? profile.title, dto.specializations ?? profile.specializations) }
+                        : {}),
+                ...(dto.country !== undefined ? { country: normalizeCountry(dto.country) } : {}),
+                ...(dto.city !== undefined ? { city: dto.city?.trim() || null } : {}),
+                ...(typeof dto.acceptingBookings === 'boolean' ? { acceptingBookings: dto.acceptingBookings } : {}),
             },
             include: {
                 user: {
@@ -329,30 +267,26 @@ export class TherapistProfileController {
      * (Moved down to avoid conflict with 'me' routes if validation is strict, though unlikely for 'me' vs UUID)
      */
     @Get(':id')
-    async getTherapistProfile(@Param('id') therapistId: string) {
-        console.log('DEBUG: getTherapistProfile called with id:', therapistId);
-        const therapist = await this.prisma.therapistProfile.findUnique({
-            where: { id: therapistId },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        image: true,
-                    },
-                },
-                sessionTypes: {
-                    where: { isActive: true },
-                },
+    async getTherapistProfile(@Param('id') therapistId: string, @Req() req: any) {
+        // A family that already booked this therapist can still open the profile after
+        // they stop being bookable; everyone else sees only bookable therapists.
+        const therapist = await this.prisma.therapistProfile.findFirst({
+            where: {
+                id: therapistId,
+                OR: [BOOKABLE_THERAPIST_WHERE, { bookings: { some: { patientId: req.user.id } } }],
             },
+            select: PUBLIC_THERAPIST_SELECT,
         });
 
         if (!therapist) {
             throw new NotFoundException('Therapist not found');
         }
 
-        return therapist;
+        const bookable = await this.prisma.therapistProfile.count({
+            where: { id: therapistId, ...BOOKABLE_THERAPIST_WHERE },
+        });
+
+        return { ...toPublicTherapist(therapist), bookable: bookable > 0 };
     }
 
     /**
@@ -389,13 +323,6 @@ export class TherapistProfileController {
         @Param('id') therapistId: string,
         @Query() query: GetAvailableSlotsDto,
     ) {
-        console.log('DEBUG: getAvailableSlots called with:', {
-            therapistId,
-            date: query.date,
-            sessionTypeId: query.sessionTypeId,
-            timezone: query.timezone
-        });
-
         const sessionType = await this.prisma.sessionType.findUnique({
             where: { id: query.sessionTypeId },
         });
@@ -405,7 +332,6 @@ export class TherapistProfileController {
         }
 
         const parsedDate = new Date(query.date);
-        console.log('DEBUG: Parsed date:', parsedDate, 'Day of week:', parsedDate.getDay());
 
         return this.availabilityService.getAvailableSlots(
             therapistId,

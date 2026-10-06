@@ -24,6 +24,8 @@ export interface User {
   bio?: string;
   phone?: string;
   location?: string;
+  city?: string | null;
+  state?: string | null;
   country?: string;
   preferredRegion?: string;
   /** Origin of the account, e.g. "onevoice" for users provisioned via OneVoice SSO. */

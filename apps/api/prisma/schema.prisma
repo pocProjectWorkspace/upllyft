@@ -1820,7 +1820,10 @@ model TherapistProfile {
   branch                   String?
   slidingScaleAvailable    Boolean                     @default(false)
   slidingScaleRate         Float?
+  // Where an INDEPENDENT therapist practises (ISO country code + free-text city).
+  // A clinic therapist's location comes from their clinic, not from these.
   country                  String?
+  city                     String?
   qualification            String?
   university               String?
   rciNumber                String?
@@ -4685,6 +4688,7 @@ model Clinic {
   phone                String?
   email                String?
   country              String?
+  city                 String?
   description          String?
   website              String?
   rating               Float?                   @default(0)

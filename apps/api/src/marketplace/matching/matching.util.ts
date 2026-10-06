@@ -92,7 +92,35 @@ const DISCIPLINE_RULES: Array<[Discipline, RegExp]> = [
   ['special_ed', /special education|special educator/i],
 ];
 
-export function classifyDiscipline(title?: string | null, specializations?: string[]): Discipline {
+/**
+ * DepartmentKey (packages/types/src/therapist-taxonomy.ts — the API cannot import it)
+ * ↔ Discipline. The department is chosen from a fixed list, so when a profile has one
+ * it beats any keyword guess.
+ */
+export const DEPARTMENT_DISCIPLINE: Record<string, Discipline> = {
+  speech: 'speech',
+  ot: 'ot',
+  aba: 'behaviour',
+  psychology: 'psych',
+  physio: 'physio',
+  specialed: 'special_ed',
+};
+
+export const DISCIPLINE_DEPARTMENT: Record<Exclude<Discipline, 'unknown'>, string> = {
+  speech: 'speech',
+  ot: 'ot',
+  behaviour: 'aba',
+  psych: 'psychology',
+  physio: 'physio',
+  special_ed: 'specialed',
+};
+
+export function classifyDiscipline(
+  title?: string | null,
+  specializations?: string[],
+  department?: string | null,
+): Discipline {
+  if (department && DEPARTMENT_DISCIPLINE[department]) return DEPARTMENT_DISCIPLINE[department];
   // The title states what the professional IS ("Clinical Psychologist"); specializations
   // list what they DO (which may include ABA etc.) — so the title wins when it matches.
   for (const source of [title ?? '', (specializations ?? []).join(' | ')]) {
@@ -101,6 +129,27 @@ export function classifyDiscipline(title?: string | null, specializations?: stri
     }
   }
   return 'unknown';
+}
+
+/**
+ * The department a profile should be filed under — used when a profile is written
+ * without one, so search can filter on the column instead of guessing at read time.
+ */
+export function inferDepartment(title?: string | null, specializations?: string[]): string | null {
+  const d = classifyDiscipline(title, specializations);
+  return d === 'unknown' ? null : DISCIPLINE_DEPARTMENT[d];
+}
+
+/**
+ * A parent's specialization filter → DepartmentKey. Accepts a key ("speech") or the
+ * free text older links and Mira deep-links still send ("Speech Therapy").
+ */
+export function departmentForFilter(value: string): string | null {
+  const v = value.trim();
+  if (DEPARTMENT_DISCIPLINE[v]) return v;
+  if (/behavio(u)?ral therap/i.test(v)) return 'aba';
+  if (/child psycholog|counsel/i.test(v)) return 'psychology';
+  return inferDepartment(v);
 }
 
 /** Every discipline a clinic's specialization list covers (a clinic spans several). */

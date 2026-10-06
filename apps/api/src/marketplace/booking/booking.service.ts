@@ -4,6 +4,7 @@ import { PaymentService } from '../payment/payment.service';
 import { GoogleMeetService } from '../common/google-meet.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { addHours, addMinutes, differenceInHours, isPast } from 'date-fns';
+import { BOOKABLE_THERAPIST_WHERE } from '../common/therapist-discovery';
 
 @Injectable()
 export class BookingService {
@@ -46,13 +47,13 @@ export class BookingService {
             }
         }
 
-        // Validate therapist exists and is active
-        const therapist = await this.prisma.therapistProfile.findUnique({
-            where: { id: therapistId },
+        // Same rule as search: a therapist hidden from parents cannot be booked by link.
+        const therapist = await this.prisma.therapistProfile.findFirst({
+            where: { id: therapistId, ...BOOKABLE_THERAPIST_WHERE },
             include: { user: true },
         });
 
-        if (!therapist || !therapist.isActive || !therapist.acceptingBookings) {
+        if (!therapist) {
             throw new BadRequestException('Therapist is not available for bookings');
         }
 
@@ -63,6 +64,9 @@ export class BookingService {
 
         if (!sessionType || !sessionType.isActive) {
             throw new BadRequestException('Session type not found or inactive');
+        }
+        if (sessionType.therapistId && sessionType.therapistId !== therapistId) {
+            throw new BadRequestException('Session type does not belong to this therapist');
         }
 
         // Calculate end time

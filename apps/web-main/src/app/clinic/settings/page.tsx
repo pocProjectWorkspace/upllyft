@@ -20,6 +20,8 @@ export default function SettingsPage() {
     const [formData, setFormData] = useState({
         name: '',
         address: '',
+        city: '',
+        country: '',
         phone: '',
         email: '',
         licenseNo: '',
@@ -38,6 +40,8 @@ export default function SettingsPage() {
         setFormData({
             name: data.name || '',
             address: data.address || '',
+            city: data.city || '',
+            country: data.country || '',
             phone: data.phone || '',
             email: data.email || '',
             licenseNo: data.licenseNo || '',
@@ -49,7 +53,7 @@ export default function SettingsPage() {
         });
     }, [clinicQuery.data, clinicQuery.isError]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
         setSuccess(false);
         setError(null);
@@ -220,6 +224,35 @@ export default function SettingsPage() {
                                         className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
                                         placeholder="Unit 123, Building Name, Street..."
                                     />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                                    <input
+                                        type="text"
+                                        name="city"
+                                        value={formData.city}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
+                                        placeholder="e.g. Dubai"
+                                    />
+                                    <p className="text-xs text-gray-400 mt-1">Families searching in this city see your therapists.</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                    <select
+                                        name="country"
+                                        value={formData.country}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
+                                    >
+                                        <option value="">Select country</option>
+                                        <option value="AE">United Arab Emirates</option>
+                                        <option value="IN">India</option>
+                                        <option value="SA">Saudi Arabia</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
