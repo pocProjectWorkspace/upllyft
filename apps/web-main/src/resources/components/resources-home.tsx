@@ -108,7 +108,7 @@ function LibraryHighlights() {
   );
 }
 
-export default function MyLibraryPage() {
+export function ResourcesHome() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [type, setType] = useState<string>('all');
