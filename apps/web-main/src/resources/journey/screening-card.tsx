@@ -97,7 +97,9 @@ export function ScreeningCard({
                     </span>
                     <span className="block text-sm text-gray-700">{f.text}</span>
                   </span>
-                  <span className="shrink-0 text-xs font-medium text-gray-500">{f.count} resources</span>
+                  <span className="shrink-0 text-xs font-medium text-gray-500">
+                    {f.count} {f.count === 1 ? 'resource' : 'resources'}
+                  </span>
                 </button>
               );
             })}

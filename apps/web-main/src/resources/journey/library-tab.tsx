@@ -88,7 +88,8 @@ export function LibraryTab({
     [onTried],
   );
 
-  const focusDomains = (screening.data?.findings ?? []).map((f) => f.domain);
+  const findingDomains = (screening.data?.findings ?? []).map((f) => f.domain);
+  const focusDomains = (screening.data?.findings ?? []).filter((f) => f.level === 'focus').map((f) => f.domain);
   const byDomain = data?.facets.byDomain;
   const byType = data?.facets.byType;
 
@@ -131,7 +132,7 @@ export function LibraryTab({
               <input type="checkbox" checked={ageFit} onChange={(e) => setAgeFit(e.target.checked)} className="accent-teal-600" />
               Suited to {childName}’s age
             </label>
-            {focusDomains.length > 0 && (
+            {findingDomains.length > 0 && (
               <label className="inline-flex items-center gap-2">
                 <input type="checkbox" checked={matchOnly} onChange={(e) => setMatchOnly(e.target.checked)} className="accent-teal-600" />
                 Matches screening only
