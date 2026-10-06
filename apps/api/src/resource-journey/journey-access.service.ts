@@ -21,8 +21,8 @@ export interface JourneyChild {
  *   guardian  — the child's profile owner, or a Guardian with authority to consent.
  *               Only they read/write the child's library, logs and shares.
  *   therapist — "works with" the child: a working booking with the family for this
- *               child (or an unspecified child), the child's open case team, or they
- *               have assigned this child something before.
+ *               child (or an unspecified child), or the child's open case team. A past
+ *               assignment alone does not keep a therapist on as a client.
  */
 @Injectable()
 export class JourneyAccessService {
@@ -95,7 +95,6 @@ export class JourneyAccessService {
             },
           },
         },
-        { journeyResources: { some: { assignedById: therapistUserId } } },
       ],
     };
   }

@@ -213,7 +213,18 @@ export class JourneyLibraryService {
    * worksheets + library (+ visibleTo's 2) + child items + screening.
    * `child` is null for a therapist browsing without a client selected.
    */
-  async list(actor: { id: string; role: string }, child: JourneyChild | null, query: LibraryQuery) {
+  async list(
+    actor: { id: string; role: string },
+    child: JourneyChild | null,
+    query: LibraryQuery,
+    /**
+     * Guardian views only. The child's saved status (built from every private log) and
+     * screening match are the family's — a therapist browsing for a client gets age fit
+     * and nothing else about the child.
+     */
+    opts: { privateChildData: boolean } = { privateChildData: true },
+  ) {
+    const privateChild = opts.privateChildData ? child : null;
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(60, Math.max(1, Number(query.limit) || 24));
     const q = query.q?.trim();
@@ -235,9 +246,9 @@ export class JourneyLibraryService {
         orderBy: { createdAt: 'desc' },
         take: SOURCE_CAP,
       }),
-      child
+      privateChild
         ? this.prisma.childResource.findMany({
-            where: { childId: child.id },
+            where: { childId: privateChild.id },
             select: {
               id: true,
               worksheetId: true,
@@ -247,7 +258,7 @@ export class JourneyLibraryService {
             },
           })
         : Promise.resolve([]),
-      child ? this.latestScreening(child.id) : Promise.resolve(null),
+      privateChild ? this.latestScreening(privateChild.id) : Promise.resolve(null),
     ]);
 
     const levels = screening ? screeningLevels(screening.domainScores, screening.flaggedDomains) : {};

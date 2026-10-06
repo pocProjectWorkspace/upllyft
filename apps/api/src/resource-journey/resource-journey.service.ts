@@ -500,7 +500,7 @@ export class ResourceJourneyService {
       const c = await this.access.assertTherapistOfChild(actor.id, query.childId);
       child = { id: c.id, firstName: c.firstName, dateOfBirth: c.dateOfBirth, ownerId: c.profile.userId };
     }
-    return this.library.list(actor, child, query);
+    return this.library.list(actor, child, query, { privateChildData: false });
   }
 
   async assign(
@@ -560,7 +560,9 @@ export class ResourceJourneyService {
   }
 
   async assignedTo(actor: Actor, childId: string) {
-    await this.access.assertTherapistOfChild(actor.id, childId);
+    // No client check: the query below only ever returns this therapist's own
+    // assignments, so a therapist whose work with the family ended can still see
+    // (and withdraw) what they assigned, and nothing more.
     const rows = await this.prisma.childResource.findMany({
       where: { childId, assignedById: actor.id },
       include: ITEM_INCLUDE,

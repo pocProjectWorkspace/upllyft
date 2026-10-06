@@ -243,6 +243,22 @@ describe('therapist assignment', () => {
     expect(events.emit).toHaveBeenCalledWith('resource.assigned', expect.objectContaining({ parentId: 'parent-1' }));
   });
 
+  it('browsing for a client reveals nothing the family has not shared', async () => {
+    const { service, prisma } = setup();
+    prisma.libraryResource.findMany.mockResolvedValue([
+      { id: 'l1', title: 'T', description: null, resourceType: 'GUIDE', tags: [], domains: ['sensory'], ageMin: null, ageMax: null,
+        durationMinutes: null, practises: null, forText: null, createdAt: new Date(), mimeType: 'application/pdf',
+        storagePath: null, fileUrl: 'u', downloadable: true, organization: null },
+    ]);
+    prisma.childResource.findMany.mockResolvedValue([{ id: 'i', worksheetId: null, libraryResourceId: 'l1', masteredOverride: null, logs: [] }]);
+    prisma.assessment.findFirst.mockResolvedValue({ id: 'a', domainScores: { sensoryProcessing: { status: 'RED' } }, flaggedDomains: [] });
+
+    const res = await service.assignable(therapist, { childId: 'child-1' });
+    expect(prisma.childResource.findMany).not.toHaveBeenCalled();
+    expect(prisma.assessment.findFirst).not.toHaveBeenCalled();
+    expect(res.items[0]).toMatchObject({ savedItemId: null, status: null, matchesScreening: false });
+  });
+
   it('rejects an unknown area', async () => {
     const { service } = setup();
     await expect(service.assign(therapist, 'child-1', { kind: 'LIBRARY', resourceId: 'l1', assignedArea: 'vision' })).rejects.toBeInstanceOf(BadRequestException);
