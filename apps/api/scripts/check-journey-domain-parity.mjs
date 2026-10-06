@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Guard: the Resources-journey area list exists twice — the API cannot import
- * @upllyft/types — so the two JOURNEY_DOMAINS arrays must stay identical.
+ * Guard: the Resources-journey area list exists three times — the API and the mobile
+ * app cannot import @upllyft/types — so the JOURNEY_DOMAINS arrays must stay identical.
  *
  *   node scripts/check-journey-domain-parity.mjs
  */
@@ -13,6 +13,7 @@ const ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const FILES = [
   join(ROOT, 'apps/api/src/resource-journey/domains.ts'),
   join(ROOT, 'packages/types/src/resource-journey.ts'),
+  join(ROOT, 'apps/mobile/lib/journey.ts'),
 ];
 
 function domainsArray(file) {
@@ -23,10 +24,10 @@ function domainsArray(file) {
   return src.slice(start, end).replace(/\s+/g, '');
 }
 
-const [api, types] = FILES.map(domainsArray);
-if (api !== types) {
+const [api, ...copies] = FILES.map(domainsArray);
+if (copies.some((c) => c !== api)) {
   console.error('✖ JOURNEY_DOMAINS differs between:\n  ' + FILES.join('\n  '));
   console.error('Change one, change the other.');
   process.exit(1);
 }
-console.log('✔ journey areas agree (api ↔ @upllyft/types)');
+console.log('✔ journey areas agree (api ↔ @upllyft/types ↔ mobile)');
