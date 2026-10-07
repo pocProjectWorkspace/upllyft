@@ -10,6 +10,7 @@ export { EmailModule } from './email.module';
 
 // Main service (this is what application code should use)
 export { EmailService } from './email.service';
+export { EmailOutboxService } from './email-outbox.service';
 
 // Interfaces (for typing in application code)
 export type {

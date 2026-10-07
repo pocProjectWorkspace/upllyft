@@ -26,18 +26,24 @@ import { EmailOptions, EmailSendResult } from './interfaces';
 import { EmailProviderFactory } from './factory';
 import { EmailIdempotencyService } from './utils';
 import { AppLoggerService } from '../common/logging';
+import { PrismaService } from '../prisma/prisma.service';
+import { budgetConfig } from './email-budget';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly frontendUrl: string;
+  /** Direct sends are recorded only while a daily cap is set (the outbox counts them). */
+  private readonly countSends: boolean;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly providerFactory: EmailProviderFactory,
     private readonly idempotencyService: EmailIdempotencyService,
     private readonly appLogger: AppLoggerService,
+    private readonly prisma: PrismaService,
   ) {
+    this.countSends = budgetConfig(this.configService.get('EMAIL_DAILY_LIMIT'), 0).limit !== null;
     this.frontendUrl = this.configService.get<string>(
       'FRONTEND_URL',
       'http://localhost:3000',
@@ -49,9 +55,17 @@ export class EmailService {
    * Send an email using the configured provider
    * 
    * @param options Email options
+   * @param meta.outboxId Set by EmailOutboxService, which records the send on its own row
    * @returns Result of the send operation
    */
-  async sendEmail(options: EmailOptions): Promise<EmailSendResult> {
+  async sendEmail(options: EmailOptions, meta: { outboxId?: string } = {}): Promise<EmailSendResult> {
+    // Kill switch for local runs and tests that hit the shared database with real keys:
+    // log what would have gone out, send nothing.
+    if (this.configService.get<string>('EMAIL_SEND_DISABLED') === 'true') {
+      this.logger.log(`[EMAIL_SEND_DISABLED] Would send "${options.subject}" to ${this.getRecipientString(options.to)}`);
+      return { success: true, messageId: 'disabled', timestamp: new Date() };
+    }
+
     // Check provider availability
     if (!this.providerFactory.isConfigured()) {
       this.logger.warn(
@@ -98,6 +112,7 @@ export class EmailService {
         provider.name,
         result.messageId,
       );
+      if (this.countSends && !meta.outboxId) await this.recordDirectSend(options);
     }
 
     return result;
@@ -303,9 +318,60 @@ The Upllyft Team
     return result.success;
   }
 
+  /**
+   * The standard Upllyft email shell (header, styles, footer) around `bodyHtml`, with an
+   * optional call-to-action button. Callers escape their own dynamic text (escapeHtml).
+   */
+  brandedHtml(opts: { heading: string; bodyHtml: string; cta?: { label: string; url: string }; footnote?: string }): string {
+    const cta = opts.cta
+      ? `<div class="button-container"><a href="${opts.cta.url}" class="primary-button">${escapeHtml(opts.cta.label)}</a></div>`
+      : '';
+    const footnote = opts.footnote ? `<div class="info-box"><p>${opts.footnote}</p></div>` : '';
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${escapeHtml(opts.heading)}</title>
+          ${this.getEmailStyles()}
+        </head>
+        <body>
+          <div class="email-wrapper">
+            <div class="header"><h1>${escapeHtml(opts.heading)}</h1></div>
+            <div class="content">
+              ${opts.bodyHtml}
+              ${cta}
+              ${footnote}
+            </div>
+            ${this.getEmailFooter()}
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
   // ============================================
   // HELPER METHODS
   // ============================================
+
+  /** One SENT row per direct send, so today's total is shared by every replica. */
+  private async recordDirectSend(options: EmailOptions): Promise<void> {
+    try {
+      const to = Array.isArray(options.to) ? options.to[0] : options.to;
+      await this.prisma.emailOutbox.create({
+        data: {
+          toEmail: typeof to === 'string' ? to : to.email,
+          subject: options.subject.slice(0, 300),
+          tags: options.tags ?? [],
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      });
+    } catch (e) {
+      this.logger.warn(`Could not record email send: ${e instanceof Error ? e.message : e}`);
+    }
+  }
 
   private getRecipientString(to: EmailOptions['to']): string {
     if (typeof to === 'string') {
@@ -746,4 +812,14 @@ The Upllyft Security Team
       </div>
     `;
   }
+}
+
+/** Escape text for safe interpolation into email HTML. */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

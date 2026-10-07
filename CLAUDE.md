@@ -14,7 +14,7 @@ apps/
 ├── web-main/        THE HUB — dashboard, feed, profile, admin console, plus     port 3000
 │                    every product section (see "Hub merge" below)
 ├── landing/         Marketing site, isolated (three.js)                          port 3008
-└── mobile/          Expo 54 / RN 0.81, expo-router; own axios client in src/lib
+└── mobile/          Expo 54 / RN 0.81, expo-router; own axios client in lib/api.ts
 packages/
 ├── ui/              @upllyft/ui — shared React components (web only)
 ├── api-client/      @upllyft/api-client — axios client, token refresh, AuthProvider, APP_URLS/nav
@@ -65,7 +65,7 @@ cd apps/mobile && pnpm start            # expo
 pnpm --filter @upllyft/api prisma:generate
 pnpm --filter @upllyft/api prisma:studio
 pnpm --filter @upllyft/api type-check    # runs check:tenancy guards FIRST, then tsc
-pnpm --filter @upllyft/api check:tenancy # scripts/check-no-child-clinicid.mjs + check-capability-parity.mjs
+pnpm --filter @upllyft/api check:tenancy # scripts/check-no-child-clinicid.mjs + check-capability-parity.mjs + check-journey-domain-parity.mjs
 
 # Unit tests (jest.config.js, rootDir=src, *.spec.ts) — only a handful exist
 pnpm --filter @upllyft/api test
@@ -106,6 +106,7 @@ E2E fixtures (`test/helpers/fixtures.ts`) namespace every row to a per-run tag o
 - Boot is slow (minutes on Windows) because of eager top-level imports of large SDKs, not DB or DI.
 - **Redis is optional but required for more than one replica.** When `REDIS_URL` or `REDIS_HOST` is set, `src/common/redis/` installs a Socket.IO Redis adapter (room emits fan out across instances) and a Redis-backed throttler storage (shared rate limits). Without it both stay in-process and the boot log says so. The feed/post caches stay per-instance either way.
 - Integrations: OpenAI + Anthropic (`src/ai`, `src/mira`, `src/worksheets`), Stripe Connect (`src/marketplace/payment`), Supabase storage (`src/common/storage`, content-type derived from file bytes), MailerSend/SendGrid/SES, Firebase push.
+- Notification email: urgent/high go out immediately, the rest in a daily (`@Cron` 03:30 UTC) or weekly digest per user setting, claimed via `emailedAt` so replicas don't double-send. `EMAIL_SEND_DISABLED=true` logs instead of sending; use it locally and in tests.
 - Build uses `node --max-old-space-size=4096`.
 
 ### Backend rules established by the performance work (PERFORMANCE_AUDIT.md §7a–7g)
@@ -125,6 +126,7 @@ One `Child` record; every party holds a scoped, consented, time-bounded lens via
 - **Never add a new read/write of `Child.clinicId`.** It is deprecated and dual-written during migration. Use `childInFacility()` / `childOnRoster()` / `therapistInFacility()` / `attachChildToFacility()` from `src/common/child-scope.ts`. `scripts/check-no-child-clinicid.mjs` keeps a shrink-only baseline of allowed files and fails `type-check` otherwise.
 - Facility types `CLINIC | NURSERY | SCHOOL` get capabilities from a single map (`src/common/facility-capabilities.ts`, mirrored from `packages/types/src/facility.ts`; `check-capability-parity.mjs` fails the build if they diverge). Do not branch on `facility.type` in services; check `facilityCan()` / `scopeAllowedFor()` at the choke points.
 - Same mirror convention: `src/clinical-templates/clinical-types.ts` ↔ `packages/types/src/clinical-template.ts`. Change one, change the other.
+- `JOURNEY_DOMAINS` (Resources journey areas) exists three times: `apps/api/src/resource-journey/domains.ts`, `packages/types/src/resource-journey.ts`, `apps/mobile/lib/journey.ts`. `check-journey-domain-parity.mjs` fails `type-check` if they differ.
 - `resolveClinicScope()` pulls `clinicId` off the JWT; `Facility.id === Clinic.id` was preserved by the backfill so that id is also the facilityId.
 
 ## Frontend Architecture
@@ -134,6 +136,7 @@ One `Child` record; every party holds a scoped, consented, time-bounded lens via
 - `<AuthProvider baseURL="/api">` from `@upllyft/api-client` wraps each app. Tokens live in both cookies and localStorage; cookies are shared across `localhost` ports in dev and scoped to `.safehaven-upllyft.com` in prod.
 - `turbo.json` `globalEnv` lists every `NEXT_PUBLIC_*` URL/flag plus `API_INTERNAL_URL` and `SERVER_AUTH_TIMEOUT_MS`; add new build-time env there or Turbo will cache stale builds.
 - `NEXT_PUBLIC_API_DIRECT=1` (with `NEXT_PUBLIC_API_URL`) makes the browser call the API origin directly instead of the `/api` rewrite. Off by default; it changes production topology (CORS, cookies).
+- `NEXT_PUBLIC_BOOKING_ENABLED=true` turns booking on. It is **off in production**: gate every "Book session" control on `BOOKING_ENABLED` from `src/booking/lib/booking-availability.tsx` and render `<BookingComingSoon>` otherwise. The flag is read at build time, so changing it needs a redeploy.
 - Deployment: web apps on Vercel (`apps/*/vercel.json`, one project each), API on Railway, database and file storage on Supabase (`eu-north-1`). API-to-DB distance dominates `/auth/me` latency.
 - Brand: teal gradient (teal-400 → teal-600), rounded corners, subtle shadows.
 

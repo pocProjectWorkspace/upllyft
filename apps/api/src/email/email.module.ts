@@ -8,6 +8,7 @@
  * - sendgrid (default)
  * - ses (Amazon SES)
  * - mailersend
+ * - smtp (any SMTP relay, e.g. Brevo)
  */
 
 import { Module, Global } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { ConfigModule } from '@nestjs/config';
 
 // Main service
 import { EmailService } from './email.service';
+import { EmailOutboxService } from './email-outbox.service';
 
 // Factory
 import { EmailProviderFactory } from './factory';
@@ -23,6 +25,7 @@ import { EmailProviderFactory } from './factory';
 import { SendGridProvider } from './providers/sendgrid.provider';
 import { SESProvider } from './providers/ses.provider';
 import { MailerSendProvider } from './providers/mailersend.provider';
+import { SmtpProvider } from './providers/smtp.provider';
 
 // Utils
 import { EmailIdempotencyService } from './utils';
@@ -35,6 +38,7 @@ import { EmailIdempotencyService } from './utils';
     SendGridProvider,
     SESProvider,
     MailerSendProvider,
+    SmtpProvider,
 
     // Factory for provider resolution
     EmailProviderFactory,
@@ -44,9 +48,13 @@ import { EmailIdempotencyService } from './utils';
 
     // Main service facade
     EmailService,
+
+    // Daily-capped queue for bulk emails
+    EmailOutboxService,
   ],
   exports: [
     EmailService,
+    EmailOutboxService,
     EmailProviderFactory,
     EmailIdempotencyService,
   ],

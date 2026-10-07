@@ -1,10 +1,12 @@
 // apps/api/src/notification/notification.module.ts
 import { Module, forwardRef } from '@nestjs/common';
 import { NotificationController } from './notification.controller';
+import { NotificationAdminController } from './notification-admin.controller';
 import { NotificationService } from './notification.service';
 import { NotificationGateway } from './notification.gateway';
 import { NotificationListeners } from './notification.listeners';
 import { SessionReminderTask } from './session-reminder.task';
+import { NotificationEmailService } from './notification-email.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -23,14 +25,15 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
       }),
     }),
   ],
-  controllers: [NotificationController],
+  controllers: [NotificationController, NotificationAdminController],
   providers: [
     NotificationService,
     NotificationGateway,
     NotificationListeners,
     SessionReminderTask,
+    NotificationEmailService,
   ],
-  exports: [NotificationService],
+  exports: [NotificationService, NotificationEmailService],
 })
 export class NotificationModule {}
 

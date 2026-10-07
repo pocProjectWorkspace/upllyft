@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 import { Role, Prisma } from '@prisma/client';
 import axios from 'axios';
 import * as admin from 'firebase-admin';
+import { NotificationEmailService } from './notification-email.service';
 
 export enum NotificationType {
   COMMENT = 'COMMENT',
@@ -71,8 +72,8 @@ export class NotificationService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private eventEmitter: EventEmitter2,
+    private notificationEmail: NotificationEmailService,
   ) {
-    this.initializeEmailTransporter();
     // Cloud Run URL for push notifications (no path suffix needed)
     this.cloudRunPushUrl = this.configService.get<string>(
       'CLOUD_RUN_PUSH_URL',
@@ -97,18 +98,6 @@ export class NotificationService {
     this.io = io;
   }
 
-  private initializeEmailTransporter() {
-    const emailConfig = {
-      host: this.configService.get('SMTP_HOST'),
-      port: this.configService.get('SMTP_PORT'),
-      secure: this.configService.get('SMTP_SECURE') === 'true',
-      auth: {
-        user: this.configService.get('SMTP_USER'),
-        pass: this.configService.get('SMTP_PASS'),
-      },
-    };
-
-  }
 
   async createNotification(data: NotificationData) {
     try {
@@ -167,6 +156,10 @@ export class NotificationService {
           },
         });
       }
+
+      // Email now or in the digest, per the user's settings. Fire-and-forget: a slow or
+      // failing mail server must not hold up (or fail) the notification itself.
+      void this.notificationEmail.onCreated(notification);
 
       // Emit event for other services
       this.eventEmitter.emit('notification.created', notification);

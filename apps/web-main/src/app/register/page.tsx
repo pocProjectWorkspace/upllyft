@@ -122,6 +122,25 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Family invitation link: /register?invite=<token>&email=<address>
+  const [invite, setInvite] = useState<{ token: string; organizationName: string | null; invitedByName: string | null; status: string } | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('invite');
+    const invitedEmail = params.get('email');
+    if (invitedEmail) setEmail(invitedEmail);
+    if (!token) return;
+    setAccountType('individual');
+    apiClient
+      .get(`/invitations/platform/${encodeURIComponent(token)}`)
+      .then(({ data }) => {
+        setInvite({ token, organizationName: data.organizationName, invitedByName: data.invitedByName, status: data.status });
+        if (data.email) setEmail(data.email);
+        if (data.name) setName((n) => n || data.name);
+      })
+      .catch(() => setInvite(null));
+  }, []);
+
   const loadCaptcha = useCallback(async () => {
     setCaptchaLoading(true);
     try {
@@ -185,6 +204,7 @@ export default function RegisterPage() {
         // This makes registration work reliably across multi-replica APIs.
         captchaToken,
         role: accountType === 'professional' ? role : 'USER',
+        ...(invite ? { inviteToken: invite.token } : {}),
       };
 
       if (accountType === 'professional') {
@@ -229,6 +249,19 @@ export default function RegisterPage() {
           <p className="text-gray-500 mb-6">
             Join our community of families and professionals supporting neurodivergent children.
           </p>
+          {invite && (
+            <div
+              className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+                invite.status === 'PENDING' ? 'border-teal-100 bg-teal-50 text-teal-900' : 'border-amber-100 bg-amber-50 text-amber-900'
+              }`}
+            >
+              {invite.status === 'PENDING'
+                ? `${invite.organizationName ?? invite.invitedByName ?? 'The Upllyft team'} invited you — create your account below.`
+                : invite.status === 'ACCEPTED'
+                  ? 'This invitation has already been used. Sign in instead, or create a new account.'
+                  : 'This invitation has expired, but you can still create an account below.'}
+            </div>
+          )}
 
           {/* Account Type Tabs */}
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
