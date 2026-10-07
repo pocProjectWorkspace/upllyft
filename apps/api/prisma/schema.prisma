@@ -87,6 +87,7 @@ model User {
   sentNotifications       Notification[]           @relation("NotificationSender")
   notifications           Notification[]
   sentOrganizationInvites OrganizationInvitation[] @relation("SentOrganizationInvites")
+  sentPlatformInvites     PlatformInvitation[]     @relation("PlatformInviteSender")
   organizationMemberships OrganizationMember[]     @relation("UserOrganizationMemberships")
   posts                   Post[]
   postViews               PostView[]
@@ -775,6 +776,8 @@ model Notification {
   title             String
   message           String
   read              Boolean  @default(false)
+  /// When this notification went out by email (instantly or in a digest). Null = not emailed.
+  emailedAt         DateTime?
   relatedPostId     String?
   relatedUserId     String?
   senderId          String?
@@ -793,6 +796,7 @@ model Notification {
   @@index([read])
   @@index([createdAt])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([emailedAt, createdAt])
 }
 
 model VerificationDoc {
@@ -1503,6 +1507,7 @@ model Organization {
   communities          Community[]
   events               Event[]
   invitations          OrganizationInvitation[]
+  platformInvitations  PlatformInvitation[]     @relation("OrgPlatformInvitations")
   members              OrganizationMember[]
   bookingPackages      BookingPackage[]
   bookings             Booking[]
@@ -5810,4 +5815,31 @@ model ProgressShare {
   @@index([childId, revokedAt])
   @@index([therapistUserId, revokedAt])
   @@map("progress_shares")
+}
+
+/// An invitation to join Upllyft as a family (role USER), sent by a platform admin or
+/// by an organisation's admin (then the parent also joins that organisation).
+/// Accepted when the invited email registers. Validated statuses: PENDING | ACCEPTED | CANCELLED.
+model PlatformInvitation {
+  id             String        @id @default(cuid())
+  email          String
+  name           String?
+  organizationId String?
+  organization   Organization? @relation("OrgPlatformInvitations", fields: [organizationId], references: [id], onDelete: Cascade)
+  token          String        @unique
+  status         String        @default("PENDING")
+  invitedById    String
+  invitedBy      User          @relation("PlatformInviteSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  acceptedUserId String?
+  sentCount      Int           @default(1)
+  lastSentAt     DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([email])
+  @@index([organizationId, status])
+  @@index([status, createdAt])
+  @@map("platform_invitations")
 }

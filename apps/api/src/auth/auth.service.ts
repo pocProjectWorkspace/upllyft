@@ -23,6 +23,7 @@ import { randomBytes as rb } from 'crypto';
 import { promisify } from 'util';
 import { AppLoggerService } from '../common/logging';
 import { FcmTokenService } from '../fcm-token/fcm-token.service';
+import { acceptPlatformInvitations } from '../people-onboarding/parent-invitation.service';
 
 @Injectable()
 export class AuthService {
@@ -221,6 +222,7 @@ export class AuthService {
         // No password needed for OAuth users
         password: null,
       });
+      await acceptPlatformInvitations(this.prisma, user);
     }
 
     const { password: _, ...userWithoutPassword } = user;
@@ -265,6 +267,7 @@ export class AuthService {
         verificationStatus: VerificationStatus.PENDING,
         password: null,
       });
+      await acceptPlatformInvitations(this.prisma, user);
     }
 
     const { password: _, ...userWithoutPassword } = user;
@@ -478,6 +481,9 @@ export class AuthService {
       });
 
       this.logger.log(`User created: ${user.id} (role: ${user.role}, status: ${user.verificationStatus})`);
+
+      // Any family invitation for this email is now accepted.
+      await acceptPlatformInvitations(this.prisma, user);
 
       // 🎯 Register FCM token if provided (async, don't block registration)
       if (fcmToken && device) {

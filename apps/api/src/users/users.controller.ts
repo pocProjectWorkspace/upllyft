@@ -26,6 +26,7 @@ import { extname } from 'path';
 import { randomBytes } from 'crypto';
 import { StorageService } from '../common/storage/storage.service';
 import { detectContentType } from '../common/storage/file-type';
+import { AccountPreferencesService } from './account-preferences.service';
 
 const AVATAR_MIMES = ['image/jpeg', 'image/png', 'image/gif'] as const;
 
@@ -34,7 +35,21 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly storage: StorageService,
+    private readonly accountPreferences: AccountPreferencesService,
   ) { }
+
+  // Settings toggles (notifications, privacy, crisis, feed) and email frequency.
+  @Get('me/preferences')
+  @UseGuards(JwtAuthGuard)
+  getMyPreferences(@Request() req: any) {
+    return this.accountPreferences.get(req.user.id);
+  }
+
+  @Patch('me/preferences')
+  @UseGuards(JwtAuthGuard)
+  updateMyPreferences(@Request() req: any, @Body() body: Record<string, unknown>) {
+    return this.accountPreferences.update(req.user.id, body);
+  }
 
   // Get current user profile
   @Get('me')

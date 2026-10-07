@@ -89,7 +89,7 @@ import { PublicIntakeModule } from './public-intake/public-intake.module';
 import { PayerModule } from './payer/payer.module';
 import { ClinicOrchestrationModule } from './clinic-orchestration/clinic-orchestration.module';
 import { ClinicSafetyModule } from './clinic-safety/clinic-safety.module';
-import { OnboardingModule } from './onboarding/onboarding.module';
+import { PeopleOnboardingModule } from './people-onboarding/people-onboarding.module';
 import { WorksheetsModule } from './worksheets/worksheets.module';
 import { MiraModule } from './mira/mira.module';
 import { ClinicPatientsModule } from './clinic-patients/clinic-patients.module';
@@ -104,6 +104,7 @@ import { ObservationsModule } from './observations/observations.module';
 import { MomentsModule } from './moments/moments.module';
 import { LibraryResourcesModule } from './library-resources/library-resources.module';
 import { ResourceJourneyModule } from './resource-journey/resource-journey.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { CareWaitlistModule } from './care-waitlist/care-waitlist.module';
 import { ConcernsModule } from './concerns/concerns.module';
 import { SupportPlansModule } from './support-plans/support-plans.module';
@@ -250,6 +251,7 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
     MomentsModule,
     LibraryResourcesModule,
     ResourceJourneyModule,
+    PeopleOnboardingModule,
     CareWaitlistModule,
     ConcernsModule,
     SupportPlansModule,

@@ -64,6 +64,11 @@ export class RegisterDto {
   @IsString()
   captchaToken?: string;
 
+  @ApiPropertyOptional({ description: 'Token from a family invitation link (informational — invitations are matched by email).' })
+  @IsOptional()
+  @IsString()
+  inviteToken?: string;
+
   @ApiPropertyOptional({
     example: 'dAPZpk2bRl2XXXXXXXXXXXXXX:APA91bGXXXXXXXXXX...',
     description: 'Firebase Cloud Messaging token for push notifications'

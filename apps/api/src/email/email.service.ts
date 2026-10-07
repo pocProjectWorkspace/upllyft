@@ -52,6 +52,13 @@ export class EmailService {
    * @returns Result of the send operation
    */
   async sendEmail(options: EmailOptions): Promise<EmailSendResult> {
+    // Kill switch for local runs and tests that hit the shared database with real keys:
+    // log what would have gone out, send nothing.
+    if (this.configService.get<string>('EMAIL_SEND_DISABLED') === 'true') {
+      this.logger.log(`[EMAIL_SEND_DISABLED] Would send "${options.subject}" to ${this.getRecipientString(options.to)}`);
+      return { success: true, messageId: 'disabled', timestamp: new Date() };
+    }
+
     // Check provider availability
     if (!this.providerFactory.isConfigured()) {
       this.logger.warn(
@@ -301,6 +308,39 @@ The Upllyft Team
     });
 
     return result.success;
+  }
+
+  /**
+   * The standard Upllyft email shell (header, styles, footer) around `bodyHtml`, with an
+   * optional call-to-action button. Callers escape their own dynamic text (escapeHtml).
+   */
+  brandedHtml(opts: { heading: string; bodyHtml: string; cta?: { label: string; url: string }; footnote?: string }): string {
+    const cta = opts.cta
+      ? `<div class="button-container"><a href="${opts.cta.url}" class="primary-button">${escapeHtml(opts.cta.label)}</a></div>`
+      : '';
+    const footnote = opts.footnote ? `<div class="info-box"><p>${opts.footnote}</p></div>` : '';
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${escapeHtml(opts.heading)}</title>
+          ${this.getEmailStyles()}
+        </head>
+        <body>
+          <div class="email-wrapper">
+            <div class="header"><h1>${escapeHtml(opts.heading)}</h1></div>
+            <div class="content">
+              ${opts.bodyHtml}
+              ${cta}
+              ${footnote}
+            </div>
+            ${this.getEmailFooter()}
+          </div>
+        </body>
+      </html>
+    `;
   }
 
   // ============================================
@@ -746,4 +786,14 @@ The Upllyft Security Team
       </div>
     `;
   }
+}
+
+/** Escape text for safe interpolation into email HTML. */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
