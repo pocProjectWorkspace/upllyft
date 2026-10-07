@@ -1,5 +1,6 @@
 'use client';
 
+import { BOOKING_ENABLED, BookingComingSoon } from '@/booking/lib/booking-availability';
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookingShell } from '@/booking/components/booking-shell';
@@ -303,7 +304,22 @@ export default function BookingWizardPage({ params }: { params: Promise<{ therap
     );
   }
 
-  // Not listed (or no longer taking bookings): say so up front instead of failing at payment.
+  // Booking switched off, not listed, or no longer taking bookings: say so up front.
+  if (!BOOKING_ENABLED) {
+    return (
+      <BookingShell>
+        <div className="max-w-md mx-auto text-center py-16 space-y-4">
+          <BookingComingSoon />
+          <h2 className="text-xl font-semibold text-gray-900">Online booking is coming soon</h2>
+          <p className="text-gray-500">We&apos;re onboarding therapists now. Save this profile and we&apos;ll let you know when booking opens.</p>
+          <button onClick={() => router.push(`/booking/therapists/${therapistId}`)} className="text-sm font-semibold text-teal-700 hover:underline">
+            Back to the profile
+          </button>
+        </div>
+      </BookingShell>
+    );
+  }
+
   if (!therapist || therapist.bookable === false) {
     return (
       <BookingShell>

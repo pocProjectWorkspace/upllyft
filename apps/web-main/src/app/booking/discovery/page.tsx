@@ -1,11 +1,13 @@
 'use client';
 
 import Image from '@/components/app-image';
-import { Suspense, memo, useCallback, useMemo, useState } from 'react';
+import { Suspense, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiClient, useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
-import { Skeleton } from '@upllyft/ui';
+import { MiraNudge, Skeleton, useDebounce } from '@upllyft/ui';
+import { RegionGate } from '@/booking/components/region-gate';
+import { BOOKING_ENABLED, BookingComingSoon } from '@/booking/lib/booking-availability';
 import { BookingShell } from '@/booking/components/booking-shell';
 import { useSearchTherapists } from '@/booking/hooks/use-marketplace';
 import { useSearchClinics } from '@/booking/hooks/use-clinics';
@@ -16,6 +18,9 @@ import type { MatchTier, ProviderMatch } from '@/booking/lib/api/marketplace';
 
 import { CareWaitlistCard } from '@/booking/components/care-waitlist-card';
 /**
+ * Find care — the one place parents browse providers (merged with the former /booking
+ * grid: name/clinic search, city, specialty chips, listed-by and sort live here too).
+ *
  * Discovery results — the mockup's combined surface: one list of therapists AND clinics,
  * result tabs (All · Therapists · Clinics), a context bar naming exactly where the
  * ranking comes from, the market-model banner (India books therapists directly; UAE goes
@@ -36,6 +41,7 @@ interface Row {
   metaBits: string[];
   match?: ProviderMatch;
   image?: string | null;
+  years: number;
 }
 
 const TIER_STYLES: Record<
@@ -59,13 +65,45 @@ function initials(name: string) {
 
 const TIER_RANK: Record<MatchTier, number> = { strong: 0, likely: 1, also: 2, none: 3 };
 
+/** Values are DepartmentKeys; the API also accepts the old labels Mira deep-links send. */
+const SPECIALTIES: Array<{ value: string; label: string; clinic: RegExp }> = [
+  { value: 'speech', label: 'Speech Therapy', clinic: /speech|language|slp|aac/i },
+  { value: 'ot', label: 'Occupational Therapy', clinic: /occupational|sensory|fine motor/i },
+  { value: 'aba', label: 'Behavioral Therapy (ABA)', clinic: /behavio|aba\b|bcba/i },
+  { value: 'psychology', label: 'Child Psychology', clinic: /psycholog|counsel/i },
+  { value: 'physio', label: 'Physiotherapy', clinic: /physio|physical therap|gross motor/i },
+  { value: 'specialed', label: 'Special Education', clinic: /special educat/i },
+];
+
+type SortOption = 'relevance' | 'rating' | 'experience';
+
 function DiscoveryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { region, serviceModel, currency } = useRegion();
+  const { region, serviceModel, currency, isRegionResolved } = useRegion();
   const isParent = user?.role === 'USER';
+
+  // Search controls carried over from the former /booking grid. Mira deep-links arrive
+  // as ?specialization= / ?search= / ?minRating= / ?therapistId= and are honoured here.
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
+  const search = useDebounce(searchInput.trim(), 400);
+  const [cityInput, setCityInput] = useState(searchParams.get('city') ?? '');
+  const city = useDebounce(cityInput.trim(), 400);
+  const [specialty, setSpecialty] = useState(searchParams.get('specialization') ?? '');
+  const [source, setSource] = useState<'' | 'independent' | 'clinic'>('');
+  const [sortBy, setSortBy] = useState<SortOption>('relevance');
+
+  useEffect(() => {
+    const therapistId = searchParams.get('therapistId');
+    if (therapistId) router.replace(`/booking/therapists/${therapistId}`);
+  }, [searchParams, router]);
+
+  // Start from the parent's own city, unless the link named one.
+  useEffect(() => {
+    if (!searchParams.get('city') && user?.city) setCityInput(user.city);
+  }, [user?.city, searchParams]);
 
   const childId = searchParams.get('childId') || undefined;
   const concern = searchParams.get('concern') || undefined;
@@ -79,12 +117,26 @@ function DiscoveryContent() {
     initialTab === 'therapists' || initialTab === 'clinics' ? initialTab : 'all',
   );
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
-  const [minRating, setMinRating] = useState<number>(0);
+  const [minRating, setMinRating] = useState<number>(Number(searchParams.get('minRating')) || 0);
   const [compareSel, setCompareSel] = useState<string[]>([]);
   const [locOpen, setLocOpen] = useState(false);
 
-  const { data: tData, isLoading: tLoading } = useSearchTherapists({ ...fitParams, country: region?.country, limit: 50 });
-  const { data: cData, isLoading: cLoading } = useSearchClinics({ ...fitParams, country: region?.country, limit: 50 });
+  const { data: tData, isLoading: tLoading } = useSearchTherapists({
+    ...fitParams,
+    country: region?.country,
+    search: search || undefined,
+    city: city || undefined,
+    specialization: specialty || undefined,
+    source: source || undefined,
+    limit: 50,
+  });
+  const { data: cData, isLoading: cLoading } = useSearchClinics({
+    ...fitParams,
+    country: region?.country,
+    search: search || undefined,
+    city: city || undefined,
+    limit: 50,
+  });
   const isLoading = tLoading || cLoading;
 
   const needs = tData?.needs;
@@ -119,6 +171,7 @@ function DiscoveryContent() {
       ],
       match: t.match,
       image: t.profileImage || t.user?.image,
+      years: t.yearsExperience ?? 0,
     }));
     const clinics: Row[] = (cData?.clinics ?? []).map((c) => ({
       key: `c-${c.id}`,
@@ -133,10 +186,14 @@ function DiscoveryContent() {
       metaBits: [],
       match: c.match,
       image: c.logoUrl,
+      years: 0,
     }));
+    // Clinics have no department; match the chip against what they list.
+    const chip = SPECIALTIES.find((x) => x.value === specialty);
+    const clinicRows = source === 'independent' ? [] : chip ? clinics.filter((c) => c.tags.some((t) => chip.clinic.test(t))) : clinics;
 
     let all =
-      tab === 'therapists' ? therapists : tab === 'clinics' ? clinics : [...therapists, ...clinics];
+      tab === 'therapists' ? therapists : tab === 'clinics' ? clinicRows : [...therapists, ...clinicRows];
 
     if (maxPrice) all = all.filter((r) => r.price == null || r.price <= maxPrice);
     if (minRating) all = all.filter((r) => r.rating >= minRating);
@@ -144,6 +201,8 @@ function DiscoveryContent() {
     // Fit mode: tier first, then rating. Browse: the market model decides who leads —
     // UAE clinics ahead of individuals, India the reverse — then rating.
     all.sort((a, b) => {
+      if (sortBy === 'rating') return (b.rating ?? 0) - (a.rating ?? 0);
+      if (sortBy === 'experience') return b.years - a.years || (b.rating ?? 0) - (a.rating ?? 0);
       if (inFit) {
         const d = TIER_RANK[a.match?.tier ?? 'none'] - TIER_RANK[b.match?.tier ?? 'none'];
         if (d !== 0) return d;
@@ -154,7 +213,7 @@ function DiscoveryContent() {
       return (b.rating ?? 0) - (a.rating ?? 0);
     });
     return all;
-  }, [tData, cData, tab, maxPrice, minRating, inFit, isUAE]);
+  }, [tData, cData, tab, maxPrice, minRating, inFit, isUAE, specialty, source, sortBy]);
 
   const strongCount = rows.filter((r) => r.match?.tier === 'strong').length;
 
@@ -203,6 +262,18 @@ function DiscoveryContent() {
       Browsing all {isUAE ? 'clinics & specialists' : 'therapists & clinics'} · <strong className="text-gray-900">{locLabel}</strong>
     </>
   );
+
+  if (isParent && !isRegionResolved) return <RegionGate />;
+
+  const filtersActive = !!(search || specialty || source || maxPrice || minRating);
+  const clearAll = () => {
+    setSearchInput('');
+    setSpecialty('');
+    setSource('');
+    setMaxPrice(null);
+    setMinRating(0);
+    setSortBy('relevance');
+  };
 
   return (
     <div className="max-w-7xl mx-auto pb-16">
@@ -269,6 +340,53 @@ function DiscoveryContent() {
         <span className="text-[13px] text-teal-900 leading-normal">{locModel}</span>
       </div>
 
+      {/* ── Search (from the former /booking grid) ───────────── */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-3">
+        <input
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search by name, specialization, clinic…"
+          aria-label="Search providers"
+          className="flex-1 h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500"
+        />
+        <input
+          value={cityInput}
+          onChange={(e) => setCityInput(e.target.value)}
+          placeholder="City"
+          aria-label="City"
+          className="sm:w-52 h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500"
+        />
+      </div>
+      {city && (
+        <p className="text-xs text-slate-500 mb-3">Showing providers in {city}, plus therapists who offer online sessions.</p>
+      )}
+      <div className="flex gap-2 overflow-x-auto pb-1 mb-[18px]">
+        {[{ value: '', label: 'All specialties' }, ...SPECIALTIES].map((x) => (
+          <button
+            key={x.value}
+            onClick={() => setSpecialty(x.value)}
+            className={`px-4 py-2 rounded-full text-[13px] font-semibold whitespace-nowrap border transition-colors ${
+              specialty === x.value || (x.value && SPECIALTIES.find((y) => y.value === specialty)?.label === x.label)
+                ? 'bg-teal-600 border-teal-600 text-white'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-teal-400'
+            }`}
+          >
+            {x.label}
+          </button>
+        ))}
+      </div>
+
+      {isParent && (
+        <div className="mb-[18px]">
+          <MiraNudge
+            nudgeId="booking-discovery"
+            message="Not sure what type of therapist your child needs?"
+            chipText="Help me find the right therapist for my child"
+            mainAppUrl={APP_URLS.main}
+          />
+        </div>
+      )}
+
       {/* ── Browse-mode screening nudge ─────────────────────── */}
       {!inFit && isParent && (
         <div className="flex gap-3.5 items-center bg-violet-50 border border-violet-200 rounded-xl px-4.5 py-3.5 px-5 mb-[18px] flex-wrap">
@@ -304,6 +422,23 @@ function DiscoveryContent() {
                 }`}
               >
                 {p === null ? 'Any' : `≤ ${formatCurrency(p, currency)}`}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-px bg-slate-100 my-4" />
+
+          <div className="text-[11px] font-bold text-slate-400 tracking-[0.06em] mb-2">LISTED</div>
+          <div className="flex gap-1.5 flex-wrap mb-4">
+            {([['', 'All'], ['independent', 'Independent'], ['clinic', 'At a clinic']] as const).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setSource(v)}
+                className={`text-xs px-2.5 py-1.5 rounded-full font-semibold transition-colors ${
+                  source === v ? 'bg-teal-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-teal-400'
+                }`}
+              >
+                {label}
               </button>
             ))}
           </div>
@@ -349,12 +484,18 @@ function DiscoveryContent() {
               </button>
             ))}
             <div className="flex-1" />
-            <span className="text-[13px] text-slate-500">
-              Sorted by{' '}
-              <strong className="text-gray-900">
-                {fromScreening ? 'fit' : fromConcern ? 'likely fit' : 'rating'}
-              </strong>
-            </span>
+            <label className="flex items-center gap-2 text-[13px] text-slate-500">
+              Sort by
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="text-[13px] font-semibold text-gray-900 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+              >
+                <option value="relevance">{fromScreening ? 'Best fit' : fromConcern ? 'Likely fit' : 'Relevance'}</option>
+                <option value="rating">Highest rated</option>
+                <option value="experience">Most experienced</option>
+              </select>
+            </label>
           </div>
 
           {/* Result-count bar */}
@@ -393,7 +534,7 @@ function DiscoveryContent() {
                 <Skeleton key={i} className="h-64 w-full rounded-2xl" />
               ))}
             </div>
-          ) : rows.length === 0 && !maxPrice && !minRating ? (
+          ) : rows.length === 0 && !filtersActive ? (
             // Nothing at all for this need (not just filtered out): offer the waitlist.
             <CareWaitlistCard
               country={region?.country}
@@ -405,9 +546,9 @@ function DiscoveryContent() {
           ) : rows.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
               <p className="text-gray-700 font-medium">Nothing matches these filters</p>
-              <p className="text-sm text-gray-500 mt-1">Try raising the budget cap or removing the rating filter.</p>
+              <p className="text-sm text-gray-500 mt-1">Try another search or specialty, or clear the filters.</p>
               <button
-                onClick={() => { setMaxPrice(null); setMinRating(0); }}
+                onClick={clearAll}
                 className="mt-4 text-sm font-bold text-teal-700"
               >
                 Clear filters
@@ -584,12 +725,16 @@ const ResultCard = memo(function ResultCard({
           >
             View profile
           </button>
-          <button
-            onClick={() => router.push(r.kind === 'THERAPIST' ? `/booking/book/${r.id}` : `/booking/clinics/${r.id}`)}
-            className="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-2.5 rounded-[10px] text-[13.5px] font-bold transition-colors"
-          >
-            {r.kind === 'THERAPIST' ? 'Book session' : 'See the team'}
-          </button>
+          {r.kind === 'THERAPIST' && !BOOKING_ENABLED ? (
+            <BookingComingSoon compact className="flex-1" />
+          ) : (
+            <button
+              onClick={() => router.push(r.kind === 'THERAPIST' ? `/booking/book/${r.id}` : `/booking/clinics/${r.id}`)}
+              className="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-2.5 rounded-[10px] text-[13.5px] font-bold transition-colors"
+            >
+              {r.kind === 'THERAPIST' ? 'Book session' : 'See the team'}
+            </button>
+          )}
         </div>
       </div>
     </div>

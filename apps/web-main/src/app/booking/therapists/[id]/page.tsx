@@ -1,5 +1,6 @@
 'use client';
 
+import { BOOKING_ENABLED, BookingComingSoon } from '@/booking/lib/booking-availability';
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookingShell } from '@/booking/components/booking-shell';
@@ -180,7 +181,7 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
       <div className="space-y-6">
         {/* Back button */}
         <button
-          onClick={() => router.push('/booking')}
+          onClick={() => router.push('/booking/discovery')}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
         >
           <ArrowLeftIcon className="w-4 h-4" />
@@ -440,6 +441,17 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                         </p>
                       )}
 
+                      {!BOOKING_ENABLED ? (
+                        <>
+                          <Button className="w-full rounded-xl h-12 text-base" disabled>
+                            Book Session
+                          </Button>
+                          <BookingComingSoon />
+                          <p className="text-xs text-center text-gray-500">
+                            We&apos;re onboarding therapists now. Save this profile and we&apos;ll let you know when booking opens.
+                          </p>
+                        </>
+                      ) : (
                       <Button
                         className="w-full rounded-xl h-12 text-base bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white"
                         onClick={() => router.push(`/booking/book/${therapist.id}`)}
@@ -447,8 +459,9 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                       >
                         {therapist.acceptingBookings && therapist.bookable !== false ? 'Book Session' : 'Not Accepting Bookings'}
                       </Button>
+                      )}
 
-                      {(!therapist.acceptingBookings || therapist.bookable === false) && (
+                      {BOOKING_ENABLED && (!therapist.acceptingBookings || therapist.bookable === false) && (
                         <p className="text-xs text-center text-gray-500">
                           This therapist is not currently accepting new bookings.
                         </p>
