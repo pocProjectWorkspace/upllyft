@@ -107,6 +107,7 @@ E2E fixtures (`test/helpers/fixtures.ts`) namespace every row to a per-run tag o
 - **Redis is optional but required for more than one replica.** When `REDIS_URL` or `REDIS_HOST` is set, `src/common/redis/` installs a Socket.IO Redis adapter (room emits fan out across instances) and a Redis-backed throttler storage (shared rate limits). Without it both stay in-process and the boot log says so. The feed/post caches stay per-instance either way.
 - Integrations: OpenAI + Anthropic (`src/ai`, `src/mira`, `src/worksheets`), Stripe Connect (`src/marketplace/payment`), Supabase storage (`src/common/storage`, content-type derived from file bytes), MailerSend/SendGrid/SES, Firebase push.
 - Notification email: urgent/high go out immediately, the rest in a daily (`@Cron` 03:30 UTC) or weekly digest per user setting, claimed via `emailedAt` so replicas don't double-send. `EMAIL_SEND_DISABLED=true` logs instead of sending; use it locally and in tests.
+- **Railway blocks outbound SMTP** (ports 25/465/587/2525) below the Pro plan, so production email must use an HTTPS provider: `EMAIL_PROVIDER=brevo` + `BREVO_API_KEY`. `smtp`/`mailersend` only work locally. Bulk emails (therapist import) queue in `email_outbox` under `EMAIL_DAILY_LIMIT` (Brevo free = 300/day) minus `EMAIL_DAILY_RESERVE`.
 - Build uses `node --max-old-space-size=4096`.
 
 ### Backend rules established by the performance work (PERFORMANCE_AUDIT.md §7a–7g)

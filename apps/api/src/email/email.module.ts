@@ -8,7 +8,8 @@
  * - sendgrid (default)
  * - ses (Amazon SES)
  * - mailersend
- * - smtp (any SMTP relay, e.g. Brevo)
+ * - smtp (any SMTP relay)
+ * - brevo (Brevo HTTP API; works where outbound SMTP is blocked)
  */
 
 import { Module, Global } from '@nestjs/common';
@@ -26,6 +27,7 @@ import { SendGridProvider } from './providers/sendgrid.provider';
 import { SESProvider } from './providers/ses.provider';
 import { MailerSendProvider } from './providers/mailersend.provider';
 import { SmtpProvider } from './providers/smtp.provider';
+import { BrevoProvider } from './providers/brevo.provider';
 
 // Utils
 import { EmailIdempotencyService } from './utils';
@@ -39,6 +41,7 @@ import { EmailIdempotencyService } from './utils';
     SESProvider,
     MailerSendProvider,
     SmtpProvider,
+    BrevoProvider,
 
     // Factory for provider resolution
     EmailProviderFactory,
