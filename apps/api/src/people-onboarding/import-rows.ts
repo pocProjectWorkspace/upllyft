@@ -48,6 +48,8 @@ export interface RowResult<T> {
   ok: boolean;
   data?: T;
   errors: string[];
+  /** What the row said, so a rejected row can still be recognised. */
+  label: { name: string | null; email: string | null };
 }
 
 // ── therapists ────────────────────────────────────────────────────────────────
@@ -176,7 +178,9 @@ export function validateRows<T extends { email: string }>(
       if (first) errors.push(`Duplicate of row ${first} in this file.`);
       else seen.set(data.email, row);
     }
-    return { row, ok: errors.length === 0, data: errors.length ? undefined : data, errors };
+    const text = (...keys: string[]) => keys.map((k) => String(r[k] ?? '').trim()).find(Boolean)?.slice(0, 120) || null;
+    const label = { name: text('name', 'fullname', 'parentname'), email: text('email', 'emailaddress') };
+    return { row, ok: errors.length === 0, data: errors.length ? undefined : data, errors, label };
   });
 }
 

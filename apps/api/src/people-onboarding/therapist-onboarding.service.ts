@@ -51,7 +51,7 @@ export class TherapistOnboardingService {
   async createOne(actor: Actor, body: Record<string, unknown>, scope: OnboardingScope) {
     const { data, errors } = validateTherapist(body);
     if (!data) throw new BadRequestException(errors.join(' '));
-    const { reports, invites } = await this.apply(actor, [{ row: 1, ok: true, data, errors: [] }], scope, false);
+    const { reports, invites } = await this.apply(actor, [{ row: 1, ok: true, data, errors: [], label: { name: data.name, email: data.email } }], scope, false);
     const [report] = reports;
     if (report.outcome === 'error') throw new BadRequestException(report.message);
     await this.queueInvites(invites, scope, actor);
@@ -110,7 +110,7 @@ export class TherapistOnboardingService {
 
     for (const r of rows) {
       if (!r.data) {
-        reports.push({ row: r.row, email: null, name: null, outcome: 'error', message: r.errors.join(' ') });
+        reports.push({ row: r.row, email: r.label.email, name: r.label.name, outcome: 'error', message: r.errors.join(' ') });
         continue;
       }
       const t = r.data;

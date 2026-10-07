@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Badge, Skeleton, useToast } from '@upllyft/ui';
 import {
@@ -151,6 +152,15 @@ export default function OrgMembersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Members</h1>
         <div className="flex gap-2">
+          <Link
+            href={`/org/${slug}/members/import`}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Import Therapists
+          </Link>
           <button
             onClick={() => setBulkOpen(true)}
             className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
