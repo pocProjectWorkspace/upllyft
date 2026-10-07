@@ -46,13 +46,17 @@ export class SmtpProvider extends BaseEmailProvider {
             host,
             port,
             secure: port === 465,
+            // Refuse to send credentials or mail in clear text if the server skips STARTTLS.
+            requireTLS: port !== 465,
             auth: {
                 user: msConfig.smtpUser,
                 pass: msConfig.smtpPass,
             },
             tls: {
-                // Allow self-signed certificates in development/interception scenarios
-                rejectUnauthorized: false,
+                minVersion: 'TLSv1.2',
+                // Certificates are verified. SMTP_TLS_INSECURE=true skips that for local
+                // machines behind TLS-intercepting antivirus; never honoured in production.
+                rejectUnauthorized: !(process.env.SMTP_TLS_INSECURE === 'true' && process.env.NODE_ENV !== 'production'),
             },
         });
 
