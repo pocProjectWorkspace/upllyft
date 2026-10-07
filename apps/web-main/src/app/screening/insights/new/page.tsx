@@ -162,7 +162,7 @@ export default function NewInsightPage() {
             ) : !children || children.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
                 <p className="text-gray-500 mb-4">No children found. Please add a child to your profile first.</p>
-                <a href="http://localhost:3000/profile">
+                <a href="/profile">
                   <Button variant="outline">Go to Profile</Button>
                 </a>
               </div>

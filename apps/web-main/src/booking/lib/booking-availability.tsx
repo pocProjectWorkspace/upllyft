@@ -14,10 +14,10 @@ export function BookingComingSoon({ className = '', compact = false }: { classNa
         compact ? 'px-3 py-2.5 text-[12.5px]' : 'px-4 py-3 text-sm'
       } font-semibold ${className}`}
     >
-      <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wide text-white">
+      <span className="whitespace-nowrap rounded-full bg-amber-500 px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wide text-white">
         Coming soon
       </span>
-      <span>Online booking</span>
+      {!compact && <span className="whitespace-nowrap">Online booking</span>}
     </div>
   );
 }

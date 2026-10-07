@@ -324,18 +324,22 @@ export default function EditProfilePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <FieldLabel required>Country</FieldLabel>
-                  <Select value={formData.country} onValueChange={(v) => handleChange('country', v)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countryOptions(formData.country).map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {/* Native select: the value is seeded before the options exist, which a
+                      Radix Select resets to empty. */}
+                  <select
+                    value={formData.country}
+                    onChange={(e) => handleChange('country', e.target.value)}
+                    className={`${INPUT} appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 fill=%22none%22 stroke=%22%236b7280%22 stroke-width=%222%22><path d=%22M4 6l4 4 4-4%22/></svg>')] bg-no-repeat bg-[right_0.9rem_center] pr-10`}
+                  >
+                    <option value="" disabled>
+                      Select...
+                    </option>
+                    {countryOptions(formData.country).map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
