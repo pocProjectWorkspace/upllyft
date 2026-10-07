@@ -179,3 +179,53 @@ export function validateRows<T extends { email: string }>(
     return { row, ok: errors.length === 0, data: errors.length ? undefined : data, errors };
   });
 }
+
+// ── templates ─────────────────────────────────────────────────────────────────
+
+export interface TemplateColumn {
+  header: string;
+  required: boolean;
+  help: string;
+  example: string;
+}
+
+/** The therapist import template. Headers must normalise to keys validateTherapist reads. */
+export const THERAPIST_TEMPLATE: TemplateColumn[] = [
+  { header: 'Name', required: true, help: 'Full name, up to 120 characters.', example: 'Dr. Priya Sharma' },
+  { header: 'Email', required: true, help: 'Their sign-in email. One row per person; each email once per file.', example: 'priya.sharma@example.com' },
+  { header: 'Phone', required: false, help: 'With country code. Digits, spaces, + ( ) - only.', example: '+971 50 123 4567' },
+  { header: 'Title', required: false, help: 'Job title shown on their profile.', example: 'Speech-Language Pathologist' },
+  { header: 'Department', required: false, help: `One of: ${DEPARTMENTS.join(', ')}. Left blank, it is worked out from the title.`, example: 'speech' },
+  { header: 'Specializations', required: false, help: 'Separate several with a semicolon (;).', example: 'Autism; Late talkers; AAC' },
+  { header: 'Languages', required: false, help: 'Separate several with a semicolon (;).', example: 'English; Hindi; Arabic' },
+  { header: 'Years Experience', required: false, help: 'Whole number from 0 to 60.', example: '8' },
+  { header: 'Country', required: false, help: 'India, UAE or Saudi Arabia.', example: 'UAE' },
+  { header: 'City', required: false, help: 'City they practise in.', example: 'Dubai' },
+  { header: 'Licence Number', required: false, help: 'Professional licence / registration number, if any.', example: 'DHA-12345' },
+  { header: 'Bio', required: false, help: 'A short introduction for families.', example: 'Helps young children find their voice through play-based therapy.' },
+];
+
+/**
+ * A blank import template: CSV (header only) or Excel with a "Therapists" sheet to fill
+ * and a "How to fill" sheet. The sheet to fill comes first — the importer reads sheet 1.
+ */
+export function therapistTemplate(format: 'csv' | 'xlsx'): Buffer {
+  const headers = THERAPIST_TEMPLATE.map((c) => c.header);
+  const data = XLSX.utils.aoa_to_sheet([headers]);
+  data['!cols'] = THERAPIST_TEMPLATE.map((c) => ({ wch: Math.max(14, Math.min(40, c.example.length + 2)) }));
+  if (format === 'csv') return Buffer.from(XLSX.utils.sheet_to_csv(data) + '\n', 'utf8');
+
+  const guide = XLSX.utils.aoa_to_sheet([
+    ['Column', 'Required?', 'What to enter', 'Example'],
+    ...THERAPIST_TEMPLATE.map((c) => [c.header, c.required ? 'Required' : 'Optional', c.help, c.example]),
+    [],
+    [`Fill one row per therapist on the "Therapists" sheet, keep the header row, and upload the file. Up to ${MAX_IMPORT_ROWS} rows.`],
+    ['Each new therapist gets an email with a link to set their password. Existing Upllyft therapists are not changed.'],
+  ]);
+  guide['!cols'] = [{ wch: 18 }, { wch: 10 }, { wch: 70 }, { wch: 40 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, data, 'Therapists');
+  XLSX.utils.book_append_sheet(wb, guide, 'How to fill');
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+}

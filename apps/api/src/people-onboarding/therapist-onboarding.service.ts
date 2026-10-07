@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService, escapeHtml } from '../email/email.service';
+import { EmailOutboxService, QueuedEmail } from '../email/email-outbox.service';
 import { isDeliverable } from '../notification/notification-email.service';
 import {
   MAX_IMPORT_ROWS,
@@ -41,6 +42,7 @@ export class TherapistOnboardingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
+    private readonly outbox: EmailOutboxService,
     config: ConfigService,
   ) {
     this.frontendUrl = (config.get<string>('FRONTEND_URL') || 'http://localhost:3000').replace(/\/+$/, '');
@@ -49,8 +51,10 @@ export class TherapistOnboardingService {
   async createOne(actor: Actor, body: Record<string, unknown>, scope: OnboardingScope) {
     const { data, errors } = validateTherapist(body);
     if (!data) throw new BadRequestException(errors.join(' '));
-    const [report] = await this.apply(actor, [{ row: 1, ok: true, data, errors: [] }], scope, false);
+    const { reports, invites } = await this.apply(actor, [{ row: 1, ok: true, data, errors: [] }], scope, false);
+    const [report] = reports;
     if (report.outcome === 'error') throw new BadRequestException(report.message);
+    await this.queueInvites(invites, scope, actor);
     return report;
   }
 
@@ -66,10 +70,14 @@ export class TherapistOnboardingService {
     if (rows.length > MAX_IMPORT_ROWS) throw new BadRequestException(`At most ${MAX_IMPORT_ROWS} rows per file.`);
 
     const validated = validateRows(rows, validateTherapist);
-    const reports = await this.apply(actor, validated, scope, dryRun);
+    const { reports, invites } = await this.apply(actor, validated, scope, dryRun);
     const count = (o: TherapistOutcome[]) => reports.filter((r) => o.includes(r.outcome)).length;
+    // Forecast before queueing, so the new emails are not counted twice.
+    const emails = await this.outbox.forecast(dryRun ? count(['would-create']) : invites.length);
+    await this.queueInvites(invites, scope, actor);
     return {
       dryRun,
+      emails,
       total: reports.length,
       created: count(['created', 'would-create']),
       linked: count(['linked', 'would-link']),
@@ -84,7 +92,7 @@ export class TherapistOnboardingService {
     rows: RowResult<TherapistInput>[],
     scope: OnboardingScope,
     dryRun: boolean,
-  ): Promise<TherapistRowReport[]> {
+  ): Promise<{ reports: TherapistRowReport[]; invites: Array<{ email: string; name: string; token: string }> }> {
     const emails = rows.filter((r) => r.data).map((r) => r.data!.email);
     const existing = await this.prisma.user.findMany({
       where: { OR: emails.map((e) => ({ email: { equals: e, mode: 'insensitive' as const } })) },
@@ -176,9 +184,7 @@ export class TherapistOnboardingService {
       }
     }
 
-    // Emails go out after the response: a 500-row file must not wait on 500 SMTP calls.
-    if (invites.length) void this.sendInvites(invites, scope, actor);
-    return reports;
+    return { reports, invites };
   }
 
   private profileData(t: TherapistInput) {
@@ -215,29 +221,32 @@ export class TherapistOnboardingService {
     ]);
   }
 
-  private async sendInvites(invites: Array<{ email: string; name: string; token: string }>, scope: OnboardingScope, actor: Actor) {
+  /**
+   * "Set your password" emails go through the outbox: a 500-row file neither waits on
+   * 500 SMTP calls nor runs past the provider's daily allowance.
+   */
+  private async queueInvites(invites: Array<{ email: string; name: string; token: string }>, scope: OnboardingScope, actor: Actor) {
+    if (!invites.length) return;
     const who = scope.organizationName ?? 'Upllyft';
+    const emails: QueuedEmail[] = [];
     for (const inv of invites) {
       if (!isDeliverable(inv.email)) continue;
       const link = `${this.frontendUrl}/reset-password?token=${inv.token}`;
-      try {
-        await this.email.sendEmail({
-          to: inv.email,
-          subject: `${who} added you on Upllyft`,
-          html: this.email.brandedHtml({
-            heading: 'Welcome to Upllyft',
-            bodyHtml: `<p class="greeting">Hi ${escapeHtml(inv.name.split(' ')[0])},</p><p class="message"><strong>${escapeHtml(who)}</strong> has added you to Upllyft as a therapist. Set your password to sign in, complete your profile and set your availability.</p>`,
-            cta: { label: 'Set your password', url: link },
-            footnote: 'This link is valid for 14 days. If it expires, use “Forgot password” on the sign-in page.',
-          }),
-          text: `${who} has added you to Upllyft as a therapist.\n\nSet your password: ${link}\n\nThis link is valid for 14 days.`,
-          idempotencyKey: `therapist-invite-${inv.token.slice(0, 16)}`,
-          tags: ['therapist-invite', 'onboarding'],
-        });
-      } catch (e: any) {
-        this.logger.error(`Therapist invite to ${inv.email} failed: ${e?.message ?? e}`);
-      }
+      emails.push({
+        to: { email: inv.email, name: inv.name },
+        subject: `${who} added you on Upllyft`,
+        html: this.email.brandedHtml({
+          heading: 'Welcome to Upllyft',
+          bodyHtml: `<p class="greeting">Hi ${escapeHtml(inv.name.split(' ')[0])},</p><p class="message"><strong>${escapeHtml(who)}</strong> has added you to Upllyft as a therapist. Set your password to sign in, complete your profile and set your availability.</p>`,
+          cta: { label: 'Set your password', url: link },
+          footnote: 'This link is valid for 14 days. If it expires, use “Forgot password” on the sign-in page.',
+        }),
+        text: `${who} has added you to Upllyft as a therapist.\n\nSet your password: ${link}\n\nThis link is valid for 14 days.`,
+        idempotencyKey: `therapist-invite-${inv.token.slice(0, 16)}`,
+        tags: ['therapist-invite', 'onboarding'],
+      });
     }
-    this.logger.log(`Therapist invites sent by ${actor.id}: ${invites.length}`);
+    const queued = await this.outbox.enqueue(emails);
+    this.logger.log(`Therapist invites queued by ${actor.id}: ${queued}`);
   }
 }

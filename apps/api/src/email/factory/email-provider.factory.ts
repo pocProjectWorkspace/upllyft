@@ -13,6 +13,7 @@ import {
 import { SendGridProvider } from '../providers/sendgrid.provider';
 import { SESProvider } from '../providers/ses.provider';
 import { MailerSendProvider } from '../providers/mailersend.provider';
+import { SmtpProvider } from '../providers/smtp.provider';
 
 @Injectable()
 export class EmailProviderFactory implements OnModuleInit {
@@ -25,6 +26,7 @@ export class EmailProviderFactory implements OnModuleInit {
         private readonly sendGridProvider: SendGridProvider,
         private readonly sesProvider: SESProvider,
         private readonly mailerSendProvider: MailerSendProvider,
+        private readonly smtpProvider: SmtpProvider,
     ) { }
 
     async onModuleInit(): Promise<void> {
@@ -53,6 +55,9 @@ export class EmailProviderFactory implements OnModuleInit {
                 case 'mailersend':
                     this.provider = this.mailerSendProvider;
                     break;
+                case 'smtp':
+                    this.provider = this.smtpProvider;
+                    break;
                 default:
                     throw new Error(`Unknown email provider: ${providerType}`);
             }
@@ -78,7 +83,7 @@ export class EmailProviderFactory implements OnModuleInit {
             .get<string>('EMAIL_PROVIDER', 'sendgrid')
             .toLowerCase() as EmailProviderType;
 
-        const validProviders: EmailProviderType[] = ['sendgrid', 'ses', 'mailersend'];
+        const validProviders: EmailProviderType[] = ['sendgrid', 'ses', 'mailersend', 'smtp'];
 
         if (!validProviders.includes(provider)) {
             this.logger.warn(
@@ -115,6 +120,7 @@ export class EmailProviderFactory implements OnModuleInit {
             this.sendGridProvider,
             this.sesProvider,
             this.mailerSendProvider,
+            this.smtpProvider,
         ];
     }
 
@@ -151,6 +157,15 @@ export class EmailProviderFactory implements OnModuleInit {
                     smtpPass: this.configService.get<string>('MAILERSEND_SMTP_PASS'),
                 };
 
+            case 'smtp':
+                return {
+                    ...baseConfig,
+                    smtpHost: this.configService.get<string>('SMTP_HOST'),
+                    smtpPort: this.configService.get<number>('SMTP_PORT', 587),
+                    smtpUser: this.configService.get<string>('SMTP_USER'),
+                    smtpPass: this.configService.get<string>('SMTP_PASS'),
+                };
+
             default:
                 return baseConfig;
         }
@@ -167,6 +182,7 @@ export class EmailProviderFactory implements OnModuleInit {
             sendgrid: 'SENDGRID_FROM_EMAIL',
             ses: 'AWS_SES_FROM_EMAIL',
             mailersend: 'MAILERSEND_FROM_EMAIL',
+            smtp: 'SMTP_FROM_EMAIL',
         };
 
         return (
@@ -186,6 +202,7 @@ export class EmailProviderFactory implements OnModuleInit {
             sendgrid: 'SENDGRID_FROM_NAME',
             ses: 'AWS_SES_FROM_NAME',
             mailersend: 'MAILERSEND_FROM_NAME',
+            smtp: 'SMTP_FROM_NAME',
         };
 
         return (

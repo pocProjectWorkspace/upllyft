@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorators';
 import { EmailService } from '../email/email.service';
+import { EmailOutboxService } from '../email/email-outbox.service';
 import { NotificationEmailService } from './notification-email.service';
 
 /** Platform-admin tools to check that notification emails are going out. */
@@ -16,13 +17,14 @@ export class NotificationAdminController {
   constructor(
     private readonly notificationEmail: NotificationEmailService,
     private readonly email: EmailService,
+    private readonly outbox: EmailOutboxService,
   ) {}
 
   /** Provider status — never returns credentials. */
   @Get('email-health')
   async emailHealth() {
-    const health = await this.email.healthCheck();
-    return { ...health, sendingDisabled: process.env.EMAIL_SEND_DISABLED === 'true' };
+    const [health, outbox] = await Promise.all([this.email.healthCheck(), this.outbox.stats()]);
+    return { ...health, sendingDisabled: process.env.EMAIL_SEND_DISABLED === 'true', outbox };
   }
 
   @Post('test-email')

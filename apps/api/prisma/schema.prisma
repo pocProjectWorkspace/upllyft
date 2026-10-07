@@ -5843,3 +5843,29 @@ model PlatformInvitation {
   @@index([status, createdAt])
   @@map("platform_invitations")
 }
+
+/// Emails that wait for the provider's daily allowance (bulk onboarding), plus a SENT row
+/// per direct send while EMAIL_DAILY_LIMIT is set, so every replica counts the same day.
+model EmailOutbox {
+  id             String    @id @default(cuid())
+  toEmail        String
+  toName         String?
+  subject        String
+  html           String?
+  text           String?
+  tags           String[]  @default([])
+  /// Set for queued emails (a repeat enqueue is ignored); null for direct-send records.
+  idempotencyKey String?   @unique
+  /// QUEUED | SENDING | SENT | FAILED
+  status         String    @default("QUEUED")
+  attempts       Int       @default(0)
+  lastError      String?
+  sendAfter      DateTime  @default(now())
+  claimedAt      DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([status, sendAfter])
+  @@index([sentAt])
+  @@map("email_outbox")
+}

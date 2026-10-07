@@ -1,5 +1,14 @@
 import * as XLSX from 'xlsx';
-import { headerKey, parseSheet, splitList, validateParentInvite, validateRows, validateTherapist } from './import-rows';
+import {
+  THERAPIST_TEMPLATE,
+  headerKey,
+  parseSheet,
+  splitList,
+  therapistTemplate,
+  validateParentInvite,
+  validateRows,
+  validateTherapist,
+} from './import-rows';
 
 describe('parseSheet', () => {
   it('reads CSV with messy headers and skips blank lines', () => {
@@ -76,5 +85,49 @@ describe('validateParentInvite + validateRows', () => {
     expect(out[0]).toMatchObject({ row: 2, ok: true, data: { email: 'p1@x.com', name: 'Priya' } });
     expect(out[1]).toMatchObject({ row: 3, ok: false });
     expect(out[2]).toMatchObject({ row: 4, ok: false, errors: ['Duplicate of row 2 in this file.'] });
+  });
+});
+
+describe('therapistTemplate', () => {
+  /** Put the example row under the template's header, as an admin filling it in would. */
+  function filled(format: 'csv' | 'xlsx'): Buffer {
+    const examples = THERAPIST_TEMPLATE.map((c) => c.example);
+    if (format === 'csv') {
+      const quote = (v: string) => (/[",]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+      return Buffer.from(`${therapistTemplate('csv').toString('utf8').trimEnd()}\n${examples.map(quote).join(',')}\n`);
+    }
+    const wb = XLSX.read(therapistTemplate('xlsx'), { type: 'buffer' });
+    XLSX.utils.sheet_add_aoa(wb.Sheets[wb.SheetNames[0]], [examples], { origin: -1 });
+    return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  }
+
+  it.each(['csv', 'xlsx'] as const)('%s template is empty until filled', (format) => {
+    expect(parseSheet(therapistTemplate(format))).toEqual([]);
+  });
+
+  it('puts the sheet to fill first and the guide second', () => {
+    const wb = XLSX.read(therapistTemplate('xlsx'), { type: 'buffer' });
+    expect(wb.SheetNames).toEqual(['Therapists', 'How to fill']);
+  });
+
+  it.each(['csv', 'xlsx'] as const)('every %s column is read by the importer', (format) => {
+    const rows = parseSheet(filled(format));
+    expect(rows).toHaveLength(1);
+    const [result] = validateRows(rows, validateTherapist);
+    expect(result.errors).toEqual([]);
+    expect(result.data).toEqual({
+      name: 'Dr. Priya Sharma',
+      email: 'priya.sharma@example.com',
+      phone: '+971 50 123 4567',
+      title: 'Speech-Language Pathologist',
+      department: 'speech',
+      specializations: ['Autism', 'Late talkers', 'AAC'],
+      languages: ['English', 'Hindi', 'Arabic'],
+      yearsExperience: 8,
+      country: 'AE',
+      city: 'Dubai',
+      licenceNumber: 'DHA-12345',
+      bio: 'Helps young children find their voice through play-based therapy.',
+    });
   });
 });

@@ -26,18 +26,24 @@ import { EmailOptions, EmailSendResult } from './interfaces';
 import { EmailProviderFactory } from './factory';
 import { EmailIdempotencyService } from './utils';
 import { AppLoggerService } from '../common/logging';
+import { PrismaService } from '../prisma/prisma.service';
+import { budgetConfig } from './email-budget';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly frontendUrl: string;
+  /** Direct sends are recorded only while a daily cap is set (the outbox counts them). */
+  private readonly countSends: boolean;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly providerFactory: EmailProviderFactory,
     private readonly idempotencyService: EmailIdempotencyService,
     private readonly appLogger: AppLoggerService,
+    private readonly prisma: PrismaService,
   ) {
+    this.countSends = budgetConfig(this.configService.get('EMAIL_DAILY_LIMIT'), 0).limit !== null;
     this.frontendUrl = this.configService.get<string>(
       'FRONTEND_URL',
       'http://localhost:3000',
@@ -49,9 +55,10 @@ export class EmailService {
    * Send an email using the configured provider
    * 
    * @param options Email options
+   * @param meta.outboxId Set by EmailOutboxService, which records the send on its own row
    * @returns Result of the send operation
    */
-  async sendEmail(options: EmailOptions): Promise<EmailSendResult> {
+  async sendEmail(options: EmailOptions, meta: { outboxId?: string } = {}): Promise<EmailSendResult> {
     // Kill switch for local runs and tests that hit the shared database with real keys:
     // log what would have gone out, send nothing.
     if (this.configService.get<string>('EMAIL_SEND_DISABLED') === 'true') {
@@ -105,6 +112,7 @@ export class EmailService {
         provider.name,
         result.messageId,
       );
+      if (this.countSends && !meta.outboxId) await this.recordDirectSend(options);
     }
 
     return result;
@@ -346,6 +354,24 @@ The Upllyft Team
   // ============================================
   // HELPER METHODS
   // ============================================
+
+  /** One SENT row per direct send, so today's total is shared by every replica. */
+  private async recordDirectSend(options: EmailOptions): Promise<void> {
+    try {
+      const to = Array.isArray(options.to) ? options.to[0] : options.to;
+      await this.prisma.emailOutbox.create({
+        data: {
+          toEmail: typeof to === 'string' ? to : to.email,
+          subject: options.subject.slice(0, 300),
+          tags: options.tags ?? [],
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      });
+    } catch (e) {
+      this.logger.warn(`Could not record email send: ${e instanceof Error ? e.message : e}`);
+    }
+  }
 
   private getRecipientString(to: EmailOptions['to']): string {
     if (typeof to === 'string') {

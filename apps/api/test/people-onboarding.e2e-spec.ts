@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as XLSX from 'xlsx';
+import { EmailOutboxService } from '../src/email/email-outbox.service';
 import { NotificationEmailService } from '../src/notification/notification-email.service';
 import { OnboardingScopeService } from '../src/people-onboarding/onboarding-scope';
 import { ParentInvitationService, acceptPlatformInvitations } from '../src/people-onboarding/parent-invitation.service';
@@ -14,20 +15,30 @@ import { prisma, scope, mkUser, cleanup, type Scope } from './helpers/fixtures';
 describe('People onboarding + notification email', () => {
   const s: Scope = scope('t-onb');
   const sent: Array<{ to: string; subject: string; html?: string }> = [];
+  const toAddress = (to: string | { email: string }) => (typeof to === 'string' ? to : to.email);
   const email: any = {
     sendEmail: jest.fn(async (o: any) => {
-      sent.push(o);
+      sent.push({ ...o, to: toAddress(o.to) });
       return { success: true, messageId: 'fake', timestamp: new Date() };
     }),
     brandedHtml: (o: any) => `<h1>${o.heading}</h1>${o.bodyHtml}${o.cta ? `<a href="${o.cta.url}">${o.cta.label}</a>` : ''}`,
   };
   const config: any = { get: () => 'https://app.example.test' };
   const scopes = new OnboardingScopeService(prisma as any);
-  const therapists = new TherapistOnboardingService(prisma as any, email, config);
+  const outbox = new EmailOutboxService(prisma as any, email, config); // config has no EMAIL_DAILY_LIMIT → no cap
+  const therapists = new TherapistOnboardingService(prisma as any, email, outbox, config);
   const invites = new ParentInvitationService(prisma as any, email, config);
   const notificationEmail = new NotificationEmailService(prisma as any, email, config);
   const addr = (n: string) => `${n}.${s.tag}@upllyft-e2e.test`;
-  const flush = () => new Promise((r) => setTimeout(r, 300)); // invites are sent after the response
+  /** Invites are sent after the response; therapist ones via the outbox. Wait for both. */
+  const flush = async () => {
+    await new Promise((r) => setTimeout(r, 300));
+    for (let i = 0; i < 50; i++) {
+      const pending = await prisma.emailOutbox.count({ where: { toEmail: { contains: s.tag }, status: { in: ['QUEUED', 'SENDING'] } } });
+      if (!pending) return;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  };
 
   let admin: any;
   let orgAdmin: any;
@@ -45,6 +56,7 @@ describe('People onboarding + notification email', () => {
   afterAll(async () => {
     const users = await prisma.user.findMany({ where: { email: { contains: s.tag } }, select: { id: true } });
     const ids = users.map((u) => u.id);
+    await prisma.emailOutbox.deleteMany({ where: { toEmail: { contains: s.tag } } });
     await prisma.platformInvitation.deleteMany({ where: { OR: [{ email: { contains: s.tag } }, { invitedById: { in: ids } }] } });
     await prisma.notification.deleteMany({ where: { userId: { in: ids } } });
     await prisma.therapistOrganizationLink.deleteMany({ where: { organizationId: org.id } });
@@ -99,12 +111,17 @@ describe('People onboarding + notification email', () => {
     const orgScope = await scopes.organization(asOrgAdmin(), org.slug);
 
     const preview = await therapists.importFile(asOrgAdmin(), file, orgScope, true);
-    expect(preview).toMatchObject({ dryRun: true, total: 4, created: 1, linked: 1, errors: 2 });
+    expect(preview).toMatchObject({ dryRun: true, total: 4, created: 1, linked: 1, errors: 2, emails: { emails: 1, days: 1, dailyLimit: null } });
     expect(await prisma.user.count({ where: { email: addr('ravi') } })).toBe(0);
 
     const result = await therapists.importFile(asOrgAdmin(), file, orgScope, false);
     expect(result.rows.map((r) => r.outcome)).toEqual(['created', 'linked', 'error', 'error']);
     expect(result.rows[2].message).toContain('not a therapist');
+
+    // The set-password email went through the outbox and out.
+    await flush();
+    expect(sent.filter((m) => m.to === addr('ravi'))).toHaveLength(1);
+    expect(await prisma.emailOutbox.findFirst({ where: { toEmail: addr('ravi') } })).toMatchObject({ status: 'SENT', attempts: 1 });
 
     const ravi = await prisma.user.findUnique({
       where: { email: addr('ravi') },

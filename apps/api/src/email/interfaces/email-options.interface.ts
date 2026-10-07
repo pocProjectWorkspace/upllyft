@@ -101,17 +101,17 @@ export interface EmailProviderConfig {
     /** AWS secret access key (for SES) */
     secretAccessKey?: string;
 
-    /** SMTP host (for MailerSend) */
+    /** SMTP host (for MailerSend / SMTP) */
     smtpHost?: string;
 
-    /** SMTP port (for MailerSend) */
+    /** SMTP port (for MailerSend / SMTP) */
     smtpPort?: number;
 
-    /** SMTP username (for MailerSend) */
+    /** SMTP username (for MailerSend / SMTP) */
     smtpUser?: string;
 
-    /** SMTP password (for MailerSend) */
+    /** SMTP password (for MailerSend / SMTP) */
     smtpPass?: string;
 }
 
-export type EmailProviderType = 'sendgrid' | 'ses' | 'mailersend';
+export type EmailProviderType = 'sendgrid' | 'ses' | 'mailersend' | 'smtp';
