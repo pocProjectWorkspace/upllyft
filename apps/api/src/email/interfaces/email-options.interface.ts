@@ -114,4 +114,4 @@ export interface EmailProviderConfig {
     smtpPass?: string;
 }
 
-export type EmailProviderType = 'sendgrid' | 'ses' | 'mailersend' | 'smtp';
+export type EmailProviderType = 'sendgrid' | 'ses' | 'mailersend' | 'smtp' | 'brevo';

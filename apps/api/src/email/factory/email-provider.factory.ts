@@ -14,6 +14,7 @@ import { SendGridProvider } from '../providers/sendgrid.provider';
 import { SESProvider } from '../providers/ses.provider';
 import { MailerSendProvider } from '../providers/mailersend.provider';
 import { SmtpProvider } from '../providers/smtp.provider';
+import { BrevoProvider } from '../providers/brevo.provider';
 
 @Injectable()
 export class EmailProviderFactory implements OnModuleInit {
@@ -27,6 +28,7 @@ export class EmailProviderFactory implements OnModuleInit {
         private readonly sesProvider: SESProvider,
         private readonly mailerSendProvider: MailerSendProvider,
         private readonly smtpProvider: SmtpProvider,
+        private readonly brevoProvider: BrevoProvider,
     ) { }
 
     async onModuleInit(): Promise<void> {
@@ -58,6 +60,9 @@ export class EmailProviderFactory implements OnModuleInit {
                 case 'smtp':
                     this.provider = this.smtpProvider;
                     break;
+                case 'brevo':
+                    this.provider = this.brevoProvider;
+                    break;
                 default:
                     throw new Error(`Unknown email provider: ${providerType}`);
             }
@@ -83,7 +88,7 @@ export class EmailProviderFactory implements OnModuleInit {
             .get<string>('EMAIL_PROVIDER', 'sendgrid')
             .toLowerCase() as EmailProviderType;
 
-        const validProviders: EmailProviderType[] = ['sendgrid', 'ses', 'mailersend', 'smtp'];
+        const validProviders: EmailProviderType[] = ['sendgrid', 'ses', 'mailersend', 'smtp', 'brevo'];
 
         if (!validProviders.includes(provider)) {
             this.logger.warn(
@@ -121,6 +126,7 @@ export class EmailProviderFactory implements OnModuleInit {
             this.sesProvider,
             this.mailerSendProvider,
             this.smtpProvider,
+            this.brevoProvider,
         ];
     }
 
@@ -166,6 +172,12 @@ export class EmailProviderFactory implements OnModuleInit {
                     smtpPass: this.configService.get<string>('SMTP_PASS'),
                 };
 
+            case 'brevo':
+                return {
+                    ...baseConfig,
+                    apiKey: this.configService.get<string>('BREVO_API_KEY'),
+                };
+
             default:
                 return baseConfig;
         }
@@ -183,6 +195,7 @@ export class EmailProviderFactory implements OnModuleInit {
             ses: 'AWS_SES_FROM_EMAIL',
             mailersend: 'MAILERSEND_FROM_EMAIL',
             smtp: 'SMTP_FROM_EMAIL',
+            brevo: 'BREVO_FROM_EMAIL',
         };
 
         return (
@@ -203,6 +216,7 @@ export class EmailProviderFactory implements OnModuleInit {
             ses: 'AWS_SES_FROM_NAME',
             mailersend: 'MAILERSEND_FROM_NAME',
             smtp: 'SMTP_FROM_NAME',
+            brevo: 'BREVO_FROM_NAME',
         };
 
         return (
