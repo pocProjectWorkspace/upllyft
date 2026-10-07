@@ -52,13 +52,13 @@ export function getNavItems(
   role: string,
   ssoSource?: string | null,
 ): GlobalNavItem[] {
-  // OneVoice SSO users get a trimmed navigation: only Feed (community) and
+  // OneVoice SSO users get a trimmed navigation: only Community and
   // Screening are exposed. Hub, Booking, Resources, Cases, Admin and Clinic
   // are hidden so the partner experience stays focused on the two modules
   // OneVoice has integrated with.
   if (ssoSource === 'onevoice') {
     return [
-      { label: 'Feed', app: 'community', href: APP_URLS.community },
+      { label: 'Community', app: 'community', href: APP_URLS.community },
       { label: 'Screening', app: 'screening', href: APP_URLS.screening },
     ];
   }
@@ -167,7 +167,7 @@ export function getNavItems(
       ];
 
   items.push(
-    { label: 'Feed', app: 'community', href: APP_URLS.community },
+    { label: 'Community', app: 'community', href: APP_URLS.community },
     { label: 'Screening', app: 'screening', href: S, children: screeningChildren },
     // A parent's entry to booking is the adaptive Find Care screen, not the raw browse
     // grid — it reads what's known about the child and routes accordingly. Professionals

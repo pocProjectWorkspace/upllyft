@@ -39,7 +39,7 @@ export default function EditProfilePage() {
         phoneNumber: profile.phoneNumber || '',
         city: profile.city || '',
         state: profile.state || '',
-        country: profile.country || '',
+        country: countryName(profile.country || (user as any)?.country || (user as any)?.preferredRegion),
         occupation: profile.occupation || '',
         educationLevel: profile.educationLevel || '',
         relationshipToChild: profile.relationshipToChild || '',
@@ -75,6 +75,19 @@ export default function EditProfilePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const missing = [
+      !formData.fullName.trim() && 'Full Name',
+      !formData.phoneNumber.trim() && 'Phone Number',
+      user?.role === 'USER' && !formData.relationshipToChild && 'Relationship to Child',
+      !formData.country.trim() && 'Country',
+      !formData.state.trim() && 'State',
+      !formData.city.trim() && 'City',
+    ].filter(Boolean);
+    if (missing.length) {
+      setError(`Please fill in: ${missing.join(', ')}.`);
+      setSuccess(false);
+      return;
+    }
     setSaving(true);
     setError('');
     setSuccess(false);
@@ -214,119 +227,140 @@ export default function EditProfilePage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={formData.fullName}
-                  onChange={(e) => handleChange('fullName', e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-                />
-              </div>
+            <p className="text-sm text-gray-500">
+              Fields marked <span className="text-red-500">*</span> are required
+            </p>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                <input
-                  type="tel"
-                  value={formData.phoneNumber}
-                  onChange={(e) => handleChange('phoneNumber', e.target.value)}
-                  placeholder="+1 (555) 000-0000"
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-                />
-              </div>
+            <section className="space-y-4">
+              <h2 className="text-base font-semibold text-gray-900 pb-2 border-b border-gray-100">Personal details</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <FieldLabel required>Full Name</FieldLabel>
+                  <input
+                    type="text"
+                    value={formData.fullName}
+                    onChange={(e) => handleChange('fullName', e.target.value)}
+                    className={INPUT}
+                  />
+                </div>
 
-              {user.role === 'USER' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Relationship to Child</label>
-                  <Select value={formData.relationshipToChild} onValueChange={(v) => handleChange('relationshipToChild', v)}>
+                  <FieldLabel required>Phone Number</FieldLabel>
+                  <input
+                    type="tel"
+                    value={formData.phoneNumber}
+                    onChange={(e) => handleChange('phoneNumber', e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className={INPUT}
+                  />
+                </div>
+
+                {user.role === 'USER' && (
+                  <div>
+                    <FieldLabel required>Relationship to Child</FieldLabel>
+                    <Select value={formData.relationshipToChild} onValueChange={(v) => handleChange('relationshipToChild', v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Parent">Parent</SelectItem>
+                        <SelectItem value="Guardian">Guardian</SelectItem>
+                        <SelectItem value="Caregiver">Caregiver</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {user.role === 'USER' && formData.relationshipToChild === 'Parent' && (
+                  <div>
+                    <FieldLabel>Which parent/guardian</FieldLabel>
+                    <Select value={formData.relationshipDetail} onValueChange={(v) => handleChange('relationshipDetail', v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Mother">Mother</SelectItem>
+                        <SelectItem value="Father">Father</SelectItem>
+                        <SelectItem value="Grandfather">Grandfather</SelectItem>
+                        <SelectItem value="Grandmother">Grandmother</SelectItem>
+                        <SelectItem value="Relative">Relative</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div>
+                  <FieldLabel optional>Occupation</FieldLabel>
+                  <input
+                    type="text"
+                    value={formData.occupation}
+                    onChange={(e) => handleChange('occupation', e.target.value)}
+                    placeholder="e.g. Teacher"
+                    className={INPUT}
+                  />
+                </div>
+
+                <div>
+                  <FieldLabel optional>Education Level</FieldLabel>
+                  <Select value={formData.educationLevel} onValueChange={(v) => handleChange('educationLevel', v)}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Parent">Parent</SelectItem>
-                      <SelectItem value="Guardian">Guardian</SelectItem>
-                      <SelectItem value="Caregiver">Caregiver</SelectItem>
+                      <SelectItem value="High School">High School</SelectItem>
+                      <SelectItem value="Bachelor's">Bachelor&apos;s</SelectItem>
+                      <SelectItem value="Master's">Master&apos;s</SelectItem>
+                      <SelectItem value="Doctorate">Doctorate</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )}
+              </div>
+            </section>
 
-              {user.role === 'USER' && formData.relationshipToChild === 'Parent' && (
+            <section className="space-y-4 pt-2">
+              <h2 className="text-base font-semibold text-gray-900 pb-2 border-b border-gray-100">Address details</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Which parent/guardian</label>
-                  <Select value={formData.relationshipDetail} onValueChange={(v) => handleChange('relationshipDetail', v)}>
+                  <FieldLabel required>Country</FieldLabel>
+                  <Select value={formData.country} onValueChange={(v) => handleChange('country', v)}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Mother">Mother</SelectItem>
-                      <SelectItem value="Father">Father</SelectItem>
-                      <SelectItem value="Grandfather">Grandfather</SelectItem>
-                      <SelectItem value="Grandmother">Grandmother</SelectItem>
-                      <SelectItem value="Relative">Relative</SelectItem>
+                      {countryOptions(formData.country).map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-              )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={(e) => handleChange('city', e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-                />
-              </div>
+                <div>
+                  <FieldLabel required>State</FieldLabel>
+                  <input
+                    type="text"
+                    value={formData.state}
+                    onChange={(e) => handleChange('state', e.target.value)}
+                    placeholder={formData.country === 'United Arab Emirates' ? 'e.g. Dubai' : 'e.g. Maharashtra'}
+                    className={INPUT}
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                <input
-                  type="text"
-                  value={formData.state}
-                  onChange={(e) => handleChange('state', e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-                />
+                <div>
+                  <FieldLabel required>City</FieldLabel>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => handleChange('city', e.target.value)}
+                    placeholder={formData.country === 'United Arab Emirates' ? 'e.g. Dubai' : 'e.g. Mumbai'}
+                    className={INPUT}
+                  />
+                </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                <input
-                  type="text"
-                  value={formData.country}
-                  onChange={(e) => handleChange('country', e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
-                <input
-                  type="text"
-                  value={formData.occupation}
-                  onChange={(e) => handleChange('occupation', e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Education Level</label>
-                <Select value={formData.educationLevel} onValueChange={(v) => handleChange('educationLevel', v)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="High School">High School</SelectItem>
-                    <SelectItem value="Bachelor's">Bachelor&apos;s</SelectItem>
-                    <SelectItem value="Master's">Master&apos;s</SelectItem>
-                    <SelectItem value="Doctorate">Doctorate</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            </section>
 
             <div className="flex justify-end pt-2">
               <button
@@ -420,4 +454,35 @@ export default function EditProfilePage() {
       </main>
     </div>
   );
+}
+
+const INPUT =
+  'w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none';
+
+/** The countries Upllyft serves; a previously saved other value is kept as an option. */
+const COUNTRIES = ['India', 'United Arab Emirates', 'Saudi Arabia'];
+
+function countryOptions(current: string) {
+  return current && !COUNTRIES.includes(current) ? [...COUNTRIES, current] : COUNTRIES;
+}
+
+function FieldLabel({ children, required, optional }: { children: React.ReactNode; required?: boolean; optional?: boolean }) {
+  return (
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {children}
+      {required && <span className="text-red-500 ml-0.5">*</span>}
+      {optional && <span className="ml-1.5 text-xs font-normal text-gray-400">Optional</span>}
+    </label>
+  );
+}
+
+/** Codes and short forms saved earlier ("IN", "UAE") shown as the dropdown's names. */
+function countryName(value: string | null | undefined): string {
+  const v = (value ?? '').trim();
+  const map: Record<string, string> = {
+    in: 'India', india: 'India',
+    ae: 'United Arab Emirates', uae: 'United Arab Emirates', 'united arab emirates': 'United Arab Emirates',
+    sa: 'Saudi Arabia', ksa: 'Saudi Arabia', 'saudi arabia': 'Saudi Arabia',
+  };
+  return map[v.toLowerCase()] ?? v;
 }

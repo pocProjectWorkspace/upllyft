@@ -85,6 +85,11 @@ export default function NewInsightPage() {
     (a) => a.status === 'COMPLETED' || a.status === 'TIER1_COMPLETE',
   );
 
+  // A screening started but not finished — offer to continue it rather than start over.
+  const inProgressAssessment = (assessments || []).find(
+    (a) => a.status === 'IN_PROGRESS' || a.status === 'TIER2_REQUIRED',
+  );
+
   // Progress animation
   useEffect(() => {
     if (step !== 3) return;
@@ -215,12 +220,29 @@ export default function NewInsightPage() {
               </div>
             ) : completedAssessments.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
-                <p className="text-gray-500 mb-4">
-                  No completed assessments found for this child. Complete a screening first.
+                <p className="font-semibold text-gray-900">
+                  {selectedChild?.nickname || selectedChild?.firstName} hasn&apos;t finished a screening yet
                 </p>
-                <Button variant="outline" onClick={() => setStep(0)}>
-                  Select Another Child
-                </Button>
+                <p className="text-gray-500 mt-1 mb-6">
+                  Insights are built from a completed screening. It takes about 15 minutes, and you can
+                  come back here as soon as it&apos;s done.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  {inProgressAssessment ? (
+                    <Button onClick={() => router.push(`/screening/${inProgressAssessment.id}/questionnaire?tier=${inProgressAssessment.status === 'TIER2_REQUIRED' ? 2 : 1}`)}>
+                      Continue {selectedChild?.firstName}&apos;s screening
+                    </Button>
+                  ) : (
+                    <Button onClick={() => router.push(`/screening?start=${selectedChild?.id}`)}>
+                      Start {selectedChild?.firstName}&apos;s screening
+                    </Button>
+                  )}
+                  {(children?.length ?? 0) > 1 && (
+                    <Button variant="outline" onClick={() => setStep(0)}>
+                      Select Another Child
+                    </Button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="space-y-3">

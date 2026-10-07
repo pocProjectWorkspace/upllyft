@@ -145,8 +145,8 @@ export function ParentDashboard({ user }: ParentDashboardProps) {
                   'your family'
                 )}
                 . Your personalised space is ready. Mira is here whenever you need
-                guidance, and you can explore screenings, therapists, and community
-                all from this dashboard.
+                guidance, and you can explore screenings, therapists, community and
+                resources all from this dashboard.
               </p>
             </div>
           </div>

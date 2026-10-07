@@ -420,16 +420,27 @@ function AssessmentCard({
   );
 }
 
+function StartScreeningButton({ childName, onClick, className = '' }: { childName: string; onClick: () => void; className?: string }) {
+  return (
+    <Button onClick={onClick} size="sm" className={`rounded-xl ${className}`}>
+      <PlusIcon className="w-4 h-4 mr-1.5" />
+      Start {childName}&apos;s screening
+    </Button>
+  );
+}
+
 // ── Child Section ──
 
 function ChildSection({
   child,
   onShare,
   onDelete,
+  onStart,
 }: {
   child: Child;
   onShare: (assessment: Assessment) => void;
   onDelete: (assessment: Assessment) => void;
+  onStart: (childId: string) => void;
 }) {
   const { data: assessments, isLoading } = useChildAssessments(child.id);
 
@@ -468,6 +479,7 @@ function ChildSection({
           <p className="text-xs text-gray-400 mt-1">
             Start a screening to see how they&apos;re doing. It only takes about 15 minutes.
           </p>
+          <StartScreeningButton childName={child.firstName} onClick={() => onStart(child.id)} className="mt-4" />
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -487,7 +499,13 @@ function ChildSection({
 
 // ── Progress Overview Component ──
 
-function ProgressOverview({ childrenList }: { childrenList: Child[] | undefined }) {
+function ProgressOverview({
+  childrenList,
+  onStart,
+}: {
+  childrenList: Child[] | undefined;
+  onStart: (childId: string) => void;
+}) {
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
   // Default to first child when data loads
@@ -546,7 +564,8 @@ function ProgressOverview({ childrenList }: { childrenList: Child[] | undefined 
 
       {completed.length === 0 ? (
         <div className="text-center py-8 text-sm text-gray-500">
-          Complete a screening to see {activeChild.firstName}&apos;s developmental progress here.
+          <p>Complete a screening to see {activeChild.firstName}&apos;s developmental progress here.</p>
+          <StartScreeningButton childName={activeChild.firstName} onClick={() => onStart(activeChild.id)} className="mt-4" />
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
@@ -808,6 +827,21 @@ export default function ScreeningLibraryPage() {
     setCreateOpen(true);
   }
 
+  /** Start for a specific child — every empty child box, and /screening?start=<childId>. */
+  function handleStartFor(childId: string) {
+    setSelectedChildId(childId);
+    setCreateOpen(true);
+  }
+
+  useEffect(() => {
+    if (!children?.length) return;
+    const start = new URLSearchParams(window.location.search).get('start');
+    if (start && children.some((c) => c.id === start)) {
+      handleStartFor(start);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [children]);
+
   function handleStartScreening() {
     if (!selectedChildId || !ageGroup) return;
     createMutation.mutate(
@@ -900,23 +934,37 @@ export default function ScreeningLibraryPage() {
           ASHA and NHS. Claiming it implied a standing this checklist does not have,
           in the one place a nursery's procurement review would read first.
         */}
-        <p className="text-sm text-teal-900 leading-relaxed">
-          <span className="font-semibold">How our screening is built.</span>{' '}
-          Our developmental screening questions are drawn from publicly available
-          milestone guidance published by the{' '}
-          <span className="font-medium">CDC</span>, the{' '}
-          <span className="font-medium">World Health Organization</span>,{' '}
-          <span className="font-medium">ASHA</span> (speech and language), and the{' '}
-          <span className="font-medium">NHS</span>, organised into recognised
-          developmental domains and checked against age-anchored expectations.
-          These are screening checklists, designed for early identification and
-          care planning. They are not standardised or normed instruments, and they
-          do not constitute a clinical diagnostic assessment.
-        </p>
+        <div className="space-y-2 text-sm text-teal-900 leading-relaxed">
+          <p className="font-semibold">About this developmental checklist</p>
+          <p>
+            Upllyft’s developmental checklists are informed by publicly available milestone
+            guidance from the <span className="font-medium">CDC</span>,{' '}
+            <span className="font-medium">World Health Organization (WHO)</span>,{' '}
+            <span className="font-medium">American Speech-Language-Hearing Association (ASHA)</span>, and{' '}
+            <span className="font-medium">NHS</span>. Questions are organised by developmental domain
+            and age range to help parents record observations and discuss concerns with a
+            paediatrician or qualified child-development professional.
+          </p>
+          <p>
+            These checklists are not standardised or norm-referenced screening instruments. They
+            cannot diagnose or rule out a developmental delay or condition and do not replace
+            validated screening, clinical assessment or professional advice. Individual
+            development, language and cultural context should be considered when reviewing
+            responses.
+          </p>
+          <p>
+            Reference to these organisations does not imply their endorsement of Upllyft or
+            approval by Indian or UAE health authorities.
+          </p>
+          <p>
+            If you have concerns about your child’s development, seek professional advice
+            regardless of the checklist results.
+          </p>
+        </div>
       </div>
 
       {/* ── Progress Overview ── */}
-      <ProgressOverview childrenList={children} />
+      <ProgressOverview childrenList={children} onStart={handleStartFor} />
 
       {/* ── Longitudinal Progress Chart ── */}
       {children && children.length > 0 && (
@@ -1028,6 +1076,7 @@ export default function ScreeningLibraryPage() {
               child={child}
               onShare={handleOpenShare}
               onDelete={handleOpenDelete}
+              onStart={handleStartFor}
             />
           ))}
         </div>
