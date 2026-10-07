@@ -11,6 +11,8 @@
  * follows the master switch only.
  */
 
+import { hubActionUrl } from './action-url';
+
 export type EmailFrequency = 'instant' | 'daily' | 'weekly' | 'never';
 export const EMAIL_FREQUENCIES: readonly EmailFrequency[] = ['instant', 'daily', 'weekly', 'never'];
 
@@ -96,9 +98,10 @@ export function digestWindowStart(frequency: EmailFrequency, now = new Date()): 
   return new Date(now.getTime() - days * 864e5);
 }
 
-/** An app-relative or absolute action URL as an absolute link into the web app. */
-export function absoluteLink(frontendUrl: string, actionUrl?: string | null): string {
+/** An app-relative or absolute action URL as an absolute link into the web app (hub routes). */
+export function absoluteLink(frontendUrl: string, link?: string | null): string {
   const base = frontendUrl.replace(/\/+$/, '');
+  const actionUrl = hubActionUrl(link);
   if (!actionUrl) return `${base}/notifications`;
   if (/^https?:\/\//i.test(actionUrl)) return actionUrl;
   return `${base}${actionUrl.startsWith('/') ? '' : '/'}${actionUrl}`;

@@ -440,6 +440,7 @@ export class AnswersService {
         type: 'ANSWER_ACCEPTED',
         title: 'Answer Accepted',
         message: 'Your answer was accepted!',
+        actionUrl: `/community/questions/${questionId}#answer-${answerId}`,
         relatedPostId: questionId,
       },
     });
@@ -719,6 +720,7 @@ export class AnswersService {
             type: 'NEW_ANSWER',
             title: 'New Answer',
             message: `New answer on: ${follower.question.title}`,
+            actionUrl: `/community/questions/${questionId}`,
             relatedPostId: questionId,
           },
         })

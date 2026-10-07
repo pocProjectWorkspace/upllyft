@@ -335,6 +335,12 @@ export default function MessagesPage() {
   const { data: conversations, isLoading: convsLoading } = useConversations();
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
 
+  // /messages?c=<conversationId> (message notifications) opens that conversation.
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get('c');
+    if (c) setSelectedConvId(c);
+  }, []);
+
   // Auth guard
   if (!isReady) {
     return (

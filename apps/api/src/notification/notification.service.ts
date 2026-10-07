@@ -8,6 +8,7 @@ import { Role, Prisma } from '@prisma/client';
 import axios from 'axios';
 import * as admin from 'firebase-admin';
 import { NotificationEmailService } from './notification-email.service';
+import { hubActionUrl, notificationLink } from './action-url';
 
 export enum NotificationType {
   COMMENT = 'COMMENT',
@@ -108,7 +109,7 @@ export class NotificationService {
           type: data.type,
           title: data.title,
           message: data.message,
-          actionUrl: data.actionUrl,
+          actionUrl: hubActionUrl(data.actionUrl),
           metadata: data.metadata as any,
           priority: data.priority || 'medium',
           relatedEntityId: data.relatedEntityId,
@@ -342,7 +343,8 @@ export class NotificationService {
     ]);
 
     return {
-      notifications,
+      // Rows stored before the hub merge carry old app routes; send hub links.
+      notifications: notifications.map((n) => ({ ...n, actionUrl: notificationLink(n) })),
       pagination: {
         total,
         page,
