@@ -1,5 +1,6 @@
 'use client';
 
+import { BOOKING_ENABLED, BookingComingSoon } from '@/booking/lib/booking-availability';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Avatar, Button, Card, Skeleton } from '@upllyft/ui';
@@ -211,6 +212,9 @@ function SavedContent() {
                         <td />
                         {comparing.map((e) => (
                           <td key={e.id}>
+                            {e.therapist && !BOOKING_ENABLED ? (
+                              <BookingComingSoon compact />
+                            ) : (
                             <Button
                               size="sm"
                               className="rounded-lg bg-gradient-to-r from-teal-500 to-teal-600 text-white"
@@ -222,6 +226,7 @@ function SavedContent() {
                             >
                               {e.therapist ? 'Book' : 'View clinic'}
                             </Button>
+                            )}
                           </td>
                         ))}
                       </tr>

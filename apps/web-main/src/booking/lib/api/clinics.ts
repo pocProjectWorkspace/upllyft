@@ -50,6 +50,7 @@ export interface ClinicSearchFilters {
   search?: string;
   specialization?: string;
   country?: string;
+  city?: string;
   /** Guardian-only: tier-match results against this child's screening flags */
   childId?: string;
   /** Parent-picked concern id → soft matches */
@@ -63,6 +64,7 @@ export async function searchClinics(filters?: ClinicSearchFilters): Promise<Clin
   if (filters?.search) params.search = filters.search;
   if (filters?.specialization) params.specialization = filters.specialization;
   if (filters?.country) params.country = filters.country;
+  if (filters?.city) params.city = filters.city;
   if (filters?.childId) params.childId = filters.childId;
   if (filters?.concern) params.concern = filters.concern;
   if (filters?.page) params.page = String(filters.page);

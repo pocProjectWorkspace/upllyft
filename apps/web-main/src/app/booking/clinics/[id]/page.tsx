@@ -1,5 +1,6 @@
 'use client';
 
+import { BOOKING_ENABLED, BookingComingSoon } from '@/booking/lib/booking-availability';
 import { useParams, useRouter } from 'next/navigation';
 import { useRegion, useAuth, APP_URLS } from '@upllyft/api-client';
 import { BookingShell } from '@/booking/components/booking-shell';
@@ -119,7 +120,7 @@ export default function ClinicDetailPage() {
     <BookingShell>
       <div className="space-y-8">
         {/* Back */}
-        <button onClick={() => router.push('/booking/clinics')} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+        <button onClick={() => router.push('/booking/discovery?tab=clinics')} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -272,12 +273,16 @@ export default function ClinicDetailPage() {
                         >
                           View Profile
                         </Button>
-                        <Button
-                          className="flex-1 rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white"
-                          onClick={() => router.push(`/booking/book/${therapist.id}`)}
-                        >
-                          Book Now
-                        </Button>
+                        {BOOKING_ENABLED ? (
+                          <Button
+                            className="flex-1 rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white"
+                            onClick={() => router.push(`/booking/book/${therapist.id}`)}
+                          >
+                            Book Now
+                          </Button>
+                        ) : (
+                          <BookingComingSoon compact className="flex-1" />
+                        )}
                       </div>
                     </div>
                   </Card>

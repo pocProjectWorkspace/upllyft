@@ -1,5 +1,6 @@
 'use client';
 
+import { BOOKING_ENABLED, BookingComingSoon } from '@/booking/lib/booking-availability';
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
@@ -200,7 +201,26 @@ function MiraNudgeForParent({ nudgeId, message, chipText, childName }: { nudgeId
 
 type SortOption = 'relevance' | 'rating' | 'experience';
 
+/**
+ * Parents browse on the merged find-care page (/booking/discovery); this grid stays for
+ * therapists and admins. Query params (Mira's ?specialization= / ?search= / …) carry over.
+ */
 function MarketplacePageContent() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isParent = user?.role === 'USER';
+  useEffect(() => {
+    if (isParent) {
+      const qs = searchParams.toString();
+      router.replace(`/booking/discovery${qs ? `?${qs}` : ''}`);
+    }
+  }, [isParent, router, searchParams]);
+  if (!user || isParent) return null;
+  return <MarketplaceGrid />;
+}
+
+function MarketplaceGrid() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -734,12 +754,16 @@ function MarketplacePageContent() {
                         >
                           View Profile
                         </Button>
-                        <Button
-                          className="flex-1 rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white"
-                          onClick={() => router.push(`/booking/book/${therapist.id}`)}
-                        >
-                          Book Now
-                        </Button>
+                        {BOOKING_ENABLED ? (
+                          <Button
+                            className="flex-1 rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white"
+                            onClick={() => router.push(`/booking/book/${therapist.id}`)}
+                          >
+                            Book Now
+                          </Button>
+                        ) : (
+                          <BookingComingSoon compact className="flex-1" />
+                        )}
                       </div>
                     </div>
                   </Card>
