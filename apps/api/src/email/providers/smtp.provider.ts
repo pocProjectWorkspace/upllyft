@@ -92,20 +92,20 @@ export class SmtpProvider extends BaseEmailProvider {
                     name: this.smtpConfig.fromName,
                     address: this.smtpConfig.fromEmail,
                 },
-                to: recipients.map(r => r.name ? `"${r.name}" <${r.email}>` : r.email),
+                to: recipients.map((r) => this.toAddress(r)),
                 subject: options.subject,
             };
 
             // Add CC
             if (options.cc) {
                 const ccRecipients = this.normalizeRecipients(options.cc);
-                mailOptions.cc = ccRecipients.map(r => r.name ? `"${r.name}" <${r.email}>` : r.email);
+                mailOptions.cc = ccRecipients.map((r) => this.toAddress(r));
             }
 
             // Add BCC
             if (options.bcc) {
                 const bccRecipients = this.normalizeRecipients(options.bcc);
-                mailOptions.bcc = bccRecipients.map(r => r.name ? `"${r.name}" <${r.email}>` : r.email);
+                mailOptions.bcc = bccRecipients.map((r) => this.toAddress(r));
             }
 
             // Add reply-to
@@ -203,6 +203,11 @@ export class SmtpProvider extends BaseEmailProvider {
                 },
             };
         }
+    }
+
+    /** nodemailer quotes and encodes an address object itself; never build "name <email>" by hand. */
+    private toAddress(r: { email: string; name?: string }): string | { name: string; address: string } {
+        return r.name ? { name: r.name, address: r.email } : r.email;
     }
 
     private getRecipientString(to: EmailOptions['to']): string {

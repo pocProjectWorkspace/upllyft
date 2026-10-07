@@ -76,6 +76,21 @@ export abstract class BaseEmailProvider implements IEmailProvider {
     }
 
     /**
+     * "Name <email>" for providers that take address strings. The name is quoted and
+     * escaped (and MIME-encoded if not ASCII), so a name like `x", evil@y.com, "z` or one
+     * with a line break cannot add recipients or headers.
+     */
+    protected formatAddress(r: { email: string; name?: string }): string {
+        const email = r.email.replace(/[\r\n<>",;]/g, '');
+        const name = (r.name ?? '').replace(/[\r\n]+/g, ' ').trim();
+        if (!name) return email;
+        const display = /^[\x20-\x7e]*$/.test(name)
+            ? `"${name.replace(/(["\\])/g, '\\$1')}"`
+            : `=?UTF-8?B?${Buffer.from(name, 'utf8').toString('base64')}?=`;
+        return `${display} <${email}>`;
+    }
+
+    /**
      * Normalize recipient to array format
      */
     protected normalizeRecipients(

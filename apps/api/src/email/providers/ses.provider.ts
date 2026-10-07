@@ -158,22 +158,14 @@ export class SESProvider extends BaseEmailProvider {
         const recipients = this.normalizeRecipients(options.to);
 
         const input: SendEmailCommandInput = {
-            Source: this.config!.fromName
-                ? `${this.config!.fromName} <${this.config!.fromEmail}>`
-                : this.config!.fromEmail,
+            Source: this.formatAddress({ email: this.config!.fromEmail, name: this.config!.fromName }),
             Destination: {
-                ToAddresses: recipients.map(r =>
-                    r.name ? `${r.name} <${r.email}>` : r.email
-                ),
+                ToAddresses: recipients.map(r => this.formatAddress(r)),
                 CcAddresses: options.cc
-                    ? this.normalizeRecipients(options.cc).map(r =>
-                        r.name ? `${r.name} <${r.email}>` : r.email
-                    )
+                    ? this.normalizeRecipients(options.cc).map(r => this.formatAddress(r))
                     : undefined,
                 BccAddresses: options.bcc
-                    ? this.normalizeRecipients(options.bcc).map(r =>
-                        r.name ? `${r.name} <${r.email}>` : r.email
-                    )
+                    ? this.normalizeRecipients(options.bcc).map(r => this.formatAddress(r))
                     : undefined,
             },
             Message: {
@@ -229,9 +221,9 @@ export class SESProvider extends BaseEmailProvider {
         let rawMessage = '';
 
         // Headers
-        rawMessage += `From: ${this.config!.fromName} <${this.config!.fromEmail}>\r\n`;
-        rawMessage += `To: ${recipients.map(r => r.name ? `${r.name} <${r.email}>` : r.email).join(', ')}\r\n`;
-        rawMessage += `Subject: ${options.subject}\r\n`;
+        rawMessage += `From: ${this.formatAddress({ email: this.config!.fromEmail, name: this.config!.fromName })}\r\n`;
+        rawMessage += `To: ${recipients.map(r => this.formatAddress(r)).join(', ')}\r\n`;
+        rawMessage += `Subject: ${options.subject.replace(/[\r\n]+/g, ' ')}\r\n`;
         rawMessage += `MIME-Version: 1.0\r\n`;
         rawMessage += `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n`;
 
