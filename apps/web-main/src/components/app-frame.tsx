@@ -13,6 +13,7 @@ const NO_HEADER_PREFIXES = [
   '/forgot-password',
   '/reset-password',
   '/callback',
+  '/accept-invitation',
   '/onboarding',
   '/admin',
   '/org',

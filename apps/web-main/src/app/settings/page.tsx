@@ -5,6 +5,7 @@ import { apiClient, useRequireAuth } from '@upllyft/api-client';
 import { Card, Switch, useToast } from '@upllyft/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMyOrganizations, type MyOrgMembership } from '@/lib/api/organizations';
 import { SignOutButton } from '@/components/sign-out-button';
 
@@ -14,6 +15,12 @@ export default function SettingsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'account' | 'notifications' | 'privacy' | 'crisis' | 'feed'>('account');
+
+  // /settings?tab=notifications (linked from emails and the notifications page).
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab === 'notifications' || tab === 'privacy' || tab === 'crisis' || tab === 'feed' || tab === 'account') setActiveTab(tab);
+  }, []);
 
   // Change password state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -356,6 +363,7 @@ export default function SettingsPage() {
 
         {activeTab === 'notifications' && (
           <div className="space-y-6">
+            <EmailFrequencyCard />
             <Card className="p-6">
               <h2 className="text-base font-semibold text-gray-900 mb-4">Email Notifications</h2>
               <div className="space-y-4">
@@ -551,15 +559,24 @@ function NotificationToggle({
   description: string;
   defaultChecked: boolean;
 }) {
+  const prefs = usePreferences();
+  const qc = useQueryClient();
+  const saved = prefs.data?.[settingKey];
   const [checked, setChecked] = useState(defaultChecked);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+
+  // Show what is saved, once it arrives.
+  useEffect(() => {
+    if (typeof saved === 'boolean') setChecked(saved);
+  }, [saved]);
 
   async function handleToggle(value: boolean) {
     setChecked(value);
     setSaving(true);
     try {
-      await apiClient.patch('/users/me/preferences', { [settingKey]: value });
+      const { data } = await apiClient.patch('/users/me/preferences', { [settingKey]: value });
+      qc.setQueryData(PREFS_KEY, data);
     } catch {
       setChecked(!value);
       toast({ title: 'Error', description: 'Failed to update setting', variant: 'destructive' });
@@ -574,7 +591,68 @@ function NotificationToggle({
         <p className="text-sm font-medium text-gray-900">{label}</p>
         <p className="text-xs text-gray-500">{description}</p>
       </div>
-      <Switch checked={checked} onCheckedChange={handleToggle} disabled={saving} />
+      <Switch checked={checked} onCheckedChange={handleToggle} disabled={saving || prefs.isLoading} />
     </div>
+  );
+}
+
+const PREFS_KEY = ['users', 'me', 'preferences'] as const;
+
+/** Saved settings (one request shared by every toggle on the page). */
+function usePreferences() {
+  return useQuery({
+    queryKey: PREFS_KEY,
+    queryFn: async () => (await apiClient.get('/users/me/preferences')).data as Record<string, unknown>,
+    staleTime: 60_000,
+  });
+}
+
+const FREQUENCIES = [
+  { value: 'instant', label: 'As it happens', hint: 'An email for each notification' },
+  { value: 'daily', label: 'Daily summary', hint: 'Important ones right away, the rest once a day' },
+  { value: 'weekly', label: 'Weekly summary', hint: 'Important ones right away, the rest on Mondays' },
+  { value: 'never', label: 'Never', hint: 'In-app only (security emails still arrive)' },
+] as const;
+
+function EmailFrequencyCard() {
+  const prefs = usePreferences();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const current = (prefs.data?.emailFrequency as string) ?? 'daily';
+
+  async function choose(value: string) {
+    setSaving(true);
+    try {
+      const { data } = await apiClient.patch('/users/me/preferences', { emailFrequency: value });
+      qc.setQueryData(PREFS_KEY, data);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update setting', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="p-6">
+      <h2 className="text-base font-semibold text-gray-900 mb-1">How often we email you</h2>
+      <p className="text-xs text-gray-500 mb-4">You always see every notification in the app.</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {FREQUENCIES.map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            disabled={saving || prefs.isLoading}
+            onClick={() => choose(f.value)}
+            className={`rounded-xl border p-3 text-left transition-colors disabled:opacity-60 ${
+              current === f.value ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-teal-300'
+            }`}
+          >
+            <span className="block text-sm font-medium text-gray-900">{f.label}</span>
+            <span className="block text-xs text-gray-500">{f.hint}</span>
+          </button>
+        ))}
+      </div>
+    </Card>
   );
 }

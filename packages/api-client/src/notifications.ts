@@ -27,8 +27,16 @@ export async function getNotifications(params?: {
   limit?: number;
   filter?: 'all' | 'unread';
 }): Promise<NotificationsResponse> {
-  const { data } = await apiClient.get('/notifications', { params });
-  return data;
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 20;
+  // The API takes `unreadOnly` and answers { notifications, pagination }; normalise it
+  // to the shape callers use (the bell read `data` and so always showed an empty list).
+  const { data } = await apiClient.get('/notifications', {
+    params: { page, limit, ...(params?.filter === 'unread' ? { unreadOnly: 'true' } : {}) },
+  });
+  const list: Notification[] = Array.isArray(data?.notifications) ? data.notifications : Array.isArray(data?.data) ? data.data : [];
+  const total: number = data?.pagination?.total ?? data?.total ?? list.length;
+  return { data: list, total, page, limit, hasMore: page * limit < total };
 }
 
 export async function getUnreadCount(): Promise<{ count: number }> {
