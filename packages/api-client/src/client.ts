@@ -133,7 +133,7 @@ function createClient(baseURL: string): AxiosInstance {
         if (isRefreshing) {
           return new Promise((resolve, reject) => {
             failedQueue.push({ resolve, reject });
-          }).then(() => client(originalRequest));
+          }).then(() => client(withCurrentToken(originalRequest)));
         }
 
         originalRequest._retry = true;
@@ -148,7 +148,8 @@ function createClient(baseURL: string): AxiosInstance {
             storedRefreshToken = data.refreshToken;
           }
           processQueue(null);
-          return client(originalRequest);
+          // The failed request still carries the expired token; retry with the new one.
+          return client(withCurrentToken(originalRequest));
         } catch (refreshError) {
           processQueue(refreshError);
           clearStoredTokens();
@@ -167,6 +168,16 @@ function createClient(baseURL: string): AxiosInstance {
   );
 
   return client;
+}
+
+/** A request config re-pointed at the token setAuthToken() just stored. */
+function withCurrentToken<T extends { headers?: any }>(config: T): T {
+  const auth = apiClient.defaults.headers.common['Authorization'];
+  if (auth && config.headers) {
+    if (typeof config.headers.set === 'function') config.headers.set('Authorization', auth);
+    else config.headers['Authorization'] = auth;
+  }
+  return config;
 }
 
 export function initializeApiClient(baseURL: string) {

@@ -41,6 +41,10 @@ export async function importTherapists(base: string, file: File, dryRun: boolean
   const fd = new FormData();
   fd.append('file', file);
   fd.append('dryRun', String(dryRun));
-  const { data } = await apiClient.post<TherapistImportResult>(`${base}/therapists/import`, fd);
+  // The client defaults to JSON, which makes axios serialise FormData to JSON and drop the
+  // file; multipart lets the browser send the file with its own boundary.
+  const { data } = await apiClient.post<TherapistImportResult>(`${base}/therapists/import`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data;
 }
