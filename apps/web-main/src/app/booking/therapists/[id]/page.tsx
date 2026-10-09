@@ -4,6 +4,7 @@ import { BOOKING_ENABLED, BookingComingSoon } from '@/booking/lib/booking-availa
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookingShell } from '@/booking/components/booking-shell';
+import { DirectoryBadge, DirectoryDetails, ShowContact, DIRECTORY_NOTE } from '@/booking/components/directory-listing';
 import {
   useTherapistProfile,
   useSessionPricing,
@@ -441,12 +442,16 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                         </p>
                       )}
 
-                      {!BOOKING_ENABLED ? (
+                      {therapist.directoryOnly ? (
                         <>
-                          <Button className="w-full rounded-xl h-12 text-base" disabled>
-                            Book Session
-                          </Button>
-                          <BookingComingSoon />
+                          <DirectoryBadge />
+                          <DirectoryDetails therapist={therapist} />
+                          <ShowContact therapistId={therapist.id} />
+                          <p className="text-xs text-center text-gray-500">{DIRECTORY_NOTE}</p>
+                        </>
+                      ) : !BOOKING_ENABLED ? (
+                        <>
+                          <BookingComingSoon className="mt-2" />
                           <p className="text-xs text-center text-gray-500">
                             We&apos;re onboarding therapists now. Save this profile and we&apos;ll let you know when booking opens.
                           </p>
@@ -461,7 +466,7 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                       </Button>
                       )}
 
-                      {BOOKING_ENABLED && (!therapist.acceptingBookings || therapist.bookable === false) && (
+                      {BOOKING_ENABLED && !therapist.directoryOnly && (!therapist.acceptingBookings || therapist.bookable === false) && (
                         <p className="text-xs text-center text-gray-500">
                           This therapist is not currently accepting new bookings.
                         </p>

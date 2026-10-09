@@ -1,5 +1,5 @@
 import { TherapistSearchService } from './therapist-search.service';
-import { BOOKABLE_THERAPIST_WHERE, normalizeCountry, toPublicTherapist } from '../common/therapist-discovery';
+import { LISTED_THERAPIST_WHERE, normalizeCountry, toPublicTherapist } from '../common/therapist-discovery';
 
 const row = (over: Record<string, any> = {}) => ({
   id: 't1',
@@ -39,7 +39,7 @@ describe('TherapistSearchService', () => {
   it('always applies the bookable rule and never selects email', async () => {
     const { prisma, service } = setup();
     await service.search({ id: 'p' }, {});
-    expect(andOf(prisma)[0]).toBe(BOOKABLE_THERAPIST_WHERE);
+    expect(andOf(prisma)[0]).toBe(LISTED_THERAPIST_WHERE);
     const select = prisma.therapistProfile.findMany.mock.calls[0][0].select;
     expect(select.user.select.email).toBeUndefined();
     expect(select.emiratesId).toBeUndefined();

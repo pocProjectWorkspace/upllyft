@@ -32,6 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Skeleton,
+  useDebounce,
   useToast,
 } from '@upllyft/ui';
 import { useAdminUsers, useUpdateUserRole, useBanUser } from '@/hooks/use-admin';
@@ -73,22 +74,19 @@ export default function UsersPage() {
   const [banTarget, setBanTarget] = useState<AdminUser | null>(null);
   const { toast } = useToast();
 
-  const params: { role?: string; status?: string } = {};
+  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebounce(search.trim(), 300);
+
+  const params: { role?: string; status?: string; search?: string; page: number } = { page };
   if (roleFilter !== 'All') params.role = roleFilter;
   if (statusFilter !== 'All') params.status = statusFilter;
+  if (debouncedSearch) params.search = debouncedSearch;
 
-  const { data: users, isLoading } = useAdminUsers(params);
+  const { data, isLoading } = useAdminUsers(params);
   const updateRole = useUpdateUserRole();
   const ban = useBanUser();
 
-  const filtered = (users ?? []).filter((u) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      u.name?.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q)
-    );
-  });
+  const filtered = data?.users ?? [];
 
   const handleEditRole = () => {
     if (!editUser || !editRole) return;
@@ -129,10 +127,10 @@ export default function UsersPage() {
             <Input
               placeholder="Search by name or email..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v); setPage(1); }}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Role" />
             </SelectTrigger>
@@ -144,7 +142,7 @@ export default function UsersPage() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -247,6 +245,31 @@ export default function UsersPage() {
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination */}
+        {data && data.pages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-gray-500">
+              Page {page} of {data.pages} · {data.total} users
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= data.pages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Edit role dialog */}

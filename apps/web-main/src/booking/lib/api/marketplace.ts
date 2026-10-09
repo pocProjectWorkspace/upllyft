@@ -47,6 +47,12 @@ export interface TherapistProfile {
   source?: 'INDEPENDENT' | 'CLINIC';
   clinic?: { id: string; name: string; logoUrl?: string | null; country?: string | null; city?: string | null } | null;
   offersOnline?: boolean;
+  /** Credentials checked by Upllyft or their clinic; false while awaiting verification. */
+  verified?: boolean;
+  /** Directory listing (admin upload): never bookable; parents contact them directly. */
+  directoryOnly?: boolean;
+  /** Shown on directory listings only; null otherwise. */
+  licenceNumber?: string | null;
   /** Profile route only: false when a past booking lets you view a therapist who no longer takes bookings. */
   bookable?: boolean;
   user?: { id: string; name: string; email?: string; image?: string };
@@ -351,6 +357,17 @@ export async function searchTherapists(filters?: TherapistSearchFilters): Promis
 
 export async function getTherapistProfile(therapistId: string): Promise<TherapistProfile> {
   const res = await apiClient.get(`/marketplace/therapists/${therapistId}`);
+  return res.data;
+}
+
+export interface TherapistContact {
+  phone: string | null;
+  email: string;
+}
+
+/** Phone and email of a directory listing (parents and admins only). */
+export async function getTherapistContact(therapistId: string): Promise<TherapistContact> {
+  const res = await apiClient.get(`/marketplace/therapists/${therapistId}/contact`);
   return res.data;
 }
 

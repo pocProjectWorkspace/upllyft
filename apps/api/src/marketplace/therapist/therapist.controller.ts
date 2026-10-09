@@ -1,5 +1,8 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorators';
+import { Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AvailabilityService } from '../booking/availability.service';
 import {
@@ -11,6 +14,7 @@ import { inferDepartment } from '../matching/matching.util';
 import { TherapistSearchService, type TherapistSearchQuery } from './therapist-search.service';
 import {
     BOOKABLE_THERAPIST_WHERE,
+    LISTED_THERAPIST_WHERE,
     PUBLIC_THERAPIST_SELECT,
     normalizeCountry,
     toPublicTherapist,
@@ -26,7 +30,7 @@ export class TherapistProfileController {
     ) { }
 
     /**
-     * Parent-facing search: bookable therapists only, in the parent's country, with
+     * Parent-facing search: listed therapists (verified or pending), in the parent's country, with
      * optional city / discipline / source / price filters. See TherapistSearchService.
      */
     @Get()
@@ -263,17 +267,36 @@ export class TherapistProfileController {
     }
 
     /**
+     * Phone and email of a directory listing, for a signed-in parent (or admin) who
+     * pressed "Show contact". Only directory therapists — bookable ones are reached
+     * through booking, so their details stay private.
+     */
+    @Get(':id/contact')
+    @UseGuards(RolesGuard)
+    @Roles(Role.USER, Role.ADMIN)
+    async getDirectoryContact(@Param('id') therapistId: string) {
+        const therapist = await this.prisma.therapistProfile.findFirst({
+            where: { id: therapistId, directoryOnly: true, ...LISTED_THERAPIST_WHERE },
+            select: { phone: true, user: { select: { email: true, phone: true } } },
+        });
+        if (!therapist) {
+            throw new NotFoundException('Contact details are not available for this therapist');
+        }
+        return { phone: therapist.phone || therapist.user.phone || null, email: therapist.user.email };
+    }
+
+    /**
      * Get specific therapist profile
      * (Moved down to avoid conflict with 'me' routes if validation is strict, though unlikely for 'me' vs UUID)
      */
     @Get(':id')
     async getTherapistProfile(@Param('id') therapistId: string, @Req() req: any) {
         // A family that already booked this therapist can still open the profile after
-        // they stop being bookable; everyone else sees only bookable therapists.
+        // they stop being listed; everyone else sees listed therapists only.
         const therapist = await this.prisma.therapistProfile.findFirst({
             where: {
                 id: therapistId,
-                OR: [BOOKABLE_THERAPIST_WHERE, { bookings: { some: { patientId: req.user.id } } }],
+                OR: [LISTED_THERAPIST_WHERE, { bookings: { some: { patientId: req.user.id } } }],
             },
             select: PUBLIC_THERAPIST_SELECT,
         });

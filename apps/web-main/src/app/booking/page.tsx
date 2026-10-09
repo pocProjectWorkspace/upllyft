@@ -7,6 +7,7 @@ import { useAuth, useRegion, APP_URLS } from '@upllyft/api-client';
 import { BookingShell } from '@/booking/components/booking-shell';
 import { RegionGate } from '@/booking/components/region-gate';
 import { NearbyDirectory } from '@/booking/components/nearby-directory';
+import { DirectoryBadge, DirectoryDetails, ShowContact, DIRECTORY_NOTE } from '@/booking/components/directory-listing';
 import { useSearchTherapists } from '@/booking/hooks/use-marketplace';
 import { useShortlistIds, useToggleShortlist } from '@/booking/hooks/use-shortlist';
 import { formatCurrency } from '@/booking/lib/utils';
@@ -677,12 +678,18 @@ function MarketplaceGrid() {
                         <div className="flex-1 min-w-0">
                           <h3 className="text-lg font-semibold text-gray-900 truncate flex items-center gap-1.5">
                             {name}
+                            {therapist.verified && (
                             <svg className="w-4 h-4 text-blue-500 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
+                            )}
                           </h3>
                           <p className="text-sm text-gray-500 truncate">{therapist.title}</p>
-                          <RatingStars rating={therapist.overallRating} />
+                          {therapist.directoryOnly ? (
+                            <DirectoryBadge className="mt-1" />
+                          ) : (
+                            <RatingStars rating={therapist.overallRating} />
+                          )}
                         </div>
                       </div>
 
@@ -697,7 +704,11 @@ function MarketplaceGrid() {
                         <span className="font-medium text-teal-700">
                           {therapist.source === 'CLINIC' && therapist.clinic
                             ? `At ${therapist.clinic.name}`
-                            : 'Independent · Upllyft-verified'}
+                            : therapist.directoryOnly
+                              ? DIRECTORY_NOTE
+                              : therapist.verified
+                                ? 'Independent · Upllyft-verified'
+                                : 'Independent'}
                         </span>
                         {therapist.offersOnline && (
                           <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100">
@@ -717,6 +728,8 @@ function MarketplaceGrid() {
                           <Badge color="gray">+{therapist.specializations.length - 3}</Badge>
                         )}
                       </div>
+
+                      {therapist.directoryOnly && <DirectoryDetails therapist={therapist} className="mb-3" />}
 
                       {/* Experience + Languages */}
                       <div className="flex items-center gap-4 mb-3 text-sm text-gray-600">
@@ -754,7 +767,9 @@ function MarketplaceGrid() {
                         >
                           View Profile
                         </Button>
-                        {BOOKING_ENABLED ? (
+                        {therapist.directoryOnly ? (
+                          <ShowContact therapistId={therapist.id} className="flex-1" />
+                        ) : BOOKING_ENABLED ? (
                           <Button
                             className="flex-1 rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white"
                             onClick={() => router.push(`/booking/book/${therapist.id}`)}

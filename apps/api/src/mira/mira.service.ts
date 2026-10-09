@@ -771,7 +771,11 @@ Example output: ["speech delay", "autism", "occupational therapy"]`,
       const therapists = await this.prisma.user.findMany({
         where: {
           role: { in: ['THERAPIST', 'EDUCATOR'] },
-          verificationStatus: 'VERIFIED',
+          // Verified accounts, plus directory listings (admin upload, not yet verified).
+          OR: [
+            { verificationStatus: 'VERIFIED' },
+            { verificationStatus: 'PENDING', therapistProfile: { is: { directoryOnly: true, isActive: true } } },
+          ],
           specialization: { isEmpty: false },
           ...(parentCountry ? { country: { equals: parentCountry, mode: 'insensitive' as const } } : {}),
         },
@@ -785,7 +789,7 @@ Example output: ["speech delay", "autism", "occupational therapy"]`,
           languages: true,
           image: true,
           therapistProfile: {
-            select: { id: true },
+            select: { id: true, directoryOnly: true },
           },
         },
         take: 20,
@@ -814,6 +818,7 @@ Example output: ["speech delay", "autism", "occupational therapy"]`,
           languages: t.languages,
           avatar: t.image,
           therapistProfileId: t.therapistProfile?.id,
+          directoryOnly: t.therapistProfile?.directoryOnly ?? false,
         }));
     } catch (error) {
       this.logger.error('Error finding therapists:', error);
@@ -961,8 +966,8 @@ When suggesting things to try at home, describe the kind of activity; the app at
 
     if (ctx.therapists && ctx.therapists.length > 0) {
       parts.push(`\n\n--- AVAILABLE THERAPISTS (suggest only if relevant) ---
-${ctx.therapists.map((t) => `- ${t.name} (${t.role}): specializes in ${t.specialization?.join(', ')}${t.yearsOfExperience ? `, ${t.yearsOfExperience} years experience` : ''}${t.location ? `, ${t.location}` : ''}`).join('\n')}
-Booking URL pattern: ${this.appUrls.booking}/therapists/{therapistProfileId}`);
+${ctx.therapists.map((t) => `- ${t.name} (${t.role}): specializes in ${t.specialization?.join(', ')}${t.yearsOfExperience ? `, ${t.yearsOfExperience} years experience` : ''}${t.location ? `, ${t.location}` : ''}${t.therapistProfileId ? ` [therapistProfileId: ${t.therapistProfileId}]` : ''}${t.directoryOnly ? ' (DIRECTORY LISTING: not bookable on Upllyft; the parent contacts them directly via "Show contact" on the profile)' : ''}`).join('\n')}
+Profile URL pattern: ${this.appUrls.booking}/therapists/{therapistProfileId}`);
     }
 
     if (ctx.communities && ctx.communities.length > 0) {

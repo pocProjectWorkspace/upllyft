@@ -12,6 +12,7 @@ import {
   ModerationStatus,
   Prisma,
   FacilityComplianceStatus,
+  VerificationStatus,
 } from '@prisma/client';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
@@ -568,42 +569,66 @@ export class AdminService {
   // Keep existing methods...
   async getUsers(query: any) {
     const { role, status } = query;
+    const search = typeof query.search === 'string' ? query.search.trim() : '';
     // Query params arrive as strings; Prisma requires Int for skip/take.
     const page = Math.max(1, parseInt(query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
     const skip = (page - 1) * limit;
+    const professionalRoles: Role[] = [Role.THERAPIST, Role.EDUCATOR, Role.ORGANIZATION];
 
-    const where: any = {};
-    if (role) where.role = role;
-    if (status === 'BANNED') {
-      where.preferences = {
-        path: ['banned'],
-        equals: true,
-      };
+    const pendingWhere = { verificationStatus: VerificationStatus.PENDING, role: { in: professionalRoles } };
+
+    const and: any[] = [];
+    if (role) and.push({ role });
+    if (search) {
+      and.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      });
     }
+    // There is no ban column on User yet, so BANNED matches nobody.
+    if (status === 'BANNED') and.push({ id: { in: [] } });
+    else if (status === 'PENDING') and.push(pendingWhere);
+    else if (status === 'ACTIVE') and.push({ NOT: pendingWhere });
+    const where = and.length ? { AND: and } : {};
 
-    const users = await this.prisma.user.findMany({
-      where,
-      skip,
-      take: limit,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        verificationStatus: true,
-        createdAt: true,
-        updatedAt: true,
-        image: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          verificationStatus: true,
+          createdAt: true,
+          updatedAt: true,
+          image: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
 
-    return users.map((user) => ({
-      ...user,
-      lastLoginAt: user.updatedAt,
-      status: 'ACTIVE',
-    }));
+    return {
+      users: users.map((user) => ({
+        ...user,
+        avatar: user.image,
+        lastLoginAt: user.updatedAt,
+        status:
+          user.verificationStatus === VerificationStatus.PENDING && professionalRoles.includes(user.role)
+            ? 'PENDING'
+            : 'ACTIVE',
+      })),
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+    };
   }
 
   async updateUserRole(userId: string, newRole: Role) {

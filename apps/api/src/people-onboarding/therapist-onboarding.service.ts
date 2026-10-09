@@ -30,9 +30,13 @@ export interface TherapistRowReport {
 
 /**
  * Adds therapists for the platform or an organisation, one at a time (form) or in bulk
- * (CSV / Excel). New people get a THERAPIST account, a therapist profile (credential
- * PENDING — they are not bookable until verified and set up) and a "set your password"
- * email. In an organisation they also become an ACTIVE member with an APPROVED link.
+ * (CSV / Excel). New people get a THERAPIST account and a therapist profile (credential
+ * PENDING).
+ *
+ *   - Platform uploads (no organisation) are a directory: the profile is `directoryOnly`,
+ *     never bookable, and no email goes out. Parents contact the therapist directly.
+ *   - In an organisation they get a "set your password" email and become an ACTIVE
+ *     member with an APPROVED link; they are bookable once verified and set up.
  */
 @Injectable()
 export class TherapistOnboardingService {
@@ -73,7 +77,7 @@ export class TherapistOnboardingService {
     const { reports, invites } = await this.apply(actor, validated, scope, dryRun);
     const count = (o: TherapistOutcome[]) => reports.filter((r) => o.includes(r.outcome)).length;
     // Forecast before queueing, so the new emails are not counted twice.
-    const emails = await this.outbox.forecast(dryRun ? count(['would-create']) : invites.length);
+    const emails = await this.outbox.forecast(dryRun ? (scope.organizationId ? count(['would-create']) : 0) : invites.length);
     await this.queueInvites(invites, scope, actor);
     return {
       dryRun,
@@ -115,6 +119,7 @@ export class TherapistOnboardingService {
       }
       const t = r.data;
       const base = { row: r.row, email: t.email, name: t.name };
+      const directory = !scope.organizationId;
       const user = byEmail.get(t.email);
       try {
         if (user) {
@@ -137,10 +142,16 @@ export class TherapistOnboardingService {
         }
 
         if (dryRun) {
-          reports.push({ ...base, outcome: 'would-create', message: 'New therapist — will be created and emailed a sign-in link.' });
+          reports.push({
+            ...base,
+            outcome: 'would-create',
+            message: directory
+              ? 'New therapist — will be listed in the directory (no email sent).'
+              : 'New therapist — will be created and emailed a sign-in link.',
+          });
           continue;
         }
-        const token = randomBytes(32).toString('hex');
+        const token = directory ? null : randomBytes(32).toString('hex');
         await this.prisma.user.create({
           data: {
             email: t.email,
@@ -150,14 +161,14 @@ export class TherapistOnboardingService {
             country: t.country,
             specialization: t.specializations,
             isEmailVerified: false,
-            resetPasswordToken: token,
-            resetPasswordExpiry: new Date(Date.now() + INVITE_TTL_MS),
+            ...(token ? { resetPasswordToken: token, resetPasswordExpiry: new Date(Date.now() + INVITE_TTL_MS) } : {}),
             therapistProfile: {
               create: {
                 ...this.profileData(t),
                 credentialStatus: 'PENDING',
                 isActive: true,
-                acceptingBookings: true,
+                acceptingBookings: !directory,
+                directoryOnly: directory,
                 ...(scope.organizationId
                   ? {
                       organizationLinks: {
@@ -176,8 +187,12 @@ export class TherapistOnboardingService {
               : {}),
           },
         });
-        invites.push({ email: t.email, name: t.name, token });
-        reports.push({ ...base, outcome: 'created', message: 'Created — a sign-in link is on its way.' });
+        if (token) {
+          invites.push({ email: t.email, name: t.name, token });
+          reports.push({ ...base, outcome: 'created', message: 'Created — a sign-in link is on its way.' });
+        } else {
+          reports.push({ ...base, outcome: 'created', message: 'Listed in the directory.' });
+        }
       } catch (e: any) {
         this.logger.error(`Therapist row ${r.row} (${t.email}) failed: ${e?.message ?? e}`);
         reports.push({ ...base, outcome: 'error', message: e?.code === 'P2002' ? 'This email was just added by someone else.' : 'Could not create this therapist.' });
