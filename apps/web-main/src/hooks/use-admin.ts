@@ -54,10 +54,11 @@ export function useRecentActivity() {
 
 // ─── Users ───────────────────────────────────────────────────────
 
-export function useAdminUsers(params?: { role?: string; status?: string }) {
+export function useAdminUsers(params?: { role?: string; status?: string; search?: string; page?: number }) {
   return useQuery({
     queryKey: ['admin', 'users', params],
     queryFn: () => adminApi.getAdminUsers(params),
+    placeholderData: keepPreviousData,
   });
 }
 

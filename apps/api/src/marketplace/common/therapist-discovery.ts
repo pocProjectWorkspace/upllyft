@@ -24,6 +24,7 @@ export const PUBLIC_CLINIC_WHERE = {
 export const BOOKABLE_THERAPIST_WHERE: Prisma.TherapistProfileWhereInput = {
   isActive: true,
   acceptingBookings: true,
+  directoryOnly: false,
   sessionTypes: { some: { isActive: true } },
   availability: { some: { isActive: true } },
   AND: [
@@ -43,11 +44,36 @@ export const BOOKABLE_THERAPIST_WHERE: Prisma.TherapistProfileWhereInput = {
   ],
 };
 
+/**
+ * Who a parent may find and open a profile for — wider than BOOKABLE_THERAPIST_WHERE.
+ * Therapists still awaiting verification and those who have not set up session types
+ * or availability are listed, as are directory listings (`directoryOnly`, admin upload:
+ * never bookable, parents contact them directly). `verified` on the public view says
+ * which ones Upllyft or their clinic has checked.
+ * Rejected accounts and expired licences stay hidden, as do unlisted clinics and
+ * unapproved org links. Booking creation keeps the strict rule.
+ */
+export const LISTED_THERAPIST_WHERE: Prisma.TherapistProfileWhereInput = {
+  isActive: true,
+  credentialStatus: { not: 'EXPIRED' },
+  user: { verificationStatus: { not: 'REJECTED' } },
+  AND: [
+    { OR: [{ clinic: { is: null } }, { clinic: PUBLIC_CLINIC_WHERE }] },
+    {
+      OR: [
+        { organizationLinks: { none: {} } },
+        { organizationLinks: { some: { status: 'APPROVED' } } },
+      ],
+    },
+  ],
+};
+
 /** Public view of the therapist's account: never the email address. */
 export const PUBLIC_THERAPIST_USER_SELECT = {
   id: true,
   name: true,
   image: true,
+  verificationStatus: true,
 } as const satisfies Prisma.UserSelect;
 
 /**
@@ -97,7 +123,9 @@ export const REMOTE_MODALITIES = ['TELEHEALTH', 'HYBRID'] as const;
 
 /**
  * The therapist profile a parent may see. Deliberately a select, not an include: the
- * row also carries Emirates ID, phone, licence/insurance numbers and Stripe ids.
+ * row also carries Emirates ID, phone, licence/insurance numbers and Stripe ids. The
+ * licence number is selected only so toPublicTherapist can show it on directory cards;
+ * phone and email come from the contact endpoint, never from here.
  */
 export const PUBLIC_THERAPIST_SELECT = {
   id: true,
@@ -118,6 +146,8 @@ export const PUBLIC_THERAPIST_SELECT = {
   department: true,
   licenseAuthority: true,
   credentialStatus: true,
+  directoryOnly: true,
+  licenceNumber: true,
   country: true,
   city: true,
   user: { select: PUBLIC_THERAPIST_USER_SELECT },
@@ -152,6 +182,9 @@ export function toPublicTherapist<T extends PublicTherapistRow>(t: T) {
   }
   return {
     ...t,
+    verified: t.credentialStatus === 'VERIFIED' || t.user?.verificationStatus === 'VERIFIED',
+    // A directory card shows the licence number from the upload; other profiles keep it private.
+    licenceNumber: t.directoryOnly ? t.licenceNumber : null,
     location: therapistLocation(t),
     source: t.clinic ? ('CLINIC' as const) : ('INDEPENDENT' as const),
     offersOnline: t.sessionTypes.some((st) => (REMOTE_MODALITIES as readonly string[]).includes(st.modality)),

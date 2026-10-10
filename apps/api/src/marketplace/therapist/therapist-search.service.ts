@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MatchingService } from '../matching/matching.service';
 import { classifyDiscipline, departmentForFilter, matchTherapist, tierRank } from '../matching/matching.util';
 import {
-  BOOKABLE_THERAPIST_WHERE,
+  LISTED_THERAPIST_WHERE,
   CLINIC_DIRECTORY_COUNTRIES,
   PUBLIC_THERAPIST_SELECT,
   REMOTE_MODALITIES,
@@ -38,7 +38,7 @@ export class TherapistSearchService {
   ) {}
 
   /**
-   * Parent-facing therapist search. Only bookable therapists (BOOKABLE_THERAPIST_WHERE),
+   * Parent-facing therapist search. Every listed therapist (LISTED_THERAPIST_WHERE, verified or awaiting verification),
    * in the parent's country, optionally narrowed to a city — therapists offering online
    * sessions, or whose city is not recorded yet, still show for every city in their country.
    *
@@ -53,7 +53,7 @@ export class TherapistSearchService {
     const country = normalizeCountry(q.country) ?? (await this.actorCountry(actor.id));
     const city = q.city?.trim() || null;
 
-    const and: Prisma.TherapistProfileWhereInput[] = [BOOKABLE_THERAPIST_WHERE];
+    const and: Prisma.TherapistProfileWhereInput[] = [LISTED_THERAPIST_WHERE];
 
     if (country) {
       // As with city, an unrecorded country is not a different country: a clinic or

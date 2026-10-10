@@ -8,7 +8,7 @@ import {
   type ChildNeeds,
 } from '../matching/matching.util';
 import {
-  BOOKABLE_THERAPIST_WHERE,
+  LISTED_THERAPIST_WHERE,
   PUBLIC_CLINIC_WHERE,
   countryAliases,
   normalizeCountry,
@@ -66,7 +66,7 @@ export class ClinicMarketplaceService {
       this.prisma.clinic.findMany({
         where,
         include: {
-          _count: { select: { therapists: { where: BOOKABLE_THERAPIST_WHERE } } },
+          _count: { select: { therapists: { where: LISTED_THERAPIST_WHERE } } },
         },
         // In fit mode tier-first ranking spans the whole result set, so the page window
         // is applied after the in-memory sort (clinic counts are small).
@@ -110,7 +110,7 @@ export class ClinicMarketplaceService {
       where: { id: clinicId, ...PUBLIC_CLINIC_WHERE },
       include: {
         therapists: {
-          where: BOOKABLE_THERAPIST_WHERE,
+          where: LISTED_THERAPIST_WHERE,
           select: PUBLIC_THERAPIST_SELECT,
         },
       },

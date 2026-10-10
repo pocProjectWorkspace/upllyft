@@ -248,11 +248,21 @@ export async function getRecentActivity(): Promise<RecentActivity[]> {
 
 // ─── Users ───────────────────────────────────────────────────────
 
+export interface AdminUserPage {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
 export async function getAdminUsers(params?: {
   role?: string;
   status?: string;
-}): Promise<AdminUser[]> {
-  const { data } = await apiClient.get<AdminUser[]>('/admin/users', { params });
+  search?: string;
+  page?: number;
+}): Promise<AdminUserPage> {
+  const { data } = await apiClient.get<AdminUserPage>('/admin/users', { params });
   return data;
 }
 
@@ -291,10 +301,14 @@ export async function getVerificationQueue(params?: {
   page?: number;
   limit?: number;
 }): Promise<{ data: PendingVerification[]; total: number; pages: number }> {
-  const { data } = await apiClient.get('/verification/queue', {
+  // The API answers { users, pagination: { total, pages } }.
+  const { data } = await apiClient.get<{
+    users: PendingVerification[];
+    pagination: { total: number; pages: number };
+  }>('/verification/queue', {
     params: { limit: 10, ...params },
   });
-  return data;
+  return { data: data.users, total: data.pagination.total, pages: data.pagination.pages };
 }
 
 export async function getVerificationStats(): Promise<VerificationStats> {

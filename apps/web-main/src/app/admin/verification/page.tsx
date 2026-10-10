@@ -48,7 +48,7 @@ export default function VerificationPage() {
   const filtered = (queue?.data ?? []).filter((u) => {
     if (!search) return true;
     const q = search.toLowerCase();
-    return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+    return u.name?.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
   });
 
   const handleVerify = (status: 'VERIFIED' | 'REJECTED') => {
@@ -212,7 +212,7 @@ export default function VerificationPage() {
                   <TableCell>
                     <Badge
                       color={
-                        user.verificationStatus === 'APPROVED'
+                        user.verificationStatus === 'VERIFIED'
                           ? 'green'
                           : user.verificationStatus === 'REJECTED'
                             ? 'red'

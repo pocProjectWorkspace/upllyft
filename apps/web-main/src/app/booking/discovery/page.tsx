@@ -14,7 +14,8 @@ import { useSearchClinics } from '@/booking/hooks/use-clinics';
 import { useShortlistIds, useToggleShortlist } from '@/booking/hooks/use-shortlist';
 import { formatCurrency } from '@/booking/lib/utils';
 import { CONCERN_LABELS, DOMAIN_LABELS } from '@/booking/lib/api/find-care';
-import type { MatchTier, ProviderMatch } from '@/booking/lib/api/marketplace';
+import type { MatchTier, ProviderMatch, TherapistProfile } from '@/booking/lib/api/marketplace';
+import { DirectoryBadge, DirectoryDetails, ShowContact } from '@/booking/components/directory-listing';
 
 import { CareWaitlistCard } from '@/booking/components/care-waitlist-card';
 /**
@@ -42,6 +43,9 @@ interface Row {
   match?: ProviderMatch;
   image?: string | null;
   years: number;
+  verified: boolean;
+  /** Directory listing: contact details instead of booking. */
+  directory?: TherapistProfile;
 }
 
 const TIER_STYLES: Record<
@@ -159,7 +163,7 @@ function DiscoveryContent() {
       kind: 'THERAPIST',
       id: t.id,
       name: t.user?.name ?? 'Therapist',
-      role: `${t.title || 'Therapist'} · ${t.source === 'CLINIC' && t.clinic ? `at ${t.clinic.name}` : 'Independent'}`,
+      role: `${t.title || 'Therapist'} · ${t.source === 'CLINIC' && t.clinic ? `at ${t.clinic.name}` : t.directoryOnly ? 'Contact directly' : 'Independent'}`,
       rating: t.overallRating ?? 0,
       reviews: t.totalRatings ?? 0,
       tags: t.specializations.slice(0, 3),
@@ -172,6 +176,8 @@ function DiscoveryContent() {
       match: t.match,
       image: t.profileImage || t.user?.image,
       years: t.yearsExperience ?? 0,
+      verified: t.verified ?? true,
+      directory: t.directoryOnly ? t : undefined,
     }));
     const clinics: Row[] = (cData?.clinics ?? []).map((c) => ({
       key: `c-${c.id}`,
@@ -187,6 +193,7 @@ function DiscoveryContent() {
       match: c.match,
       image: c.logoUrl,
       years: 0,
+      verified: true,
     }));
     // Clinics have no department; match the chip against what they list.
     const chip = SPECIALTIES.find((x) => x.value === specialty);
@@ -621,17 +628,25 @@ const ResultCard = memo(function ResultCard({
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-[11.5px] font-bold opacity-75 ${tier.fg}`}>{r.kind}</span>
-            <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-white text-teal-700 border border-teal-100">
-              ON UPLLYFT
-            </span>
+            {r.directory ? (
+              <DirectoryBadge />
+            ) : (
+              <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-white text-teal-700 border border-teal-100">
+                ON UPLLYFT
+              </span>
+            )}
           </div>
         </div>
       ) : (
         <div className="flex items-center justify-between px-4 py-2.5 border-b bg-slate-50 border-slate-100">
           <span className="text-[11.5px] font-bold text-slate-500">{r.kind}</span>
-          <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-white text-teal-700 border border-teal-100">
-            ON UPLLYFT
-          </span>
+          {r.directory ? (
+            <DirectoryBadge />
+          ) : (
+            <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-white text-teal-700 border border-teal-100">
+              ON UPLLYFT
+            </span>
+          )}
         </div>
       )}
 
@@ -648,9 +663,10 @@ const ResultCard = memo(function ResultCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-base font-bold tracking-tight text-gray-900 truncate">{r.name}</span>
-            <span className="text-[11px] text-blue-600 font-extrabold flex-none">✓</span>
+            {r.verified && <span className="text-[11px] text-blue-600 font-extrabold flex-none">✓</span>}
           </div>
           <div className="text-[13px] text-slate-500 truncate">{r.role}</div>
+          {!r.directory && (
           <div className="flex items-center gap-2 mt-1.5">
             <span className="text-[12.5px] text-amber-500 tracking-widest">
               {'★'.repeat(Math.round(r.rating || 0)).padEnd(5, '☆')}
@@ -658,6 +674,7 @@ const ResultCard = memo(function ResultCard({
             <span className="text-[12.5px] font-bold text-gray-900">{r.rating.toFixed(1)}</span>
             <span className="text-[12.5px] text-slate-400">({r.reviews})</span>
           </div>
+          )}
         </div>
         {isParent && (
           <button
@@ -693,6 +710,8 @@ const ResultCard = memo(function ResultCard({
         </div>
       )}
 
+      {r.directory && <DirectoryDetails therapist={r.directory} className="px-4 pt-3" />}
+
       {/* Footer */}
       <div className="px-4 pb-4 mt-auto">
         <div className="flex items-center gap-3 text-[12.5px] text-slate-500 py-3 border-t border-slate-100 mt-3 flex-wrap">
@@ -725,7 +744,9 @@ const ResultCard = memo(function ResultCard({
           >
             View profile
           </button>
-          {r.kind === 'THERAPIST' && !BOOKING_ENABLED ? (
+          {r.directory ? (
+            <ShowContact therapistId={r.id} className="flex-1" />
+          ) : r.kind === 'THERAPIST' && !BOOKING_ENABLED ? (
             <BookingComingSoon compact className="flex-1" />
           ) : (
             <button
