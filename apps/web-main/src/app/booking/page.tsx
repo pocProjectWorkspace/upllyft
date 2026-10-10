@@ -625,9 +625,9 @@ function MarketplaceGrid() {
                 return (
                   <Card
                     key={therapist.id}
-                    className="rounded-2xl overflow-hidden hover:shadow-lg transition-shadow duration-200"
+                    className="rounded-2xl overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full"
                   >
-                    <div className="p-6 relative">
+                    <div className="p-6 relative flex flex-col flex-1">
                       {isParent && (
                         <button
                           onClick={() => toggleSave.mutate({ therapistId: therapist.id })}
@@ -732,20 +732,27 @@ function MarketplaceGrid() {
                       {therapist.directoryOnly && <DirectoryDetails therapist={therapist} className="mb-3" />}
 
                       {/* Experience + Languages */}
-                      <div className="flex items-center gap-4 mb-3 text-sm text-gray-600">
-                        <span className="flex items-center gap-1">
-                          <BriefcaseIcon className="w-4 h-4" />
-                          {therapist.yearsExperience}y exp
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <GlobeIcon className="w-4 h-4" />
-                          {therapist.languages.slice(0, 2).join(', ')}
-                          {therapist.languages.length > 2 && ` +${therapist.languages.length - 2}`}
-                        </span>
-                      </div>
+                      {(!!therapist.yearsExperience || therapist.languages.length > 0) && (
+                        <div className="flex items-center gap-4 mb-3 text-sm text-gray-600">
+                          {!!therapist.yearsExperience && (
+                            <span className="flex items-center gap-1">
+                              <BriefcaseIcon className="w-4 h-4" />
+                              {therapist.yearsExperience}y exp
+                            </span>
+                          )}
+                          {therapist.languages.length > 0 && (
+                            <span className="flex items-center gap-1">
+                              <GlobeIcon className="w-4 h-4" />
+                              {therapist.languages.slice(0, 2).join(', ')}
+                              {therapist.languages.length > 2 && ` +${therapist.languages.length - 2}`}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Bio */}
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-4">
+                      {/* flex-1: pushes price and actions to the bottom so buttons line up across a row */}
+                      <p className="text-sm text-gray-600 line-clamp-2 mb-4 flex-1">
                         {therapist.bio || 'No bio available.'}
                       </p>
 
