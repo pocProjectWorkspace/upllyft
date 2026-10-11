@@ -106,6 +106,7 @@ import { LibraryResourcesModule } from './library-resources/library-resources.mo
 import { ResourceJourneyModule } from './resource-journey/resource-journey.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { CareWaitlistModule } from './care-waitlist/care-waitlist.module';
+import { FaqModule } from './faq/faq.module';
 import { ConcernsModule } from './concerns/concerns.module';
 import { SupportPlansModule } from './support-plans/support-plans.module';
 import { DevelopmentalReviewsModule } from './developmental-reviews/developmental-reviews.module';
@@ -253,6 +254,7 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
     ResourceJourneyModule,
     PeopleOnboardingModule,
     CareWaitlistModule,
+    FaqModule,
     ConcernsModule,
     SupportPlansModule,
     DevelopmentalReviewsModule,

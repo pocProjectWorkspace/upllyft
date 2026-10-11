@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Switch, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-import { COLORS } from '../../../lib/constants';
+import { COLORS, WEB_URL } from '../../../lib/constants';
 import { useAuth } from '../../../contexts/auth-context';
 import { getPreferences, updatePreferences, UserPreferences } from '../../../lib/api/settings';
 
@@ -79,12 +79,12 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
-          <TouchableOpacity style={styles.row}>
+          <TouchableOpacity style={styles.row} onPress={() => Linking.openURL(`${WEB_URL}/help`)}>
             <Ionicons name="help-circle-outline" size={20} color={COLORS.text} />
             <Text style={styles.rowLabel}>Help & FAQ</Text>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.row}>
+          <TouchableOpacity style={styles.row} onPress={() => Linking.openURL(`${WEB_URL}/terms-of-service`)}>
             <Ionicons name="document-text-outline" size={20} color={COLORS.text} />
             <Text style={styles.rowLabel}>Terms of Service</Text>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />

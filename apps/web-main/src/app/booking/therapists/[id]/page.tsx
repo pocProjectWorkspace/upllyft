@@ -2,8 +2,10 @@
 
 import { BOOKING_ENABLED, BookingComingSoon } from '@/booking/lib/booking-availability';
 import { use, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BookingShell } from '@/booking/components/booking-shell';
+import { helpHref } from '@/help/lib/faq';
 import { DirectoryBadge, DirectoryDetails, ShowContact, DIRECTORY_NOTE } from '@/booking/components/directory-listing';
 import {
   useTherapistProfile,
@@ -447,13 +449,22 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                           <DirectoryBadge />
                           <DirectoryDetails therapist={therapist} />
                           <ShowContact therapistId={therapist.id} />
-                          <p className="text-xs text-center text-gray-500">{DIRECTORY_NOTE}</p>
+                          <p className="text-xs text-center text-gray-500">
+                            {DIRECTORY_NOTE}{' '}
+                            <Link href={helpHref('directory-listing')} className="text-teal-700 hover:underline">
+                              What&apos;s this?
+                            </Link>
+                          </p>
                         </>
                       ) : !BOOKING_ENABLED ? (
                         <>
                           <BookingComingSoon className="mt-2" />
                           <p className="text-xs text-center text-gray-500">
                             We&apos;re onboarding therapists now. Save this profile and we&apos;ll let you know when booking opens.
+                            {' '}
+                            <Link href={helpHref('booking-coming-soon')} className="text-teal-700 hover:underline">
+                              Learn more
+                            </Link>
                           </p>
                         </>
                       ) : (
