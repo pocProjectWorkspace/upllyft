@@ -106,6 +106,7 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
   const bookmarksUrl = `${APP_URLS.main}/bookmarks`;
   const invitationsUrl = `${APP_URLS.main}/invitations`;
   const settingsUrl = `${APP_URLS.main}/settings`;
+  const helpUrl = `${APP_URLS.main}/help`;
   // Resolver — figures out the user's own org and forwards to /org/<slug>. Shown to
   // anyone who might belong to an organisation (a nursery/clinic admin or staff member),
   // never to a plain parent. This is the door to the org workspace, and from there the
@@ -295,6 +296,12 @@ export function AppHeader({ currentApp, localNavItems, logo, onSOSClick, message
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                       Settings
+                    </Link>
+                    <Link href={helpUrl} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 transition-colors">
+                      <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Help Center
                     </Link>
                   </div>
 
