@@ -35,6 +35,7 @@ function makePrisma(over: Record<string, any> = {}) {
     childResource: {
       findMany: jest.fn().mockResolvedValue([]),
       findUnique: jest.fn().mockResolvedValue(null),
+      findFirst: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'item-1', logs: [], masteredOverride: null, ...data })),
       update: jest.fn().mockResolvedValue({}),
       delete: jest.fn().mockResolvedValue({}),
@@ -44,6 +45,7 @@ function makePrisma(over: Record<string, any> = {}) {
       create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'log-1', ...data })),
     },
     assessment: { findFirst: jest.fn().mockResolvedValue(null) },
+    user: { findUnique: jest.fn().mockResolvedValue({ email: 'parent@example.com' }) },
     booking: { findMany: jest.fn().mockResolvedValue([]) },
     progressShare: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -241,6 +243,21 @@ describe('therapist assignment', () => {
     }));
     expect(prisma.childResource.upsert.mock.calls[0][0].update).toMatchObject({ source: 'ASSIGNED', assignedById: 'ther-1', assignedArea: 'daily' });
     expect(events.emit).toHaveBeenCalledWith('resource.assigned', expect.objectContaining({ parentId: 'parent-1' }));
+  });
+
+  it('flags a re-assignment of something already assigned', async () => {
+    const { service, prisma } = setup();
+    prisma.childResource.findFirst.mockResolvedValue({ assignedAt: new Date(), unassignedAt: null });
+    const res = await service.assign(therapist, 'child-1', { kind: 'LIBRARY', resourceId: 'l1' });
+    expect(res).toMatchObject({ reassigned: true, parentNotified: true });
+  });
+
+  it('does not notify a placeholder guardian who has not claimed the child', async () => {
+    const { service, prisma, events } = setup();
+    prisma.user.findUnique.mockResolvedValue({ email: 'placeholder.abc@ancc.internal' });
+    const res = await service.assign(therapist, 'child-1', { kind: 'LIBRARY', resourceId: 'l1' });
+    expect(res).toMatchObject({ parentNotified: false });
+    expect(events.emit).not.toHaveBeenCalledWith('resource.assigned', expect.anything());
   });
 
   it('browsing for a client reveals nothing the family has not shared', async () => {

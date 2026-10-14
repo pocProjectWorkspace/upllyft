@@ -46,6 +46,8 @@ export interface LibraryQuery {
   q?: string;
   type?: string;
   domain?: string;
+  /** 'mine' = the viewer's own worksheets (My Library); 'library' = everything else. */
+  source?: string;
   ageFit?: string | boolean;
   matchOnly?: string | boolean;
   page?: string | number;
@@ -292,6 +294,10 @@ export class JourneyLibraryService {
     if (query.type && query.type !== 'All') cards = cards.filter((c) => c.type === query.type);
     if (query.domain && isJourneyDomain(query.domain)) cards = cards.filter((c) => c.domains.includes(query.domain as JourneyDomain));
     if (truthy(query.matchOnly)) cards = cards.filter((c) => c.matchesScreening);
+    if (query.source === 'mine' || query.source === 'library') {
+      const mine = (c: { kind: string; source: string }) => c.kind === 'WORKSHEET' && c.source === 'You';
+      cards = cards.filter((c) => (query.source === 'mine' ? mine(c) : !mine(c)));
+    }
 
     cards.sort(
       (a, b) =>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Badge, Input, Label, Textarea, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@upllyft/ui';
 import { ResourcesShell } from '@/resources/components/resources-shell';
 import { ForFamiliesStep } from '@/resources/journey/for-families-step';
@@ -56,8 +56,19 @@ const SETTINGS = [
 ];
 const ALL_DOMAINS = Object.keys(domainLabels);
 
+// useSearchParams needs a Suspense boundary on a client page.
 export default function CreateWorksheetPage() {
+  return (
+    <Suspense fallback={null}>
+      <CreateWorksheetPageInner />
+    </Suspense>
+  );
+}
+
+function CreateWorksheetPageInner() {
   const router = useRouter();
+  // Set when creation started from a child's "Assign a resource" (Create New).
+  const assignTo = useSearchParams().get('assignTo') ?? undefined;
   const generateMutation = useGenerateWorksheet();
 
   // Wizard step
@@ -739,6 +750,7 @@ export default function CreateWorksheetPage() {
               age: childAge ? Number(childAge) : null,
               durationMinutes: duration === '20plus' ? 20 : parseInt(duration, 10) || null,
             }}
+            defaultAssignTo={assignTo}
             onDone={() => setStep(5)}
           />
         )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DEPARTMENTS, DURATION_PRESETS, type DepartmentKey } from '@upllyft/types';
 import Link from 'next/link';
 import { BookingShell } from '@/booking/components/booking-shell';
@@ -70,14 +70,12 @@ export default function TherapistPricingPage() {
   );
 
   // Sliding scale / insurance-covered rate (also set in the set-up Fees step).
-  const [slidingScale, setSlidingScale] = useState(false);
-  const [slidingScaleRate, setSlidingScaleRate] = useState('');
-  useEffect(() => {
-    if (profile) {
-      setSlidingScale(profile.slidingScaleAvailable ?? false);
-      setSlidingScaleRate(profile.slidingScaleRate != null ? String(profile.slidingScaleRate) : '');
-    }
-  }, [profile]);
+  // null = untouched: show what the profile holds.
+  const [slidingScaleEdit, setSlidingScale] = useState<boolean | null>(null);
+  const [slidingScaleRateEdit, setSlidingScaleRate] = useState<string | null>(null);
+  const slidingScale = slidingScaleEdit ?? profile?.slidingScaleAvailable ?? false;
+  const slidingScaleRate =
+    slidingScaleRateEdit ?? (profile?.slidingScaleRate != null ? String(profile.slidingScaleRate) : '');
 
   function saveSlidingScale() {
     const rate = slidingScaleRate.trim() ? Number(slidingScaleRate) : null;

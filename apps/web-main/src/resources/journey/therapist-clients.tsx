@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { Dialog, DialogContent, DialogTitle, Input, Skeleton, toast, useDebounce } from '@upllyft/ui';
-import { journeyApi, type LibraryCard } from './api';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Skeleton, toast } from '@upllyft/ui';
+import { journeyApi } from './api';
 import { journeyKeys } from './hooks';
 import { useOpenResource } from './open-resource';
-import { ResourceCard } from './resource-card';
-import { DOMAINS, DomainBadge, HelpLegend, HelpSquares, StatusPill, formatDay } from './ui';
+import { AssignDialog } from './assign-dialog';
+import { DomainBadge, HelpLegend, HelpSquares, StatusPill, formatDay } from './ui';
 
 /**
  * Therapists: the children they work with, what they have assigned each one, and how
@@ -70,7 +70,7 @@ export function TherapistClients() {
                 {c.age != null && <span className="font-normal text-gray-500"> · {c.age}y</span>}
               </p>
               <p className="text-xs text-gray-500">
-                {c.parent.name ?? 'Parent'} · {c.assignedCount} assigned
+                {c.parentLinked === false ? 'Family not on Upllyft yet' : c.parent.name ?? 'Parent'} · {c.assignedCount} assigned
                 {c.lastActivity ? ` · active ${formatDay(c.lastActivity).toLowerCase()}` : ''}
               </p>
             </button>
@@ -146,154 +146,15 @@ export function TherapistClients() {
 
       {selected && (
         <AssignDialog
+          // Remount per child so a half-filled assignment never carries over.
+          key={selected.id}
           open={picking}
           onClose={() => setPicking(false)}
           childId={selected.id}
-          childName={selected.firstName}
           onOpen={open}
         />
       )}
       {viewer}
     </div>
-  );
-}
-
-function AssignDialog({
-  open,
-  onClose,
-  childId,
-  childName,
-  onOpen,
-}: {
-  open: boolean;
-  onClose: () => void;
-  childId: string;
-  childName: string;
-  onOpen: (card: LibraryCard) => void;
-}) {
-  const qc = useQueryClient();
-  const [q, setQ] = useState('');
-  const search = useDebounce(q, 350);
-  const [domain, setDomain] = useState('');
-  const [chosen, setChosen] = useState<LibraryCard | null>(null);
-  const [goal, setGoal] = useState('');
-  const [target, setTarget] = useState('');
-  const [area, setArea] = useState('');
-
-  const filters = useMemo(
-    () => ({ q: search || undefined, domain: domain || undefined, ageFit: true, limit: 24, childId }),
-    [search, domain, childId],
-  );
-  const library = useQuery({
-    queryKey: journeyKeys.assignable(filters),
-    queryFn: () => journeyApi.assignable(filters),
-    enabled: open,
-    placeholderData: keepPreviousData,
-  });
-
-  const assign = useMutation({
-    mutationFn: () =>
-      journeyApi.assign(childId, {
-        kind: chosen!.kind,
-        resourceId: chosen!.id,
-        goal: goal.trim() || undefined,
-        targetDate: target ? new Date(`${target}T12:00:00`).toISOString() : undefined,
-        assignedArea: area || undefined,
-      }),
-    onSuccess: () => {
-      toast({ title: `Assigned to ${childName}`, description: `${chosen?.title} is now in their library.` });
-      qc.invalidateQueries({ queryKey: journeyKeys.assigned(childId) });
-      qc.invalidateQueries({ queryKey: journeyKeys.clients() });
-      setChosen(null);
-      setGoal('');
-      setTarget('');
-      setArea('');
-      onClose();
-    },
-    onError: (e: any) => toast({ title: 'Could not assign', description: e?.response?.data?.message ?? 'Please try again.', variant: 'destructive' }),
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
-        <DialogTitle className="text-lg font-semibold text-gray-900">
-          {chosen ? `Assign “${chosen.title}”` : `Assign a resource to ${childName}`}
-        </DialogTitle>
-
-        {!chosen ? (
-          <div className="space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Input placeholder="Search the library…" value={q} onChange={(e) => setQ(e.target.value)} className="h-10 flex-1 rounded-xl" />
-              <select value={domain} onChange={(e) => setDomain(e.target.value)} className="h-10 rounded-xl border border-gray-200 px-3 text-sm">
-                <option value="">All areas</option>
-                {DOMAINS.map((d) => (
-                  <option key={d.key} value={d.key}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {library.isLoading ? (
-              <Skeleton className="h-48 rounded-2xl" />
-            ) : !library.data?.items.length ? (
-              <p className="py-8 text-center text-sm text-gray-500">Nothing matches. Try another search or area.</p>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {library.data.items.map((card) => (
-                  <ResourceCard
-                    key={`${card.kind}:${card.id}`}
-                    card={card}
-                    childName={childName}
-                    onOpen={onOpen}
-                    onPick={(c) => {
-                      setChosen(c);
-                      setArea(c.domains[0] ?? '');
-                    }}
-                    pickLabel="Choose"
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-gray-800">Goal for the family (“For:”)</span>
-              <Input value={goal} onChange={(e) => setGoal(e.target.value)} maxLength={300} placeholder="e.g. Ask for help with a word or card at snack time" className="rounded-xl" />
-            </label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1 block text-sm font-semibold text-gray-800">Area</span>
-                <select value={area} onChange={(e) => setArea(e.target.value)} className="h-10 w-full rounded-xl border border-gray-200 px-3 text-sm">
-                  <option value="">Use the resource’s area</option>
-                  {DOMAINS.map((d) => (
-                    <option key={d.key} value={d.key}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-semibold text-gray-800">Target date (optional)</span>
-                <input type="date" value={target} onChange={(e) => setTarget(e.target.value)} className="h-10 w-full rounded-xl border border-gray-200 px-3 text-sm" />
-              </label>
-            </div>
-            <div className="flex justify-between gap-3">
-              <button type="button" onClick={() => setChosen(null)} className="text-sm font-medium text-gray-600">
-                ← Back to library
-              </button>
-              <button
-                type="button"
-                disabled={assign.isPending}
-                onClick={() => assign.mutate()}
-                className="rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {assign.isPending ? 'Assigning…' : `Assign to ${childName}`}
-              </button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }

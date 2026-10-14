@@ -6,6 +6,7 @@ import { JourneyAccessService, JourneyChild, WORKING_BOOKING_STATUSES } from './
 import { JourneyLibraryService, LibraryCard, ResourceKind } from './journey-library.service';
 import { DOMAIN_KEYS, JourneyDomain, isJourneyDomain } from './domains';
 import { upsertAssignedItem } from './assigned-item';
+import { isShadowAccount } from '../common/parent-contact';
 import { ItemStatus, ageInYears, concernAreas, daysAgo, itemStatus, screeningLevels, weeklyIndependence } from './journey.logic';
 
 type Actor = { id: string; role: string };
@@ -468,7 +469,7 @@ export class ResourceJourneyService {
         id: true,
         firstName: true,
         dateOfBirth: true,
-        profile: { select: { user: { select: { id: true, name: true } } } },
+        profile: { select: { user: { select: { id: true, name: true, email: true } } } },
         journeyResources: {
           where: { assignedById: actor.id },
           select: { id: true, assignedAt: true, logs: { select: { date: true, createdAt: true }, orderBy: { date: 'desc' } } },
@@ -486,7 +487,10 @@ export class ResourceJourneyService {
           id: c.id,
           firstName: c.firstName,
           age: ageInYears(c.dateOfBirth),
-          parent: c.profile.user,
+          parent: { id: c.profile.user.id, name: c.profile.user.name },
+          // A facility-created child whose guardian hasn't claimed them yet: nobody
+          // is notified of an assignment until they do.
+          parentLinked: !isShadowAccount(c.profile.user.email),
           assignedCount: c.journeyResources.length,
           lastActivity: lastDates.length ? new Date(Math.max(...lastDates.map((d) => d.getTime()))) : null,
         };
@@ -523,6 +527,11 @@ export class ResourceJourneyService {
       throw new BadRequestException(`assignedArea must be one of ${DOMAIN_KEYS.join(', ')}.`);
     }
     const parentId = c.profile.userId;
+    const previous = await this.prisma.childResource.findFirst({
+      where: { childId, ...(kind === 'WORKSHEET' ? { worksheetId: resourceId } : { libraryResourceId: resourceId }) },
+      select: { assignedAt: true, unassignedAt: true },
+    });
+    const reassigned = !!previous?.assignedAt && !previous.unassignedAt;
 
     const itemWrite = upsertAssignedItem(this.prisma, {
       childId,
@@ -549,14 +558,19 @@ export class ResourceJourneyService {
     const item = results[results.length - 1] as Awaited<typeof itemWrite>;
 
     const card = (await this.library.cardsFor(actor.id, [{ kind, id: resourceId }])).get(`${kind}:${resourceId}`);
-    this.events.emit('resource.assigned', {
-      itemId: item.id,
-      parentId,
-      therapistUserId: actor.id,
-      childName: c.firstName,
-      title: card?.title ?? 'a resource',
-    });
-    return item;
+    const parent = await this.prisma.user.findUnique({ where: { id: parentId }, select: { email: true } });
+    const parentLinked = !isShadowAccount(parent?.email);
+    // A shadow profile's address is synthetic: nobody would receive it.
+    if (parentLinked) {
+      this.events.emit('resource.assigned', {
+        itemId: item.id,
+        parentId,
+        therapistUserId: actor.id,
+        childName: c.firstName,
+        title: card?.title ?? 'a resource',
+      });
+    }
+    return { ...item, reassigned, parentNotified: parentLinked };
   }
 
   async assignedTo(actor: Actor, childId: string) {

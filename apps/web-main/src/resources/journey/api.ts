@@ -41,6 +41,8 @@ export interface LibraryFilters {
   q?: string;
   type?: string;
   domain?: string;
+  /** Therapist assign picker: 'mine' = My Library, 'library' = the Resource Library. */
+  source?: 'mine' | 'library';
   ageFit?: boolean;
   matchOnly?: boolean;
   page?: number;
@@ -135,6 +137,7 @@ function params(f: LibraryFilters) {
   if (f.q) p.q = f.q;
   if (f.type && f.type !== 'All') p.type = f.type;
   if (f.domain) p.domain = f.domain;
+  if (f.source) p.source = f.source;
   if (f.ageFit) p.ageFit = 'true';
   if (f.matchOnly) p.matchOnly = 'true';
   if (f.page) p.page = String(f.page);
@@ -183,6 +186,8 @@ export const journeyApi = {
       firstName: string;
       age: number | null;
       parent: { id: string; name: string | null };
+      /** False for a facility-created child whose guardian hasn't claimed them: nobody is notified. */
+      parentLinked?: boolean;
       assignedCount: number;
       lastActivity: string | null;
     }>;
@@ -192,7 +197,8 @@ export const journeyApi = {
   assign: async (
     childId: string,
     body: { kind: ResourceKind; resourceId: string; goal?: string; targetDate?: string; assignedArea?: string },
-  ) => (await apiClient.post(`${base}/clients/${childId}/assign`, body)).data,
+  ): Promise<{ id: string; reassigned?: boolean; parentNotified?: boolean }> =>
+    (await apiClient.post(`${base}/clients/${childId}/assign`, body)).data,
   assigned: async (childId: string): Promise<{ items: ChildItem[] }> =>
     (await apiClient.get(`${base}/clients/${childId}/assigned`)).data,
   unassign: async (itemId: string) => (await apiClient.delete(`${base}/assigned/${itemId}`)).data,
