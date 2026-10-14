@@ -34,6 +34,7 @@ interface SaveTherapistProfileInput {
 import { randomBytes, createHash } from 'crypto';
 import { AppLoggerService } from '../common/logging';
 import * as XLSX from 'xlsx';
+import { normalizeCountry } from '../marketplace/common/therapist-discovery';
 
 // Exported interfaces for bulk invitation validation results
 export interface InviteItem {
@@ -1854,7 +1855,9 @@ export class OrganizationsService {
             department: data.department,
             phone: data.phone,
             branch: data.branch,
-            country: data.country,
+            // Same ISO code the therapist's own Edit Profile stores, so both sides
+            // read one value (the wizard used to save "India" / "UAE").
+            country: data.country !== undefined ? normalizeCountry(data.country) : undefined,
             qualification: data.qualification,
             university: data.university,
             yearsExperience: data.yearsExperience,

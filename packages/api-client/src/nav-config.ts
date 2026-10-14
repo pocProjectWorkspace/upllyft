@@ -125,7 +125,7 @@ export function getNavItems(
       ]
     : isProfessional
       ? [
-          { label: 'Dashboard', href: `${B}/therapist/dashboard` },
+          { label: 'Hub', href: M },
           { label: 'Bookings & Availability', href: `${B}/therapist/bookings` },
           { label: 'Earnings', href: `${B}/therapist/earnings` },
           { label: 'Pricing', href: `${B}/therapist/pricing` },

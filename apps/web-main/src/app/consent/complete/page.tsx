@@ -33,7 +33,7 @@ export default function ConsentCompletePage() {
           onClick={() => router.push('/')}
           className="px-6 py-2.5 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700"
         >
-          Return to Dashboard
+          Return to Hub
         </button>
       </main>
     </div>

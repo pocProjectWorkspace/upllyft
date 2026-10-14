@@ -205,11 +205,14 @@ export interface DiscoveryNeeds {
 
 export interface TherapistAnalytics {
   totalBookings: number;
+  /** Completed sessions only — the count totalRevenue is earned on. */
+  completedSessions?: number;
   totalRevenue: number;
   /** Currency of totalRevenue (whole units, not cents). */
   currency?: string | null;
   mixedCurrencies?: boolean;
   averageRating: number;
+  /** Already a percentage (0–100). */
   completionRate: number;
   pendingRequests: number;
   upcomingSessions: number;

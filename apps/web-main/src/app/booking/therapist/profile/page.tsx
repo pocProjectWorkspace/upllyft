@@ -189,12 +189,12 @@ export default function TherapistProfilePage() {
             <h1 className="text-3xl font-bold text-gray-900">Edit Profile</h1>
             <p className="text-gray-500 mt-1">Update your professional information</p>
           </div>
-          <Link href="/booking/therapist/dashboard">
+          <Link href="/">
             <Button variant="outline" className="rounded-xl">
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              Dashboard
+              Hub
             </Button>
           </Link>
         </div>
@@ -245,7 +245,7 @@ export default function TherapistProfilePage() {
           </div>
           <div className="p-6 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Professional Title</Label>
+              <Label htmlFor="title">Display title</Label>
               <Input
                 id="title"
                 placeholder="e.g. Licensed Clinical Psychologist"
@@ -281,7 +281,7 @@ export default function TherapistProfilePage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="country">Country you practise in</Label>
+                  <Label htmlFor="country">Country of practice</Label>
                   <select
                     id="country"
                     value={country}

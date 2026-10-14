@@ -163,12 +163,12 @@ export default function TherapistPricingPage() {
             <p className="text-gray-500 mt-1">Manage the services you offer and their pricing</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/booking/therapist/dashboard">
+            <Link href="/">
               <Button variant="outline" className="rounded-xl">
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                Dashboard
+                Hub
               </Button>
             </Link>
             <Dialog open={addOpen} onOpenChange={setAddOpen}>

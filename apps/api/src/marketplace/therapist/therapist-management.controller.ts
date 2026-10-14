@@ -278,6 +278,9 @@ export class TherapistManagementController {
 
         return {
             totalBookings: bookings.length,
+            // totalRevenue is earned on completed sessions only, so per-session averages
+            // divide by this, not by totalBookings (which includes pending/cancelled).
+            completedSessions: completedBookings.length,
             totalRevenue,
             currency: ranked[0]?.[0] ?? null,
             mixedCurrencies: ranked.length > 1,

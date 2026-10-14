@@ -79,7 +79,7 @@ export default function ConsentSignPage() {
             onClick={() => router.push('/')}
             className="px-6 py-2.5 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700"
           >
-            Back to Dashboard
+            Back to Hub
           </button>
         </main>
       </div>
@@ -101,7 +101,7 @@ export default function ConsentSignPage() {
             onClick={() => router.push('/')}
             className="px-6 py-2.5 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700"
           >
-            Back to Dashboard
+            Back to Hub
           </button>
         </main>
       </div>

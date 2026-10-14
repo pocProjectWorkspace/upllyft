@@ -175,9 +175,10 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
   const avatarUrl = therapist?.profileImage || therapist?.user?.image;
 
   // Find lowest price for display
-  const lowestPrice = pricing && pricing.length > 0
-    ? Math.min(...pricing.map((p) => p.price))
+  const lowestPricing = pricing && pricing.length > 0
+    ? pricing.reduce((min, p) => (p.price < min.price ? p : min))
     : null;
+  const lowestPrice = lowestPricing?.price ?? null;
 
   return (
     <BookingShell>
@@ -435,7 +436,7 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                         <div className="text-center">
                           <span className="text-sm text-gray-500">Starting from</span>
                           <p className="text-2xl font-bold text-teal-600">
-                            {formatCurrency(lowestPrice)}
+                            {formatCurrency(lowestPrice, lowestPricing?.currency)}
                           </p>
                         </div>
                       ) : (

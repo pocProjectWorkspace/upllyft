@@ -92,6 +92,18 @@ function currencyFor(country: Country) {
   return country === 'UAE' ? 'AED' : 'INR';
 }
 
+function timezoneFor(country: Country) {
+  return country === 'UAE' ? 'Asia/Dubai' : 'Asia/Kolkata';
+}
+
+// The therapist's own Edit Profile saves the country as an ISO code (AE / IN)
+// while this wizard saved the name, so a profile edited on one side loaded on the
+// other as an unknown value (and its fees in the wrong currency). Accept both.
+function countryFromProfile(value?: string | null): Country {
+  const v = value?.trim().toLowerCase();
+  return v === 'uae' || v === 'ae' || v === 'united arab emirates' ? 'UAE' : 'India';
+}
+
 function emptyFee(): FeeRow {
   return { service: '', durations: [], prices: {} };
 }
@@ -369,7 +381,7 @@ export default function AddTherapistWizard() {
                 department: deptKey,
                 phone: p.phone ?? '',
                 branch: p.branch ?? '',
-                country: (p.country as Country) || 'India',
+                country: countryFromProfile(p.country),
                 qualification: p.qualification ?? '',
                 university: p.university ?? '',
                 yearsExperience: p.yearsExperience != null ? String(p.yearsExperience) : '',
@@ -512,7 +524,7 @@ export default function AddTherapistWizard() {
       } else if (step === 2) {
         await saveMemberSessionTypes(slug, memberId, feesToItems(form.fees, form.department, currency));
       } else if (step === 3) {
-        await saveMemberAvailability(slug, memberId, gridToSlots(form.availability), 'Asia/Kolkata');
+        await saveMemberAvailability(slug, memberId, gridToSlots(form.availability), timezoneFor(form.country));
       }
     } catch (err: any) {
       toast({
@@ -650,7 +662,7 @@ export default function AddTherapistWizard() {
             <Field label="Phone">
               <input className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} />
             </Field>
-            <Field label="Country">
+            <Field label="Country of practice">
               <select className={inputCls} value={form.country} onChange={(e) => set('country', e.target.value as Country)}>
                 <option value="India">India</option>
                 <option value="UAE">UAE</option>
@@ -883,7 +895,7 @@ export default function AddTherapistWizard() {
                 <input className={inputCls} type="number" value={form.buffer} onChange={(e) => set('buffer', Number(e.target.value))} />
               </Field>
               <Field label="Timezone" hint="Read-only">
-                <input className={inputCls + ' bg-gray-50 text-gray-500'} readOnly value="Asia/Kolkata" />
+                <input className={inputCls + ' bg-gray-50 text-gray-500'} readOnly value={timezoneFor(form.country)} />
               </Field>
               <Field label="Mode">
                 <select className={inputCls} value={form.mode} onChange={(e) => set('mode', e.target.value as Mode)}>

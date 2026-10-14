@@ -336,7 +336,7 @@ export function TherapistDashboard({ user }: TherapistDashboardProps) {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <p className="text-2xl font-bold text-white">
-                    ${(analytics.totalRevenue / 100).toFixed(0)}
+                    {formatMoney(analytics.totalRevenue, analytics.currency ?? regionCurrency, { decimals: false })}
                   </p>
                   <p className="text-xs text-gray-400">Total Earned</p>
                 </div>

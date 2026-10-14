@@ -2,6 +2,8 @@ import { apiClient } from '@upllyft/api-client';
 
 export interface TherapistAnalytics {
   totalBookings: number;
+  /** Completed sessions only — the count totalRevenue is earned on. */
+  completedSessions?: number;
   totalRevenue: number;
   /** Currency of totalRevenue (whole units, not cents). */
   currency?: string | null;

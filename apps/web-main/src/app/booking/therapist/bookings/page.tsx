@@ -210,7 +210,7 @@ export default function TherapistBookingsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Bookings &amp; Availability</h1>
             <p className="text-gray-500 mt-1">Requests, upcoming schedule, weekly availability and absence — all in one place</p>
           </div>
-          <Link href="/booking/therapist/dashboard">
+          <Link href="/">
             <Button variant="outline" className="rounded-xl">
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

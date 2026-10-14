@@ -135,8 +135,11 @@ export default function TherapistEarningsPage() {
     ? ((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings * 100).toFixed(0)
     : null;
 
-  const avgPerSession = analytics && analytics.totalBookings > 0
-    ? analytics.totalRevenue / analytics.totalBookings
+  // Revenue is earned on completed sessions only; totalBookings also counts
+  // pending, cancelled and no-show bookings.
+  const completedSessions = analytics?.completedSessions ?? completedBookings?.length ?? 0;
+  const avgPerSession = analytics && completedSessions > 0
+    ? analytics.totalRevenue / completedSessions
     : 0;
 
   if (profileLoading) {
@@ -179,8 +182,8 @@ export default function TherapistEarningsPage() {
     },
     {
       label: 'Completed Sessions',
-      value: analytics?.totalBookings ?? 0,
-      subtext: analytics?.completionRate ? `${(analytics.completionRate * 100).toFixed(0)}% completion rate` : undefined,
+      value: completedSessions,
+      subtext: analytics?.completionRate ? `${Math.round(analytics.completionRate)}% completion rate` : undefined,
       icon: <CalendarIcon className="w-6 h-6 text-purple-600" />,
       gradient: 'from-purple-50 to-purple-100',
     },
@@ -195,15 +198,25 @@ export default function TherapistEarningsPage() {
             <h1 className="text-2xl font-bold text-gray-900">Earnings & Payouts</h1>
             <p className="text-gray-500 mt-1">Track your revenue and payout history</p>
           </div>
-          <Button
-            variant="outline"
-            className="rounded-xl"
-            onClick={() => stripeDashboard.mutate()}
-            disabled={stripeDashboard.isPending}
-          >
-            <ExternalLinkIcon className="w-4 h-4 mr-2" />
-            Stripe Dashboard
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => stripeDashboard.mutate()}
+              disabled={stripeDashboard.isPending}
+            >
+              <ExternalLinkIcon className="w-4 h-4 mr-2" />
+              Stripe Dashboard
+            </Button>
+            <Link href="/">
+              <Button variant="outline" className="rounded-xl">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Hub
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}
