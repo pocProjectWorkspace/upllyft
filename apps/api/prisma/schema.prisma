@@ -135,6 +135,8 @@ model User {
 
   // Learning resources relations
   worksheets                   Worksheet[]           @relation("UserWorksheets")
+  savedResources               SavedResource[]
+  resourceCollections          ResourceCollection[]
   sentWorksheetAssignments     WorksheetAssignment[] @relation("SentWorksheetAssignments")
   receivedWorksheetAssignments WorksheetAssignment[] @relation("ReceivedWorksheetAssignments")
   worksheetReviews             WorksheetReview[]     @relation("UserWorksheetReviews")
@@ -2326,6 +2328,7 @@ model Worksheet {
   completions   WorksheetCompletion[]
   effectiveness WorksheetEffectiveness[]
   childResources ChildResource[]
+  savedBy        SavedResource[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5665,6 +5668,7 @@ model LibraryResource {
   practises       String?
   forText         String?
   childResources  ChildResource[]
+  savedBy         SavedResource[]
 
   /// Legacy public URL. Files are served by short-lived signed URLs built from
   /// `storagePath`; this is only returned for rows whose path could not be derived.
@@ -5909,4 +5913,51 @@ model FaqItem {
 
   @@index([categoryId, sortOrder])
   @@map("faq_items")
+}
+
+// ─── Therapist My Library (handoff "My Library v2") ─────────────────────────
+
+/// A Resource Library item a professional saved to My Library ("Your Resources").
+/// Exactly one of worksheetId / libraryResourceId is set, matching `kind`.
+model SavedResource {
+  id                String                   @id @default(cuid())
+  userId            String
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind              String /// WORKSHEET | LIBRARY
+  worksheetId       String?
+  worksheet         Worksheet?               @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  libraryResourceId String?
+  libraryResource   LibraryResource?         @relation(fields: [libraryResourceId], references: [id], onDelete: Cascade)
+  collections       ResourceCollectionItem[]
+  createdAt         DateTime                 @default(now())
+
+  @@unique([userId, worksheetId])
+  @@unique([userId, libraryResourceId])
+  @@index([userId, createdAt])
+  @@map("saved_resources")
+}
+
+/// A therapist's own grouping of saved resources (e.g. per client goal).
+model ResourceCollection {
+  id        String                   @id @default(cuid())
+  userId    String
+  user      User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  items     ResourceCollectionItem[]
+  createdAt DateTime                 @default(now())
+
+  @@index([userId])
+  @@map("resource_collections")
+}
+
+model ResourceCollectionItem {
+  collectionId    String
+  collection      ResourceCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  savedResourceId String
+  savedResource   SavedResource      @relation(fields: [savedResourceId], references: [id], onDelete: Cascade)
+  createdAt       DateTime           @default(now())
+
+  @@id([collectionId, savedResourceId])
+  @@index([savedResourceId])
+  @@map("resource_collection_items")
 }

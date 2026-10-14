@@ -68,7 +68,11 @@ export default function CreateWorksheetPage() {
 function CreateWorksheetPageInner() {
   const router = useRouter();
   // Set when creation started from a child's "Assign a resource" (Create New).
-  const assignTo = useSearchParams().get('assignTo') ?? undefined;
+  const searchParams = useSearchParams();
+  const assignTo = searchParams.get('assignTo') ?? undefined;
+  // My Library's "Start from a format" tiles preselect the type (and sub-type).
+  const presetType = WORKSHEET_TYPES.find((t) => t.value === searchParams.get('type'))?.value ?? '';
+  const presetSubType = searchParams.get('subType') ?? '';
   const generateMutation = useGenerateWorksheet();
 
   // Wizard step
@@ -94,8 +98,10 @@ function CreateWorksheetPageInner() {
   const sessionNotesQuery = useSessionNotes(activeCaseId);
 
   // Step 2 — Type
-  const [wsType, setWsType] = useState<WorksheetType | ''>('');
-  const [subType, setSubType] = useState('');
+  const [wsType, setWsType] = useState<WorksheetType | ''>(presetType);
+  const [subType, setSubType] = useState(
+    presetType === 'VISUAL_SUPPORT' && (VISUAL_SUB_TYPES as readonly string[]).includes(presetSubType) ? presetSubType : '',
+  );
 
   // Step 3 — Customize
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
@@ -715,7 +721,7 @@ function CreateWorksheetPageInner() {
           >
             Download PDF
           </Button>
-          <Button variant="outline" onClick={() => router.push('/resources')}>
+          <Button variant="outline" onClick={() => router.push('/resources/my-library?tab=create')}>
             Go to Library
           </Button>
           <Button variant="ghost" onClick={() => router.push(`/resources/${generatedId}`)}>

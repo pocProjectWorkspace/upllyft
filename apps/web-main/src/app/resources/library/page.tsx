@@ -2,6 +2,7 @@
 
 import { useParentJourneyRedirect } from '@/resources/journey/parent-redirect';
 import { useAuth } from '@upllyft/api-client';
+import { SaveButton } from '@/resources/my-library/save-button';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Skeleton, Input } from '@upllyft/ui';
@@ -134,8 +135,9 @@ function ResourceLibraryPageInner() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {resources.map((r) => (
-              <LibraryCard key={r.id} resource={r} onView={setViewing}>
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <div key={r.id} className="relative">
+              <LibraryCard resource={r} onView={setViewing}>
+                <div className="flex items-center gap-2 mb-2 flex-wrap pr-10">
                   <Badge color={(TYPE_COLORS[r.resourceType] as any) ?? 'gray'}>
                     {typeLabel(r.resourceType)}
                   </Badge>
@@ -159,6 +161,9 @@ function ResourceLibraryPageInner() {
                   {!r.downloadable && <span className="ml-2 text-gray-400 font-normal">View only</span>}
                 </p>
               </LibraryCard>
+              {/* A sibling, not inside the card: a button can't nest in the card's button. */}
+              <SaveButton kind="LIBRARY" id={r.id} title={r.title} className="absolute right-3 top-3" />
+              </div>
             ))}
           </div>
         )}

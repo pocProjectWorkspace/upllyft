@@ -148,7 +148,7 @@ export function getNavItems(
         { label: 'Community', href: `${R}/community` },
       ]
     : [
-        { label: 'My Library', href: R },
+        { label: 'My Library', href: `${R}/my-library` },
         { label: 'Resource Library', href: `${R}/library` },
         { label: 'Create', href: `${R}/create` },
         { label: 'Community', href: `${R}/community` },

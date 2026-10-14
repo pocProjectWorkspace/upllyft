@@ -126,7 +126,7 @@ export default function WorksheetDetailPage() {
     deleteMutation.mutate(id, {
       onSuccess: () => {
         setDeleteOpen(false);
-        router.push('/resources');
+        router.push('/resources/my-library?tab=create');
       },
     });
   }
