@@ -21,7 +21,8 @@ export interface Booking {
   sessionTypeId: string;
   startDateTime: string;
   endDateTime: string;
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'REJECTED';
+  // Mirrors the API's BookingStatus; there is no plain 'PENDING'.
+  status: 'PENDING_PAYMENT' | 'PENDING_ACCEPTANCE' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'REJECTED' | 'NO_SHOW';
   notes?: string;
   totalAmount?: number;
   client?: {

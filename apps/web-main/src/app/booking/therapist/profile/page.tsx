@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { BookingShell } from '@/booking/components/booking-shell';
 import { useMyTherapistProfile, useUpdateTherapistProfile } from '@/booking/hooks/use-marketplace';
 import type { UpdateTherapistProfileDto } from '@/booking/lib/api/marketplace';
+import { DEPARTMENT_OPTIONS } from '@upllyft/types';
 import {
   Button,
   Card,
@@ -73,6 +74,12 @@ export default function TherapistProfilePage() {
   const { data: profile, isLoading, isError } = useMyTherapistProfile();
   const updateProfile = useUpdateTherapistProfile();
 
+  const [name, setName] = useState('');
+  const [department, setDepartment] = useState('');
+  const [phone, setPhone] = useState('');
+  const [branch, setBranch] = useState('');
+  const [qualification, setQualification] = useState('');
+  const [university, setUniversity] = useState('');
   const [title, setTitle] = useState('');
   const [bio, setBio] = useState('');
   const [yearsExperience, setYearsExperience] = useState('');
@@ -88,6 +95,12 @@ export default function TherapistProfilePage() {
 
   useEffect(() => {
     if (profile) {
+      setName(profile.user?.name || '');
+      setDepartment(profile.department || '');
+      setPhone(profile.phone || '');
+      setBranch(profile.branch || '');
+      setQualification(profile.qualification || '');
+      setUniversity(profile.university || '');
       setTitle(profile.title || '');
       setBio(profile.bio || '');
       setYearsExperience(String(profile.yearsExperience || ''));
@@ -144,12 +157,22 @@ export default function TherapistProfilePage() {
   }
 
   async function handleSave() {
-    if (!title.trim() || !bio.trim()) {
-      toast({ title: 'Missing fields', description: 'Title and bio are required.', variant: 'destructive' });
+    if (!name.trim() || !title.trim() || !bio.trim()) {
+      toast({ title: 'Missing fields', description: 'Full name, display title and bio are required.', variant: 'destructive' });
+      return;
+    }
+    if (phone.trim() && !/^\+?[\d\s()-]{7,20}$/.test(phone.trim())) {
+      toast({ title: 'Check phone number', description: 'Use digits, spaces and an optional leading +.', variant: 'destructive' });
       return;
     }
 
     const data: UpdateTherapistProfileDto = {
+      name: name.trim(),
+      department: department || undefined,
+      phone: phone.trim(),
+      branch: branch.trim(),
+      qualification: qualification.trim(),
+      university: university.trim(),
       title: title.trim(),
       bio: bio.trim(),
       yearsExperience: parseInt(yearsExperience, 10) || undefined,
@@ -244,6 +267,16 @@ export default function TherapistProfilePage() {
             </h3>
           </div>
           <div className="p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full name</Label>
+                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" value={profile.user?.email || ''} readOnly className="bg-gray-50 text-gray-500" />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="title">Display title</Label>
               <Input
@@ -262,6 +295,38 @@ export default function TherapistProfilePage() {
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
               />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="department">Department / Specialisation area</Label>
+                <select
+                  id="department"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="">Select department</option>
+                  {DEPARTMENT_OPTIONS.map((d) => (
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input id="phone" type="tel" placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="branch">Branch / Location</Label>
+                <Input id="branch" value={branch} onChange={(e) => setBranch(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="qualification">Qualification</Label>
+                <Input id="qualification" value={qualification} onChange={(e) => setQualification(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="university">University</Label>
+                <Input id="university" value={university} onChange={(e) => setUniversity(e.target.value)} />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="years">Years of Experience</Label>

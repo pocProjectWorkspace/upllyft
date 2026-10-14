@@ -35,6 +35,7 @@ import { randomBytes, createHash } from 'crypto';
 import { AppLoggerService } from '../common/logging';
 import * as XLSX from 'xlsx';
 import { normalizeCountry } from '../marketplace/common/therapist-discovery';
+import { assertNoUpcomingBookings } from '../marketplace/common/upcoming-bookings';
 
 // Exported interfaces for bulk invitation validation results
 export interface InviteItem {
@@ -1739,11 +1740,19 @@ export class OrganizationsService {
         const profile = await this.prisma.therapistProfile.findUnique({
             where: { userId: targetMember.userId },
         });
+        // Report the price families are charged: the therapist's own Pricing page writes
+        // SessionPricing, which booking prefers over defaultPrice.
         const sessionTypes = profile
-            ? await this.prisma.sessionType.findMany({
-                  where: { therapistId: profile.id, isActive: true },
-                  orderBy: { name: 'asc' },
-              })
+            ? (
+                  await this.prisma.sessionType.findMany({
+                      where: { therapistId: profile.id, isActive: true },
+                      orderBy: [{ name: 'asc' }, { duration: 'asc' }],
+                      include: { sessionPricing: { where: { therapistId: profile.id }, take: 1 } },
+                  })
+              ).map(({ sessionPricing, ...st }) => ({
+                  ...st,
+                  defaultPrice: sessionPricing[0]?.price ?? st.defaultPrice,
+              }))
             : [];
         const availability = profile
             ? await this.prisma.therapistAvailability.findMany({
@@ -1793,7 +1802,11 @@ export class OrganizationsService {
         return { success: true };
     }
 
-    /** Add Therapist wizard, Fees step: upsert the member's session types by name+duration. */
+    /**
+     * Add Therapist wizard, Fees step: the items are the therapist's full fee list.
+     * Upsert by name+duration, keep SessionPricing equal to the fee (the therapist's
+     * Pricing page and booking read it), and deactivate fees no longer listed.
+     */
     async saveMemberSessionTypes(
         slug: string,
         memberId: string,
@@ -1802,6 +1815,16 @@ export class OrganizationsService {
     ) {
         const org = await this.getOrgAndAssertAdmin(slug, adminId);
         const therapistId = await this.ensureMemberTherapist(org, memberId);
+
+        const keep = new Set((items || []).map((it) => `${it.name}|${it.duration}`));
+        const removed = (
+            await this.prisma.sessionType.findMany({ where: { therapistId, isActive: true } })
+        ).filter((st) => !keep.has(`${st.name}|${st.duration}`));
+        // Check every removal before writing anything, so a blocked save changes nothing.
+        for (const st of removed) {
+            await assertNoUpcomingBookings(this.prisma, st.id, `${st.name} (${st.duration} min)`);
+        }
+
         const results: Prisma.SessionTypeGetPayload<{}>[] = [];
         for (const it of items || []) {
             const existing = await this.prisma.sessionType.findFirst({
@@ -1828,6 +1851,18 @@ export class OrganizationsService {
                     }),
                 );
             }
+            const st = results[results.length - 1];
+            await this.prisma.sessionPricing.upsert({
+                where: { therapistId_sessionTypeId: { therapistId, sessionTypeId: st.id } },
+                create: { therapistId, sessionTypeId: st.id, price: it.price, currency: it.currency, isActive: true },
+                update: { price: it.price, currency: it.currency, isActive: true },
+            });
+        }
+        if (removed.length) {
+            await this.prisma.sessionType.updateMany({
+                where: { id: { in: removed.map((st) => st.id) } },
+                data: { isActive: false },
+            });
         }
         return { success: true, sessionTypes: results };
     }

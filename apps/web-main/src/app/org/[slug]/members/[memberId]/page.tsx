@@ -198,7 +198,9 @@ function feesFromSessionTypes(sts: WizardSessionType[], deptKey: DepartmentKey |
   }
   const byName: Record<string, FeeRow> = {};
   for (const st of sts) {
-    if (!byName[st.name]) byName[st.name] = { service: labelToKey[st.name] || '', durations: [], prices: {} };
+    // A fee the therapist named themselves on their Pricing page keeps its name as the
+    // service, so saving here doesn't drop (and deactivate) it.
+    if (!byName[st.name]) byName[st.name] = { service: labelToKey[st.name] || st.name, durations: [], prices: {} };
     byName[st.name].durations.push(st.duration);
     byName[st.name].prices[st.duration] = String(st.defaultPrice);
   }
@@ -516,6 +518,11 @@ export default function AddTherapistWizard() {
   }
 
   async function next() {
+    // Same phone rule as the therapist's own Edit Profile.
+    if (step === 0 && form.phone.trim() && !/^\+?[\d\s()-]{7,20}$/.test(form.phone.trim())) {
+      toast({ title: 'Check phone number', description: 'Use digits, spaces and an optional leading +.', variant: 'destructive' });
+      return;
+    }
     // Each step persists to the shared therapist records on Continue.
     setSaving(true);
     try {
@@ -819,6 +826,9 @@ export default function AddTherapistWizard() {
                             {s.label}
                           </option>
                         ))}
+                        {row.service && !dept?.services.some((s) => s.key === row.service) && (
+                          <option value={row.service}>{row.service}</option>
+                        )}
                       </select>
                     </Field>
                   </div>

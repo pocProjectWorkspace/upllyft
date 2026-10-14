@@ -48,10 +48,8 @@ export function formatCurrency(amount: number | null | undefined, currency = 'US
 }
 
 export function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  // Minutes everywhere, matching the organisation's Fees step ("60 min", not "1h").
+  return `${minutes} min`;
 }
 
 export function formatDateTime(date: string | Date): string {

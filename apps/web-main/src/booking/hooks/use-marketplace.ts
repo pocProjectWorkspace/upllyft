@@ -149,8 +149,8 @@ export function useCreateSessionType() {
       qc.invalidateQueries({ queryKey: keys.mySessionTypes() });
       toast({ title: 'Session type created' });
     },
-    onError: () => {
-      toast({ title: 'Error', description: 'Failed to create session type.', variant: 'destructive' });
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to create session type.', variant: 'destructive' });
     },
   });
 }
@@ -163,8 +163,8 @@ export function useUpdateSessionType() {
       qc.invalidateQueries({ queryKey: keys.mySessionTypes() });
       toast({ title: 'Session type updated' });
     },
-    onError: () => {
-      toast({ title: 'Error', description: 'Failed to update session type.', variant: 'destructive' });
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to update session type.', variant: 'destructive' });
     },
   });
 }
@@ -177,8 +177,8 @@ export function useDeleteSessionType() {
       qc.invalidateQueries({ queryKey: keys.mySessionTypes() });
       toast({ title: 'Session type deleted' });
     },
-    onError: () => {
-      toast({ title: 'Error', description: 'Failed to delete session type.', variant: 'destructive' });
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to delete session type.', variant: 'destructive' });
     },
   });
 }
@@ -207,8 +207,8 @@ export function useUpdateSessionPricing() {
       qc.invalidateQueries({ queryKey: keys.mySessionTypes() });
       toast({ title: 'Pricing updated' });
     },
-    onError: () => {
-      toast({ title: 'Error', description: 'Failed to update pricing.', variant: 'destructive' });
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to update pricing.', variant: 'destructive' });
     },
   });
 }

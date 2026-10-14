@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { DEPARTMENTS, DURATION_PRESETS, type DepartmentKey } from '@upllyft/types';
 import Link from 'next/link';
 import { BookingShell } from '@/booking/components/booking-shell';
 import {
@@ -10,6 +11,8 @@ import {
   useUpdateSessionType,
   useDeleteSessionType,
   useUpdateSessionPricing,
+  useMyTherapistProfile,
+  useUpdateTherapistProfile,
 } from '@/booking/hooks/use-marketplace';
 import { formatCurrency, formatDuration } from '@/booking/lib/utils';
 import { useRegion } from '@upllyft/api-client';
@@ -51,6 +54,39 @@ export default function TherapistPricingPage() {
   // New prices are set in the therapist's regional currency (the label said USD
   // while the server stored INR). Existing prices keep their own currency.
   const { currency: regionCurrency } = useRegion();
+  const { data: profile } = useMyTherapistProfile();
+  const updateProfile = useUpdateTherapistProfile();
+
+  // Same service list and durations as the organisation's Fees step at set-up.
+  const deptKey = profile?.department as DepartmentKey | undefined;
+  const services = deptKey && DEPARTMENTS[deptKey] ? DEPARTMENTS[deptKey].services : [];
+  const durations: number[] = [...DURATION_PRESETS.extended];
+
+  // A service's durations sit together, shortest first, as on the set-up page.
+  const sortedTypes = useMemo(
+    () =>
+      (sessionTypes ?? []).slice().sort((a, b) => a.name.localeCompare(b.name) || a.duration - b.duration),
+    [sessionTypes],
+  );
+
+  // Sliding scale / insurance-covered rate (also set in the set-up Fees step).
+  const [slidingScale, setSlidingScale] = useState(false);
+  const [slidingScaleRate, setSlidingScaleRate] = useState('');
+  useEffect(() => {
+    if (profile) {
+      setSlidingScale(profile.slidingScaleAvailable ?? false);
+      setSlidingScaleRate(profile.slidingScaleRate != null ? String(profile.slidingScaleRate) : '');
+    }
+  }, [profile]);
+
+  function saveSlidingScale() {
+    const rate = slidingScaleRate.trim() ? Number(slidingScaleRate) : null;
+    if (slidingScale && rate !== null && (!Number.isFinite(rate) || rate < 0)) {
+      toast({ title: 'Invalid rate', variant: 'destructive' });
+      return;
+    }
+    updateProfile.mutate({ slidingScaleAvailable: slidingScale, slidingScaleRate: slidingScale ? rate : null });
+  }
 
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -78,6 +114,14 @@ export default function TherapistPricingPage() {
     return pricing?.find((p) => p.sessionTypeId === typeId);
   }
 
+  // The price families are charged: the Pricing record, else the fee set at set-up.
+  function priceOf(st: SessionType): { price: number; currency: string } | null {
+    const p = getPriceForType(st.id);
+    if (p) return { price: p.price, currency: p.currency };
+    if (typeof st.defaultPrice === 'number') return { price: st.defaultPrice, currency: st.currency || regionCurrency };
+    return null;
+  }
+
   function handleAdd() {
     if (!addName.trim()) {
       toast({ title: 'Name required', variant: 'destructive' });
@@ -94,8 +138,23 @@ export default function TherapistPricingPage() {
       return;
     }
 
+    if (sessionTypes?.some((st) => st.isActive && st.name === addName.trim() && st.duration === duration)) {
+      toast({
+        title: 'Already offered',
+        description: `${addName.trim()} (${duration} min) is already in your list.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     createType.mutate(
-      { name: addName.trim(), description: addDescription.trim() || undefined, duration, currency: regionCurrency },
+      {
+        name: addName.trim(),
+        description: addDescription.trim() || undefined,
+        duration,
+        defaultPrice: price,
+        currency: regionCurrency,
+      },
       {
         onSuccess: (newType) => {
           updatePricing.mutate({ sessionTypeId: newType.id, price, currency: regionCurrency });
@@ -110,7 +169,7 @@ export default function TherapistPricingPage() {
   }
 
   function openEdit(st: SessionType) {
-    const p = getPriceForType(st.id);
+    const p = priceOf(st);
     setEditTarget(st);
     setEditName(st.name);
     setEditDescription(st.description || '');
@@ -187,7 +246,20 @@ export default function TherapistPricingPage() {
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="add-name">Name *</Label>
+                    <Label htmlFor="add-name">Service *</Label>
+                    {services.length > 0 && (
+                      <select
+                        id="add-service"
+                        value={services.some((s) => s.label === addName) ? addName : ''}
+                        onChange={(e) => setAddName(e.target.value)}
+                        className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      >
+                        <option value="">Other (type a name below)</option>
+                        {services.map((s) => (
+                          <option key={s.key} value={s.label}>{s.label}</option>
+                        ))}
+                      </select>
+                    )}
                     <Input
                       id="add-name"
                       placeholder="e.g. Individual Therapy"
@@ -207,15 +279,17 @@ export default function TherapistPricingPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="add-duration">Duration (minutes) *</Label>
-                      <Input
+                      <Label htmlFor="add-duration">Duration *</Label>
+                      <select
                         id="add-duration"
-                        type="number"
-                        min={15}
-                        max={240}
                         value={addDuration}
                         onChange={(e) => setAddDuration(e.target.value)}
-                      />
+                        className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      >
+                        {durations.map((d) => (
+                          <option key={d} value={d}>{formatDuration(d)}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="add-price">Price ({regionCurrency}) *</Label>
@@ -278,8 +352,8 @@ export default function TherapistPricingPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {sessionTypes.map((st) => {
-              const p = getPriceForType(st.id);
+            {sortedTypes.map((st) => {
+              const p = priceOf(st);
               return (
                 <Card key={st.id} className="rounded-2xl">
                   <div className="pt-6 p-6">
@@ -344,8 +418,9 @@ export default function TherapistPricingPage() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Session Type</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete &ldquo;{st.name}&rdquo;? This action cannot be undone.
-                                Active bookings for this type will not be affected.
+                                Remove &ldquo;{st.name}&rdquo; ({formatDuration(st.duration)}) from your services?
+                                Families will no longer be able to book it. A service with upcoming bookings
+                                can&apos;t be removed until those sessions are completed or cancelled.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -367,6 +442,54 @@ export default function TherapistPricingPage() {
             })}
           </div>
         )}
+
+        {/* Sliding scale */}
+        <Card className="rounded-2xl">
+          <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h3 className="font-semibold text-gray-900">Sliding scale / insurance-covered rate</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Offer a reduced rate to families who need it.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSlidingScale(!slidingScale)}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                  slidingScale ? 'bg-teal-500' : 'bg-gray-300'
+                }`}
+                aria-pressed={slidingScale}
+                aria-label="Offer a sliding scale rate"
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    slidingScale ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {slidingScale && (
+              <div className="space-y-2 max-w-xs">
+                <Label htmlFor="sliding-rate">Rate ({regionCurrency})</Label>
+                <Input
+                  id="sliding-rate"
+                  type="number"
+                  min={0}
+                  value={slidingScaleRate}
+                  onChange={(e) => setSlidingScaleRate(e.target.value)}
+                />
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button
+                onClick={saveSlidingScale}
+                disabled={updateProfile.isPending}
+                className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl"
+              >
+                {updateProfile.isPending ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </Card>
 
         {/* Edit Dialog */}
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -395,15 +518,18 @@ export default function TherapistPricingPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-duration">Duration (minutes) *</Label>
-                  <Input
+                  <Label htmlFor="edit-duration">Duration *</Label>
+                  <select
                     id="edit-duration"
-                    type="number"
-                    min={15}
-                    max={240}
                     value={editDuration}
                     onChange={(e) => setEditDuration(e.target.value)}
-                  />
+                    className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    {/* An older non-preset duration stays selectable so editing doesn't change it. */}
+                    {(durations.includes(Number(editDuration)) ? durations : [Number(editDuration), ...durations]).map((d) => (
+                      <option key={d} value={d}>{formatDuration(d)}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-price">Price ({editCurrency})</Label>
