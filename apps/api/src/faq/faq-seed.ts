@@ -68,8 +68,8 @@ export const FAQ_SEED: FaqSeedCategory[] = [
       {
         "slug": "are-my-conversations-with-mira-private",
         "question": "Are my conversations with Mira private?",
-        "answer": "Your conversations are saved to your account so you can come back to them, and they are not shared with other users. **[Confirm wording against the privacy policy, including whether chats are sent to AI providers.]**",
-        "published": false
+        "answer": "Your conversations are saved to your account so you can come back to them, and they are not shared with other users. To write its replies, Mira sends your message to our AI provider (OpenAI). We do not sell your personal information.",
+        "published": true
       }
     ]
   },
@@ -223,13 +223,13 @@ export const FAQ_SEED: FaqSeedCategory[] = [
       {
         "slug": "where-is-my-data-stored",
         "question": "Where is my data stored?",
-        "answer": "Your data is stored securely in the European Union. **[Confirm with your hosting/legal setup; the database runs in Supabase's Stockholm region.]**",
-        "published": false
+        "answer": "Your account data and uploaded files are stored in the European Union (Stockholm, Sweden), encrypted in transit and at rest. For questions about how we handle your data, email privacy@upllyft.com.",
+        "published": true
       },
       {
         "slug": "how-do-i-delete-my-account",
         "question": "How do I delete my account?",
-        "answer": "Go to **Settings → Delete account**. **[Confirm what gets deleted, and how long it takes.]**",
+        "answer": "Email support@upllyft.com from the address you signed up with and ask us to delete your account. **[Replace once self-service deletion works: say what gets deleted and how long it takes.]**",
         "published": false
       }
     ]
@@ -248,7 +248,7 @@ export const FAQ_SEED: FaqSeedCategory[] = [
       {
         "slug": "how-does-verification-work",
         "question": "How does verification work?",
-        "answer": "Our team reviews your account and licence details, or your clinic verifies you if you work for one. Once approved, your profile shows the verified tick. Unverified therapists can be listed in Find care but can't take bookings. **[Add the typical review time and how therapists send documents.]**",
+        "answer": "Our team reviews your account and licence details, or your clinic verifies you if you work for one. Once approved, your profile shows the verified tick. Unverified therapists can be listed in Find care but can't take bookings.\n\nTo be verified, add your licence number, issuing authority and expiry date to your profile, then email a copy of your licence to support@upllyft.com. If you work for a clinic, the clinic can upload it for you. **[Add the typical review time.]**",
         "published": false
       },
       {
@@ -260,8 +260,8 @@ export const FAQ_SEED: FaqSeedCategory[] = [
       {
         "slug": "therapist-directory-listing",
         "question": "I was listed in the directory. What does that mean?",
-        "answer": "Your public details (name, specialty, location, licence number) appear in Find care so families can contact you directly. You won't receive bookings through Upllyft. To get a full, bookable profile, **[explain how they claim/activate their account, e.g. contact support]**.",
-        "published": false
+        "answer": "Your public details (name, specialty, location, licence number) appear in Find care so families can contact you directly. You won't receive bookings through Upllyft. To get a full, bookable profile, email support@upllyft.com from the address shown in your listing and we'll activate your account.",
+        "published": true
       },
       {
         "slug": "will-parents-see-my-phone-number-and-email",
@@ -278,8 +278,8 @@ export const FAQ_SEED: FaqSeedCategory[] = [
       {
         "slug": "can-i-work-with-a-clinic-and-independently",
         "question": "Can I work with a clinic and independently?",
-        "answer": "**[Confirm the policy.]** You can be linked to a clinic, which approves the connection. Clinic-linked profiles show \"At [clinic name]\".",
-        "published": false
+        "answer": "You can belong to one clinic at a time. While you're part of a clinic, it manages your services, schedule and location, and your profile shows \"At\" followed by the clinic's name.\n\nYour own practice counts as a clinic too, so you can't run one while you're on another clinic's staff. To work independently, leave the clinic first, then set up your own practice.",
+        "published": true
       },
       {
         "slug": "own-practice",
@@ -451,8 +451,8 @@ export const FAQ_SEED: FaqSeedCategory[] = [
       {
         "slug": "contact-support",
         "question": "How do I contact support?",
-        "answer": "Email **[support address]** or use **[contact form/WhatsApp]**. We usually reply within **[time frame]**.",
-        "published": false
+        "answer": "Email support@upllyft.com. Parents can also ask Mira, which can answer most questions about using Upllyft.",
+        "published": true
       }
     ]
   }

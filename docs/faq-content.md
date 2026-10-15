@@ -42,7 +42,7 @@ Mira (Mindful Intelligent Response Assistant) is Upllyft's AI guide for parents.
 No. Mira gives general guidance and information, not medical advice or a diagnosis. For concerns about your child's development, please speak to a qualified professional.
 
 **7. Are my conversations with Mira private?**
-Your conversations are saved to your account so you can come back to them, and they are not shared with other users. **[Confirm wording against the privacy policy, including whether chats are sent to AI providers.]**
+Your conversations are saved to your account so you can come back to them, and they are not shared with other users. To write its replies, Mira sends your message to our AI provider (OpenAI). We do not sell your personal information.
 
 ## Screening <!-- screening PARENT -->
 
@@ -122,10 +122,10 @@ Nurseries and schools never see a diagnosis.
 Before a clinic starts therapy with your child, the therapist sends a consent form to sign electronically. You'll get a notification with a link to it. Session notes can't be recorded until it's signed.
 
 **27. Where is my data stored?**
-Your data is stored securely in the European Union. **[Confirm with your hosting/legal setup; the database runs in Supabase's Stockholm region.]**
+Your account data and uploaded files are stored in the European Union (Stockholm, Sweden), encrypted in transit and at rest. For questions about how we handle your data, email privacy@upllyft.com.
 
 **28. How do I delete my account?**
-Go to **Settings → Delete account**. **[Confirm what gets deleted, and how long it takes.]**
+Email support@upllyft.com from the address you signed up with and ask us to delete your account. **[Replace once self-service deletion works: say what gets deleted and how long it takes.]**
 
 ---
 
@@ -135,13 +135,15 @@ Go to **Settings → Delete account**. **[Confirm what gets deleted, and how lon
 Register as a therapist and complete your profile, including your specialties, experience, languages and licence details. Our team reviews new professional accounts before they are verified.
 
 **30. How does verification work?**
-Our team reviews your account and licence details, or your clinic verifies you if you work for one. Once approved, your profile shows the verified tick. Unverified therapists can be listed in Find care but can't take bookings. **[Add the typical review time and how therapists send documents.]**
+Our team reviews your account and licence details, or your clinic verifies you if you work for one. Once approved, your profile shows the verified tick. Unverified therapists can be listed in Find care but can't take bookings.
+
+To be verified, add your licence number, issuing authority and expiry date to your profile, then email a copy of your licence to support@upllyft.com. If you work for a clinic, the clinic can upload it for you. **[Add the typical review time.]**
 
 **31. What happens when my licence expires?** <!-- licence-expiry -->
 We check licence expiry dates every night. Once yours passes, your profile is hidden from Find care and you can't be added to new cases until your renewed licence has been verified again by your clinic or by Upllyft. Keep your licence expiry date up to date in your profile.
 
 **32. I was listed in the directory. What does that mean?** <!-- therapist-directory-listing -->
-Your public details (name, specialty, location, licence number) appear in Find care so families can contact you directly. You won't receive bookings through Upllyft. To get a full, bookable profile, **[explain how they claim/activate their account, e.g. contact support]**.
+Your public details (name, specialty, location, licence number) appear in Find care so families can contact you directly. You won't receive bookings through Upllyft. To get a full, bookable profile, email support@upllyft.com from the address shown in your listing and we'll activate your account.
 
 **33. Will parents see my phone number and email?**
 Only for directory listings, and only when a signed-in parent presses **Show contact**. Bookable therapists' contact details stay private; families reach them through booking.
@@ -152,7 +154,9 @@ A clinic adds you, or invites you by email. Sign in or register with the invited
 Once you're part of a clinic, your profile shows "At" followed by the clinic's name, and the clinic manages your services, schedule and location.
 
 **35. Can I work with a clinic and independently?**
-**[Confirm the policy.]** You can be linked to a clinic, which approves the connection. Clinic-linked profiles show "At [clinic name]".
+You can belong to one clinic at a time. While you're part of a clinic, it manages your services, schedule and location, and your profile shows "At" followed by the clinic's name.
+
+Your own practice counts as a clinic too, so you can't run one while you're on another clinic's staff. To work independently, leave the clinic first, then set up your own practice.
 
 **36. Can I set up my own practice?** <!-- own-practice -->
 Yes. Press **Set up my practice** on your dashboard to create your own clinic, with you as its owner. You can run one practice, and not while you're on the staff of another clinic. Your practice is approved once your own licence has been verified.
@@ -252,4 +256,4 @@ Check your spam folder and your notification settings. Urgent updates are sent s
 Go to **Settings → Notifications** and choose daily or weekly summaries.
 
 **58. How do I contact support?** <!-- contact-support -->
-Email **[support address]** or use **[contact form/WhatsApp]**. We usually reply within **[time frame]**.
+Email support@upllyft.com. Parents can also ask Mira, which can answer most questions about using Upllyft.

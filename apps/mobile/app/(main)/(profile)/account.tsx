@@ -40,17 +40,33 @@ export default function AccountScreen() {
     }
   };
 
+  // Account deletion: tap Delete Account, type DELETE, then confirm in a final alert.
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteText, setDeleteText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
   const handleDeleteAccount = () => {
+    if (deleteText !== 'DELETE') return;
     Alert.alert(
-      'Delete Account',
-      'This action is permanent and cannot be undone. All your data will be deleted.',
+      'Delete your account?',
+      "This can't be undone and you won't be able to sign in again.",
       [
-        { text: 'Cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Confirm Deletion', 'Type "DELETE" to confirm', [{ text: 'Cancel' }], { cancelable: true });
+          onPress: async () => {
+            setDeleteError('');
+            setDeleting(true);
+            try {
+              await api.delete('/users/me', { data: { confirm: deleteText } });
+              await logout();
+            } catch (err: any) {
+              setDeleteError(err.response?.data?.message || 'Failed to delete account');
+            } finally {
+              setDeleting(false);
+            }
           },
         },
       ],
@@ -87,10 +103,46 @@ export default function AccountScreen() {
 
         <View style={styles.dangerZone}>
           <Text style={styles.sectionTitle}>Danger Zone</Text>
-          <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-            <Text style={styles.deleteBtnText}>Delete Account</Text>
-          </TouchableOpacity>
+          {!showDelete ? (
+            <TouchableOpacity style={styles.deleteBtn} onPress={() => setShowDelete(true)}>
+              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              <Text style={styles.deleteBtnText}>Delete Account</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <Text style={styles.deleteNote}>
+                Your name, contact details, children&apos;s details, messages and Mira conversations are removed and you
+                won&apos;t be able to sign in again. Posts you wrote in the community stay, shown as &quot;[deleted]&quot;.
+              </Text>
+              {deleteError ? <Text style={styles.errorText}>{deleteError}</Text> : null}
+              <TextInput
+                style={styles.input}
+                placeholder="Type DELETE to confirm"
+                placeholderTextColor={COLORS.textSecondary}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                value={deleteText}
+                onChangeText={setDeleteText}
+              />
+              <TouchableOpacity
+                style={[styles.deleteBtn, (deleteText !== 'DELETE' || deleting) && { opacity: 0.5 }]}
+                onPress={handleDeleteAccount}
+                disabled={deleteText !== 'DELETE' || deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator color="#EF4444" />
+                ) : (
+                  <Text style={styles.deleteBtnText}>Permanently Delete Account</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => { setShowDelete(false); setDeleteText(''); setDeleteError(''); }}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -113,4 +165,7 @@ const styles = StyleSheet.create({
   dangerZone: { marginTop: 40, paddingTop: 20, borderTopWidth: 1, borderTopColor: COLORS.border },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 10, borderWidth: 1.5, borderColor: '#EF4444' },
   deleteBtnText: { fontSize: 16, fontWeight: '600', color: '#EF4444' },
+  deleteNote: { fontSize: 13, lineHeight: 19, color: COLORS.textSecondary, marginBottom: 12 },
+  cancelBtn: { alignItems: 'center', paddingVertical: 12 },
+  cancelBtnText: { fontSize: 14, color: COLORS.textSecondary },
 });
