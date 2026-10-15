@@ -17,6 +17,7 @@ import {
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 import { CareWaitlistService } from '../care-waitlist/care-waitlist.service';
+import { AccountDeletionService } from '../users/account-deletion.service';
 const ALLOWED_MIMES = [
   'application/pdf',
   'image/jpeg',
@@ -58,6 +59,7 @@ export class AdminService {
     private configService: ConfigService,
     private auditService: AuditService,
     private careWaitlist: CareWaitlistService,
+    private accountDeletion: AccountDeletionService,
   ) { }
 
   private get supabase(): SupabaseClient {
@@ -998,82 +1000,11 @@ export class AdminService {
   async deleteUserData(userId: string, adminId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true },
+      select: { id: true, email: true },
     });
     if (!user) throw new NotFoundException('User not found');
 
-    const REDACTED = '[deleted]';
-
-    await this.prisma.$transaction(async (tx) => {
-      // 1. Anonymise user PII
-      await tx.user.update({
-        where: { id: userId },
-        data: {
-          name: REDACTED,
-          email: `deleted-${userId}@deleted.upllyft.com`,
-          phone: null,
-          location: null,
-          bio: null,
-          image: null,
-          password: null,
-          emergencyContact: null,
-          emergencyPhone: null,
-          website: null,
-          education: null,
-          resetPasswordToken: null,
-        },
-      });
-
-      // 2. Anonymise user profile
-      await tx.userProfile.updateMany({
-        where: { userId },
-        data: {
-          fullName: REDACTED,
-          phoneNumber: null,
-          alternatePhone: null,
-          email: null,
-          occupation: null,
-        },
-      });
-
-      // 3. Anonymise children
-      const children = await tx.child.findMany({
-        where: { profile: { userId } },
-        select: { id: true },
-      });
-      for (const child of children) {
-        await tx.child.update({
-          where: { id: child.id },
-          data: {
-            firstName: REDACTED,
-            nickname: null,
-            address: null,
-            city: null,
-            state: null,
-            nationality: null,
-            placeOfBirth: null,
-          },
-        });
-      }
-
-      // 4. Anonymise message bodies
-      await tx.message.updateMany({
-        where: { senderId: userId },
-        data: { body: REDACTED },
-      });
-
-      // 5. Anonymise Mira conversation content
-      const miraConvos = await tx.miraConversation.findMany({
-        where: { userId },
-        select: { id: true },
-      });
-      for (const convo of miraConvos) {
-        await tx.miraMessage.updateMany({
-          where: { conversationId: convo.id },
-          data: { content: REDACTED },
-        });
-      }
-    });
+    await this.accountDeletion.anonymise(userId, user.email);
 
     // Audit the deletion
     await this.auditService.log({

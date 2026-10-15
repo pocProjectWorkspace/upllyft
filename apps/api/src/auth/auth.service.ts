@@ -24,6 +24,7 @@ import { promisify } from 'util';
 import { AppLoggerService } from '../common/logging';
 import { FcmTokenService } from '../fcm-token/fcm-token.service';
 import { acceptPlatformInvitations } from '../people-onboarding/parent-invitation.service';
+import { isDeletedAccountEmail } from '../users/account-deletion.service';
 
 @Injectable()
 export class AuthService {
@@ -358,7 +359,8 @@ export class AuthService {
         where: { id: payload.sub || payload.id },
       });
 
-      if (!user) {
+      // A deleted (anonymised) account keeps its row; its old refresh tokens must stop working.
+      if (!user || isDeletedAccountEmail(user.email)) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 

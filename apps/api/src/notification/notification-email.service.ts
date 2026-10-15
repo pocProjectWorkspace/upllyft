@@ -4,6 +4,7 @@ import { Cron } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService, escapeHtml } from '../email/email.service';
+import { isDeletedAccountEmail } from '../users/account-deletion.service';
 import {
   EmailFrequency,
   absoluteLink,
@@ -13,11 +14,16 @@ import {
   emailPrefsFrom,
 } from './email-rules';
 
-/** Addresses that must never receive mail: test fixtures and claim placeholders. */
+/** Addresses that must never receive mail: test fixtures, claim placeholders and deleted accounts. */
 export function isDeliverable(email: string | null | undefined): email is string {
   if (!email || !email.includes('@')) return false;
   const e = email.toLowerCase();
-  return !e.startsWith('placeholder.') && !e.endsWith('.internal') && !e.endsWith('@example.com');
+  return (
+    !e.startsWith('placeholder.') &&
+    !e.endsWith('.internal') &&
+    !e.endsWith('@example.com') &&
+    !isDeletedAccountEmail(e)
+  );
 }
 
 const MAX_DIGEST_ITEMS = 15;

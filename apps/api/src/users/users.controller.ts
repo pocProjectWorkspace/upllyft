@@ -27,6 +27,7 @@ import { randomBytes } from 'crypto';
 import { StorageService } from '../common/storage/storage.service';
 import { detectContentType } from '../common/storage/file-type';
 import { AccountPreferencesService } from './account-preferences.service';
+import { AccountDeletionService } from './account-deletion.service';
 
 const AVATAR_MIMES = ['image/jpeg', 'image/png', 'image/gif'] as const;
 
@@ -36,6 +37,7 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly storage: StorageService,
     private readonly accountPreferences: AccountPreferencesService,
+    private readonly accountDeletion: AccountDeletionService,
   ) { }
 
   // Settings toggles (notifications, privacy, crisis, feed) and email frequency.
@@ -56,6 +58,16 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async getMyProfile(@Request() req: any) {
     return this.usersService.getProfileWithStats(req.user.id, req.user.id);
+  }
+
+  // Delete (anonymise) the current account. The body must repeat the word the UI asks for.
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  async deleteMyAccount(@Request() req: any, @Body() body: { confirm?: string }) {
+    if (body?.confirm !== 'DELETE') {
+      throw new BadRequestException('Type DELETE to confirm');
+    }
+    return this.accountDeletion.deleteOwnAccount(req.user.id);
   }
 
   // Update current user's region/country

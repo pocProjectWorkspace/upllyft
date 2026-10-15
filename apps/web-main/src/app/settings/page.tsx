@@ -92,8 +92,8 @@ export default function SettingsPage() {
     if (deleteConfirmText !== 'DELETE') return;
     setDeleting(true);
     try {
-      await apiClient.delete('/users/me');
-      toast({ title: 'Account deleted', description: 'Your account has been permanently deleted' });
+      await apiClient.delete('/users/me', { data: { confirm: deleteConfirmText } });
+      toast({ title: 'Account deleted', description: 'Your account and personal details have been removed' });
       logout();
       router.push('/login');
     } catch (err: any) {
@@ -334,7 +334,9 @@ export default function SettingsPage() {
                 <div className="space-y-3 max-w-sm">
                   <div className="bg-red-50 border border-red-100 rounded-xl p-3">
                     <p className="text-sm text-red-700">
-                      This action is permanent and cannot be undone. All your data, posts, and profile information will be permanently deleted.
+                      This can&apos;t be undone. Your name, contact details, children&apos;s details, messages and Mira
+                      conversations are removed and you won&apos;t be able to sign in again. Posts you wrote in the
+                      community stay, shown as &ldquo;[deleted]&rdquo;.
                     </p>
                   </div>
                   <div>
