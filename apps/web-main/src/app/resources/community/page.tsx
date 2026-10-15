@@ -3,6 +3,8 @@
 import Image from '@/components/app-image';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@upllyft/api-client';
+import { SaveButton } from '@/resources/my-library/save-button';
 import {
   Button,
   Card,
@@ -39,6 +41,9 @@ const SORT_OPTIONS = [
 
 export default function CommunityLibraryPage() {
   const router = useRouter();
+  // Saving to My Library is for professionals; parents keep their child's library.
+  const { user } = useAuth();
+  const canSave = !!user && user.role !== 'USER';
   const [search, setSearch] = useState('');
   const [type, setType] = useState<string>('all');
   const [difficulty, setDifficulty] = useState<string>('all');
@@ -186,6 +191,7 @@ export default function CommunityLibraryPage() {
                       </svg>
                     </div>
                   )}
+                  {canSave && <SaveButton kind="WORKSHEET" id={ws.id} title={ws.title} className="absolute right-3 top-3" />}
                 </div>
 
                 {/* Content */}

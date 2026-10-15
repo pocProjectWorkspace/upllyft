@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Patch, Delete, Body, Param, UseGuards, Req, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
+import { assertNoUpcomingBookings } from '../common/upcoming-bookings';
 
 @Controller('marketplace/therapists/me')
 @UseGuards(JwtAuthGuard)
@@ -23,12 +24,19 @@ export class TherapistManagementController {
             throw new NotFoundException('Therapist profile not found');
         }
 
+        // defaultPrice is required by the schema; the Pricing page only sent a price
+        // afterwards, so creating a session type there always failed.
+        const defaultPrice = Number(dto.defaultPrice ?? dto.price ?? 0);
+        if (!Number.isFinite(defaultPrice) || defaultPrice < 0) {
+            throw new BadRequestException('A valid price is required.');
+        }
+
         return this.prisma.sessionType.create({
             data: {
                 name: dto.name,
                 description: dto.description,
                 duration: dto.duration,
-                defaultPrice: dto.defaultPrice,
+                defaultPrice,
                 currency: dto.currency || 'INR',
                 therapistId: therapistProfile.id,
                 isActive: true,
@@ -89,6 +97,10 @@ export class TherapistManagementController {
             throw new NotFoundException('Session type not found');
         }
 
+        if (dto.isActive === false && sessionType.isActive) {
+            await assertNoUpcomingBookings(this.prisma, sessionType.id, sessionType.name);
+        }
+
         return this.prisma.sessionType.update({
             where: { id: sessionTypeId },
             data: {
@@ -128,6 +140,8 @@ export class TherapistManagementController {
         if (!sessionType) {
             throw new NotFoundException('Session type not found');
         }
+
+        await assertNoUpcomingBookings(this.prisma, sessionType.id, sessionType.name);
 
         // Soft delete by marking as inactive
         return this.prisma.sessionType.update({
@@ -174,6 +188,13 @@ export class TherapistManagementController {
         // Keep the currency the session type was priced in unless one is given —
         // re-saving a price must not flip it to INR.
         const currency = dto.currency || sessionType.currency || 'INR';
+
+        // One price per session type: the organisation's set-up wizard reads and writes
+        // defaultPrice, booking prefers SessionPricing, so keep the two equal.
+        await this.prisma.sessionType.update({
+            where: { id: sessionType.id },
+            data: { defaultPrice: price, ...(sessionType.setBy === 'admin' ? { edited: true } : {}) },
+        });
 
         // Upsert pricing
         return this.prisma.sessionPricing.upsert({
@@ -278,6 +299,9 @@ export class TherapistManagementController {
 
         return {
             totalBookings: bookings.length,
+            // totalRevenue is earned on completed sessions only, so per-session averages
+            // divide by this, not by totalBookings (which includes pending/cancelled).
+            completedSessions: completedBookings.length,
             totalRevenue,
             currency: ranked[0]?.[0] ?? null,
             mixedCurrencies: ranked.length > 1,

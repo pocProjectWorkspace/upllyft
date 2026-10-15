@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/money';
 import type { BookingStatus } from './api/marketplace';
 import type { InvoiceStatus } from './api/invoices';
 
@@ -43,14 +44,12 @@ export function formatCurrency(amount: number | null | undefined, currency = 'US
   // booking and earnings screens. A missing amount is unknown, not zero — show a
   // dash so the gap is visible instead of looking like a broken calculation.
   if (typeof amount !== 'number' || !Number.isFinite(amount)) return '—';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+  return formatMoney(amount, currency);
 }
 
 export function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  // Minutes everywhere, matching the organisation's Fees step ("60 min", not "1h").
+  return `${minutes} min`;
 }
 
 export function formatDateTime(date: string | Date): string {

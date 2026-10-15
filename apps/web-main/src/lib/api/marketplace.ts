@@ -2,6 +2,8 @@ import { apiClient } from '@upllyft/api-client';
 
 export interface TherapistAnalytics {
   totalBookings: number;
+  /** Completed sessions only — the count totalRevenue is earned on. */
+  completedSessions?: number;
   totalRevenue: number;
   /** Currency of totalRevenue (whole units, not cents). */
   currency?: string | null;
@@ -19,7 +21,8 @@ export interface Booking {
   sessionTypeId: string;
   startDateTime: string;
   endDateTime: string;
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'REJECTED';
+  // Mirrors the API's BookingStatus; there is no plain 'PENDING'.
+  status: 'PENDING_PAYMENT' | 'PENDING_ACCEPTANCE' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'REJECTED' | 'NO_SHOW';
   notes?: string;
   totalAmount?: number;
   client?: {

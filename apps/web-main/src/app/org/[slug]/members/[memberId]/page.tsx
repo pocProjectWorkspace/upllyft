@@ -92,6 +92,18 @@ function currencyFor(country: Country) {
   return country === 'UAE' ? 'AED' : 'INR';
 }
 
+function timezoneFor(country: Country) {
+  return country === 'UAE' ? 'Asia/Dubai' : 'Asia/Kolkata';
+}
+
+// The therapist's own Edit Profile saves the country as an ISO code (AE / IN)
+// while this wizard saved the name, so a profile edited on one side loaded on the
+// other as an unknown value (and its fees in the wrong currency). Accept both.
+function countryFromProfile(value?: string | null): Country {
+  const v = value?.trim().toLowerCase();
+  return v === 'uae' || v === 'ae' || v === 'united arab emirates' ? 'UAE' : 'India';
+}
+
 function emptyFee(): FeeRow {
   return { service: '', durations: [], prices: {} };
 }
@@ -186,7 +198,9 @@ function feesFromSessionTypes(sts: WizardSessionType[], deptKey: DepartmentKey |
   }
   const byName: Record<string, FeeRow> = {};
   for (const st of sts) {
-    if (!byName[st.name]) byName[st.name] = { service: labelToKey[st.name] || '', durations: [], prices: {} };
+    // A fee the therapist named themselves on their Pricing page keeps its name as the
+    // service, so saving here doesn't drop (and deactivate) it.
+    if (!byName[st.name]) byName[st.name] = { service: labelToKey[st.name] || st.name, durations: [], prices: {} };
     byName[st.name].durations.push(st.duration);
     byName[st.name].prices[st.duration] = String(st.defaultPrice);
   }
@@ -369,7 +383,7 @@ export default function AddTherapistWizard() {
                 department: deptKey,
                 phone: p.phone ?? '',
                 branch: p.branch ?? '',
-                country: (p.country as Country) || 'India',
+                country: countryFromProfile(p.country),
                 qualification: p.qualification ?? '',
                 university: p.university ?? '',
                 yearsExperience: p.yearsExperience != null ? String(p.yearsExperience) : '',
@@ -504,6 +518,11 @@ export default function AddTherapistWizard() {
   }
 
   async function next() {
+    // Same phone rule as the therapist's own Edit Profile.
+    if (step === 0 && form.phone.trim() && !/^\+?[\d\s()-]{7,20}$/.test(form.phone.trim())) {
+      toast({ title: 'Check phone number', description: 'Use digits, spaces and an optional leading +.', variant: 'destructive' });
+      return;
+    }
     // Each step persists to the shared therapist records on Continue.
     setSaving(true);
     try {
@@ -512,7 +531,7 @@ export default function AddTherapistWizard() {
       } else if (step === 2) {
         await saveMemberSessionTypes(slug, memberId, feesToItems(form.fees, form.department, currency));
       } else if (step === 3) {
-        await saveMemberAvailability(slug, memberId, gridToSlots(form.availability), 'Asia/Kolkata');
+        await saveMemberAvailability(slug, memberId, gridToSlots(form.availability), timezoneFor(form.country));
       }
     } catch (err: any) {
       toast({
@@ -650,7 +669,7 @@ export default function AddTherapistWizard() {
             <Field label="Phone">
               <input className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} />
             </Field>
-            <Field label="Country">
+            <Field label="Country of practice">
               <select className={inputCls} value={form.country} onChange={(e) => set('country', e.target.value as Country)}>
                 <option value="India">India</option>
                 <option value="UAE">UAE</option>
@@ -807,6 +826,9 @@ export default function AddTherapistWizard() {
                             {s.label}
                           </option>
                         ))}
+                        {row.service && !dept?.services.some((s) => s.key === row.service) && (
+                          <option value={row.service}>{row.service}</option>
+                        )}
                       </select>
                     </Field>
                   </div>
@@ -883,7 +905,7 @@ export default function AddTherapistWizard() {
                 <input className={inputCls} type="number" value={form.buffer} onChange={(e) => set('buffer', Number(e.target.value))} />
               </Field>
               <Field label="Timezone" hint="Read-only">
-                <input className={inputCls + ' bg-gray-50 text-gray-500'} readOnly value="Asia/Kolkata" />
+                <input className={inputCls + ' bg-gray-50 text-gray-500'} readOnly value={timezoneFor(form.country)} />
               </Field>
               <Field label="Mode">
                 <select className={inputCls} value={form.mode} onChange={(e) => set('mode', e.target.value as Mode)}>

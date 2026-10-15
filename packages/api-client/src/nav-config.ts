@@ -125,7 +125,7 @@ export function getNavItems(
       ]
     : isProfessional
       ? [
-          { label: 'Dashboard', href: `${B}/therapist/dashboard` },
+          { label: 'Hub', href: M },
           { label: 'Bookings & Availability', href: `${B}/therapist/bookings` },
           { label: 'Earnings', href: `${B}/therapist/earnings` },
           { label: 'Pricing', href: `${B}/therapist/pricing` },
@@ -148,7 +148,7 @@ export function getNavItems(
         { label: 'Community', href: `${R}/community` },
       ]
     : [
-        { label: 'My Library', href: R },
+        { label: 'My Library', href: `${R}/my-library` },
         { label: 'Resource Library', href: `${R}/library` },
         { label: 'Create', href: `${R}/create` },
         { label: 'Community', href: `${R}/community` },

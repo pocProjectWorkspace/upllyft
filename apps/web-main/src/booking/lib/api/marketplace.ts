@@ -40,6 +40,13 @@ export interface TherapistProfile {
   department?: string | null;
   country?: string | null;
   city?: string | null;
+  // Shared with the organisation's set-up wizard (Basic Info / Credentials).
+  phone?: string | null;
+  branch?: string | null;
+  qualification?: string | null;
+  university?: string | null;
+  slidingScaleAvailable?: boolean;
+  slidingScaleRate?: number | null;
   clinicId?: string | null;
   /** Where they practise: their clinic's location, or their own when independent. */
   location?: { country: string | null; city: string | null };
@@ -65,6 +72,9 @@ export interface SessionType {
   name: string;
   description?: string;
   duration: number;
+  /** Kept equal to the SessionPricing price; set directly by the organisation's set-up. */
+  defaultPrice?: number;
+  currency?: string;
   isActive: boolean;
   setBy?: string | null; // 'admin' | 'therapist' — provenance
   edited?: boolean; // therapist edited an admin-authored type
@@ -205,11 +215,14 @@ export interface DiscoveryNeeds {
 
 export interface TherapistAnalytics {
   totalBookings: number;
+  /** Completed sessions only — the count totalRevenue is earned on. */
+  completedSessions?: number;
   totalRevenue: number;
   /** Currency of totalRevenue (whole units, not cents). */
   currency?: string | null;
   mixedCurrencies?: boolean;
   averageRating: number;
+  /** Already a percentage (0–100). */
   completionRate: number;
   pendingRequests: number;
   upcomingSessions: number;
@@ -311,12 +324,23 @@ export interface UpdateTherapistProfileDto {
   /** ISO code (IN / AE / SA); independent therapists only. */
   country?: string;
   city?: string;
+  /** Full name, stored on the user. */
+  name?: string;
+  department?: string;
+  phone?: string;
+  branch?: string;
+  qualification?: string;
+  university?: string;
+  slidingScaleAvailable?: boolean;
+  slidingScaleRate?: number | null;
 }
 
 export interface CreateSessionTypeDto {
   name: string;
   description?: string;
   duration: number;
+  /** Required by the API; also saved as the session's price. */
+  defaultPrice: number;
   /** ISO code the session is priced in. */
   currency?: string;
 }

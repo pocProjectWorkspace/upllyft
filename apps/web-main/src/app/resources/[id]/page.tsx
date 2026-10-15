@@ -24,7 +24,6 @@ import {
   Label,
   Textarea,
   Separator,
-  toast,
 } from '@upllyft/ui';
 import { ResourcesShell } from '@/resources/components/resources-shell';
 import {
@@ -35,7 +34,6 @@ import {
   usePublishWorksheet,
   useUnpublishWorksheet,
   useCloneWorksheet,
-  useAssignWorksheet,
   useLinkWorksheetToCase,
   useCreateVersion,
   useReviews,
@@ -58,6 +56,7 @@ import {
   renderStars,
 } from '@/resources/lib/utils';
 
+import { AssignDialog } from '@/resources/journey/assign-dialog';
 import { DetailSkeleton } from '@/components/skeletons';
 export default function WorksheetDetailPage() {
   const params = useParams();
@@ -73,7 +72,6 @@ export default function WorksheetDetailPage() {
   const publishMutation = usePublishWorksheet();
   const unpublishMutation = useUnpublishWorksheet();
   const cloneMutation = useCloneWorksheet();
-  const assignMutation = useAssignWorksheet();
   const linkCaseMutation = useLinkWorksheetToCase();
   const createVersionMutation = useCreateVersion();
   const createReviewMutation = useCreateReview();
@@ -85,7 +83,6 @@ export default function WorksheetDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [linkCaseOpen, setLinkCaseOpen] = useState(false);
-  const [assignForm, setAssignForm] = useState({ assignedToId: '', childId: '', dueDate: '', notes: '' });
   const [caseIdValue, setCaseIdValue] = useState('');
   const [reviewPage, setReviewPage] = useState(1);
   const [reviewRating, setReviewRating] = useState(5);
@@ -129,28 +126,9 @@ export default function WorksheetDetailPage() {
     deleteMutation.mutate(id, {
       onSuccess: () => {
         setDeleteOpen(false);
-        router.push('/resources');
+        router.push('/resources/my-library?tab=create');
       },
     });
-  }
-
-  function handleAssign() {
-    if (!assignForm.assignedToId || !assignForm.childId) {
-      toast({ title: 'Please fill in required fields', variant: 'destructive' });
-      return;
-    }
-    assignMutation.mutate(
-      {
-        worksheetId: id,
-        data: {
-          assignedToId: assignForm.assignedToId,
-          childId: assignForm.childId,
-          dueDate: assignForm.dueDate || undefined,
-          notes: assignForm.notes || undefined,
-        },
-      },
-      { onSuccess: () => { setAssignOpen(false); setAssignForm({ assignedToId: '', childId: '', dueDate: '', notes: '' }); } },
-    );
   }
 
   function handleLinkCase() {
@@ -377,62 +355,41 @@ export default function WorksheetDetailPage() {
               </Card>
             )}
 
-            {/* Assign as Homework */}
-            <Card className="p-6">
-              <h3 className="font-semibold text-gray-900 mb-2">Assign as Homework</h3>
-              <p className="text-sm text-gray-500 mb-4">Send this worksheet to a parent as homework.</p>
-              <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">Assign</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Assign Worksheet</DialogTitle>
-                    <DialogDescription>Send &quot;{worksheet.title}&quot; as homework.</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div>
-                      <Label>Assign to (User ID)</Label>
-                      <Input
-                        placeholder="User ID"
-                        value={assignForm.assignedToId}
-                        onChange={(e) => setAssignForm((f) => ({ ...f, assignedToId: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <Label>Child ID</Label>
-                      <Input
-                        placeholder="Child ID"
-                        value={assignForm.childId}
-                        onChange={(e) => setAssignForm((f) => ({ ...f, childId: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <Label>Due Date (optional)</Label>
-                      <Input
-                        type="date"
-                        value={assignForm.dueDate}
-                        onChange={(e) => setAssignForm((f) => ({ ...f, dueDate: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <Label>Notes (optional)</Label>
-                      <Textarea
-                        placeholder="Add instructions for the parent..."
-                        value={assignForm.notes}
-                        onChange={(e) => setAssignForm((f) => ({ ...f, notes: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="ghost" onClick={() => setAssignOpen(false)}>Cancel</Button>
-                    <Button onClick={handleAssign} disabled={assignMutation.isPending}>
-                      {assignMutation.isPending ? 'Assigning...' : 'Assign'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </Card>
+            {/* Assign to a child: the same journey as Resources → Assignments */}
+            {user?.role !== 'USER' && (
+              <Card className="p-6">
+                <h3 className="font-semibold text-gray-900 mb-2">Assign to a child</h3>
+                {worksheet.status === 'PUBLISHED' ? (
+                  <>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Add it to the library of a child you work with. Their family is notified.
+                    </p>
+                    <Button variant="outline" onClick={() => setAssignOpen(true)}>Assign</Button>
+                    <AssignDialog
+                      open={assignOpen}
+                      onClose={() => setAssignOpen(false)}
+                      resource={{
+                        kind: 'WORKSHEET',
+                        id: worksheet.id,
+                        title: worksheet.title,
+                        description: null,
+                        type: 'Worksheet',
+                        domains: [],
+                        durationMinutes: null,
+                        ageMin: null,
+                        ageMax: null,
+                        practises: null,
+                        forText: null,
+                        source: isOwner ? 'You' : 'Upllyft',
+                        createdAt: worksheet.createdAt,
+                      }}
+                    />
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Publish this worksheet to assign it to a child.</p>
+                )}
+              </Card>
+            )}
 
             {/* Link to Case */}
             <Card className="p-6">

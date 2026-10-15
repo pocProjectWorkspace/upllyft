@@ -134,7 +134,7 @@ export default function TherapistSetupPage() {
 
     createProfile.mutate(data, {
       onSuccess: () => {
-        router.push('/booking/therapist/dashboard');
+        router.push('/');
       },
     });
   }

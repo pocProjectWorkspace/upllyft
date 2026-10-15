@@ -8,6 +8,7 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import { useClinicAccess } from '@/clinic/lib/use-clinic-access';
 import { formatMoney } from '@/lib/money';
+import { useMySessionTypes, useMyAvailability } from '@/booking/hooks/use-marketplace';
 
 const quickActions = [
   {
@@ -105,6 +106,27 @@ export function TherapistDashboard({ user }: TherapistDashboardProps) {
   const { data: allBookings, isLoading: bookingsLoading } = useMyBookings();
   const { needsPractice } = useClinicAccess();
   const { currency: regionCurrency } = useRegion();
+  const { data: sessionTypes, isSuccess: sessionTypesReady } = useMySessionTypes();
+  const { data: availability, isSuccess: availabilityReady } = useMyAvailability();
+
+  // Getting Started (carried over from the retired booking dashboard): shown until
+  // the therapist can actually be booked. Both queries 404 for a therapist with no
+  // booking profile yet, so the card only renders once they have succeeded.
+  const setupSteps = [
+    { label: 'Profile created', href: `${APP_URLS.booking}/therapist/profile`, done: true },
+    {
+      label: 'Set up session types & pricing',
+      href: `${APP_URLS.booking}/therapist/pricing`,
+      done: (sessionTypes?.length ?? 0) > 0,
+    },
+    {
+      label: 'Set your availability',
+      href: `${APP_URLS.booking}/therapist/bookings`,
+      done: (availability?.recurring?.length ?? 0) > 0,
+    },
+  ];
+  const showGettingStarted =
+    sessionTypesReady && availabilityReady && setupSteps.some((s) => !s.done);
 
   const displayName = firstNameOf(user.name, user.email, 'Therapist');
 
@@ -123,7 +145,7 @@ export function TherapistDashboard({ user }: TherapistDashboardProps) {
           new Date(b.startDateTime) >= todayStart &&
           new Date(b.startDateTime) < todayEnd,
       ),
-      pendingRequests: allBookings.filter((b) => b.status === 'PENDING'),
+      pendingRequests: allBookings.filter((b) => b.status === 'PENDING_ACCEPTANCE'),
       upcomingSessions: allBookings
         .filter((b) => b.status === 'CONFIRMED' && new Date(b.startDateTime) > now)
         .sort((a, b) => new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime())
@@ -171,6 +193,44 @@ export function TherapistDashboard({ user }: TherapistDashboardProps) {
           >
             Set up my practice
           </Link>
+        </div>
+      )}
+
+      {showGettingStarted && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <h3 className="font-semibold text-gray-900">Getting Started</h3>
+          <p className="text-sm text-gray-500 mt-0.5 mb-4">Complete these steps to start receiving bookings</p>
+          <div className="space-y-3">
+            {setupSteps.map((s, i) => (
+              <Link
+                key={s.label}
+                href={s.href}
+                className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
+                  s.done ? 'bg-green-50' : 'bg-gray-50 hover:bg-gray-100'
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                    s.done ? 'bg-green-500' : 'bg-gray-300'
+                  }`}
+                >
+                  {s.done ? (
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <span className="text-white text-xs font-bold">{i + 1}</span>
+                  )}
+                </div>
+                <span className={`text-sm font-medium ${s.done ? 'text-green-700' : 'text-gray-700'}`}>{s.label}</span>
+                {!s.done && (
+                  <svg className="w-4 h-4 text-gray-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
@@ -336,7 +396,7 @@ export function TherapistDashboard({ user }: TherapistDashboardProps) {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <p className="text-2xl font-bold text-white">
-                    ${(analytics.totalRevenue / 100).toFixed(0)}
+                    {formatMoney(analytics.totalRevenue, analytics.currency ?? regionCurrency, { decimals: false })}
                   </p>
                   <p className="text-xs text-gray-400">Total Earned</p>
                 </div>

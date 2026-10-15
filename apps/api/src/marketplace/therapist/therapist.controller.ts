@@ -164,9 +164,22 @@ export class TherapistProfileController {
             throw new NotFoundException('Therapist profile not found');
         }
 
+        // Full name lives on the user, the same field the organisation's set-up wizard edits.
+        if (typeof dto.name === 'string' && dto.name.trim()) {
+            await this.prisma.user.update({ where: { id: userId }, data: { name: dto.name.trim() } });
+        }
+
+        // Fields shared with the organisation's set-up wizard: blank clears, undefined keeps.
+        const optionalText = (v: unknown) =>
+            typeof v === 'string' ? v.trim() || null : undefined;
+
         return this.prisma.therapistProfile.update({
             where: { id: profile.id },
             data: {
+                phone: optionalText(dto.phone),
+                branch: optionalText(dto.branch),
+                qualification: optionalText(dto.qualification),
+                university: optionalText(dto.university),
                 bio: dto.bio,
                 credentials: dto.credentials,
                 specializations: dto.specializations,
@@ -185,6 +198,11 @@ export class TherapistProfileController {
                 ...(dto.country !== undefined ? { country: normalizeCountry(dto.country) } : {}),
                 ...(dto.city !== undefined ? { city: dto.city?.trim() || null } : {}),
                 ...(typeof dto.acceptingBookings === 'boolean' ? { acceptingBookings: dto.acceptingBookings } : {}),
+                // Sliding scale / insurance-covered rate, also set in the organisation's Fees step.
+                ...(typeof dto.slidingScaleAvailable === 'boolean' ? { slidingScaleAvailable: dto.slidingScaleAvailable } : {}),
+                ...(dto.slidingScaleRate !== undefined
+                    ? { slidingScaleRate: dto.slidingScaleRate === null || dto.slidingScaleRate === '' ? null : Number(dto.slidingScaleRate) }
+                    : {}),
             },
             include: {
                 user: {

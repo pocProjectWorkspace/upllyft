@@ -22,9 +22,12 @@ function toJourneyAreas(worksheetDomains: string[]) {
 export function ForFamiliesStep({
   worksheetId,
   defaults,
+  defaultAssignTo,
   onDone,
 }: {
   worksheetId: string;
+  /** Child pre-selected when creation started from that child's "Assign a resource". */
+  defaultAssignTo?: string;
   defaults: { domains: string[]; age?: number | null; durationMinutes?: number | null };
   onDone: () => void;
 }) {
@@ -34,7 +37,7 @@ export function ForFamiliesStep({
   const [duration, setDuration] = useState(defaults.durationMinutes ? String(defaults.durationMinutes) : '');
   const [practises, setPractises] = useState('');
   const [forText, setForText] = useState('');
-  const [assignTo, setAssignTo] = useState('');
+  const [assignTo, setAssignTo] = useState(defaultAssignTo ?? '');
 
   const clients = useQuery({ queryKey: journeyKeys.clients(), queryFn: journeyApi.myClients });
 
