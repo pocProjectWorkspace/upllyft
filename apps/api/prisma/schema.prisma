@@ -136,6 +136,7 @@ model User {
   // Learning resources relations
   worksheets                   Worksheet[]           @relation("UserWorksheets")
   savedResources               SavedResource[]
+  legalAcceptances             LegalAcceptance[]
   resourceCollections          ResourceCollection[]
   sentWorksheetAssignments     WorksheetAssignment[] @relation("SentWorksheetAssignments")
   receivedWorksheetAssignments WorksheetAssignment[] @relation("ReceivedWorksheetAssignments")
@@ -5960,4 +5961,26 @@ model ResourceCollectionItem {
   @@id([collectionId, savedResourceId])
   @@index([savedResourceId])
   @@map("resource_collection_items")
+}
+
+// ─── Legal acceptance (Legal Pack v1.1: registration acceptance record) ─────
+
+/// One row per document a user accepted, at a given version. Append-only: a new
+/// version adds a row; nothing is updated or deleted, so the history is evidence.
+model LegalAcceptance {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType  String /// TERMS | PRIVACY | AGE_18_PLUS (src/legal/legal-documents.ts)
+  edition       String /// GLOBAL until the India / UAE editions are published
+  version       String
+  /// sha256 of type, edition, version and the exact checkbox wording
+  statementHash String
+  source        String /// REGISTER | GATE
+  ipAddress     String?
+  userAgent     String?
+  acceptedAt    DateTime @default(now())
+
+  @@index([userId, documentType])
+  @@map("legal_acceptances")
 }

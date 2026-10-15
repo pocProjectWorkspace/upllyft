@@ -150,7 +150,10 @@ export class AuthController {
     }
 
     // Call service with captcha validation
-    const result = await this.authService.register(registerDto, expectedCaptcha);
+    const result = await this.authService.register(registerDto, expectedCaptcha, {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
 
     // Clear both stores after successful registration so the challenge
     // can't be replayed.

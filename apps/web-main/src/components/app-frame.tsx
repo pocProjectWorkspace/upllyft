@@ -4,6 +4,7 @@ import { AppHeader } from '@upllyft/ui';
 import type { AppName } from '@upllyft/api-client';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { LegalAcceptanceGate } from '@/components/legal/legal-acceptance';
 
 // Routes that render their own chrome (auth screens, onboarding, and the
 // admin console / org workspace which have their own sidebars).
@@ -45,6 +46,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
     <>
       {!hideHeader && <AppHeader currentApp={currentApp} />}
       {children}
+      <LegalAcceptanceGate />
     </>
   );
 }
