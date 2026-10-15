@@ -12,6 +12,7 @@ import { CaptchaModule } from '../captcha/captcha.module';
 import { EmailModule } from '../email/email.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { FcmTokenModule } from '../fcm-token/fcm-token.module';
+import { LegalModule } from '../legal/legal.module';
 import { OneVoiceSsoService } from './sso/onevoice-sso.service';
 import { OneVoiceSsoController } from './sso/onevoice-sso.controller';
 
@@ -23,6 +24,7 @@ import { OneVoiceSsoController } from './sso/onevoice-sso.controller';
     EmailModule,
     ConfigModule,
     FcmTokenModule,
+    LegalModule,
     PassportModule.register({ defaultStrategy: 'jwt', session: true }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

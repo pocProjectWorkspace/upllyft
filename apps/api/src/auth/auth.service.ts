@@ -24,6 +24,7 @@ import { promisify } from 'util';
 import { AppLoggerService } from '../common/logging';
 import { FcmTokenService } from '../fcm-token/fcm-token.service';
 import { acceptPlatformInvitations } from '../people-onboarding/parent-invitation.service';
+import { LegalAcceptanceService } from '../legal/legal-acceptance.service';
 
 @Injectable()
 export class AuthService {
@@ -68,6 +69,7 @@ export class AuthService {
     private eventEmitter: EventEmitter2,
     private appLogger: AppLoggerService,
     private fcmTokenService: FcmTokenService,
+    private legalAcceptance: LegalAcceptanceService,
   ) {
     this.appLogger.setContext('AuthService');
   }
@@ -398,7 +400,11 @@ export class AuthService {
   /**
    * Register a new user and auto-login (return tokens)
    */
-  async register(registerDto: any, sessionCaptcha?: string): Promise<any> {
+  async register(
+    registerDto: any,
+    sessionCaptcha?: string,
+    client: { ipAddress?: string | null; userAgent?: string | null } = {},
+  ): Promise<any> {
     try {
       const { email, password, name, captcha, role, licenseNumber, specialization, yearsOfExperience, organization, bio, fcmToken, device } = registerDto;
 
@@ -484,6 +490,20 @@ export class AuthService {
 
       // Any family invitation for this email is now accepted.
       await acceptPlatformInvitations(this.prisma, user);
+
+      // The Terms / Privacy / 18+ boxes ticked on the sign-up form. A failure here
+      // must not lose the new account: the in-app gate asks again.
+      await this.legalAcceptance
+        .recordAtRegistration(
+          user.id,
+          {
+            TERMS: registerDto.acceptedTermsVersion,
+            PRIVACY: registerDto.acceptedPrivacyVersion,
+            AGE_18_PLUS: registerDto.confirmedAgeVersion,
+          },
+          client,
+        )
+        .catch((error) => this.logger.error(`Failed to record legal acceptance for ${user.id}: ${error.message}`));
 
       // 🎯 Register FCM token if provided (async, don't block registration)
       if (fcmToken && device) {

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getSafeNext } from '@/lib/safe-next';
 import { useState, useEffect, useCallback } from 'react';
+import { LegalCheckboxes, useLegalDocuments, type LegalDocumentType } from '@/components/legal/legal-acceptance';
 
 type AccountType = 'individual' | 'professional';
 
@@ -121,6 +122,12 @@ export default function RegisterPage() {
   const [captchaLoading, setCaptchaLoading] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Terms, Privacy and 18+: separate, unticked, and recorded with their versions.
+  const legalDocs = useLegalDocuments();
+  const [legalChecked, setLegalChecked] = useState<Partial<Record<LegalDocumentType, boolean>>>({});
+  const versionOf = (type: LegalDocumentType) =>
+    legalChecked[type] ? legalDocs.data?.find((d) => d.type === type)?.version : undefined;
+  const allLegalChecked = !!legalDocs.data?.length && legalDocs.data.every((d) => legalChecked[d.type]);
 
   // Family invitation link: /register?invite=<token>&email=<address>
   const [invite, setInvite] = useState<{ token: string; organizationName: string | null; invitedByName: string | null; status: string } | null>(null);
@@ -180,6 +187,11 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!allLegalChecked) {
+      setError('Please tick each box to agree to the Terms and Privacy Policy and confirm you are 18 or older.');
+      return;
+    }
+
     // Professional accounts have additional required fields
     if (accountType === 'professional') {
       if (!yearsOfExperience.trim()) {
@@ -205,6 +217,9 @@ export default function RegisterPage() {
         captchaToken,
         role: accountType === 'professional' ? role : 'USER',
         ...(invite ? { inviteToken: invite.token } : {}),
+        acceptedTermsVersion: versionOf('TERMS'),
+        acceptedPrivacyVersion: versionOf('PRIVACY'),
+        confirmedAgeVersion: versionOf('AGE_18_PLUS'),
       };
 
       if (accountType === 'professional') {
@@ -512,10 +527,23 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Terms, Privacy, 18+ */}
+            {legalDocs.data ? (
+              <LegalCheckboxes
+                documents={legalDocs.data}
+                checked={legalChecked}
+                onChange={(type, value) => setLegalChecked((c) => ({ ...c, [type]: value }))}
+              />
+            ) : legalDocs.isError ? (
+              <p className="text-sm text-red-600">
+                Couldn&apos;t load the Terms. Refresh the page to continue.
+              </p>
+            ) : null}
+
             {/* Submit */}
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !allLegalChecked}
               className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl px-4 py-3 text-sm font-semibold hover:from-teal-600 hover:to-teal-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {submitting ? (

@@ -24,6 +24,10 @@ export interface RegisterPayload {
   yearsOfExperience?: number;
   organization?: string;
   bio?: string;
+  /** Sign-up checkboxes: the version of each document the user ticked. */
+  acceptedTermsVersion?: string;
+  acceptedPrivacyVersion?: string;
+  confirmedAgeVersion?: string;
 }
 
 export interface MembershipStatus {
