@@ -6,6 +6,7 @@ import { UserPreferencesController } from './user-preferences.controller'; // Ad
 import { UserPreferencesService } from './user-preferences.service';     // Add
 import { PrismaModule } from '../prisma/prisma.module';
 import { AccountPreferencesService } from './account-preferences.service';
+import { AccountDeletionService } from './account-deletion.service';
 
 @Module({
   imports: [PrismaModule],
@@ -14,11 +15,13 @@ import { AccountPreferencesService } from './account-preferences.service';
     UserPreferencesController, // Add this
   ],
   providers: [
+    AccountDeletionService,
     AccountPreferencesService,
     UsersService,
     UserPreferencesService,    // Add this
   ],
   exports: [
+    AccountDeletionService,
     UsersService,
     UserPreferencesService,    // Export if needed elsewhere
   ],
