@@ -69,6 +69,10 @@ const BASELINE = new Map([
   ['marketplace/clinic/clinic-marketplace.service.ts', 'public clinic directory'],
   ['marketplace/clinic/clinic-marketplace.controller.ts', 'public clinic directory'],
   ['case-triage/case-triage.service.ts', 'Case.clinicId'],
+  [
+    'clinic-portal/clinic-portal.service.ts',
+    'Case.clinicId / Booking.clinicId as the FACILITY a parent sees (ids preserved); never Child.clinicId',
+  ],
   ['common/guards/tenant.guard.ts', 'reads the clinicId claim'],
   ['admin/admin.controller.ts', 'passes clinic scope through'],
   // clinic-outcomes/* — MIGRATED (Phase D). Deliberately absent: it must stay clean.

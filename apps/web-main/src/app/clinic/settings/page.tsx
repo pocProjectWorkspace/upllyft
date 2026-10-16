@@ -30,6 +30,7 @@ export default function SettingsPage() {
         primaryColor: '#0d9488',
         secondaryColor: '#f0fdfa',
         accentColor: '#14b8a6',
+        parentChangeWindowHours: 24,
     });
 
     // Seed the form once the clinic record arrives
@@ -50,11 +51,13 @@ export default function SettingsPage() {
             primaryColor: data.primaryColor || '#0d9488',
             secondaryColor: data.secondaryColor || '#f0fdfa',
             accentColor: data.accentColor || '#14b8a6',
+            parentChangeWindowHours: data.parentChangeWindowHours ?? 24,
         });
     }, [clinicQuery.data, clinicQuery.isError]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: name === 'parentChangeWindowHours' ? Number(value) : value }));
         setSuccess(false);
         setError(null);
     };
@@ -206,6 +209,28 @@ export default function SettingsPage() {
                                     />
                                 </div>
                                 <p className="text-xs text-gray-400 mt-1">Required for regulatory compliance and insurance claims.</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Parent self-service window
+                                </label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Clock className="w-4 h-4 text-gray-400" />
+                                    </div>
+                                    <select
+                                        name="parentChangeWindowHours"
+                                        value={formData.parentChangeWindowHours}
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
+                                    >
+                                        {[2, 6, 12, 24, 48, 72].map((h) => (
+                                            <option key={h} value={h}>{h} hours before the session</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1">Families can reschedule or cancel in their Clinic portal up to this point; after it, they are asked to call you.</p>
                             </div>
 
                             <div>

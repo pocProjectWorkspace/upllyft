@@ -13,7 +13,7 @@ interface SessionsTabProps {
   caseId: string;
 }
 
-type SchedStatus = 'completed' | 'next' | 'scheduled';
+type SchedStatus = 'completed' | 'next' | 'scheduled' | 'cancelled';
 
 // Recurring-block frequency → weekday set (Mon-based), matching the care-plan pattern.
 const FREQ: { key: string; label: string; days: number[] }[] = [
@@ -88,7 +88,8 @@ export function SessionsTab({ caseId }: SessionsTabProps) {
       const t = new Date(s.scheduledAt).getTime();
       const signed = s.noteStatus === 'SIGNED';
       let status: SchedStatus;
-      if (t < now || signed) status = 'completed';
+      if (s.attendanceStatus === 'CANCELLED') status = 'cancelled';
+      else if (t < now || signed) status = 'completed';
       else if (!nextAssigned) {
         status = 'next';
         nextAssigned = true;
@@ -243,6 +244,14 @@ export function SessionsTab({ caseId }: SessionsTabProps) {
                     <p className="text-sm text-gray-500">
                       {date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                     </p>
+                    {/* Changes the family made from the Clinic Portal. */}
+                    {s.cancelledBy === 'PARENT' ? (
+                      <p className="text-xs text-red-600 mt-1">
+                        Cancelled by family{s.cancellationReason ? ` · ${s.cancellationReason}` : ''}
+                      </p>
+                    ) : s.rescheduledBy === 'PARENT' && s.rescheduledAt ? (
+                      <p className="text-xs text-blue-600 mt-1">Moved by family</p>
+                    ) : null}
                     <div className="flex items-center justify-between mt-3">
                       <div className="flex items-center gap-2">
                         {s.discipline && (
@@ -435,6 +444,7 @@ function StatusBadge({ status }: { status: SchedStatus }) {
     completed: { label: 'Completed', cls: 'bg-teal-50 text-teal-700' },
     next: { label: 'Next up', cls: 'bg-amber-50 text-amber-700' },
     scheduled: { label: 'Scheduled', cls: 'bg-gray-100 text-gray-500' },
+    cancelled: { label: 'Cancelled', cls: 'bg-red-50 text-red-600' },
   }[status];
   return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${map.cls}`}>{map.label}</span>;
 }

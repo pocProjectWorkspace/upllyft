@@ -3,12 +3,14 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
   UseGuards,
   Req,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CaseAccessGuard, CaseAccess } from '../cases/guards/case-access.guard';
@@ -24,7 +26,7 @@ import {
   GenerateAiSummaryDto,
   ListCaseSessionsQueryDto,
 } from './dto/case-sessions.dto';
-import { SessionNoteFormat } from '@prisma/client';
+import { ConsentType, SessionNoteFormat } from '@prisma/client';
 
 @Controller('cases/:caseId/sessions')
 @UseGuards(JwtAuthGuard, CaseAccessGuard)
@@ -97,6 +99,29 @@ export class CaseSessionsController {
     return this.sessionsService.signSession(caseId, sessionId, req.user.id);
   }
 
+  // ─── PARENT SUMMARY (Clinic Portal) ───────────────────────
+
+  @Post(':sessionId/parent-summary')
+  @CaseAccess('edit')
+  async shareParentSummary(
+    @Param('caseId') caseId: string,
+    @Param('sessionId') sessionId: string,
+    @Body() body: { workedOn?: string; howTheyDid?: string; tryAtHome?: string },
+    @Req() req: any,
+  ) {
+    return this.sessionsService.shareParentSummary(caseId, sessionId, req.user.id, body ?? {});
+  }
+
+  @Delete(':sessionId/parent-summary')
+  @CaseAccess('edit')
+  async unshareParentSummary(
+    @Param('caseId') caseId: string,
+    @Param('sessionId') sessionId: string,
+    @Req() req: any,
+  ) {
+    return this.sessionsService.unshareParentSummary(caseId, sessionId, req.user.id);
+  }
+
   // ─── GOAL PROGRESS ────────────────────────────────────────
 
   @Post(':sessionId/goal-progress')
@@ -130,6 +155,7 @@ export class CaseSessionsController {
     @Param('sessionId') sessionId: string,
     @Body() dto: GenerateAiSummaryDto,
   ) {
+    await this.assertAiNotWithdrawn(caseId);
     // Fetch the session with all context needed for AI
     const session = await this.sessionsService.getSession(caseId, sessionId);
 
@@ -176,6 +202,7 @@ export class CaseSessionsController {
     @Param('caseId') caseId: string,
     @Param('sessionId') sessionId: string,
   ) {
+    await this.assertAiNotWithdrawn(caseId);
     const session = await this.sessionsService.getSession(caseId, sessionId);
 
     if (!session.rawNotes?.trim()) {
@@ -184,6 +211,23 @@ export class CaseSessionsController {
 
     const enhanced = await this.caseAiService.enhanceClinicalLanguage(session.rawNotes);
     return { original: session.rawNotes, enhanced };
+  }
+
+  /**
+   * AI drafting stops the moment the family withdraws "AI-assisted note drafting"
+   * (DATA_PROCESSING) — at intake or in the Clinic Portal. Cases where it was simply
+   * never captured keep working, so this is a withdrawal gate, not a new requirement.
+   */
+  private async assertAiNotWithdrawn(caseId: string) {
+    const rows = await this.prisma.caseConsent.findMany({
+      where: { caseId, type: ConsentType.DATA_PROCESSING },
+      select: { revokedAt: true },
+    });
+    if (rows.length && rows.every((r) => r.revokedAt)) {
+      throw new ForbiddenException(
+        "The family has withdrawn consent for AI-assisted note drafting. Write this note without AI.",
+      );
+    }
   }
 
   private calculateAge(dob: Date): string {

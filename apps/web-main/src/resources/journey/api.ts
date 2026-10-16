@@ -196,7 +196,7 @@ export const journeyApi = {
     (await apiClient.get(`${base}/assignable`, { params: { ...params(f), ...(f.childId ? { childId: f.childId } : {}) } })).data,
   assign: async (
     childId: string,
-    body: { kind: ResourceKind; resourceId: string; goal?: string; targetDate?: string; assignedArea?: string },
+    body: { kind: ResourceKind; resourceId: string; goal?: string; targetDate?: string; assignedArea?: string; parentNote?: string },
   ): Promise<{ id: string; reassigned?: boolean; parentNotified?: boolean }> =>
     (await apiClient.post(`${base}/clients/${childId}/assign`, body)).data,
   assigned: async (childId: string): Promise<{ items: ChildItem[] }> =>

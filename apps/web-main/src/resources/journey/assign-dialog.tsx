@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { Dialog, DialogContent, DialogTitle, Input, Skeleton, toast, useDebounce } from '@upllyft/ui';
+import { Dialog, DialogContent, DialogTitle, Input, Skeleton, Textarea, toast, useDebounce } from '@upllyft/ui';
 import { journeyApi, type LibraryCard } from './api';
 import { journeyKeys } from './hooks';
 import { ResourceCard } from './resource-card';
@@ -51,6 +51,7 @@ export function AssignDialog({
   const [picked, setPicked] = useState<LibraryCard | null>(null);
   const chosen = fixedResource ?? picked;
   const [goal, setGoal] = useState('');
+  const [parentNote, setParentNote] = useState('');
   const [target, setTarget] = useState('');
   const [area, setArea] = useState(fixedResource?.domains[0] ?? '');
 
@@ -87,6 +88,7 @@ export function AssignDialog({
   function reset() {
     setPicked(null);
     setGoal('');
+    setParentNote('');
     setTarget('');
     setArea(fixedResource?.domains[0] ?? '');
     if (!fixedChildId) setPickedChildId('');
@@ -98,6 +100,7 @@ export function AssignDialog({
         kind: chosen!.kind,
         resourceId: chosen!.id,
         goal: goal.trim() || undefined,
+        parentNote: parentNote.trim() || undefined,
         targetDate: target ? new Date(`${target}T12:00:00`).toISOString() : undefined,
         assignedArea: area || undefined,
       }),
@@ -264,6 +267,18 @@ export function AssignDialog({
             <label className="block">
               <span className="mb-1 block text-sm font-semibold text-gray-800">Goal and note for the family (“For:”)</span>
               <Input value={goal} onChange={(e) => setGoal(e.target.value)} maxLength={300} placeholder="e.g. Ask for help with a word or card at snack time" className="rounded-xl" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold text-gray-800">Note to the parent (optional)</span>
+              <Textarea
+                value={parentNote}
+                onChange={(e) => setParentNote(e.target.value)}
+                maxLength={600}
+                rows={2}
+                placeholder="e.g. Do this at snack time every day this week. Wait 5 seconds before you offer more."
+                className="rounded-xl"
+              />
+              <span className="mt-1 block text-xs text-gray-400">Shown on the activity in the family’s Clinic portal.</span>
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">

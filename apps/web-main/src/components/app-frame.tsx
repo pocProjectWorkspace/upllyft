@@ -29,6 +29,7 @@ const MERGED_SECTIONS: Array<[prefix: string, app: AppName]> = [
   ['/resources', 'resources'],
   ['/cases', 'cases'],
   ['/clinic', 'admin'],
+  ['/clinic-portal', 'portal'],
 ];
 
 /**

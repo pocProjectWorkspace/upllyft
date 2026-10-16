@@ -78,6 +78,11 @@ export class UpdateAssessmentReviewDto {
   @IsOptional()
   @IsString()
   approval?: string;
+
+  /** "How to prepare" checklist the parent sees in the Clinic Portal. */
+  @IsOptional()
+  @IsString({ each: true })
+  parentPrep?: string[];
 }
 
 export class AddDisciplineDto {

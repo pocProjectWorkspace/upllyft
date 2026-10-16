@@ -46,6 +46,14 @@ export class SaveCaseIntakeDto {
   consentAi?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  consentTelehealth?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  consentMedia?: boolean;
+
+  @IsOptional()
   @IsString()
   recordedBy?: string;
 }

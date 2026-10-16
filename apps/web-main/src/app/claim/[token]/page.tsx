@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@upllyft/api-client';
 import * as claimsApi from '@/lib/api/claims';
@@ -58,6 +58,14 @@ const CONSENT_COPY: Record<string, { type: string; title: string; body: string }
 export default function ClaimPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  // An invite code (typed in the Clinic Portal) only works signed in.
+  const isCode = claimsApi.isInviteCode(token);
+
+  useEffect(() => {
+    if (isCode && !authLoading && !isAuthenticated) {
+      window.location.replace(`/login?next=${encodeURIComponent(`/claim/${token}`)}`);
+    }
+  }, [isCode, authLoading, isAuthenticated, token]);
 
   const {
     data: preview,
@@ -67,13 +75,14 @@ export default function ClaimPage({ params }: { params: Promise<{ token: string 
     queryKey: ['claim', token],
     queryFn: () => claimsApi.previewClaim(token),
     retry: false,
+    enabled: !isCode || isAuthenticated,
   });
 
   const [accepted, setAccepted] = useState<claimsApi.ClaimAccepted | null>(null);
   const [disputed, setDisputed] = useState(false);
   const [consented, setConsented] = useState(false);
 
-  if (isLoading || authLoading) {
+  if (isLoading || authLoading || (isCode && !isAuthenticated)) {
     return <Centered><Loader2 className="w-6 h-6 animate-spin text-teal-600" /></Centered>;
   }
 
@@ -82,8 +91,12 @@ export default function ClaimPage({ params }: { params: Promise<{ token: string 
       <Shell>
         <Terminal
           icon={<AlertCircle className="w-6 h-6 text-gray-400" />}
-          title="This link isn’t valid"
-          body="It may have been mistyped, or already used. Ask the nursery to send you a new one."
+          title={isCode ? 'This code isn’t valid' : 'This link isn’t valid'}
+          body={
+            isCode
+              ? 'Check the code, and make sure you are signed in with the email address the clinic sent it to. If your account uses a different address, open the link in the email instead.'
+              : 'It may have been mistyped, or already used. Ask the nursery to send you a new one.'
+          }
         />
       </Shell>
     );

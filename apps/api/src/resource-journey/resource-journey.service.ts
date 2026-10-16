@@ -510,7 +510,14 @@ export class ResourceJourneyService {
   async assign(
     actor: Actor,
     childId: string,
-    body: { kind?: unknown; resourceId?: unknown; goal?: unknown; targetDate?: unknown; assignedArea?: unknown },
+    body: {
+      kind?: unknown;
+      resourceId?: unknown;
+      goal?: unknown;
+      targetDate?: unknown;
+      assignedArea?: unknown;
+      parentNote?: unknown;
+    },
   ) {
     const c = await this.access.assertTherapistOfChild(actor.id, childId);
     const kind = parseKind(body.kind);
@@ -520,6 +527,8 @@ export class ResourceJourneyService {
       throw new NotFoundException('Resource not found.');
     }
     const goal = typeof body.goal === 'string' && body.goal.trim() ? body.goal.trim().slice(0, 300) : null;
+    const parentNote =
+      typeof body.parentNote === 'string' && body.parentNote.trim() ? body.parentNote.trim().slice(0, 600) : null;
     const targetDate = body.targetDate ? new Date(String(body.targetDate)) : null;
     if (targetDate && Number.isNaN(targetDate.getTime())) throw new BadRequestException('targetDate is not a valid date.');
     const assignedArea = body.assignedArea ? String(body.assignedArea) : null;
@@ -542,6 +551,7 @@ export class ResourceJourneyService {
       goal,
       targetDate,
       assignedArea,
+      parentNote,
     });
     // Batched: both writes commit together, with no interactive-transaction timeout.
     const results =

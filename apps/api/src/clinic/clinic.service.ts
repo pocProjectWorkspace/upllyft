@@ -253,7 +253,7 @@ export class ClinicService {
 
     async getClinic(clinicId: string | null) {
         if (!clinicId) return null;
-        return this.prisma.clinic.findUnique({
+        const [clinic, facility] = await Promise.all([this.prisma.clinic.findUnique({
             where: { id: clinicId },
             include: {
                 admin: { select: { id: true, name: true, email: true, image: true } },
@@ -264,7 +264,10 @@ export class ClinicService {
                     orderBy: { user: { name: 'asc' } },
                 },
             },
-        });
+        }),
+            this.prisma.facility.findUnique({ where: { id: clinicId }, select: { parentChangeWindowHours: true } }),
+        ]);
+        return clinic ? { ...clinic, parentChangeWindowHours: facility?.parentChangeWindowHours ?? 24 } : null;
     }
 
     async updateClinic(clinicId: string | null, data: any) {
@@ -278,13 +281,16 @@ export class ClinicService {
             );
         }
 
-        const updated = await this.prisma.clinic.update({ where: { id: clinic.id }, data });
+        // The change window lives on the Facility (same id), not on Clinic.
+        const { parentChangeWindowHours, ...clinicData } = data ?? {};
+        const updated = await this.prisma.clinic.update({ where: { id: clinic.id }, data: clinicData });
 
         // Keep the facility mirror's presentation in step (same id).
         const mirror: Record<string, unknown> = {};
         for (const key of ['name', 'phone', 'email', 'address', 'logoUrl', 'primaryColor'] as const) {
             if (data?.[key] !== undefined) mirror[key] = data[key];
         }
+        if (parentChangeWindowHours !== undefined) mirror.parentChangeWindowHours = parentChangeWindowHours;
         if (Object.keys(mirror).length) {
             await this.prisma.facility.updateMany({ where: { id: clinic.id }, data: mirror });
         }

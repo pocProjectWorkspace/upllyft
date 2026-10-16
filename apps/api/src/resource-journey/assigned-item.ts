@@ -17,6 +17,8 @@ export function upsertAssignedItem(
     goal?: string | null;
     targetDate?: Date | null;
     assignedArea?: string | null;
+    /** Note to the parent, shown on the Clinic Portal's home activities. */
+    parentNote?: string | null;
   },
 ) {
   const where =
@@ -32,6 +34,9 @@ export function upsertAssignedItem(
     targetDate: a.targetDate ?? null,
     assignedArea: a.assignedArea ?? null,
     unassignedAt: null,
+    // A (re)assignment is new to the parent again.
+    parentNote: a.parentNote ?? null,
+    parentSeenAt: null,
   };
   return tx.childResource.upsert({
     where,

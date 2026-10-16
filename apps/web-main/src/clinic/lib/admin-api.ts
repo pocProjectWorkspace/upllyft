@@ -227,6 +227,8 @@ export interface ClinicDetail {
   primaryColor: string | null;
   secondaryColor: string | null;
   accentColor: string | null;
+  /** Clinic Portal: parents may reschedule / cancel online up to this many hours before. */
+  parentChangeWindowHours?: number;
   address: string | null;
   city?: string | null;
   country?: string | null;
@@ -259,6 +261,7 @@ export interface UpdateClinicInput {
   primaryColor?: string;
   secondaryColor?: string;
   accentColor?: string;
+  parentChangeWindowHours?: number;
 }
 
 export async function getClinic(): Promise<ClinicDetail> {
