@@ -2029,6 +2029,8 @@ model Booking {
   cancelledBy                  String?
   cancelledAt                  DateTime?
   cancellationReason           String?
+  /// Set when the parent moved the session from the Clinic Portal.
+  rescheduledAt                DateTime?
   refundAmount                 Float?
   refundedAt                   DateTime?
   patientNotes                 String?
@@ -3169,6 +3171,17 @@ model CaseSession {
   structuredNotes Json?
   noteStatus      SessionNoteStatus  @default(DRAFT)
   signedAt        DateTime?
+  // --- Clinic Portal: parent changes + parent-facing summary ---
+  /// PARENT | THERAPIST | ADMIN — who cancelled (attendanceStatus CANCELLED).
+  cancelledBy           String?
+  cancelledAt           DateTime?
+  cancellationReason    String?
+  rescheduledAt         DateTime?
+  rescheduledBy         String?
+  /// { workedOn, howTheyDid, tryAtHome } — the only part of the note a parent sees.
+  parentSummary         Json?
+  parentSummarySharedAt DateTime?
+  parentViewedAt        DateTime?
   // --- UAE Phase 3: plan link, clinical flag, EHR export ---
   treatmentPlanId String?
   clinicalFlag    Boolean            @default(false)
@@ -3396,6 +3409,9 @@ model AssessmentReview {
   reportDocumentId     String?
   recipients           Json? // { parent, school, doctor }
   sharedAt             DateTime?
+  // Clinic Portal: "How to prepare" checklist shown to the parent, and read receipt.
+  parentPrep           String[]               @default([])
+  parentViewedAt       DateTime?
   createdById          String
   disciplines          AssessmentDiscipline[]
 
@@ -3447,6 +3463,8 @@ model CaseIntake {
   consentTherapy    Boolean     @default(false)
   consentSharing    Boolean     @default(false)
   consentAi         Boolean     @default(false)
+  consentTelehealth Boolean     @default(false)
+  consentMedia      Boolean     @default(false)
   recordedBy        String?
   summarisedAt      DateTime?
   createdById       String
@@ -4851,6 +4869,9 @@ model Facility {
   /// prove the 1:1 mapping held. Null for facilities created natively (nurseries).
   migratedFromClinicId String? @unique
 
+  /// Clinic Portal: parents may reschedule / cancel online up to this many hours before.
+  parentChangeWindowHours Int @default(24)
+
   members              FacilityMember[]
   rooms                Room[]
   affiliations         ChildAffiliation[]
@@ -5051,6 +5072,9 @@ enum ChildClaimStatus {
 model ChildClaim {
   id        String @id @default(cuid())
   tokenHash String @unique
+  /// SHA-256 of the short invite code (e.g. SUN-4K7Q-9MXA) a parent can type in the
+  /// Clinic Portal instead of opening the emailed link. Derived from the raw token.
+  codeHash  String? @unique
 
   /// The child this claim is FOR. Points at the placeholder until the claim
   /// resolves; on a merge it is repointed to the guardian's real child and the
@@ -5773,6 +5797,9 @@ model ChildResource {
   masteredOverride  Boolean?
   /// Set when the assigning therapist withdraws it; the parent's logs are kept.
   unassignedAt      DateTime?
+  /// Clinic Portal: the therapist's note to the parent, and when the parent first opened it.
+  parentNote        String?
+  parentSeenAt      DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   logs              ActivityLog[]

@@ -380,12 +380,13 @@ export class NurseryService {
 
     // Rotate the token rather than re-sending the old one: the previous link may be
     // sitting in a forwarded email or a shared inbox.
-    const { rawToken, tokenHash } = this.claims.mintToken();
+    const { rawToken, tokenHash, codeHash } = this.claims.mintToken();
 
     await this.prisma.childClaim.update({
       where: { id: claim.id },
       data: {
         tokenHash,
+        codeHash,
         expiresAt: new Date(Date.now() + CLAIM_TTL_DAYS * 86_400_000),
       },
     });

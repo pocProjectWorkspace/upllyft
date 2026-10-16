@@ -27,6 +27,8 @@ const NEVER = new Set(['LIKE', 'VOTE', 'BOOKMARK', 'FOLLOW', 'POST_CREATED', 'PO
 const CATEGORY: Record<string, EmailCategory> = {
   SESSION_REMINDER: 'sessionReminders',
   SESSION_BOOKED: 'sessionReminders',
+  SESSION_RESCHEDULED: 'sessionReminders',
+  SESSION_CANCELLED: 'sessionReminders',
   EVENT_REMINDER: 'sessionReminders',
   COMMENT: 'communityReplies',
   REPLY: 'communityReplies',

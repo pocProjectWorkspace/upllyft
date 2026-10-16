@@ -311,6 +311,20 @@ export function useSignSession() {
   });
 }
 
+export function useShareParentSummary() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ caseId, sessionId, summary }: { caseId: string; sessionId: string; summary: casesApi.ParentSummary | null }) =>
+      summary ? casesApi.shareParentSummary(caseId, sessionId, summary) : casesApi.unshareParentSummary(caseId, sessionId),
+    onSuccess: (_, { caseId, sessionId, summary }) => {
+      qc.invalidateQueries({ queryKey: keys.session(caseId, sessionId) });
+      toast({ title: summary ? 'Summary shared with the family' : 'Summary no longer shared' });
+    },
+    onError: (e: any) =>
+      toast({ title: e?.response?.data?.message ?? 'Could not update the parent summary', variant: 'destructive' }),
+  });
+}
+
 export function useBulkLogGoalProgress() {
   const qc = useQueryClient();
   return useMutation({

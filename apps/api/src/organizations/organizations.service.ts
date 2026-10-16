@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { createClient } from '@supabase/supabase-js';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -78,6 +79,7 @@ export class OrganizationsService {
         private prisma: PrismaService,
         private emailService: EmailService,
         private appLogger: AppLoggerService,
+        private eventEmitter: EventEmitter2,
     ) {
         this.appLogger.setContext('OrganizationsService');
     }
@@ -2128,6 +2130,14 @@ export class OrganizationsService {
                 intakeTokenHash: tokenHash,
                 intakeTokenExpiry: new Date(Date.now() + 14 * 86400000),
             },
+        });
+        // A parent with an account can also fill it in from the Clinic Portal.
+        this.eventEmitter.emit('clinic-portal.notify-parent', {
+            caseId,
+            type: 'INTAKE_REQUESTED',
+            title: 'Intake form requested',
+            message: 'The clinic asked you to fill in the intake form before the first appointment.',
+            tab: 'forms',
         });
         return { token: rawToken };
     }

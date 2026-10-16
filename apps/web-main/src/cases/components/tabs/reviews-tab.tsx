@@ -272,6 +272,13 @@ function PlanPhase({ caseId, review, onNext }: { caseId: string; review: Assessm
       <Section title="Parent preparation">
         <Toggle label="Pre-assessment questionnaire sent" checked={review.questionnaireSent} onChange={(v) => set({ questionnaireSent: v })} />
         <Toggle label="School input requested" checked={review.schoolInputRequested} onChange={(v) => set({ schoolInputRequested: v })} />
+        <label className="mt-3 block text-[11px] text-gray-500">How to prepare — shown to the family in their Clinic Portal, one item per line</label>
+        <textarea
+          defaultValue={(review.parentPrep ?? []).join('\n')}
+          onBlur={(e) => set({ parentPrep: e.target.value.split('\n').map((l) => l.trim()).filter(Boolean) })}
+          placeholder={'Bring any school or nursery reports\nComfortable clothes for movement activities\nAllow about 90 minutes, with breaks'}
+          className="mt-1 w-full min-h-[72px] rounded-lg border border-gray-200 px-3 py-2 text-sm"
+        />
       </Section>
       <Section title="Payment">
         <div className="flex gap-2">
@@ -414,7 +421,14 @@ function ReportPhase({ caseId, review }: { caseId: string; review: AssessmentRev
         {review.recipients && (
           <Section title="Shared with">
             <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-              {review.recipients.parent && <span className="px-2 py-1 rounded-full bg-gray-100">Parent / caregiver</span>}
+              {review.recipients.parent && (
+                <span className="px-2 py-1 rounded-full bg-gray-100">
+                  Parent / caregiver
+                  {review.parentViewedAt
+                    ? ` · viewed ${new Date(review.parentViewedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
+                    : ' · not viewed yet'}
+                </span>
+              )}
               {review.recipients.school && <span className="px-2 py-1 rounded-full bg-gray-100">School</span>}
               {review.recipients.doctor && <span className="px-2 py-1 rounded-full bg-gray-100">Referring doctor</span>}
             </div>

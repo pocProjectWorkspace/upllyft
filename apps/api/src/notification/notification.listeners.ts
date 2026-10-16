@@ -539,7 +539,7 @@ export class NotificationListeners {
         type: NotificationType.RESOURCE_ASSIGNED,
         title: 'New activity to try',
         message: `${therapist?.name || 'Your therapist'} assigned "${payload.title}" for ${payload.childName}`,
-        actionUrl: '/resources?tab=mine',
+        actionUrl: '/clinic-portal?tab=home',
         relatedEntityId: payload.itemId,
         relatedEntityType: 'child',
         priority: 'high',

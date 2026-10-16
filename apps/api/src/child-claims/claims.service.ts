@@ -5,7 +5,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { createHash, randomBytes, randomUUID } from 'crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,6 +13,44 @@ import { EmailService } from '../email/email.service';
 
 /** How long a guardian has to act on a claim link before it must be re-sent. */
 export const CLAIM_TTL_DAYS = 30;
+
+/**
+ * The short invite code a parent can type in the Clinic Portal ("K7QM-4NXA-9PRT").
+ *
+ * It is NOT a standalone credential like the emailed link. It is accepted only from
+ * a signed-in account whose email is the address the facility sent the invite to —
+ * so guessing a code gets a stranger nothing — and never by the unauthenticated
+ * preview / dispute routes. On top of that:
+ *   - 12 symbols of a 31-letter alphabet with no look-alikes ≈ 59 bits, derived by
+ *     keyed HMAC from the 256-bit claim token, so it rotates whenever the token does;
+ *   - stored only as a keyed HMAC (server secret), so a database leak can't be
+ *     brute-forced back into working codes;
+ *   - the code routes are rate-limited.
+ */
+const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export const INVITE_CODE_LENGTH = 12;
+
+export function inviteCodeFor(rawToken: string, secret: string): string {
+  const bytes = createHmac('sha256', secret).update(`invite-code:${rawToken}`).digest();
+  let code = '';
+  for (let i = 0; i < INVITE_CODE_LENGTH; i++) code += INVITE_ALPHABET[bytes[i] % INVITE_ALPHABET.length];
+  return `${code.slice(0, 4)}-${code.slice(4, 8)}-${code.slice(8)}`;
+}
+
+/** What is stored: a keyed hash of the normalised code. */
+export function inviteCodeHash(code: string, secret: string): string {
+  return createHmac('sha256', secret).update(`invite-code-hash:${normaliseInviteCode(code)}`).digest('hex');
+}
+
+/** A path segment that is an invite code rather than the 64-char emailed token. */
+export function isInviteCode(token: string): boolean {
+  return !!token && token.length < 32;
+}
+
+/** Upper-case and drop spaces and dashes, so "abcd 2345" matches "ABCD-2345". */
+export function normaliseInviteCode(input: string): string {
+  return input.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
 
 /**
  * The details a facility holds about a guardian who is not (yet) an Upllyft user.
@@ -153,11 +191,12 @@ export class ClaimsService {
       createdById: string;
     },
   ): Promise<string> {
-    const { rawToken, tokenHash } = this.mintToken();
+    const { rawToken, tokenHash, codeHash } = this.mintToken();
 
     await tx.childClaim.create({
       data: {
         tokenHash,
+        codeHash,
         childId: input.childId,
         affiliationId: input.affiliationId,
         facilityId: input.facilityId,
@@ -215,6 +254,8 @@ export class ClaimsService {
       <p>Hello ${guardian.name},</p>
       ${body}
       <p><a href="${link}">Review this request</a></p>
+      <p>Or, if you already use Upllyft, open <strong>Clinic portal</strong> and enter this
+         invite code: <strong>${inviteCodeFor(rawToken, this.codeSecret)}</strong></p>
       <p>This link expires in ${CLAIM_TTL_DAYS} days. If you don't recognise this,
          you can tell us on the same page and we'll let them know.</p>
     `;
@@ -224,7 +265,7 @@ export class ClaimsService {
         to: guardian.email,
         subject,
         html,
-        text: `${subject}\n\nReview: ${link}\n\n(Expires in ${CLAIM_TTL_DAYS} days.)`,
+        text: `${subject}\n\nReview: ${link}\nInvite code: ${inviteCodeFor(rawToken, this.codeSecret)}\n\n(Expires in ${CLAIM_TTL_DAYS} days.)`,
       });
     } catch (e: any) {
       // A failed send must NOT roll back the enrolment — the child IS on the roster
@@ -239,9 +280,20 @@ export class ClaimsService {
    * Only the HASH is stored. A leaked database must not yield working links into
    * children's records — the same reason password hashes exist.
    */
-  mintToken(): { rawToken: string; tokenHash: string } {
+  mintToken(): { rawToken: string; tokenHash: string; codeHash: string } {
     const rawToken = randomBytes(32).toString('hex');
-    return { rawToken, tokenHash: createHash('sha256').update(rawToken).digest('hex') };
+    return {
+      rawToken,
+      tokenHash: createHash('sha256').update(rawToken).digest('hex'),
+      codeHash: inviteCodeHash(inviteCodeFor(rawToken, this.codeSecret), this.codeSecret),
+    };
+  }
+
+  /** Server secret keying invite codes. CLAIM_CODE_SECRET, else the JWT secret. */
+  private get codeSecret(): string {
+    const s = this.config.get<string>('CLAIM_CODE_SECRET') || this.config.get<string>('JWT_SECRET');
+    if (!s) throw new Error('CLAIM_CODE_SECRET or JWT_SECRET must be set to issue invite codes');
+    return s;
   }
 
   /**
@@ -253,8 +305,8 @@ export class ClaimsService {
    * waits until they have authenticated — enough to recognise their child, not
    * enough to learn anything about a stranger's.
    */
-  async preview(rawToken: string) {
-    const claim = await this.findByToken(rawToken);
+  async preview(rawToken: string, viewerId?: string) {
+    const claim = await this.findByToken(rawToken, viewerId);
 
     return {
       status: claim.status,
@@ -270,7 +322,7 @@ export class ClaimsService {
 
   /** The claiming user's own children, so they can say "this one is mine". */
   async candidates(rawToken: string, userId: string) {
-    const claim = await this.assertClaimable(rawToken);
+    const claim = await this.assertClaimable(rawToken, userId);
 
     const children = await this.prisma.child.findMany({
       where: { profile: { userId }, NOT: { id: claim.childId } },
@@ -307,7 +359,7 @@ export class ClaimsService {
    * child. A mismatch is logged.
    */
   async accept(rawToken: string, userId: string, existingChildId?: string) {
-    const claim = await this.assertClaimable(rawToken);
+    const claim = await this.assertClaimable(rawToken, userId);
 
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -472,8 +524,8 @@ export class ClaimsService {
    * in order to tell it that it holds a record about a child who isn't theirs would
    * be absurd, and they would simply not do it — and we would keep the affiliation.
    */
-  async dispute(rawToken: string, reason?: string) {
-    const claim = await this.assertClaimable(rawToken);
+  async dispute(rawToken: string, reason?: string, viewerId?: string) {
+    const claim = await this.assertClaimable(rawToken, viewerId);
 
     await this.prisma.$transaction([
       this.prisma.childClaim.update({
@@ -502,13 +554,22 @@ export class ClaimsService {
     return createHash('sha256').update(rawToken).digest('hex');
   }
 
-  private async findByToken(rawToken: string) {
-    if (!rawToken || rawToken.length < 32) {
+  /**
+   * The emailed link carries the 64-char token. A parent typing the short invite code
+   * lands here with the code instead — accepted only for a signed-in `viewerId` whose
+   * email is the claim's guardian email (see INVITE_CODE_LENGTH).
+   */
+  private async findByToken(rawToken: string, viewerId?: string) {
+    const code = isInviteCode(rawToken) ? normaliseInviteCode(rawToken) : null;
+    if (!rawToken || (code !== null && code.length !== INVITE_CODE_LENGTH)) {
       throw new NotFoundException('This link is not valid.');
+    }
+    if (code !== null && !viewerId) {
+      throw new NotFoundException('Sign in to use an invite code, or open the link in your email.');
     }
 
     const claim = await this.prisma.childClaim.findUnique({
-      where: { tokenHash: this.hash(rawToken) },
+      where: code ? { codeHash: inviteCodeHash(code, this.codeSecret) } : { tokenHash: this.hash(rawToken) },
       select: {
         id: true,
         status: true,
@@ -531,12 +592,21 @@ export class ClaimsService {
     });
 
     if (!claim) throw new NotFoundException('This link is not valid.');
+
+    if (code !== null) {
+      const viewer = await this.prisma.user.findUnique({ where: { id: viewerId }, select: { email: true } });
+      // Same answer as an unknown code: a mismatch must not confirm the code exists.
+      if (!viewer || viewer.email.toLowerCase().trim() !== claim.guardianEmail.toLowerCase().trim()) {
+        this.logger.warn(`Invite code for claim ${claim.id} used by ${viewerId}, whose email is not the invited address.`);
+        throw new NotFoundException('This link is not valid.');
+      }
+    }
     return claim;
   }
 
   /** A claim that is PENDING and in date. Everything else is a dead end, said plainly. */
-  private async assertClaimable(rawToken: string) {
-    const claim = await this.findByToken(rawToken);
+  private async assertClaimable(rawToken: string, viewerId?: string) {
+    const claim = await this.findByToken(rawToken, viewerId);
 
     if (claim.status === 'ACCEPTED') {
       throw new ConflictException('This child has already been claimed.');

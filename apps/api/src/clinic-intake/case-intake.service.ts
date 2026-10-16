@@ -10,6 +10,8 @@ const CONSENT_MAP: { flag: keyof SaveCaseIntakeDto; type: ConsentType }[] = [
   { flag: 'consentTherapy', type: ConsentType.TREATMENT },
   { flag: 'consentSharing', type: ConsentType.REPORT_SHARING },
   { flag: 'consentAi', type: ConsentType.DATA_PROCESSING },
+  { flag: 'consentTelehealth', type: ConsentType.TELEHEALTH },
+  { flag: 'consentMedia', type: ConsentType.RECORDING },
 ];
 
 @Injectable()
@@ -85,6 +87,8 @@ export class CaseIntakeService {
       consentTherapy: dto.consentTherapy ?? false,
       consentSharing: dto.consentSharing ?? false,
       consentAi: dto.consentAi ?? false,
+      consentTelehealth: dto.consentTelehealth ?? false,
+      consentMedia: dto.consentMedia ?? false,
       recordedBy: dto.recordedBy,
     };
 
