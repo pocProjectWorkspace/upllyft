@@ -592,7 +592,7 @@ export default function RegisterPage() {
               {' · '}
               <Link href="/terms-of-service" className="hover:text-gray-600 underline">Terms of Service</Link>
             </p>
-            <p>&copy; {new Date().getFullYear()} Upllyft. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} Mindssparc Private Limited. Upllyft is a MindsSparc initiative.</p>
           </div>
         </div>
       </div>

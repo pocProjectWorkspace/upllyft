@@ -1,5 +1,7 @@
 'use client';
 
+import { companyContactLines } from '@/lib/company';
+
 
 
 const sections = [
@@ -69,6 +71,7 @@ const sections = [
     title: 'Contact Us',
     content: [
       'If you have any questions about this Privacy Policy or our privacy practices, please contact us at:',
+      ...companyContactLines(),
       'Email: privacy@upllyft.com',
       'You may also reach our Data Protection Officer at dpo@upllyft.com for questions related to data processing and your rights under applicable privacy laws.',
     ],
@@ -82,13 +85,16 @@ export default function PrivacyPolicyPage() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
-          <p className="text-sm text-gray-500">Last updated: February 15, 2026</p>
+          <p className="text-sm text-gray-500">Last updated: October 16, 2026</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 mb-6">
           <p className="text-sm text-gray-600 leading-relaxed">
             At Upllyft, we are committed to protecting the privacy of our users, especially families
-            with neurodivergent children. This Privacy Policy explains how we collect, use, disclose,
+            with neurodivergent children. Upllyft is an initiative developed and operated by Mindssparc
+            Private Limited, a company incorporated in India (&ldquo;Mindssparc&rdquo;, &ldquo;we&rdquo;,
+            &ldquo;us&rdquo;), which is responsible for the personal information described in this
+            policy. This Privacy Policy explains how we collect, use, disclose,
             and safeguard your information when you use our platform, including our web applications,
             mobile applications, and related services.
           </p>

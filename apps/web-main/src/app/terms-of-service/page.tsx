@@ -1,5 +1,7 @@
 'use client';
 
+import { companyContactLines } from '@/lib/company';
+
 
 
 const sections = [
@@ -49,8 +51,9 @@ const sections = [
   {
     title: 'Intellectual Property',
     content: [
-      'The Upllyft platform, including its design, logos, trademarks, text, graphics, software, and other content, is owned by or licensed to Upllyft and is protected by intellectual property laws.',
-      'You retain ownership of content you create and post on the platform (such as community posts and comments). By posting content, you grant Upllyft a non-exclusive, worldwide, royalty-free license to use, display, reproduce, and distribute your content in connection with operating the Services.',
+      'Upllyft is a brand and initiative of Mindssparc Private Limited. The Upllyft platform, including its software and source code, design, AI features (including Mira), text, graphics and other content, and the Upllyft, Upllyft Compass, Upllyft PracticeOS and Mira names and logos, is owned by or licensed to Mindssparc Private Limited and is protected by intellectual property laws. These terms do not transfer any of those rights to you.',
+      'You may not use the Upllyft or MindsSparc names or logos, or suggest that we endorse, partner with or have verified you, without our written permission.',
+      'You retain ownership of content you create and post on the platform (such as community posts and comments). By posting content, you grant Mindssparc Private Limited a non-exclusive, worldwide, royalty-free license to use, display, reproduce, and distribute your content in connection with operating the Services.',
       'You may not copy, modify, distribute, sell, or lease any part of our Services or included content, nor may you reverse engineer or attempt to extract the source code of our software.',
       'If you believe your intellectual property rights have been infringed, please contact us with details of the alleged infringement.',
     ],
@@ -85,6 +88,7 @@ const sections = [
     title: 'Contact Us',
     content: [
       'If you have any questions, concerns, or feedback about these Terms of Service, please contact us at:',
+      ...companyContactLines(),
       'Email: legal@upllyft.com',
       'For general support inquiries, you can reach us at support@upllyft.com.',
     ],
@@ -98,13 +102,15 @@ export default function TermsOfServicePage() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Terms of Service</h1>
-          <p className="text-sm text-gray-500">Last updated: February 15, 2026</p>
+          <p className="text-sm text-gray-500">Last updated: October 16, 2026</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 mb-6">
           <p className="text-sm text-gray-600 leading-relaxed">
-            Welcome to Upllyft. These Terms of Service govern your access to and use of our platform
-            and services. Please read these terms carefully before using our Services. By creating an
+            Welcome to Upllyft. Upllyft is an initiative developed and operated by Mindssparc Private
+            Limited, a company incorporated in India (&ldquo;Mindssparc&rdquo;, &ldquo;we&rdquo;,
+            &ldquo;us&rdquo;). These Terms of Service are an agreement between you and Mindssparc and
+            govern your access to and use of our platform and services. Please read these terms carefully before using our Services. By creating an
             account or using any part of the Upllyft platform, you agree to be bound by these terms.
           </p>
         </div>
