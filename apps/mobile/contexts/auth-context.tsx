@@ -36,6 +36,10 @@ export interface RegisterData {
   bio?: string;
   captchaId?: string;
   captchaAnswer?: string;
+  /** Sign-up checkboxes: the version of each document the user ticked. */
+  acceptedTermsVersion?: string;
+  acceptedPrivacyVersion?: string;
+  confirmedAgeVersion?: string;
 }
 
 interface AuthContextType {
