@@ -3,11 +3,15 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS } from '../../lib/constants';
 import { useAuth } from '../../contexts/auth-context';
+import { LegalAcceptanceGate } from '../../components/LegalAcceptance';
 
 export default function MainLayout() {
   const { isProfessional } = useAuth();
 
   return (
+    <>
+    {/* Blocks the app while the signed-in user has Terms / Privacy / 18+ to accept. */}
+    <LegalAcceptanceGate />
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: COLORS.teal,
@@ -119,5 +123,6 @@ export default function MainLayout() {
         </>
       )}
     </Tabs>
+    </>
   );
 }

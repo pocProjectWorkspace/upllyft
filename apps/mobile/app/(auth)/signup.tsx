@@ -20,6 +20,7 @@ import api from '../../lib/api';
 import { API_URL, COLORS } from '../../lib/constants';
 import FormInput from '../../components/FormInput';
 import GradientButton from '../../components/GradientButton';
+import { LegalCheckboxes, useLegalDocuments, type LegalChecked, type LegalDocumentType } from '../../components/LegalAcceptance';
 
 const signupSchema = z
   .object({
@@ -55,6 +56,12 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [captcha, setCaptcha] = useState<{ id: string; image: string } | null>(null);
   const [showRolePicker, setShowRolePicker] = useState(false);
+  // Terms, Privacy and 18+: separate, unticked, and recorded with their versions.
+  const legal = useLegalDocuments();
+  const [legalChecked, setLegalChecked] = useState<LegalChecked>({});
+  const allLegalChecked = !!legal.documents?.length && legal.documents.every((d) => legalChecked[d.type]);
+  const versionOf = (type: LegalDocumentType) =>
+    legalChecked[type] ? legal.documents?.find((d) => d.type === type)?.version : undefined;
 
   const form = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
@@ -95,6 +102,10 @@ export default function SignupScreen() {
 
   const onSubmit = async (data: SignupForm) => {
     setError('');
+    if (!allLegalChecked) {
+      setError('Please tick each box to agree to the Terms and Privacy Policy and confirm you are 18 or older.');
+      return;
+    }
     setLoading(true);
     try {
       const payload: RegisterData = {
@@ -103,6 +114,9 @@ export default function SignupScreen() {
         password: data.password,
         captchaId: captcha?.id,
         captchaAnswer: data.captchaAnswer,
+        acceptedTermsVersion: versionOf('TERMS'),
+        acceptedPrivacyVersion: versionOf('PRIVACY'),
+        confirmedAgeVersion: versionOf('AGE_18_PLUS'),
       };
 
       if (tab === 'professional') {
@@ -406,10 +420,26 @@ export default function SignupScreen() {
             </View>
           )}
 
+          {/* Terms, Privacy, 18+ */}
+          <View style={{ marginTop: 8, marginBottom: 12 }}>
+            {legal.documents ? (
+              <LegalCheckboxes
+                documents={legal.documents}
+                checked={legalChecked}
+                onChange={(type, value) => setLegalChecked((c) => ({ ...c, [type]: value }))}
+              />
+            ) : legal.error ? (
+              <TouchableOpacity onPress={legal.reload}>
+                <Text style={{ color: COLORS.error, fontSize: 13 }}>Couldn&apos;t load the Terms. Tap to retry.</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
           <GradientButton
             title="Create Account"
             onPress={form.handleSubmit(onSubmit)}
             loading={loading}
+            disabled={!allLegalChecked}
             style={{ marginTop: 8 }}
           />
 
