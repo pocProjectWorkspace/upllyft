@@ -51,12 +51,12 @@ export class RegisterDto {
 
   // Sign-up checkboxes: the version of each document the user ticked. Optional so
   // older app builds can still register; they meet the in-app acceptance gate instead.
-  @ApiPropertyOptional({ example: '2026-02-15', description: 'Terms of Service version accepted' })
+  @ApiPropertyOptional({ example: '2026-10-16', description: 'Terms of Service version accepted' })
   @IsOptional()
   @IsString()
   acceptedTermsVersion?: string;
 
-  @ApiPropertyOptional({ example: '2026-02-15', description: 'Privacy Policy version acknowledged' })
+  @ApiPropertyOptional({ example: '2026-10-16', description: 'Privacy Policy version acknowledged' })
   @IsOptional()
   @IsString()
   acceptedPrivacyVersion?: string;

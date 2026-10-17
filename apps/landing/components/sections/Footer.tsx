@@ -44,7 +44,7 @@ export function Footer() {
           {/* Right */}
           <div className="space-y-2 md:text-right">
             <p className="text-sm text-brand-midnight/50 font-body">
-              &copy; 2025 Upllyft. All rights reserved.
+              &copy; 2026 Mindssparc Private Limited. Upllyft is a MindsSparc initiative.
             </p>
             <p className="text-sm text-brand-midnight/30 font-body">
               Privacy Policy
