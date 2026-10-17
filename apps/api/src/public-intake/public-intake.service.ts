@@ -79,6 +79,8 @@ export class PublicIntakeService {
       consentTherapy: !!dto?.consentTherapy,
       consentSharing: !!dto?.consentSharing,
       consentAi: !!dto?.consentAi,
+      consentTelehealth: !!dto?.consentTelehealth,
+      consentMedia: !!dto?.consentMedia,
     };
 
     await this.prisma.caseIntake.upsert({

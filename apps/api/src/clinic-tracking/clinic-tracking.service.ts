@@ -1,3 +1,4 @@
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   Injectable,
   NotFoundException,
@@ -10,7 +11,10 @@ import { UpdateTrackingStatusDto } from './dto/clinic-tracking.dto';
 
 @Injectable()
 export class ClinicTrackingService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) { }
 
   async getTodayAppointments(date: string | undefined, clinicId: string | null) {
     const targetDate = date ? new Date(date) : new Date();
@@ -429,6 +433,13 @@ export class ClinicTrackingService {
           attendanceStatus: 'PRESENT',
           noteFormat: 'SOAP',
         },
+      });
+      this.eventEmitter.emit('clinic-portal.notify-parent', {
+        caseId: dto.caseId,
+        type: 'SESSION_BOOKED',
+        title: 'Session booked',
+        message: `The clinic booked a session on ${startDateTime.toDateString()}.`,
+        tab: 'sessions',
       });
     }
 

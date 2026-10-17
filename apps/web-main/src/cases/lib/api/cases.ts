@@ -114,8 +114,22 @@ export interface CaseSession {
   noteStatus?: SessionNoteStatus;
   signedAt?: string;
   goalProgress?: SessionGoalProgress[];
+  // Clinic Portal: parent changes and the parent-facing summary.
+  cancelledBy?: 'PARENT' | 'THERAPIST' | 'ADMIN' | null;
+  cancellationReason?: string | null;
+  rescheduledAt?: string | null;
+  rescheduledBy?: string | null;
+  parentSummary?: ParentSummary | null;
+  parentSummarySharedAt?: string | null;
+  parentViewedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ParentSummary {
+  workedOn?: string | null;
+  howTheyDid?: string | null;
+  tryAtHome?: string | null;
 }
 
 // ── IEP Types ──
@@ -767,6 +781,17 @@ export async function miraScribe(sessionId: string): Promise<ScribeResponse> {
 
 export async function signSession(caseId: string, sessionId: string): Promise<CaseSession> {
   const res = await apiClient.post(`/cases/${caseId}/sessions/${sessionId}/sign`);
+  return res.data;
+}
+
+/** Share the parent-facing part of a signed note with the family's Clinic Portal. */
+export async function shareParentSummary(caseId: string, sessionId: string, summary: ParentSummary) {
+  const res = await apiClient.post(`/cases/${caseId}/sessions/${sessionId}/parent-summary`, summary);
+  return res.data;
+}
+
+export async function unshareParentSummary(caseId: string, sessionId: string) {
+  const res = await apiClient.delete(`/cases/${caseId}/sessions/${sessionId}/parent-summary`);
   return res.data;
 }
 

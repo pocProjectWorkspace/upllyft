@@ -4,6 +4,7 @@ import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/cases/hooks/use-cases';
 import { TemplatedNoteView } from '@/cases/components/clinical/templated-note-view';
+import { ParentSummaryCard } from '@/cases/components/parent-summary-card';
 import {
   Card,
   Badge,
@@ -136,6 +137,14 @@ export default function SessionDetailPage({
               {session.attendanceStatus}
             </span>
           )}
+          {session.cancelledBy === 'PARENT' && (
+            <span className="text-xs text-gray-500">
+              Cancelled by the family{session.cancellationReason ? ` · ${session.cancellationReason}` : ''}
+            </span>
+          )}
+          {session.rescheduledBy === 'PARENT' && session.rescheduledAt && session.attendanceStatus !== 'CANCELLED' && (
+            <span className="text-xs text-blue-600">Moved by the family {formatDateTime(session.rescheduledAt)}</span>
+          )}
         </div>
       </Card>
 
@@ -232,6 +241,9 @@ export default function SessionDetailPage({
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{session.rawNotes}</p>
         </Card>
       )}
+
+      {/* Parent-facing summary (Clinic Portal) — signed notes only */}
+      {isSigned && <ParentSummaryCard caseId={caseId} session={session} />}
 
       {/* AI Summary */}
       {session.aiSummary && (

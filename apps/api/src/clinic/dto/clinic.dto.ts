@@ -91,6 +91,14 @@ export class UpdateClinicDto {
     @IsOptional()
     @IsString()
     accentColor?: string;
+
+    /** Clinic Portal: parents may reschedule / cancel online up to this many hours before. */
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(2)
+    @Max(72)
+    parentChangeWindowHours?: number;
 }
 
 export class CreateSessionTypeDto {

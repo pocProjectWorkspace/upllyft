@@ -23,9 +23,16 @@ export interface ClaimAccepted {
   consentRequired: boolean;
 }
 
+/**
+ * The short invite code typed in the Clinic Portal, rather than the emailed link's token.
+ * Codes work only signed in, for the account the invite was sent to, so they go to the
+ * authenticated code routes; the open preview / dispute routes take the link alone.
+ */
+export const isInviteCode = (token: string) => !!token && token.length < 32;
+
 /** Unauthenticated — you can't decide whether to sign up until you can see who's asking. */
 export const previewClaim = (token: string): Promise<ClaimPreview> =>
-  apiClient.get(`/child-claims/${token}`).then(r => r.data);
+  apiClient.get(isInviteCode(token) ? `/child-claims/code/${token}` : `/child-claims/${token}`).then(r => r.data);
 
 export const claimCandidates = (token: string): Promise<ClaimCandidates> =>
   apiClient.get(`/child-claims/${token}/candidates`).then(r => r.data);
@@ -37,7 +44,9 @@ export const acceptClaim = (token: string, existingChildId?: string): Promise<Cl
 
 /** Unauthenticated by design — nobody should need an account to say "not my child". */
 export const disputeClaim = (token: string, reason?: string) =>
-  apiClient.post(`/child-claims/${token}/dispute`, { reason }).then(r => r.data);
+  apiClient
+    .post(isInviteCode(token) ? `/child-claims/code/${token}/dispute` : `/child-claims/${token}/dispute`, { reason })
+    .then(r => r.data);
 
 /**
  * Consent is a SEPARATE act from claiming. Claiming says "yes, that's my child";

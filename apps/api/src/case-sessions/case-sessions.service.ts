@@ -47,6 +47,16 @@ export class CaseSessionsService {
         noteStatus: 'DRAFT' as const,
       })),
     });
+    const upcoming = dates.filter((d) => d.getTime() > Date.now()).sort((a, b) => +a - +b);
+    if (upcoming.length) {
+      this.eventEmitter.emit('clinic-portal.notify-parent', {
+        caseId,
+        type: 'SESSION_BOOKED',
+        title: upcoming.length === 1 ? 'Session booked' : `${upcoming.length} sessions booked`,
+        message: `The clinic booked ${upcoming.length === 1 ? 'a session' : `${upcoming.length} sessions`}, starting ${upcoming[0].toDateString()}.`,
+        tab: 'sessions',
+      });
+    }
     return { created: dates.length };
   }
 
@@ -256,6 +266,11 @@ export class CaseSessionsService {
         ...(dto.structuredNotes && { structuredNotes: dto.structuredNotes as any }),
         ...(dto.sessionType && { sessionType: dto.sessionType }),
         ...(dto.location && { location: dto.location }),
+        ...(dto.attendanceStatus === 'CANCELLED' &&
+          session.attendanceStatus !== 'CANCELLED' && {
+            cancelledBy: 'THERAPIST',
+            cancelledAt: new Date(),
+          }),
       },
       include: {
         therapist: { select: { id: true, name: true, image: true } },
@@ -276,7 +291,72 @@ export class CaseSessionsService {
       },
     });
 
+    if (
+      dto.attendanceStatus === 'CANCELLED' &&
+      session.attendanceStatus !== 'CANCELLED' &&
+      session.scheduledAt.getTime() > Date.now()
+    ) {
+      this.eventEmitter.emit('clinic-portal.notify-parent', {
+        caseId,
+        type: 'SESSION_CANCELLED',
+        title: 'Session cancelled by the clinic',
+        message: `The session on ${session.scheduledAt.toDateString()} was cancelled. The clinic will be in touch about a new time.`,
+        tab: 'sessions',
+      });
+    }
+
     return updated;
+  }
+
+  /**
+   * Share the parent-facing part of a SIGNED note with the family's Clinic Portal.
+   * Only these three fields ever reach the parent — never the clinical note itself.
+   */
+  async shareParentSummary(
+    caseId: string,
+    sessionId: string,
+    userId: string,
+    dto: { workedOn?: string; howTheyDid?: string; tryAtHome?: string },
+  ) {
+    const session = await this.prisma.caseSession.findFirst({ where: { id: sessionId, caseId } });
+    if (!session) throw new NotFoundException('Session not found');
+    if (session.noteStatus !== 'SIGNED') {
+      throw new BadRequestException('Sign the session note before sharing a summary with the parent');
+    }
+    const clean = (v?: string) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 2000) : null);
+    const summary = { workedOn: clean(dto.workedOn), howTheyDid: clean(dto.howTheyDid), tryAtHome: clean(dto.tryAtHome) };
+    if (!summary.workedOn && !summary.howTheyDid && !summary.tryAtHome) {
+      throw new BadRequestException('Write at least one part of the summary');
+    }
+    const firstShare = !session.parentSummarySharedAt;
+    const updated = await this.prisma.caseSession.update({
+      where: { id: sessionId },
+      data: { parentSummary: summary, parentSummarySharedAt: new Date(), parentViewedAt: null },
+      select: { id: true, parentSummary: true, parentSummarySharedAt: true, parentViewedAt: true },
+    });
+    await this.prisma.caseAuditLog.create({
+      data: { caseId, userId, action: 'SESSION_SUMMARY_SHARED_WITH_PARENT', entityType: 'CaseSession', entityId: sessionId },
+    });
+    if (firstShare) {
+      this.eventEmitter.emit('clinic-portal.notify-parent', {
+        caseId,
+        type: 'REPORT_SHARED',
+        title: 'Session summary shared',
+        message: 'Your therapist shared a summary of the last session, with something to try at home.',
+        tab: 'sessions',
+      });
+    }
+    return updated;
+  }
+
+  async unshareParentSummary(caseId: string, sessionId: string, userId: string) {
+    const session = await this.prisma.caseSession.findFirst({ where: { id: sessionId, caseId } });
+    if (!session) throw new NotFoundException('Session not found');
+    await this.prisma.caseSession.update({ where: { id: sessionId }, data: { parentSummarySharedAt: null } });
+    await this.prisma.caseAuditLog.create({
+      data: { caseId, userId, action: 'SESSION_SUMMARY_UNSHARED', entityType: 'CaseSession', entityId: sessionId },
+    });
+    return { shared: false };
   }
 
   /**

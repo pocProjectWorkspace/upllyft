@@ -26,6 +26,7 @@ const PROTECTED_PREFIXES = [
   '/resources',
   '/cases',
   '/clinic',
+  '/clinic-portal',
 ];
 
 /** Exceptions inside protected prefixes that are reachable without a session. */

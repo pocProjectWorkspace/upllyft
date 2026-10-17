@@ -33,6 +33,9 @@ export interface AssessmentReview {
   approval?: string | null;
   recipients?: { parent?: boolean; school?: boolean; doctor?: boolean } | null;
   sharedAt?: string | null;
+  /** Clinic Portal: "How to prepare" checklist for the parent, and the read receipt. */
+  parentPrep?: string[];
+  parentViewedAt?: string | null;
   disciplines: AssessmentDiscipline[];
   createdAt: string;
 }

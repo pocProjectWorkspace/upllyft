@@ -17,6 +17,7 @@ export const MERGED_PREFIX = {
   resources: '/resources',
   cases: '/cases',
   admin: '/clinic',
+  portal: '/clinic-portal',
 } as const;
 
 export const APP_URLS = {
@@ -27,6 +28,7 @@ export const APP_URLS = {
   resources: `${MAIN_URL}${MERGED_PREFIX.resources}`,
   cases: `${MAIN_URL}${MERGED_PREFIX.cases}`,
   admin: `${MAIN_URL}${MERGED_PREFIX.admin}`,
+  portal: `${MAIN_URL}${MERGED_PREFIX.portal}`,
 } as const;
 
 export type AppName = keyof typeof APP_URLS;
@@ -180,6 +182,12 @@ export function getNavItems(
     },
     { label: 'Resources', app: 'resources', href: R, children: resourcesChildren },
   );
+
+  // The parent's view of the clinics caring for their child: sessions, reports, home
+  // activities, forms and consent — over the clinic's own records.
+  if (isParent) {
+    items.push({ label: 'Clinic portal', app: 'portal', href: APP_URLS.portal });
+  }
 
   if (isSuperAdmin) {
     items.push(

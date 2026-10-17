@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AssessmentPhase,
@@ -29,7 +30,10 @@ const DISCIPLINE_LABEL: Record<string, string> = {
 
 @Injectable()
 export class AssessmentReviewsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private events: EventEmitter2,
+  ) {}
 
   private disciplinesInclude = {
     disciplines: { orderBy: { createdAt: 'asc' as const } },
@@ -102,6 +106,9 @@ export class AssessmentReviewsService {
         ...(dto.syncMode !== undefined && { syncMode: dto.syncMode }),
         ...(dto.reportText !== undefined && { reportText: dto.reportText }),
         ...(dto.approval !== undefined && { approval: dto.approval }),
+        ...(dto.parentPrep !== undefined && {
+          parentPrep: dto.parentPrep.map((s) => s.trim()).filter(Boolean).slice(0, 10),
+        }),
       },
       include: this.disciplinesInclude,
     });
@@ -202,6 +209,15 @@ export class AssessmentReviewsService {
         changes: dto.recipients as any,
       },
     });
+    if (dto.recipients.parent) {
+      this.events.emit('clinic-portal.notify-parent', {
+        caseId,
+        type: 'REPORT_SHARED',
+        title: 'New report shared',
+        message: `${updated.title || 'An assessment report'} is ready to read.`,
+        tab: 'reports',
+      });
+    }
     return updated;
   }
 }

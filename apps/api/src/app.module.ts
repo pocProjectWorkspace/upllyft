@@ -104,7 +104,9 @@ import { ObservationsModule } from './observations/observations.module';
 import { MomentsModule } from './moments/moments.module';
 import { LibraryResourcesModule } from './library-resources/library-resources.module';
 import { ResourceJourneyModule } from './resource-journey/resource-journey.module';
+import { ClinicPortalModule } from './clinic-portal/clinic-portal.module';
 import { MyLibraryModule } from './my-library/my-library.module';
+import { LegalModule } from './legal/legal.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { CareWaitlistModule } from './care-waitlist/care-waitlist.module';
 import { FaqModule } from './faq/faq.module';
@@ -253,7 +255,9 @@ import { ShortlistModule } from './marketplace/shortlist/shortlist.module';
     MomentsModule,
     LibraryResourcesModule,
     ResourceJourneyModule,
+    ClinicPortalModule,
     MyLibraryModule,
+    LegalModule,
     PeopleOnboardingModule,
     CareWaitlistModule,
     FaqModule,
