@@ -60,7 +60,7 @@ export default async function RootLayout({
                 "A platform empowering neurodivergent families with therapist connections, developmental screenings, and personalized resources.",
               contactPoint: {
                 "@type": "ContactPoint",
-                email: "privacy@upllyft.com",
+                email: "support@upllyft.com",
                 contactType: "Customer Support",
               },
             }),

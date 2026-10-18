@@ -28,7 +28,7 @@ export interface LegalDocument {
 export const LEGAL_DOCUMENTS: readonly LegalDocument[] = [
   {
     type: 'TERMS',
-    version: '2026-10-16',
+    version: '2026-10-18',
     edition: 'GLOBAL',
     title: 'Terms of Service',
     statement: 'I agree to the Upllyft Terms of Service.',
@@ -36,7 +36,7 @@ export const LEGAL_DOCUMENTS: readonly LegalDocument[] = [
   },
   {
     type: 'PRIVACY',
-    version: '2026-10-16',
+    version: '2026-10-18',
     edition: 'GLOBAL',
     title: 'Privacy Policy',
     statement: 'I have read the Upllyft Privacy Policy and understand how my information is used.',
