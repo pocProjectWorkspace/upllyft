@@ -26,37 +26,30 @@ const sections = [
     title: 'How We Share Your Information',
     content: [
       'We may share your information with therapists, educators, and other professionals on the platform when you book sessions or engage in professional services. These professionals are bound by confidentiality obligations.',
-      'We may share information with third-party service providers who perform services on our behalf, such as payment processing (Stripe), email delivery, hosting, and analytics. These providers are contractually obligated to protect your information.',
+      'We may share information with third-party service providers who perform services on our behalf, such as payment processing, email delivery, hosting, and analytics. These providers are contractually obligated to protect your information.',
       'We may disclose your information if we believe disclosure is in accordance with, or required by, any applicable law, regulation, or legal process.',
       'We do not sell your personal information to third parties.',
     ],
   },
   {
-    title: 'Data Security',
+    title: 'Data Protection',
     content: [
-      'We take reasonable measures to help protect your personal information from loss, theft, misuse, unauthorized access, disclosure, alteration, and destruction.',
-      'All data is encrypted in transit using TLS/SSL and at rest using AES-256 encryption. Authentication tokens are securely stored and regularly rotated.',
-      'We conduct regular security assessments and maintain strict access controls for our team members who handle personal data.',
-      'While we strive to protect your information, no method of transmission over the Internet or electronic storage is completely secure. We cannot guarantee the absolute security of your data.',
+      'We take reasonable technical and organisational measures to protect your personal information against loss, theft, misuse, unauthorised access, disclosure, alteration, and destruction.',
+      'Data is encrypted in transit using TLS and at rest using AES-256 encryption. Your account data and uploaded files are stored with our hosting provider in the European Union. Passwords are stored as one-way hashes, and sign-in sessions expire and can be revoked.',
+      'Access to personal data is limited to people who need it for their role, and we keep audit records of key actions on accounts and on case and clinical records.',
+      'We use personal information only for the purposes described in this policy, and keep it only for as long as those purposes require or as the law requires.',
+      'We take steps designed to prevent data loss, but no system is immune to failure. We do not guarantee that data will never be lost, corrupted or unavailable, and you are responsible for keeping your own copies of information that is important to you.',
+      'If we become aware of a breach affecting your personal information, we will notify you and the relevant authorities where applicable law requires us to.',
+      'No method of transmission over the Internet or electronic storage is completely secure, and we cannot guarantee the absolute security of your data.',
     ],
   },
   {
     title: 'Children\'s Privacy',
     content: [
-      'Upllyft is designed to support families with neurodivergent children. We are committed to protecting the privacy of children and comply with applicable children\'s privacy laws including COPPA.',
-      'We do not knowingly collect personal information directly from children under 13 without parental consent. All child-related information is provided and managed by the parent or legal guardian.',
+      'Upllyft is designed to support families with neurodivergent children. Accounts are for adults only: you must be 18 or older to create one, and we do not knowingly collect personal information directly from anyone under 18.',
+      'Information about a child is provided and managed by the child\'s parent or legal guardian, or by a professional, clinic, nursery or school acting with the parent\'s or guardian\'s authorisation. We treat children\'s information with particular care and process it on the basis of that parent\'s or guardian\'s consent. If we learn that we have collected personal information directly from someone under 18, we will delete it.',
       'Developmental screening data, session notes, and progress information related to children are treated with the highest level of confidentiality and are only accessible to authorized parents/guardians and their chosen professionals.',
-      'Parents and guardians can review, update, or request deletion of their child\'s information at any time by contacting us.',
-    ],
-  },
-  {
-    title: 'Your Rights',
-    content: [
-      'You have the right to access, correct, or delete your personal information at any time through your account settings or by contacting us.',
-      'You have the right to opt out of marketing communications by following the unsubscribe instructions in our emails or updating your notification preferences.',
-      'You have the right to request a copy of your personal data in a portable format. You can do this from the Settings page in your account.',
-      'If you are a resident of the European Economic Area (EEA), you have additional rights under GDPR, including the right to restrict processing, object to processing, and lodge a complaint with a supervisory authority.',
-      'If you are a California resident, you have additional rights under the CCPA, including the right to know what personal information we collect and the right to request deletion.',
+      'Parents and guardians can review, update, or request deletion of their child\'s information at any time by contacting us at support@upllyft.com.',
     ],
   },
   {
@@ -72,8 +65,7 @@ const sections = [
     content: [
       'If you have any questions about this Privacy Policy or our privacy practices, please contact us at:',
       ...companyContactLines(),
-      'Email: privacy@upllyft.com',
-      'You may also reach our Data Protection Officer at dpo@upllyft.com for questions related to data processing and your rights under applicable privacy laws.',
+      'Email: support@upllyft.com',
     ],
   },
 ];
@@ -85,14 +77,14 @@ export default function PrivacyPolicyPage() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
-          <p className="text-sm text-gray-500">Last updated: October 16, 2026</p>
+          <p className="text-sm text-gray-500">Last updated: October 18, 2026</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 mb-6">
           <p className="text-sm text-gray-600 leading-relaxed">
             At Upllyft, we are committed to protecting the privacy of our users, especially families
-            with neurodivergent children. Upllyft is an initiative developed and operated by Mindssparc
-            Private Limited, a company incorporated in India (&ldquo;Mindssparc&rdquo;, &ldquo;we&rdquo;,
+            with neurodivergent children. Upllyft is an initiative developed and operated by MindsSparc
+            Private Limited, a company incorporated in India (&ldquo;MindsSparc&rdquo;, &ldquo;we&rdquo;,
             &ldquo;us&rdquo;), which is responsible for the personal information described in this
             policy. This Privacy Policy explains how we collect, use, disclose,
             and safeguard your information when you use our platform, including our web applications,

@@ -223,7 +223,7 @@ export const FAQ_SEED: FaqSeedCategory[] = [
       {
         "slug": "where-is-my-data-stored",
         "question": "Where is my data stored?",
-        "answer": "Your account data and uploaded files are stored in the European Union (Stockholm, Sweden), encrypted in transit and at rest. For questions about how we handle your data, email privacy@upllyft.com.",
+        "answer": "Your account data and uploaded files are stored in the European Union (Stockholm, Sweden), encrypted in transit and at rest. For questions about how we handle your data, email support@upllyft.com.",
         "published": true
       },
       {
