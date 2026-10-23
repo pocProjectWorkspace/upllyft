@@ -31,8 +31,8 @@ export interface ManagedDocumentDef {
 }
 
 export const MANAGED_DOCUMENTS: readonly ManagedDocumentDef[] = [
-  { type: 'TERMS', title: 'Terms of Service', url: '/terms-of-service', slug: 'terms', requiredForAll: true, seedVersion: '2026-10-16' },
-  { type: 'PRIVACY', title: 'Privacy Policy', url: '/privacy-policy', slug: 'privacy', requiredForAll: true, seedVersion: '2026-10-16' },
+  { type: 'TERMS', title: 'Terms of Service', url: '/terms-of-service', slug: 'terms', requiredForAll: true, seedVersion: '2026-10-18' },
+  { type: 'PRIVACY', title: 'Privacy Policy', url: '/privacy-policy', slug: 'privacy', requiredForAll: true, seedVersion: '2026-10-18' },
   { type: 'CLINIC_AGREEMENT', title: 'Clinic & Organisation Agreement', url: '/legal/clinic-agreement', slug: 'clinic-agreement', requiredForAll: false },
   { type: 'THERAPIST_AGREEMENT', title: 'Therapist Professional Participation Agreement', url: '/legal/therapist-agreement', slug: 'therapist-agreement', requiredForAll: false },
 ];
