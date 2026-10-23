@@ -32,7 +32,13 @@ export function useConfirmTriage(caseId: string) {
       qc.invalidateQueries({ queryKey: ['cases'] });
       toast({ title: 'Triage confirmed' });
     },
-    onError: () => toast({ title: 'Failed to confirm triage', variant: 'destructive' }),
+    onError: (err: unknown) =>
+      toast({
+        title: 'Failed to confirm triage',
+        // e.g. the licence gate: "Therapist licence is not verified — ..."
+        description: (err as { response?: { data?: { message?: string } } })?.response?.data?.message,
+        variant: 'destructive',
+      }),
   });
 }
 

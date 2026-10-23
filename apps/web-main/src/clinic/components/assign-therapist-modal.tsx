@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Search, UserCheck } from 'lucide-react';
+import { X, Search, UserCheck, AlertCircle } from 'lucide-react';
 import { getTherapists, assignTherapist, type TherapistOption } from '@/clinic/lib/admin-api';
-import { Avatar } from '@upllyft/ui';
+import { Avatar, useToast } from '@upllyft/ui';
 
 import { LinesSkeleton } from '@/components/skeletons';
 interface AssignTherapistModalProps {
@@ -26,6 +26,8 @@ export function AssignTherapistModal({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
@@ -36,6 +38,7 @@ export function AssignTherapistModal({
         .finally(() => setLoading(false));
       setSelectedId(null);
       setSearch('');
+      setError(null);
     }
   }, [open]);
 
@@ -49,13 +52,32 @@ export function AssignTherapistModal({
 
   const handleAssign = async () => {
     if (!selectedId) return;
+    const name = therapists.find((t) => t.id === selectedId)?.name ?? 'The therapist';
     setSubmitting(true);
+    setError(null);
     try {
-      await assignTherapist(childId, selectedId);
+      const result = await assignTherapist(childId, selectedId);
+      // An open case already exists: the API adds the therapist to it rather than
+      // creating a second one. Say so, or it looks as if nothing happened.
+      if (result.warning === 'therapist_already_assigned') {
+        setError(`${name} is already on ${childName}'s open case.`);
+        return;
+      }
+      toast({
+        title: result.warning === 'added_to_existing_case' ? 'Added to existing case' : 'Case created',
+        description:
+          result.warning === 'added_to_existing_case'
+            ? `${name} joined ${childName}'s open case.`
+            : `${name} is now ${childName}'s primary therapist.`,
+        variant: 'success',
+      });
       onAssigned();
       onClose();
-    } catch {
-      // toast error would go here
+    } catch (err: unknown) {
+      setError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          'Could not assign the therapist. Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -102,11 +124,18 @@ export function AssignTherapistModal({
             filtered.map((t) => (
               <button
                 key={t.id}
-                onClick={() => setSelectedId(t.id)}
+                onClick={() => {
+                  setSelectedId(t.id);
+                  setError(null);
+                }}
+                disabled={!t.assignable}
+                title={t.unassignableReason ?? undefined}
                 className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${
-                  selectedId === t.id
-                    ? 'bg-teal-50 ring-2 ring-teal-500'
-                    : 'hover:bg-gray-50'
+                  !t.assignable
+                    ? 'opacity-60 cursor-not-allowed'
+                    : selectedId === t.id
+                      ? 'bg-teal-50 ring-2 ring-teal-500'
+                      : 'hover:bg-gray-50'
                 }`}
               >
                 <Avatar name={t.name || ''} src={t.avatar || undefined} size="sm" />
@@ -115,6 +144,11 @@ export function AssignTherapistModal({
                   <p className="text-xs text-gray-500 truncate">
                     {t.title || t.specializations?.join(', ') || t.email}
                   </p>
+                  {!t.assignable && (
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      {t.unassignableReason?.includes('expired') ? 'Licence expired' : 'Licence not verified'}
+                    </p>
+                  )}
                 </div>
                 {selectedId === t.id && (
                   <UserCheck className="w-5 h-5 text-teal-600 flex-shrink-0" />
@@ -123,6 +157,13 @@ export function AssignTherapistModal({
             ))
           )}
         </div>
+
+        {error && (
+          <div className="mx-4 mb-1 flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            {error}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="p-4 border-t border-gray-100 flex items-center justify-end gap-3">

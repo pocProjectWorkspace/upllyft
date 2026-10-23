@@ -14,6 +14,7 @@ import {
 } from '@prisma/client';
 import { ConfirmTriageDto } from './dto/case-triage.dto';
 import { therapistInFacility } from '../common/child-scope';
+import { assertTherapistAssignable } from '../common/credentials';
 
 const CASELOAD_CAPACITY = 20; // configurable target caseload per therapist
 
@@ -107,6 +108,10 @@ export class CaseTriageService {
   async confirm(caseId: string, userId: string, dto: ConfirmTriageDto) {
     const caseRecord = await this.prisma.case.findUnique({ where: { id: caseId } });
     if (!caseRecord) throw new NotFoundException('Case not found');
+
+    if (dto.decision === TriageDecision.PROCEED) {
+      await this.assertTeamAssignable([dto.primaryTherapistId, ...(dto.secondaryTherapistIds ?? [])]);
+    }
 
     // Find the working triage review or create one.
     let triage = await this.prisma.triageReview.findFirst({
@@ -272,6 +277,20 @@ export class CaseTriageService {
       default:
         return JourneyStage.CONSULTATION;
     }
+  }
+
+  /**
+   * The licence gate (common/credentials.ts) for everyone triage is about to put on
+   * the case. Runs before any write, so a refused pick leaves the triage undecided.
+   */
+  private async assertTeamAssignable(profileIds: (string | undefined)[]) {
+    const ids = [...new Set(profileIds.filter((x): x is string => !!x))];
+    if (!ids.length) return;
+    const profiles = await this.prisma.therapistProfile.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, credentialStatus: true, licenceExpiry: true },
+    });
+    for (const p of profiles) assertTherapistAssignable(p);
   }
 
   private async assignTeam(
