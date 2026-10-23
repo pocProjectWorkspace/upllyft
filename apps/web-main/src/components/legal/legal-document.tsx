@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Markdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@upllyft/api-client';
+import { LegalDocumentView } from '@/components/legal/legal-document-view';
+import type { LegalDocument } from '@/lib/legal-content';
 
 export interface PublishedLegalDocument {
   type: string;
@@ -57,8 +59,20 @@ export function formatLegalDate(iso: string | null | undefined) {
 /**
  * A public legal page. The text comes from the admin-managed, versioned documents
  * (/admin/legal), so publishing a new version changes this page with no deploy.
+ *
+ * `fallback` is the built-in text (lib/legal-content.ts, the same text the database was
+ * seeded with). It is shown if the API can't be reached, so Terms and Privacy never go
+ * blank; a specific past `version` has no fallback.
  */
-export function LegalDocumentPage({ slug, version }: { slug: string; version?: string }) {
+export function LegalDocumentPage({
+  slug,
+  version,
+  fallback,
+}: {
+  slug: string;
+  version?: string;
+  fallback?: LegalDocument;
+}) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['legal-document', slug, version ?? 'current'],
     queryFn: async () =>
@@ -68,6 +82,8 @@ export function LegalDocumentPage({ slug, version }: { slug: string; version?: s
     staleTime: 5 * 60_000,
     retry: 1,
   });
+
+  if (isError && fallback && !version) return <LegalDocumentView document={fallback} />;
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -81,7 +97,7 @@ export function LegalDocumentPage({ slug, version }: { slug: string; version?: s
         ) : isError || !data ? (
           <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
             <h1 className="text-lg font-semibold text-gray-900">This document isn’t available right now</h1>
-            <p className="text-sm text-gray-500 mt-2">Please try again in a moment, or contact legal@upllyft.com.</p>
+            <p className="text-sm text-gray-500 mt-2">Please try again in a moment, or contact support@upllyft.com.</p>
           </div>
         ) : (
           <>
