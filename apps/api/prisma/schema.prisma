@@ -6011,3 +6011,38 @@ model LegalAcceptance {
   @@index([userId, documentType])
   @@map("legal_acceptances")
 }
+
+/// Every version of every legal document, edited by platform admins at /admin/legal.
+/// A PUBLISHED row is never edited again — a change publishes a NEW row — so the exact
+/// text any user accepted can always be produced. Seeded from src/legal/legal-seed.ts.
+model LegalDocumentVersion {
+  id                String    @id @default(cuid())
+  /// TERMS | PRIVACY | CLINIC_AGREEMENT | THERAPIST_AGREEMENT (src/legal/legal-documents.ts)
+  type              String
+  /// GLOBAL | IN | AE
+  edition           String    @default("GLOBAL")
+  /// "2026-10-16", or "2026-10-16.2" for a second publish on one day. Set when published.
+  version           String?
+  /// DRAFT | PUBLISHED | SUPERSEDED
+  status            String    @default("DRAFT")
+  title             String
+  /// Markdown.
+  content           String
+  /// sha256 of the content, recorded with each acceptance.
+  contentHash       String
+  /// Short note for the history list, e.g. "Named Mindssparc as operator".
+  changeSummary     String?
+  /// The version users must have accepted to count as current. A publish that asks
+  /// everyone to accept again sets this to its own version; a wording fix keeps the
+  /// previous one, so nobody is prompted.
+  acceptanceVersion String?
+  createdById       String?
+  publishedById     String?
+  publishedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([type, edition, version])
+  @@index([type, edition, status])
+  @@map("legal_document_versions")
+}
