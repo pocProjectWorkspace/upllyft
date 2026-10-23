@@ -37,7 +37,7 @@ All six product frontends now live inside `apps/web-main`:
 | cases | `/cases` | `src/cases/...` |
 | clinic admin | `/clinic` (not `/admin`, which is the platform console) | `src/clinic/...` |
 
-- The former standalone apps (`apps/web-community`, `web-screening`, `web-booking`, `web-resources`, `web-cases`, `web-admin`) were retired in the cutover. If any of those directories still exist, they are dead code: do not edit them. Routes live under `src/app/<prefix>/`, imports use `@/<prefix>/...`, each section has its own nested `layout.tsx`, and per-page `*Shell` wrappers remain as client auth guards.
+- The former standalone apps (`apps/web-community`, `web-screening`, `web-booking`, `web-resources`, `web-cases`, `web-admin`) were retired in the cutover. Their directories are still tracked and are still pnpm workspace members (`apps/*`), so `pnpm dev`, `pnpm build` and the CI `pnpm type-check` gate all still run them. Do not build features in them. If a change to a shared package breaks one of them, fix the compile error or delete the directory; don't leave CI red. Routes live under `src/app/<prefix>/`, imports use `@/<prefix>/...`, each section has its own nested `layout.tsx`, and per-page `*Shell` wrappers remain as client auth guards.
 - `src/components/app-frame.tsx` maps prefixes to `currentApp` for the shared header.
 - `APP_URLS.<app>` in `packages/api-client/src/nav-config.ts` is always `${NEXT_PUBLIC_APP_MAIN_URL}<prefix>`. There are no per-app URL variables or merge flags any more. The API's Mira links use the same prefixes off `FRONTEND_URL`.
 - `next.config.ts` 308-redirects the retired `*.safehaven-upllyft.com` hosts to the matching hub prefix once those domains are attached to the web-main Vercel project.
@@ -49,7 +49,7 @@ All six product frontends now live inside `apps/web-main`:
 
 ```bash
 pnpm install
-pnpm dev                    # every app in parallel (heavy); prefer filters below
+pnpm dev                    # every app in parallel, retired web-* included (heavy); prefer filters below
 pnpm build | lint | type-check | clean
 
 # API + hub (the usual pair)
@@ -58,6 +58,8 @@ pnpm --filter @upllyft/api dev          # nest start --watch
 pnpm --filter @upllyft/web-main dev     # next dev --port 3000
 cd apps/mobile && pnpm start            # expo
 ```
+
+Only `apps/api` has a test runner. web-main, mobile and the packages have no tests, so for them `type-check` is the check.
 
 ### API
 
