@@ -35,8 +35,8 @@ describe('LegalDocumentsService', () => {
     await service.onModuleInit();
     await service.onModuleInit();
     expect(rows.map((r) => `${r.type}:${r.status}:${r.version}`)).toEqual([
-      'TERMS:PUBLISHED:2026-10-18',
-      'PRIVACY:PUBLISHED:2026-10-18',
+      'TERMS:PUBLISHED:2026-10-19',
+      'PRIVACY:PUBLISHED:2026-10-19',
     ]);
     expect(rows[0].content).toContain('MindsSparc Private Limited');
   });
@@ -50,8 +50,8 @@ describe('LegalDocumentsService', () => {
     const pub = await service.publish('super', draft.id, { requireAcceptance: false, changeSummary: 'Typo' });
 
     expect(pub.status).toBe('PUBLISHED');
-    expect(pub.version).not.toBe('2026-10-18');
-    expect(pub.acceptanceVersion).toBe('2026-10-18');
+    expect(pub.version).not.toBe('2026-10-19');
+    expect(pub.acceptanceVersion).toBe('2026-10-19');
     expect(rows[0].status).toBe('SUPERSEDED'); // the old text stays, unchanged
     expect(rows[0].content).not.toContain('Fixed a typo.');
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'LEGAL_PUBLISHED' }));
