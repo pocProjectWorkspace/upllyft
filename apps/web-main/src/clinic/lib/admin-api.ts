@@ -147,6 +147,17 @@ export interface TherapistOption {
   avatar: string | null;
   specializations: string[];
   title: string | null;
+  /** False while the licence is unverified or expired; the API refuses them. */
+  assignable: boolean;
+  unassignableReason: string | null;
+}
+
+/** What POST /admin/patients/:childId/assign reports back. */
+export interface AssignTherapistResult {
+  caseId: string;
+  caseNumber?: string;
+  action: 'case_created' | 'therapist_added';
+  warning?: 'added_to_existing_case' | 'therapist_already_assigned';
 }
 
 export interface ListPatientsParams {
@@ -182,7 +193,7 @@ export async function assignTherapist(
   childId: string,
   therapistId: string,
   opts?: { diagnosis?: string; notes?: string },
-): Promise<any> {
+): Promise<AssignTherapistResult> {
   const { data } = await apiClient.post(`/admin/patients/${childId}/assign`, {
     therapistId,
     ...opts,

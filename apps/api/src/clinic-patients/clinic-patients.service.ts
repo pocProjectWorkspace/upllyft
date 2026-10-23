@@ -13,7 +13,7 @@ import {
   attachChildToFacility,
   therapistInFacility,
 } from '../common/child-scope';
-import { assertTherapistAssignable } from '../common/credentials';
+import { assertTherapistAssignable, therapistAssignability } from '../common/credentials';
 import { assertChildAccess } from '../common/consent';
 import { resolveParentContact } from '../common/parent-contact';
 import { ClaimsService, type GuardianDetails } from '../child-claims/claims.service';
@@ -772,14 +772,21 @@ export class ClinicPatientsService {
       orderBy: { user: { name: 'asc' } },
     });
 
-    return profiles.map((p) => ({
-      id: p.user.id,
-      profileId: p.id,
-      name: p.user.name,
-      email: p.user.email,
-      avatar: p.user.image,
-      specializations: p.specializations,
-      userSpecialization: p.user.specialization,
-    }));
+    // Unverified therapists stay in the list (the clinic needs to see who to verify),
+    // but flagged, so the assign modal can refuse them before the API does.
+    return profiles.map((p) => {
+      const { assignable, reason } = therapistAssignability(p);
+      return {
+        id: p.user.id,
+        profileId: p.id,
+        name: p.user.name,
+        email: p.user.email,
+        avatar: p.user.image,
+        specializations: p.specializations,
+        userSpecialization: p.user.specialization,
+        assignable,
+        unassignableReason: reason,
+      };
+    });
   }
 }
