@@ -14,6 +14,7 @@ import {
   useTherapistRatingStats,
 } from '@/booking/hooks/use-marketplace';
 import { formatCurrency } from '@/booking/lib/utils';
+import { DEPARTMENTS, type DepartmentKey } from '@upllyft/types';
 import {
   Card,
   Badge,
@@ -180,6 +181,20 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
     : null;
   const lowestPrice = lowestPricing?.price ?? null;
 
+  // Directory listings come from an upload with few fields; show only what is there.
+  const directory = therapist?.directoryOnly === true;
+  const hasRatings = (therapist?.totalRatings ?? 0) > 0;
+  const showSessions = !directory && (therapist?.totalSessions ?? 0) > 0;
+  const years = therapist?.yearsExperience ?? 0;
+  const languages = therapist?.languages ?? [];
+  // A specialisation that only repeats the title or department adds nothing.
+  const repeated = [therapist?.title, therapist?.department ? DEPARTMENTS[therapist.department as DepartmentKey]?.label : null]
+    .filter((s): s is string => !!s)
+    .map((s) => s.trim().toLowerCase());
+  const specializations = (therapist?.specializations ?? []).filter(
+    (spec) => !repeated.includes(spec.trim().toLowerCase()),
+  );
+
   return (
     <BookingShell>
       <div className="space-y-6">
@@ -214,36 +229,49 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
           <>
             {/* Hero Section */}
             <Card className="rounded-2xl overflow-hidden">
-              <div className="bg-gradient-to-r from-teal-500 to-teal-600 h-32" />
-              <div className="p-6 -mt-16">
-                <div className="flex flex-col sm:flex-row items-start gap-6">
-                  <Avatar src={avatarUrl || undefined} name={name} size="xl" className="w-24 h-24 border-4 border-white shadow-lg" />
-                  <div className="flex-1">
-                    <h1 className="text-2xl font-bold text-gray-900">{name}</h1>
-                    <p className="text-gray-600 mt-0.5">{therapist.title}</p>
-                    <div className="flex items-center gap-1 mt-2">
-                      <RatingStars rating={therapist.overallRating} size="lg" />
-                      <span className="ml-1 text-lg font-semibold text-gray-800">
-                        {therapist.overallRating.toFixed(1)}
-                      </span>
-                      <span className="text-sm text-gray-500 ml-1">
-                        ({therapist.totalRatings} review{therapist.totalRatings !== 1 ? 's' : ''})
-                      </span>
+              <div className="bg-gradient-to-r from-teal-500 to-teal-600 h-24" />
+              <div className="px-6 pb-6">
+                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+                  <Avatar src={avatarUrl || undefined} name={name} size="xl" className="-mt-12 w-24 h-24 shrink-0 border-4 border-white shadow-lg" />
+                  <div className="flex-1 min-w-0 sm:pt-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h1 className="text-2xl font-bold text-gray-900">{name}</h1>
+                      {directory && <DirectoryBadge />}
                     </div>
-                    <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600">
-                      <span className="flex items-center gap-1.5">
-                        <UsersIcon className="w-4 h-4 text-teal-500" />
-                        {therapist.totalSessions} sessions
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <BriefcaseIcon className="w-4 h-4 text-teal-500" />
-                        {therapist.yearsExperience} years experience
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <GlobeIcon className="w-4 h-4 text-teal-500" />
-                        {therapist.languages.join(', ')}
-                      </span>
-                    </div>
+                    {therapist.title && <p className="text-gray-600 mt-0.5">{therapist.title}</p>}
+                    {hasRatings && (
+                      <div className="flex items-center gap-1 mt-2">
+                        <RatingStars rating={therapist.overallRating} size="lg" />
+                        <span className="ml-1 text-lg font-semibold text-gray-800">
+                          {therapist.overallRating.toFixed(1)}
+                        </span>
+                        <span className="text-sm text-gray-500 ml-1">
+                          ({therapist.totalRatings} review{therapist.totalRatings !== 1 ? 's' : ''})
+                        </span>
+                      </div>
+                    )}
+                    {(showSessions || years > 0 || languages.length > 0) && (
+                      <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600">
+                        {showSessions && (
+                          <span className="flex items-center gap-1.5">
+                            <UsersIcon className="w-4 h-4 text-teal-500" />
+                            {therapist.totalSessions} session{therapist.totalSessions !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {years > 0 && (
+                          <span className="flex items-center gap-1.5">
+                            <BriefcaseIcon className="w-4 h-4 text-teal-500" />
+                            {years} year{years !== 1 ? 's' : ''} experience
+                          </span>
+                        )}
+                        {languages.length > 0 && (
+                          <span className="flex items-center gap-1.5" title="Languages">
+                            <GlobeIcon className="w-4 h-4 text-teal-500" />
+                            {languages.join(', ')}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -253,60 +281,65 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left column */}
               <div className="lg:col-span-2 space-y-6">
-                {/* About */}
+                {/* About, specialisations and credentials share one card so a sparse
+                    profile doesn't become a column of near-empty boxes. */}
                 <Card className="rounded-2xl">
-                  <div className="p-6 pb-0">
-                    <h3 className="text-lg font-semibold">About</h3>
-                  </div>
-                  <div className="p-6">
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                      {therapist.bio || 'No bio provided.'}
-                    </p>
-                  </div>
-                </Card>
+                  <div className="p-6 space-y-6">
+                    <section>
+                      <h3 className="text-lg font-semibold">About</h3>
+                      <p className="mt-3 text-gray-700 leading-relaxed whitespace-pre-line">
+                        {therapist.bio || `${name} hasn't added a bio yet.`}
+                      </p>
+                    </section>
 
-                {/* Specializations */}
-                <Card className="rounded-2xl">
-                  <div className="p-6 pb-0">
-                    <h3 className="text-lg font-semibold">Specializations</h3>
-                  </div>
-                  <div className="p-6">
-                    <div className="flex flex-wrap gap-2">
-                      {therapist.specializations.map((spec) => (
-                        <Badge key={spec} color="blue">
-                          {spec}
-                        </Badge>
-                      ))}
-                      {therapist.specializations.length === 0 && (
-                        <p className="text-sm text-gray-500">No specializations listed.</p>
+                    {specializations.length > 0 && (
+                      <section>
+                        <h3 className="text-base font-semibold">Specializations</h3>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {specializations.map((spec) => (
+                            <Badge key={spec} color="blue">
+                              {spec}
+                            </Badge>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    <section>
+                      <h3 className="flex items-center gap-2 text-base font-semibold">
+                        <ShieldCheckIcon className="w-5 h-5 text-teal-500" />
+                        Credentials
+                      </h3>
+                      {therapist.credentials.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {therapist.credentials.map((cred) => (
+                            <Badge key={cred} color="green">
+                              {cred}
+                            </Badge>
+                          ))}
+                        </div>
                       )}
-                    </div>
+                      <p className="mt-3 text-sm text-gray-500">
+                        {therapist.verified
+                          ? 'Licence checked by their clinic or by Upllyft.'
+                          : directory
+                            ? 'Listed from a directory. Upllyft has not verified this therapist’s licence or credentials.'
+                            : 'Upllyft has not verified this therapist’s licence yet.'}
+                        {directory && (
+                          <>
+                            {' '}
+                            <Link href={helpHref('directory-listing')} className="text-teal-700 hover:underline">
+                              What&apos;s a directory listing?
+                            </Link>
+                          </>
+                        )}
+                      </p>
+                    </section>
                   </div>
                 </Card>
 
-                {/* Credentials */}
-                <Card className="rounded-2xl">
-                  <div className="p-6 pb-0">
-                    <h3 className="flex items-center gap-2 text-lg font-semibold">
-                      <ShieldCheckIcon className="w-5 h-5 text-teal-500" />
-                      Credentials
-                    </h3>
-                  </div>
-                  <div className="p-6">
-                    <div className="flex flex-wrap gap-2">
-                      {therapist.credentials.map((cred) => (
-                        <Badge key={cred} color="green">
-                          {cred}
-                        </Badge>
-                      ))}
-                      {therapist.credentials.length === 0 && (
-                        <p className="text-sm text-gray-500">No credentials listed.</p>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-
-                {/* Reviews */}
+                {/* Reviews come from Upllyft sessions, so a directory listing never has any. */}
+                {!directory && (
                 <Card className="rounded-2xl">
                   <div className="p-6 pb-0">
                     <h3 className="text-lg font-semibold">
@@ -400,6 +433,7 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                     )}
                   </div>
                 </Card>
+                )}
               </div>
 
               {/* Sidebar */}
@@ -407,7 +441,7 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                 <div className="sticky top-24">
                   <Card className="rounded-2xl">
                     <div className="p-6 pb-0">
-                      <h3 className="text-lg font-semibold">Book a Session</h3>
+                      <h3 className="text-lg font-semibold">{directory ? 'Contact' : 'Book a Session'}</h3>
                     </div>
                     <div className="p-6 space-y-4">
                       {/* Pricing */}
@@ -439,7 +473,7 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
                             {formatCurrency(lowestPrice, lowestPricing?.currency)}
                           </p>
                         </div>
-                      ) : (
+                      ) : directory ? null : (
                         <p className="text-sm text-gray-500 text-center">
                           Contact for pricing information
                         </p>
@@ -447,7 +481,6 @@ export default function TherapistProfilePage({ params }: { params: Promise<{ id:
 
                       {therapist.directoryOnly ? (
                         <>
-                          <DirectoryBadge />
                           <DirectoryDetails therapist={therapist} />
                           <ShowContact therapistId={therapist.id} />
                           <p className="text-xs text-center text-gray-500">

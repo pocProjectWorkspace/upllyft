@@ -60,8 +60,12 @@ export function ShowContact({ therapistId, className = '' }: { therapistId: stri
 
   if (!canSee) {
     return (
-      <p className={`rounded-[10px] border border-gray-200 bg-gray-50 px-3 py-2.5 text-center text-xs text-gray-500 ${className}`}>
-        Contact details are shown to parents
+      // Information, not a control: no border or button shape.
+      <p className={`flex items-start gap-1.5 text-xs text-gray-500 ${className}`}>
+        <svg className="mt-px h-3.5 w-3.5 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>Phone and email are shown to parents signed in to Upllyft.</span>
       </p>
     );
   }
