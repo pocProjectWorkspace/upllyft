@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
-import { LegalController } from './legal.controller';
+import { AdminLegalController, LegalController } from './legal.controller';
 import { LegalAcceptanceService } from './legal-acceptance.service';
+import { LegalDocumentsService } from './legal-documents.service';
 
 @Module({
-  controllers: [LegalController],
-  providers: [LegalAcceptanceService],
-  exports: [LegalAcceptanceService],
+  controllers: [LegalController, AdminLegalController],
+  providers: [LegalAcceptanceService, LegalDocumentsService],
+  exports: [LegalAcceptanceService, LegalDocumentsService],
 })
 export class LegalModule {}

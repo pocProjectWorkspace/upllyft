@@ -1,6 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { LEGAL_DOCUMENTS, LegalDocument, LegalDocumentType, statementHash } from './legal-documents';
+import {
+  AGE_18_PLUS_VERSION,
+  LegalDocument,
+  LegalDocumentType,
+  MANAGED_DOCUMENTS,
+  STATEMENTS,
+  statementHash,
+} from './legal-documents';
+import { LegalDocumentsService } from './legal-documents.service';
 
 export type AcceptanceSource = 'REGISTER' | 'GATE';
 
@@ -10,42 +18,60 @@ export interface AcceptanceContext {
   userAgent?: string | null;
 }
 
-/** The public description of a document; what the sign-up form and the gate render. */
-export function publicDocument(doc: LegalDocument) {
-  return {
-    type: doc.type,
-    version: doc.version,
-    edition: doc.edition,
-    title: doc.title,
-    statement: doc.statement,
-    url: doc.url,
-  };
-}
-
 /**
  * Records acceptance of the platform's legal documents (Legal Pack: "Registration
  * acceptance" table). Rows are append-only: a new version adds a row, nothing is
  * updated or removed.
+ *
+ * The version a user accepts is the document's ACCEPTANCE version, which an admin moves
+ * forward only when publishing a change that everyone must accept again (/admin/legal).
  */
 @Injectable()
 export class LegalAcceptanceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly documents: LegalDocumentsService,
+  ) {}
 
-  currentDocuments() {
-    return LEGAL_DOCUMENTS.map(publicDocument);
+  /** Terms and Privacy at their current acceptance versions, plus the 18+ confirmation. */
+  async currentDocuments(): Promise<LegalDocument[]> {
+    const out: LegalDocument[] = [];
+    for (const def of MANAGED_DOCUMENTS.filter((d) => d.requiredForAll)) {
+      const doc = await this.documents.current(def.type);
+      if (!doc) continue;
+      out.push({
+        type: def.type as LegalDocumentType,
+        version: doc.acceptanceVersion,
+        edition: doc.edition,
+        title: doc.title,
+        statement: STATEMENTS[def.type as LegalDocumentType],
+        url: def.url,
+        lastUpdated: doc.publishedAt?.toISOString() ?? null,
+      });
+    }
+    out.push({
+      type: 'AGE_18_PLUS',
+      version: AGE_18_PLUS_VERSION,
+      edition: 'GLOBAL',
+      title: 'Age confirmation',
+      statement: STATEMENTS.AGE_18_PLUS,
+      url: null,
+    });
+    return out;
   }
 
   /** Current documents this user has not accepted at their current version. */
   async pending(userId: string) {
+    const docs = await this.currentDocuments();
     const rows = await this.prisma.legalAcceptance.findMany({
       where: {
         userId,
-        OR: LEGAL_DOCUMENTS.map((d) => ({ documentType: d.type, version: d.version, edition: d.edition })),
+        OR: docs.map((d) => ({ documentType: d.type, version: d.version, edition: d.edition })),
       },
       select: { documentType: true },
     });
     const accepted = new Set(rows.map((r) => r.documentType));
-    return LEGAL_DOCUMENTS.filter((d) => !accepted.has(d.type)).map(publicDocument);
+    return docs.filter((d) => !accepted.has(d.type));
   }
 
   /**
@@ -60,8 +86,9 @@ export class LegalAcceptanceService {
     if (!Array.isArray(items) || items.length === 0) {
       throw new BadRequestException('Nothing to accept.');
     }
+    const current = await this.currentDocuments();
     const docs = items.map((item) => {
-      const doc = LEGAL_DOCUMENTS.find((d) => d.type === item?.type);
+      const doc = current.find((d) => d.type === item?.type);
       if (!doc) throw new BadRequestException(`Unknown document: ${String(item?.type)}`);
       if (doc.version !== item.version) {
         throw new BadRequestException(`${doc.title} has been updated. Reload the page and review the current version.`);
@@ -94,10 +121,10 @@ export class LegalAcceptanceService {
     accepted: Partial<Record<LegalDocumentType, string | undefined>>,
     ctx: Omit<AcceptanceContext, 'source'>,
   ) {
-    const items = LEGAL_DOCUMENTS.filter((d) => accepted[d.type] === d.version).map((d) => ({
-      type: d.type,
-      version: d.version,
-    }));
+    const current = await this.currentDocuments();
+    const items = current
+      .filter((d) => accepted[d.type] === d.version)
+      .map((d) => ({ type: d.type, version: d.version }));
     if (!items.length) return;
     await this.accept(userId, items, { ...ctx, source: 'REGISTER' });
   }

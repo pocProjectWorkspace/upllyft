@@ -1,17 +1,31 @@
 import { BadRequestException } from '@nestjs/common';
 import { LegalAcceptanceService } from './legal-acceptance.service';
-import { LEGAL_DOCUMENTS, statementHash } from './legal-documents';
+import { STATEMENTS, statementHash } from './legal-documents';
 
-const doc = (type: string) => LEGAL_DOCUMENTS.find((d) => d.type === type)!;
+/** Terms / Privacy as LegalDocumentsService would publish them. */
+function published(type: 'TERMS' | 'PRIVACY', acceptanceVersion = '2026-10-16') {
+  return {
+    type,
+    edition: 'GLOBAL',
+    title: type === 'TERMS' ? 'Terms of Service' : 'Privacy Policy',
+    version: '2026-10-20',
+    acceptanceVersion,
+    content: '...',
+    contentHash: 'h',
+    publishedAt: new Date('2026-10-20T00:00:00Z'),
+    url: type === 'TERMS' ? '/terms-of-service' : '/privacy-policy',
+  };
+}
 
-function setup() {
+function setup(acceptanceVersion = '2026-10-16') {
   const prisma: any = {
     legalAcceptance: {
       findMany: jest.fn().mockResolvedValue([]),
       createMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
   };
-  return { service: new LegalAcceptanceService(prisma), prisma };
+  const documents: any = { current: jest.fn(async (type: 'TERMS' | 'PRIVACY') => published(type, acceptanceVersion)) };
+  return { service: new LegalAcceptanceService(prisma, documents), prisma, documents };
 }
 
 describe('LegalAcceptanceService', () => {
@@ -21,30 +35,37 @@ describe('LegalAcceptanceService', () => {
     expect(pending.map((d) => d.type)).toEqual(['TERMS', 'PRIVACY', 'AGE_18_PLUS']);
   });
 
+  it('asks for the ACCEPTANCE version, so a wording fix does not prompt anyone', async () => {
+    const { service } = setup('2026-10-16');
+    const docs = await service.currentDocuments();
+    // Published 2026-10-20 as a wording fix: users still accept 2026-10-16.
+    expect(docs.find((d) => d.type === 'TERMS')).toMatchObject({ version: '2026-10-16', lastUpdated: '2026-10-20T00:00:00.000Z' });
+  });
+
   it('only counts acceptances of the current version', async () => {
     const { service, prisma } = setup();
     prisma.legalAcceptance.findMany.mockResolvedValue([{ documentType: 'TERMS' }]);
     const pending = await service.pending('u1');
     expect(pending.map((d) => d.type)).toEqual(['PRIVACY', 'AGE_18_PLUS']);
-    // The query itself is pinned to current versions, so an old acceptance never matches.
     const where = prisma.legalAcceptance.findMany.mock.calls[0][0].where;
-    expect(where.OR).toContainEqual({ documentType: 'TERMS', version: doc('TERMS').version, edition: 'GLOBAL' });
+    expect(where.OR).toContainEqual({ documentType: 'TERMS', version: '2026-10-16', edition: 'GLOBAL' });
   });
 
   it('records each accepted document with the hash of its exact wording', async () => {
     const { service, prisma } = setup();
-    await service.accept('u1', [{ type: 'TERMS', version: doc('TERMS').version }], {
+    await service.accept('u1', [{ type: 'TERMS', version: '2026-10-16' }], {
       source: 'GATE',
       ipAddress: '1.2.3.4',
       userAgent: 'jest',
     });
+    const expected = statementHash({ type: 'TERMS', edition: 'GLOBAL', version: '2026-10-16', statement: STATEMENTS.TERMS });
     expect(prisma.legalAcceptance.createMany).toHaveBeenCalledWith({
       data: [
         expect.objectContaining({
           userId: 'u1',
           documentType: 'TERMS',
-          version: doc('TERMS').version,
-          statementHash: statementHash(doc('TERMS')),
+          version: '2026-10-16',
+          statementHash: expected,
           source: 'GATE',
           ipAddress: '1.2.3.4',
         }),
@@ -65,7 +86,7 @@ describe('LegalAcceptanceService', () => {
 
   it('at sign-up records only the ticked boxes with current versions, and never throws for missing ones', async () => {
     const { service, prisma } = setup();
-    await service.recordAtRegistration('u1', { TERMS: doc('TERMS').version, PRIVACY: 'old', AGE_18_PLUS: undefined }, {});
+    await service.recordAtRegistration('u1', { TERMS: '2026-10-16', PRIVACY: 'old', AGE_18_PLUS: undefined }, {});
     const rows = prisma.legalAcceptance.createMany.mock.calls[0][0].data;
     expect(rows.map((r: any) => r.documentType)).toEqual(['TERMS']);
     expect(rows[0].source).toBe('REGISTER');
@@ -76,7 +97,7 @@ describe('LegalAcceptanceService', () => {
   });
 
   it('changing the wording changes the hash', () => {
-    const terms = doc('TERMS');
-    expect(statementHash({ ...terms, statement: `${terms.statement} ` })).not.toBe(statementHash(terms));
+    const base = { type: 'TERMS' as const, edition: 'GLOBAL', version: '2026-10-16', statement: STATEMENTS.TERMS };
+    expect(statementHash({ ...base, statement: `${base.statement} ` })).not.toBe(statementHash(base));
   });
 });
