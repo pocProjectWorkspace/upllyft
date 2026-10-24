@@ -20,15 +20,30 @@ export interface AssignableProfile {
   licenceExpiry: Date | null;
 }
 
-export function assertTherapistAssignable(profile: AssignableProfile): void {
+/**
+ * The same rule as a value, for lists that must show who can be picked (the assign
+ * modal) rather than fail after the pick. The reason is the gate's own message.
+ */
+export function therapistAssignability(profile: AssignableProfile): {
+  assignable: boolean;
+  reason: string | null;
+} {
   if (profile.credentialStatus !== CredentialStatus.VERIFIED) {
-    throw new ForbiddenException(
-      'Therapist licence is not verified — they cannot be assigned to a case.',
-    );
+    return {
+      assignable: false,
+      reason: 'Therapist licence is not verified — they cannot be assigned to a case.',
+    };
   }
   if (profile.licenceExpiry && profile.licenceExpiry.getTime() < Date.now()) {
-    throw new ForbiddenException(
-      'Therapist licence has expired — they cannot be assigned to a case.',
-    );
+    return {
+      assignable: false,
+      reason: 'Therapist licence has expired — they cannot be assigned to a case.',
+    };
   }
+  return { assignable: true, reason: null };
+}
+
+export function assertTherapistAssignable(profile: AssignableProfile): void {
+  const { assignable, reason } = therapistAssignability(profile);
+  if (!assignable) throw new ForbiddenException(reason);
 }
